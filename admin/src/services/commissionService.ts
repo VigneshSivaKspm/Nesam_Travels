@@ -1,6 +1,6 @@
 import { doc, onSnapshot } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "./firebase";
+import { callBackend } from "./backend";
+import { db } from "./firebase";
 import { describeDataError } from "./adminFirestoreService";
 import { toDate } from "./paymentService";
 
@@ -120,8 +120,8 @@ function describeCallError(err: unknown, fallback: string): string {
 
 export async function saveCommissionPolicy(policy: NonNullable<ReturnType<typeof validateCommissionForm>["policy"]>, expectedVersion: number): Promise<number> {
   try {
-    const res = await httpsCallable<unknown, { version: number }>(functions, "saveCommissionPolicy")({ ...policy, expectedVersion });
-    return res.data.version;
+    const res = await callBackend<unknown, { version: number }>("saveCommissionPolicy", { ...policy, expectedVersion });
+    return res.version;
   } catch (err) {
     throw new CommissionActionError(describeCallError(err, "The commission policy could not be saved. Check your connection and try again."));
   }
@@ -139,8 +139,7 @@ export interface LedgerRebuildReport {
 /** Super admin: backfills finance snapshots and ledger entries for older records. Dry run changes nothing. */
 export async function rebuildPartnerLedger(dryRun: boolean): Promise<LedgerRebuildReport> {
   try {
-    const res = await httpsCallable<unknown, LedgerRebuildReport>(functions, "rebuildPartnerLedger", { timeout: 540000 })({ dryRun });
-    return res.data;
+    return await callBackend<unknown, LedgerRebuildReport>("rebuildPartnerLedger", { dryRun }, 540000);
   } catch (err) {
     throw new CommissionActionError(describeCallError(err, "The ledger check could not be completed. Try again."));
   }

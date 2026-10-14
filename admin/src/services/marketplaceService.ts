@@ -1,5 +1,5 @@
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from './firebase';
+import { db } from './firebase';
+import { callBackend } from './backend';
 import { createMarketplaceService } from './marketplaceOperations';
 
 export const { rejectBid } = createMarketplaceService(db);
@@ -7,7 +7,7 @@ export const { rejectBid } = createMarketplaceService(db);
 /** Callable errors carry the server's user-safe message. */
 async function call(name: string, data: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
-    return (await httpsCallable(functions, name)(data)).data as Record<string, unknown>;
+    return (await callBackend<Record<string, unknown>, Record<string, unknown>>(name, data)) ?? {};
   } catch (err) {
     const code = (err as { code?: string }).code || '';
     const message = (err as { message?: string }).message || '';

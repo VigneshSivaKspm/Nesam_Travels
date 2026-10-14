@@ -7,6 +7,8 @@ import type { RootStackParamList } from '../navigation/types';
 import { useRideFocus } from '../navigation/MainNavigator';
 import { useCustomerData } from '../context/CustomerData';
 import { Avatar, Badge, Button, Card, FullScreenLoader, Notice, Screen } from '../components/ui';
+import { DesktopHeader } from '../components/DesktopHeader';
+import { DesktopRow } from '../components/layout';
 import { RideMap } from '../components/RideMap';
 import { CancelRideSheet } from '../components/CancelRideSheet';
 import { RatingCard } from '../components/RatingCard';
@@ -22,6 +24,7 @@ import { formatDateTime, formatDistance, formatDuration, formatINR, formatPhone,
 import { haversineKm, isValidLatLng } from '../utils/geo';
 import { describeError } from '../utils/retry';
 import { colors, radius, space, type } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'ActiveRide'>;
 
@@ -36,6 +39,7 @@ const PHASE_TITLE: Record<TripRecord['phase'], string> = {
 };
 
 export function ActiveRideScreen({ route, navigation }: Props) {
+  const { isDesktop, isCompact } = useResponsive();
   const { bookingId, unconfirmed } = route.params;
   const { profile } = useCustomerData();
   const { dismiss, undismiss } = useRideFocus();
@@ -161,199 +165,254 @@ export function ActiveRideScreen({ route, navigation }: Props) {
   const sharePoint: LatLng | null = phase === 'in_trip' && driverLoc ? driverLoc : position;
   const driverPhone = trip.driver ? localMobile(trip.driver.phone) : '';
 
+  const headerTitle = trip.status === 'Pending' ? 'Booking under review' : trip.status === 'Rejected' ? 'Booking not accepted' : PHASE_TITLE[phase];
+  const headerSubtitle = `Booking ${trip.bookingId}${pending ? ' · sending…' : ''}${!pending && fromCache && !online ? ' · offline' : ''}`;
+
   return (
     <Screen edges={[]}>
       <SafetySheet visible={showSafety} onClose={() => setShowSafety(false)} trip={trip} profile={profile} location={sharePoint} />
       {showCancel ? <CancelRideSheet trip={trip} onClose={() => setShowCancel(false)} /> : null}
 
-      <View style={styles.head}>
-        <View style={{ flex: 1 }}>
-          <Text style={type.h1}>{trip.status === 'Pending' ? 'Booking under review' : trip.status === 'Rejected' ? 'Booking not accepted' : PHASE_TITLE[phase]}</Text>
-          <Text style={type.small}>
-            Booking {trip.bookingId}
-            {pending ? ' · sending…' : ''}
-            {!pending && fromCache && !online ? ' · offline — showing last update' : ''}
-          </Text>
+      <DesktopHeader
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        badge={trip.categoryName}
+        onBack={() => navigation.goBack()}
+        actions={
+          tracking ? (
+            <Button small variant="danger" title="Safety · SOS" onPress={() => setShowSafety(true)} accessibilityLabel="Open safety centre" />
+          ) : undefined
+        }
+      />
+
+      {/* Mobile title banner */}
+      {isCompact ? (
+        <View style={styles.head}>
+          <View style={{ flex: 1 }}>
+            <Text style={type.h1}>{headerTitle}</Text>
+            <Text style={type.small}>{headerSubtitle}</Text>
+          </View>
+          {tracking ? <Button small variant="danger" title="SOS" onPress={() => setShowSafety(true)} accessibilityLabel="Open safety centre" /> : null}
         </View>
-        {tracking ? <Button small variant="danger" title="SOS" onPress={() => setShowSafety(true)} accessibilityLabel="Open safety centre" /> : null}
-      </View>
-
-      {phase !== 'completed' && phase !== 'cancelled' ? (
-        <RideMap
-          pickup={phase === 'in_trip' ? null : trip.pickup}
-          drop={trip.drop}
-          driver={driverLoc ? { ...driverLoc, label: trip.driver?.name, stale: !driverFresh } : null}
-          route={eta && !eta.estimated ? eta.path : null}
-          userLocation={phase === 'in_trip' ? null : position}
-        />
       ) : null}
 
-      {phase === 'searching' ? (
-        <Card>
-          <Text style={type.body}>
-            {trip.isScheduled && trip.scheduledAt
-              ? `Scheduled for ${formatDateTime(trip.scheduledAt)}. We’ll assign a driver before your pickup and update you here.`
-              : pending
-                ? 'Sending your request…'
-                : trip.status === 'Pending'
-                  ? 'NESAM is reviewing your booking. You’ll be notified as soon as it’s approved.'
-                  : 'Approved — contacting drivers near your pickup.'}
-          </Text>
-          {slow ? (
-            <Notice
-              tone="warning"
-              style={{ marginTop: space.md }}
-              message={`It’s taking longer than usual. We’ll keep looking for up to ${Math.round(SEARCH_GIVE_UP_AFTER_MS / 60000)} minutes — or you can cancel for free.`}
-            />
-          ) : null}
-          <Notice message={autoCancelError} />
-        </Card>
-      ) : null}
-
-      {phase === 'partner_confirmed' ? (
-        <Card>
-          <Text style={type.body}>
-            {trip.assignedVendorName ? <Text style={{ fontWeight: '800' }}>{trip.assignedVendorName}</Text> : 'Our partner'} accepted your ride and is
-            assigning a driver.
-          </Text>
-        </Card>
-      ) : null}
-
-      {trip.driver && tracking ? (
-        <Card>
-          {phase === 'driver_en_route' ? (
-            <View style={styles.etaRow}>
-              <Text style={styles.etaLabel}>ARRIVING IN</Text>
-              <Text style={styles.eta}>{minutesAway != null ? `${minutesAway} min` : '—'}</Text>
-            </View>
-          ) : null}
-          {phase === 'in_trip' ? (
-            <View style={styles.etaRow}>
-              <Text style={styles.etaLabel} numberOfLines={1}>
-                REACHING {trip.drop.name.toUpperCase()} IN
+      <DesktopRow gap={24} style={styles.contentRow}>
+        {/* Left Column: Trip Status, Driver Profile, OTP & Controls */}
+        <View style={[styles.mainCol, isDesktop && { flex: 1.2 }]}>
+          {/* Searching phase */}
+          {phase === 'searching' ? (
+            <Card>
+              <Text style={type.body}>
+                {trip.isScheduled && trip.scheduledAt
+                  ? `Scheduled for ${formatDateTime(trip.scheduledAt)}. We’ll assign a driver before your pickup and update you here.`
+                  : pending
+                    ? 'Sending your request…'
+                    : trip.status === 'Pending'
+                      ? 'NESAM is reviewing your booking. You’ll be notified as soon as it’s approved.'
+                      : 'Approved — contacting drivers near your pickup.'}
               </Text>
-              <Text style={styles.eta}>{minutesAway != null ? formatDuration(minutesAway) : '—'}</Text>
-            </View>
-          ) : null}
-          {driverLoc && !driverFresh ? <Text style={styles.stale}>Driver location last updated {timeAgo(driverLoc.updatedAt, now)}.</Text> : null}
-          {!driverLoc ? <Text style={type.small}>Live location appears once your driver’s app shares it.</Text> : null}
-
-          <View style={styles.driverRow}>
-            <Avatar name={trip.driver.name} photoUrl={trip.driver.photoUrl} size={52} />
-            <View style={{ flex: 1, minWidth: 120 }}>
-              <Text style={type.h3} numberOfLines={1}>
-                {trip.driver.name}
-              </Text>
-              <Text style={type.small}>
-                {trip.driver.rating != null ? `★ ${trip.driver.rating.toFixed(1)} · ` : ''}
-                {trip.driver.vehicleModel || trip.categoryName}
-              </Text>
-            </View>
-            {trip.driver.vehicleNumber ? <Text style={styles.plate}>{trip.driver.vehicleNumber}</Text> : null}
-          </View>
-
-          {phase === 'driver_en_route' || phase === 'driver_arrived' ? (
-            <View style={[styles.otpBox, phase === 'driver_arrived' && styles.otpBoxArrived]}>
-              <Text style={[type.small, { flex: 1 }]}>{phase === 'driver_arrived' ? 'Share this code to start your ride' : 'Start-of-ride code'}</Text>
-              <Text style={styles.otp} accessibilityLabel={`Ride code ${otp ? otp.split('').join(' ') : 'unavailable'}`}>
-                {otp ?? '····'}
-              </Text>
-            </View>
-          ) : null}
-          {phase === 'driver_arrived' ? (
-            <Text style={[type.small, { marginTop: space.sm }]}>Meet your driver at {trip.pickup.name}. Only share the code once you’re in the car.</Text>
-          ) : null}
-
-          <View style={styles.actions}>
-            {driverPhone ? (
-              <>
-                <Button small variant="dark" title="Call" onPress={() => void Linking.openURL(`tel:+91${driverPhone}`)} style={styles.action} />
-                <Button
-                  small
-                  variant="secondary"
-                  title="WhatsApp"
-                  onPress={() =>
-                    void Linking.openURL(`whatsapp://send?phone=91${driverPhone}`).catch(() => Linking.openURL(`https://wa.me/91${driverPhone}`))
-                  }
-                  style={styles.action}
+              {slow ? (
+                <Notice
+                  tone="warning"
+                  style={{ marginTop: space.md }}
+                  message={`It’s taking longer than usual. We’ll keep looking for up to ${Math.round(SEARCH_GIVE_UP_AFTER_MS / 60000)} minutes — or you can cancel for free.`}
                 />
-              </>
-            ) : (
-              <Badge label="No phone on file" />
-            )}
-            <Button small variant="secondary" title="Share trip" onPress={() => void shareTrip(trip, sharePoint)} style={styles.action} />
-          </View>
-          {driverPhone ? <Text style={[type.tiny, { marginTop: 4 }]}>Calls go to {formatPhone(driverPhone)}.</Text> : null}
-        </Card>
-      ) : null}
+              ) : null}
+              <Notice message={autoCancelError} />
+            </Card>
+          ) : null}
 
-      {phase !== 'completed' ? (
-        <Card>
-          <View style={styles.place}>
-            <View style={[styles.dot, { backgroundColor: colors.success }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.placeName}>{trip.pickup.name}</Text>
-              <Text style={type.small}>{trip.pickup.address}</Text>
+          {/* Partner confirmed phase */}
+          {phase === 'partner_confirmed' ? (
+            <Card>
+              <Text style={type.body}>
+                {trip.assignedVendorName ? <Text style={{ fontWeight: '800' }}>{trip.assignedVendorName}</Text> : 'Our partner'} accepted your ride and is
+                assigning a driver.
+              </Text>
+            </Card>
+          ) : null}
+
+          {/* Driver details & live tracking card */}
+          {trip.driver && tracking ? (
+            <Card>
+              {phase === 'driver_en_route' ? (
+                <View style={styles.etaRow}>
+                  <Text style={styles.etaLabel}>ARRIVING IN</Text>
+                  <Text style={styles.eta}>{minutesAway != null ? `${minutesAway} min` : '—'}</Text>
+                </View>
+              ) : null}
+              {phase === 'in_trip' ? (
+                <View style={styles.etaRow}>
+                  <Text style={styles.etaLabel} numberOfLines={1}>
+                    REACHING {trip.drop.name.toUpperCase()} IN
+                  </Text>
+                  <Text style={styles.eta}>{minutesAway != null ? formatDuration(minutesAway) : '—'}</Text>
+                </View>
+              ) : null}
+              {driverLoc && !driverFresh ? <Text style={styles.stale}>Driver location last updated {timeAgo(driverLoc.updatedAt, now)}.</Text> : null}
+              {!driverLoc ? <Text style={type.small}>Live location appears once your driver’s app shares it.</Text> : null}
+
+              <View style={styles.driverRow}>
+                <Avatar name={trip.driver.name} photoUrl={trip.driver.photoUrl} size={56} />
+                <View style={{ flex: 1, minWidth: 120 }}>
+                  <Text style={type.h3} numberOfLines={1}>
+                    {trip.driver.name}
+                  </Text>
+                  <Text style={type.small}>
+                    {trip.driver.rating != null ? `★ ${trip.driver.rating.toFixed(1)} · ` : ''}
+                    {trip.driver.vehicleModel || trip.categoryName}
+                  </Text>
+                </View>
+                {trip.driver.vehicleNumber ? <Text style={styles.plate}>{trip.driver.vehicleNumber}</Text> : null}
+              </View>
+
+              {phase === 'driver_en_route' || phase === 'driver_arrived' ? (
+                <View style={[styles.otpBox, phase === 'driver_arrived' && styles.otpBoxArrived]}>
+                  <Text style={[type.small, { flex: 1 }]}>{phase === 'driver_arrived' ? 'Share this code to start your ride' : 'Start-of-ride code'}</Text>
+                  <Text style={styles.otp} accessibilityLabel={`Ride code ${otp ? otp.split('').join(' ') : 'unavailable'}`}>
+                    {otp ?? '····'}
+                  </Text>
+                </View>
+              ) : null}
+              {phase === 'driver_arrived' ? (
+                <Text style={[type.small, { marginTop: space.sm }]}>Meet your driver at {trip.pickup.name}. Only share the code once you’re in the car.</Text>
+              ) : null}
+
+              <View style={styles.actions}>
+                {driverPhone ? (
+                  <>
+                    <Button small variant="dark" title="Call Driver" onPress={() => void Linking.openURL(`tel:+91${driverPhone}`)} style={styles.action} />
+                    <Button
+                      small
+                      variant="secondary"
+                      title="WhatsApp"
+                      onPress={() =>
+                        void Linking.openURL(`whatsapp://send?phone=91${driverPhone}`).catch(() => Linking.openURL(`https://wa.me/91${driverPhone}`))
+                      }
+                      style={styles.action}
+                    />
+                  </>
+                ) : (
+                  <Badge label="No phone on file" />
+                )}
+                <Button small variant="secondary" title="Share Trip" onPress={() => void shareTrip(trip, sharePoint)} style={styles.action} />
+              </View>
+              {driverPhone ? <Text style={[type.tiny, { marginTop: 4 }]}>Calls go to {formatPhone(driverPhone)}.</Text> : null}
+            </Card>
+          ) : null}
+
+          {/* Route details card */}
+          {phase !== 'completed' ? (
+            <Card>
+              <View style={styles.place}>
+                <View style={[styles.dot, { backgroundColor: colors.success }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.placeName}>{trip.pickup.name}</Text>
+                  <Text style={type.small}>{trip.pickup.address}</Text>
+                </View>
+              </View>
+              <View style={styles.place}>
+                <View style={[styles.dot, { backgroundColor: colors.primary, borderRadius: 2 }]} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.placeName}>{trip.drop.name}</Text>
+                  <Text style={type.small}>{trip.drop.address}</Text>
+                </View>
+              </View>
+              <View style={styles.summary}>
+                <Text style={[type.small, { flex: 1 }]}>
+                  {trip.categoryName} · {trip.tripType} · {trip.paymentMethod}
+                </Text>
+                <Text style={type.h3}>{formatINR(trip.fare)}</Text>
+              </View>
+              {trip.notes ? <Text style={[type.small, { marginTop: 4 }]}>Note: {trip.notes}</Text> : null}
+              {phase === 'driver_en_route' && straightKm != null ? <Text style={[type.tiny, { marginTop: 4 }]}>Driver is {formatDistance(straightKm)} from your pickup.</Text> : null}
+            </Card>
+          ) : null}
+
+          {/* Mobile inline map view */}
+          {isCompact && phase !== 'completed' && phase !== 'cancelled' ? (
+            <View style={{ marginBottom: space.md }}>
+              <RideMap
+                pickup={phase === 'in_trip' ? null : trip.pickup}
+                drop={trip.drop}
+                driver={driverLoc ? { ...driverLoc, label: trip.driver?.name, stale: !driverFresh } : null}
+                route={eta && !eta.estimated ? eta.path : null}
+                userLocation={phase === 'in_trip' ? null : position}
+              />
+            </View>
+          ) : null}
+
+          {tracking && isCompact ? <Button title="Safety centre · SOS" variant="secondary" onPress={() => setShowSafety(true)} style={{ marginTop: space.sm }} /> : null}
+          {canCancel ? <Button title="Cancel ride" variant="ghost" onPress={() => setShowCancel(true)} style={{ marginTop: space.sm }} /> : null}
+
+          {/* Completed phase */}
+          {phase === 'completed' ? (
+            <>
+              <Card style={styles.doneCard}>
+                <Text style={styles.doneTick}>✓</Text>
+                <Text style={[type.h3, { color: colors.success, textAlign: 'center' }]}>You’ve arrived at {trip.drop.name}</Text>
+                <Text style={[type.small, { textAlign: 'center' }]}>{formatDateTime(trip.completedAt)}</Text>
+              </Card>
+              <TripReceipt trip={trip} customerName={profile.name} />
+              <RatingCard trip={trip} profile={profile} />
+              <Button title="Book again" onPress={() => navigation.navigate('Tabs', { screen: 'Book' })} style={{ marginTop: space.md }} />
+              <Button title="Get help with this trip" variant="ghost" onPress={() => navigation.navigate('Support', { bookingId: trip.bookingId })} style={{ marginTop: space.xs }} />
+            </>
+          ) : null}
+
+          {/* Cancelled phase */}
+          {phase === 'cancelled' ? (
+            <>
+              <Card>
+                <Text style={type.body}>
+                  {trip.cancelledBy === 'customer' ? 'You cancelled this ride' : 'This ride was cancelled'}
+                  {trip.cancelReason ? ` — “${trip.cancelReason}”` : ''}.
+                </Text>
+                <Text style={[type.small, { marginTop: 4 }]}>
+                  {trip.cancellationFee > 0 ? `A cancellation fee of ${formatINR(trip.cancellationFee)} applies per our policy.` : 'No cancellation fee was charged.'}
+                </Text>
+              </Card>
+              <Button title="Book another ride" onPress={() => navigation.navigate('Tabs', { screen: 'Book' })} style={{ marginTop: space.md }} />
+            </>
+          ) : null}
+        </View>
+
+        {/* Right Column: Desktop Large Interactive Map */}
+        {isDesktop ? (
+          <View style={[styles.mapCol, { flex: 1.4 }]}>
+            <View style={styles.desktopMapWrapper}>
+              <RideMap
+                pickup={phase === 'in_trip' ? null : trip.pickup}
+                drop={trip.drop}
+                driver={driverLoc ? { ...driverLoc, label: trip.driver?.name, stale: !driverFresh } : null}
+                route={eta && !eta.estimated ? eta.path : null}
+                userLocation={phase === 'in_trip' ? null : position}
+              />
             </View>
           </View>
-          <View style={styles.place}>
-            <View style={[styles.dot, { backgroundColor: colors.primary, borderRadius: 2 }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.placeName}>{trip.drop.name}</Text>
-              <Text style={type.small}>{trip.drop.address}</Text>
-            </View>
-          </View>
-          <View style={styles.summary}>
-            <Text style={[type.small, { flex: 1 }]}>
-              {trip.categoryName} · {trip.tripType} · {trip.paymentMethod}
-            </Text>
-            <Text style={type.h3}>{formatINR(trip.fare)}</Text>
-          </View>
-          {trip.notes ? <Text style={type.small}>Note: {trip.notes}</Text> : null}
-          {phase === 'driver_en_route' && straightKm != null ? <Text style={type.tiny}>Driver is {formatDistance(straightKm)} from your pickup.</Text> : null}
-        </Card>
-      ) : null}
-
-      {tracking ? <Button title="Safety centre · SOS" variant="secondary" onPress={() => setShowSafety(true)} /> : null}
-      {canCancel ? <Button title="Cancel ride" variant="ghost" onPress={() => setShowCancel(true)} style={{ marginTop: space.sm }} /> : null}
-
-      {phase === 'completed' ? (
-        <>
-          <Card style={styles.doneCard}>
-            <Text style={styles.doneTick}>✓</Text>
-            <Text style={[type.h3, { color: colors.success, textAlign: 'center' }]}>You’ve arrived at {trip.drop.name}</Text>
-            <Text style={[type.small, { textAlign: 'center' }]}>{formatDateTime(trip.completedAt)}</Text>
-          </Card>
-          <TripReceipt trip={trip} customerName={profile.name} />
-          <RatingCard trip={trip} profile={profile} />
-          <Button title="Book again" onPress={() => navigation.navigate('Tabs', { screen: 'Book' })} />
-          <Button title="Get help with this trip" variant="ghost" onPress={() => navigation.navigate('Support', { bookingId: trip.bookingId })} />
-        </>
-      ) : null}
-
-      {phase === 'cancelled' ? (
-        <>
-          <Card>
-            <Text style={type.body}>
-              {trip.cancelledBy === 'customer' ? 'You cancelled this ride' : 'This ride was cancelled'}
-              {trip.cancelReason ? ` — “${trip.cancelReason}”` : ''}.
-            </Text>
-            <Text style={[type.small, { marginTop: 4 }]}>
-              {trip.cancellationFee > 0 ? `A cancellation fee of ${formatINR(trip.cancellationFee)} applies per our policy.` : 'No cancellation fee was charged.'}
-            </Text>
-          </Card>
-          <Button title="Book another ride" onPress={() => navigation.navigate('Tabs', { screen: 'Book' })} />
-        </>
-      ) : null}
+        ) : null}
+      </DesktopRow>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md },
+  contentRow: { alignItems: 'flex-start' },
+  mainCol: { width: '100%' },
+  mapCol: { width: '100%', minWidth: 360 },
+  desktopMapWrapper: {
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    minHeight: 520,
+    backgroundColor: '#F1F5F9',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.06)' as any,
+  },
   etaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm, columnGap: space.sm },
-  etaLabel: { fontSize: 11, fontWeight: '800', color: colors.muted, flexShrink: 1, flexGrow: 1, minWidth: 160 },
-  eta: { fontSize: 24, fontWeight: '900', color: colors.primary },
+  etaLabel: { fontSize: 12, fontWeight: '800', color: colors.muted, flexShrink: 1, flexGrow: 1, minWidth: 160 },
+  eta: { fontSize: 26, fontWeight: '900', color: colors.primary },
   stale: { fontSize: 12, color: colors.warning },
   driverRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.md, marginTop: space.md },
   plate: {
@@ -366,17 +425,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     backgroundColor: '#FEFCE8',
     color: colors.ink,
-    fontSize: 12,
+    fontSize: 13,
   },
   otpBox: { flexDirection: 'row', alignItems: 'center', borderRadius: radius.md, padding: space.md, marginTop: space.md, backgroundColor: colors.bg },
   otpBoxArrived: { backgroundColor: colors.successSoft, borderWidth: 1, borderColor: colors.successBorder },
-  otp: { fontSize: 28, fontWeight: '900', letterSpacing: 8, color: colors.ink },
+  otp: { fontSize: 32, fontWeight: '900', letterSpacing: 8, color: colors.ink },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginTop: space.md },
   action: { flexGrow: 1 },
   place: { flexDirection: 'row', gap: space.md, marginBottom: space.sm },
-  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 5 },
-  placeName: { fontSize: 14, fontWeight: '800', color: colors.ink },
+  dot: { width: 12, height: 12, borderRadius: 6, marginTop: 5 },
+  placeName: { fontSize: 15, fontWeight: '800', color: colors.ink },
   summary: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space.sm, marginTop: space.xs },
   doneCard: { alignItems: 'center', backgroundColor: colors.successSoft, borderColor: colors.successBorder },
-  doneTick: { fontSize: 32, color: colors.success },
+  doneTick: { fontSize: 36, color: colors.success },
 });

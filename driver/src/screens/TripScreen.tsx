@@ -6,7 +6,8 @@
 // before leaving or at the pickup).
 import React, { useRef, useState } from 'react';
 import { Image, Linking, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ScrollView, Content } from '../components/layout';
+import { Content, DesktopCol, DesktopRow, ScrollView } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
@@ -170,31 +171,36 @@ function TripExecution({ trip, onVerifyVehicle }: { trip: TripDetails; onVerifyV
           setTollOpen(false);
         }}
       />
+      <DesktopHeader
+        title={`Trip Execution • ${trip.bookingId}`}
+        subtitle={`${trip.customerName} • Payout: ${payoutText(trip)}`}
+        actions={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            {phone ? (
+              <Button
+                small
+                variant="success"
+                title={`Call ${formatPhone(phone)}`}
+                onPress={() => void Linking.openURL(`tel:+91${phone}`)}
+              />
+            ) : null}
+            <Button
+              small
+              variant="secondary"
+              title="Navigate Pickup"
+              onPress={() => void Linking.openURL(mapsDirections(trip.pickup))}
+            />
+          </View>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <Card>
-          <View style={styles.headRow}>
-            <Badge label={trip.subStatus === 'Not Started' ? 'GO TO PICKUP' : trip.subStatus === 'Reached Pickup' ? 'AT PICKUP' : 'LIVE TRIP'} tone="brand" />
-            <Text style={type.tiny}>{trip.bookingId}</Text>
-          </View>
-          <Text style={[type.h2, { marginTop: space.sm }]}>{trip.customerName}</Text>
-          <Text style={type.small}>
-            {trip.scheduledDate} {trip.scheduledTime} • {trip.paymentMode}
-          </Text>
-          {trip.notes ? <Notice tone="info" message={`Customer note: ${trip.notes}`} style={{ marginTop: space.sm }} /> : null}
-          <View style={styles.headActions}>
-            {phone ? <Button small variant="success" title={`Call ${formatPhone(phone)}`} onPress={() => void Linking.openURL(`tel:+91${phone}`)} style={{ flex: 1 }} /> : null}
-            <View style={styles.payoutBox}>
-              <Text style={type.tiny}>YOUR PAYOUT</Text>
-              <Text style={styles.payout}>{payoutText(trip)}</Text>
-            </View>
-          </View>
-          <Text style={[type.tiny, { marginTop: space.xs, textAlign: 'right' }]}>{payoutNote(trip)}</Text>
-        </Card>
-
+        {/* Timeline Progress */}
         <View style={styles.timeline}>
           {TRIP_STEP_LABELS.map((label, i) => (
             <View key={label} style={[styles.stage, i === stepIdx + 1 && styles.stageNow, i <= stepIdx && styles.stageDone]}>
-              <Text style={[styles.stageText, i === stepIdx + 1 && { color: colors.primary }, i <= stepIdx && { color: colors.success }]}>{i <= stepIdx ? `✓ ${label}` : label}</Text>
+              <Text style={[styles.stageText, i === stepIdx + 1 && { color: colors.primary }, i <= stepIdx && { color: colors.success }]}>
+                {i <= stepIdx ? `✓ ${label}` : label}
+              </Text>
             </View>
           ))}
         </View>
@@ -202,119 +208,178 @@ function TripExecution({ trip, onVerifyVehicle }: { trip: TripDetails; onVerifyV
         <Notice message={error} />
         {info ? <Notice tone="success" message={info} /> : null}
 
-        {trip.subStatus === 'Not Started' ? (
-          <Card>
-            <Text style={type.h3}>Drive to pickup</Text>
-            <Text style={[type.body, styles.addr]}>{trip.pickup.address}</Text>
-            <Text style={type.small}>Your location is checked when you mark arrival — you must be within {PICKUP_RADIUS_KM} km of the pickup point.</Text>
-            <Button title="Navigate in Google Maps" variant="dark" onPress={() => void Linking.openURL(mapsDirections(trip.pickup))} style={styles.gap} />
-            <Button title={busy ? 'Checking location…' : 'Reached Pickup'} loading={busy} onPress={() => void reachedPickup()} style={styles.gap} />
-          </Card>
-        ) : null}
-
-        {(trip.subStatus === 'Not Started' || trip.subStatus === 'Reached Pickup') && !trip.verificationSubmitted ? (
-          <Card>
-            <Text style={type.h3}>Vehicle photos</Text>
-            <Text style={[type.small, { marginVertical: space.sm }]}>
-              Take the front, rear and dashboard photos with the camera {trip.subStatus === 'Not Started' ? 'now or at the pickup' : 'before you start the trip'}.
-            </Text>
-            <Button title="Take vehicle photos" variant={trip.subStatus === 'Reached Pickup' ? 'primary' : 'secondary'} onPress={onVerifyVehicle} />
-          </Card>
-        ) : null}
-
-        {trip.subStatus === 'Reached Pickup' && !trip.boardingVerified ? (
-          <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
-            <Text style={type.h3}>Boarding OTP</Text>
-            <Text style={type.small}>Ask {trip.customerName} for the 4-digit code shown in their app or message. Five wrong tries lock this check for 10 minutes.</Text>
-            <TextInput
-              value={otp}
-              onChangeText={(t) => {
-                setOtp(t.replace(/\D/g, '').slice(0, 4));
-                setError('');
-              }}
-              keyboardType="number-pad"
-              maxLength={4}
-              placeholder="• • • •"
-              placeholderTextColor={colors.faint}
-              style={styles.otp}
-              accessibilityLabel="Boarding OTP"
-            />
-            <Button title={busy ? 'Verifying…' : 'Verify OTP'} loading={busy} disabled={otp.length !== 4} onPress={() => void checkOtp()} />
-          </Card>
-        ) : null}
-
-        {trip.subStatus === 'Reached Pickup' ? (
-          <Card>
-            <Text style={type.h3}>Start the trip</Text>
-            {blockers.length ? (
-              <Text style={[type.small, { marginVertical: space.sm }]}>Still needed: {blockers.join(' and ')}.</Text>
-            ) : (
-              <Text style={[type.small, { marginVertical: space.sm }]}>OTP and vehicle photos verified. Start when the customer is on board.</Text>
-            )}
-            <Button title={busy ? 'Starting…' : 'Trip Started'} loading={busy} disabled={blockers.length > 0} onPress={() => void startTrip()} />
-          </Card>
-        ) : null}
-
-        {trip.subStatus === 'Trip Started' ? (
-          <>
-            <Card>
-              <Badge label="● Passenger on board" tone="success" />
-              <Text style={[type.h3, { marginTop: space.sm }]}>Driving to destination</Text>
-              <Text style={[type.body, styles.addr]}>{trip.drop.address}</Text>
-              {trip.distanceKm > 0 ? <Text style={type.small}>Estimated distance {trip.distanceKm} km</Text> : null}
-              <Button title="Navigate" variant="secondary" onPress={() => void Linking.openURL(mapsDirections(trip.drop))} style={styles.gap} />
-            </Card>
-
-            <Card>
-              <Text style={type.h3}>Trip End</Text>
-              <Text style={[type.small, { marginBottom: space.md }]}>Enter the final odometer reading and add any toll / parking receipts.</Text>
-              <TextField
-                label="Ending odometer (km)"
-                required
-                value={endOdometer}
-                onChangeText={(t) => setEndOdometer(t.replace(/\D/g, '').slice(0, 7))}
-                keyboardType="number-pad"
-                placeholder={trip.startOdometer ? String(trip.startOdometer + Math.round(trip.distanceKm)) : ''}
-                hint={
-                  trip.startOdometer != null
-                    ? `Start reading ${trip.startOdometer} km${Number(endOdometer) > trip.startOdometer ? ` • Driven ${Number(endOdometer) - trip.startOdometer} km` : ''}`
-                    : undefined
-                }
-              />
-              <View style={styles.tollHead}>
-                <Text style={type.label}>Toll & parking receipts</Text>
-                <Button small variant="dark" title="+ Add" onPress={() => setTollOpen(true)} />
-              </View>
-              {tolls.length === 0 ? <Text style={type.small}>No tolls added.</Text> : null}
-              {tolls.map((t) => (
-                <View key={t.id} style={styles.toll}>
-                  {t.receiptPhotoUrl ? <Image source={{ uri: t.receiptPhotoUrl }} style={styles.tollImg} /> : null}
-                  <Text style={[type.body, { flex: 1 }]} numberOfLines={1}>
-                    {t.name}
-                  </Text>
-                  <Text style={styles.tollAmt}>{formatINR(t.amount)}</Text>
-                  <Text style={styles.remove} onPress={() => void removeToll(t.id)} accessibilityRole="button">
-                    Remove
-                  </Text>
-                </View>
-              ))}
-              <View style={styles.summary}>
-                <Row label="Trip payout" value={payoutText(trip)} bold />
-                <Row label="Tolls & parking claimed" value={formatINR(totalTolls)} />
-                <Text style={type.tiny}>
-                  {trip.paymentMode === 'Cash'
-                    ? 'Cash trip: collect tolls with the fare from the customer. NESAM reimburses tolls only on non-cash trips.'
-                    : 'Reimbursed to your wallet once NESAM approves the receipts.'}
+        <DesktopRow spacing={space.lg}>
+          {/* Main Action Flow (Left) */}
+          <DesktopCol flex={1.25}>
+            {trip.subStatus === 'Not Started' ? (
+              <Card>
+                <Text style={type.h2}>Drive to Pickup Point</Text>
+                <Text style={[type.bodyMedium, styles.addr, { marginTop: space.sm }]}>{trip.pickup.address}</Text>
+                <Text style={[type.small, { marginVertical: space.sm }]}>
+                  Your location is verified when you mark arrival — you must be within {PICKUP_RADIUS_KM} km of the pickup point.
                 </Text>
+                <View style={{ flexDirection: 'row', gap: space.sm }}>
+                  <Button title="Navigate in Google Maps" variant="dark" onPress={() => void Linking.openURL(mapsDirections(trip.pickup))} style={{ flex: 1 }} />
+                  <Button title={busy ? 'Checking location…' : 'Reached Pickup'} loading={busy} onPress={() => void reachedPickup()} style={{ flex: 1 }} />
+                </View>
+              </Card>
+            ) : null}
+
+            {(trip.subStatus === 'Not Started' || trip.subStatus === 'Reached Pickup') && !trip.verificationSubmitted ? (
+              <Card>
+                <Text style={type.h3}>Pre-Trip Vehicle Photos</Text>
+                <Text style={[type.small, { marginVertical: space.sm }]}>
+                  Take the front, rear and dashboard photos with the camera {trip.subStatus === 'Not Started' ? 'now or at the pickup' : 'before you start the trip'}.
+                </Text>
+                <Button title="Take vehicle photos" variant={trip.subStatus === 'Reached Pickup' ? 'primary' : 'secondary'} onPress={onVerifyVehicle} />
+              </Card>
+            ) : null}
+
+            {trip.subStatus === 'Reached Pickup' && !trip.boardingVerified ? (
+              <Card style={{ borderColor: colors.primary, borderWidth: 2 }}>
+                <Text style={type.h2}>Customer Boarding OTP</Text>
+                <Text style={[type.small, { marginVertical: space.xs }]}>
+                  Ask {trip.customerName} for the 4-digit code shown in their app or SMS. Five wrong attempts locks verification.
+                </Text>
+                <TextInput
+                  value={otp}
+                  onChangeText={(t) => {
+                    setOtp(t.replace(/\D/g, '').slice(0, 4));
+                    setError('');
+                  }}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  placeholder="• • • •"
+                  placeholderTextColor={colors.faint}
+                  style={styles.otp}
+                  accessibilityLabel="Boarding OTP"
+                />
+                <Button title={busy ? 'Verifying…' : 'Verify Boarding OTP'} loading={busy} disabled={otp.length !== 4} onPress={() => void checkOtp()} />
+              </Card>
+            ) : null}
+
+            {trip.subStatus === 'Reached Pickup' ? (
+              <Card>
+                <Text style={type.h2}>Start the Trip</Text>
+                {blockers.length ? (
+                  <Text style={[type.small, { marginVertical: space.sm, color: colors.warning }]}>
+                    Pending requirements: {blockers.join(' and ')}.
+                  </Text>
+                ) : (
+                  <Text style={[type.small, { marginVertical: space.sm, color: colors.success }]}>
+                    OTP and vehicle photos verified. Start the ride when the customer is on board.
+                  </Text>
+                )}
+                <Button title={busy ? 'Starting…' : 'Start Trip Now'} loading={busy} disabled={blockers.length > 0} onPress={() => void startTrip()} />
+              </Card>
+            ) : null}
+
+            {trip.subStatus === 'Trip Started' ? (
+              <>
+                <Card>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <Badge label="● Passenger on board" tone="success" />
+                    <Text style={type.small}>In Transit</Text>
+                  </View>
+                  <Text style={[type.h2, { marginTop: space.sm }]}>Driving to Destination</Text>
+                  <Text style={[type.bodyMedium, styles.addr, { marginTop: space.xs }]}>{trip.drop.address}</Text>
+                  {trip.distanceKm > 0 ? <Text style={[type.small, { marginVertical: space.xs }]}>Estimated distance: {trip.distanceKm} km</Text> : null}
+                  <Button title="Navigate to Drop" variant="secondary" onPress={() => void Linking.openURL(mapsDirections(trip.drop))} style={styles.gap} />
+                </Card>
+
+                <Card>
+                  <Text style={type.h2}>Complete Trip & Odometer</Text>
+                  <Text style={[type.small, { marginBottom: space.md }]}>Enter the final odometer reading and add any toll / parking receipts.</Text>
+                  <TextField
+                    label="Ending odometer (km)"
+                    required
+                    value={endOdometer}
+                    onChangeText={(t) => setEndOdometer(t.replace(/\D/g, '').slice(0, 7))}
+                    keyboardType="number-pad"
+                    placeholder={trip.startOdometer ? String(trip.startOdometer + Math.round(trip.distanceKm)) : ''}
+                    hint={
+                      trip.startOdometer != null
+                        ? `Start reading ${trip.startOdometer} km${Number(endOdometer) > trip.startOdometer ? ` • Driven ${Number(endOdometer) - trip.startOdometer} km` : ''}`
+                        : undefined
+                    }
+                  />
+                  <View style={styles.tollHead}>
+                    <Text style={type.label}>Toll & parking receipts</Text>
+                    <Button small variant="dark" title="+ Add Receipt" onPress={() => setTollOpen(true)} />
+                  </View>
+                  {tolls.length === 0 ? <Text style={type.small}>No tolls added yet.</Text> : null}
+                  {tolls.map((t) => (
+                    <View key={t.id} style={styles.toll}>
+                      {t.receiptPhotoUrl ? <Image source={{ uri: t.receiptPhotoUrl }} style={styles.tollImg} /> : null}
+                      <Text style={[type.body, { flex: 1 }]} numberOfLines={1}>
+                        {t.name}
+                      </Text>
+                      <Text style={styles.tollAmt}>{formatINR(t.amount)}</Text>
+                      <Text style={styles.remove} onPress={() => void removeToll(t.id)} accessibilityRole="button">
+                        Remove
+                      </Text>
+                    </View>
+                  ))}
+                  <View style={styles.summary}>
+                    <Row label="Base Driver Payout" value={payoutText(trip)} bold />
+                    <Row label="Tolls & Parking Claimed" value={formatINR(totalTolls)} />
+                    <Text style={type.tiny}>
+                      {trip.paymentMode === 'Cash'
+                        ? 'Cash trip: collect tolls with fare directly from customer.'
+                        : 'Reimbursed to your wallet once approved by NESAM.'}
+                    </Text>
+                  </View>
+                  <Button title={busy ? 'Ending…' : 'Complete Trip'} loading={busy} onPress={() => void endTrip()} />
+                </Card>
+              </>
+            ) : null}
+
+            {trip.reachedPickupAt ? <Text style={[type.tiny, { textAlign: 'center', marginTop: space.sm }]}>Reached pickup at {formatTime12(trip.reachedPickupAt)}</Text> : null}
+          </DesktopCol>
+
+          {/* Customer & Settlement Summary (Right) */}
+          <DesktopCol flex={0.85}>
+            <Card>
+              <View style={styles.headRow}>
+                <Badge label={trip.subStatus === 'Not Started' ? 'GO TO PICKUP' : trip.subStatus === 'Reached Pickup' ? 'AT PICKUP' : 'LIVE TRIP'} tone="brand" />
+                <Text style={type.tiny}>{trip.bookingId}</Text>
               </View>
-              <Button title={busy ? 'Ending…' : 'Trip End'} loading={busy} onPress={() => void endTrip()} />
+              <Text style={[type.h2, { marginTop: space.sm }]}>{trip.customerName}</Text>
+              <Text style={type.small}>
+                {trip.scheduledDate} {trip.scheduledTime} • Payment: {trip.paymentMode}
+              </Text>
+              {trip.notes ? <Notice tone="info" message={`Customer note: ${trip.notes}`} style={{ marginTop: space.sm }} /> : null}
+              <View style={styles.headActions}>
+                {phone ? <Button small variant="success" title={`Call ${formatPhone(phone)}`} onPress={() => void Linking.openURL(`tel:+91${phone}`)} style={{ flex: 1 }} /> : null}
+                <View style={styles.payoutBox}>
+                  <Text style={type.tiny}>YOUR PAYOUT</Text>
+                  <Text style={styles.payout}>{payoutText(trip)}</Text>
+                </View>
+              </View>
+              <Text style={[type.tiny, { marginTop: space.xs, textAlign: 'right' }]}>{payoutNote(trip)}</Text>
             </Card>
 
             <Card>
-              <Text style={type.h3}>Money collected from the customer</Text>
+              <Text style={[type.h3, { marginBottom: space.sm }]}>Trip Locations</Text>
+              <View style={{ gap: space.sm }}>
+                <View>
+                  <Text style={[type.tiny, { fontWeight: '700', color: colors.success }]}>PICKUP LOCATION</Text>
+                  <Text style={[type.bodyMedium, { marginTop: 2 }]}>{trip.pickup.address}</Text>
+                  <Button small variant="ghost" title="Navigate to Pickup" onPress={() => void Linking.openURL(mapsDirections(trip.pickup))} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
+                </View>
+                <View style={{ borderTopWidth: 1, borderTopColor: colors.border, paddingTop: space.sm }}>
+                  <Text style={[type.tiny, { fontWeight: '700', color: colors.primary }]}>DROP LOCATION</Text>
+                  <Text style={[type.bodyMedium, { marginTop: 2 }]}>{trip.drop.address}</Text>
+                  <Button small variant="ghost" title="Navigate to Drop" onPress={() => void Linking.openURL(mapsDirections(trip.drop))} style={{ alignSelf: 'flex-start', marginTop: 4 }} />
+                </View>
+              </View>
+            </Card>
+
+            <Card>
+              <Text style={type.h3}>Customer Payment Collection</Text>
               <Text style={[type.small, { marginVertical: space.sm }]}>
-                Record every amount you take (cash, UPI or bank transfer). Each one is saved as its own payment against this booking
-                {trip.balanceDue != null ? ` — balance due ${formatINR(trip.balanceDue)}` : ''}.
+                Record amounts collected from customer (cash, UPI, or bank transfer)
+                {trip.balanceDue != null ? ` — balance due: ${formatINR(trip.balanceDue)}` : ''}.
               </Text>
               <View style={styles.kindRow}>
                 {METHODS.map((m) => (
@@ -322,13 +387,11 @@ function TripExecution({ trip, onVerifyVehicle }: { trip: TripDetails; onVerifyV
                 ))}
               </View>
               <TextField label="Amount collected (₹)" value={payAmount} onChangeText={(t) => setPayAmount(t.replace(/[^\d.]/g, '').slice(0, 8))} keyboardType="decimal-pad" />
-              {payMethod !== 'Cash' ? <TextField label="UPI / bank reference" value={payRef} onChangeText={setPayRef} autoCapitalize="characters" /> : null}
+              {payMethod !== 'Cash' ? <TextField label="UPI / Bank reference" value={payRef} onChangeText={setPayRef} autoCapitalize="characters" /> : null}
               <Button title="Record payment" variant="secondary" disabled={busy} onPress={() => void collect()} />
             </Card>
-          </>
-        ) : null}
-
-        {trip.reachedPickupAt ? <Text style={[type.tiny, { textAlign: 'center' }]}>Reached pickup at {formatTime12(trip.reachedPickupAt)}</Text> : null}
+          </DesktopCol>
+        </DesktopRow>
       </ScrollView>
     </SafeAreaView>
   );

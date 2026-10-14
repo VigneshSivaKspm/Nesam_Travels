@@ -297,206 +297,257 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
   if (!draftLoaded) return null;
 
   return (
-    <SafeAreaView style={styles.root} edges={mode === 'update' ? [] : ['top']}>
-      <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {mode !== 'update' ? (
-          <View style={styles.header}>
-            <View style={{ flex: 1 }}>
-              <Text style={type.h2}>{title}</Text>
-              <Text style={type.small}>Verified mobile: {data.profile.phone}</Text>
+    <DesktopWizardShell
+      title={title}
+      subtitle={`Verified mobile: ${data.profile.phone}`}
+      badge="Driver KYC Onboarding"
+      onSignOut={onSignOut}
+      onCancel={onCancel}
+    >
+      <SafeAreaView style={styles.root} edges={mode === 'update' ? [] : ['top']}>
+        <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          {mode !== 'update' ? (
+            <View style={styles.header}>
+              <View style={{ flex: 1 }}>
+                <Text style={type.h2}>{title}</Text>
+                <Text style={type.small}>Verified mobile: {data.profile.phone}</Text>
+              </View>
+              {onCancel ? <Button small variant="secondary" title="Back" onPress={confirmLeave} /> : null}
+              {onSignOut ? <Button small variant="ghost" title="Sign out" onPress={onSignOut} /> : null}
             </View>
-            {onCancel ? <Button small variant="secondary" title="Back" onPress={confirmLeave} /> : null}
-            {onSignOut ? <Button small variant="ghost" title="Sign out" onPress={onSignOut} /> : null}
-          </View>
-        ) : null}
-
-        {vendorName && mode === 'signup' ? <Notice tone="info" message={`You were invited by ${vendorName}. Your account will be linked to this fleet and your vehicle will be assigned by them.`} /> : null}
-        {mode === 'resubmit' && rejectionReason ? <Notice message={`Reason for rejection: ${rejectionReason}`} /> : null}
-        {mode === 'update' ? <Notice tone="warning" message="Updated documents are re-verified by the NESAM team. You can keep taking trips meanwhile." /> : null}
-
-        <View style={styles.stepper}>
-          {steps.map((label, i) => {
-            const n = i + 1;
-            const active = step === n;
-            const done = step > n;
-            return (
-              <Pressable key={label} onPress={() => jumpTo(n)} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${n}: ${label}`}>
-                <View style={[styles.stepDot, active && styles.stepDotActive, done && styles.stepDotDone]}>
-                  {done ? <Ionicons name="checkmark" size={14} color={colors.white} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{n}</Text>}
-                </View>
-                <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        <Card>
-          {step === 1 ? (
-            <>
-              <Text style={styles.sectionTitle}>Selfie</Text>
-              <PhotoField
-                label="Selfie"
-                hint="Clear, front-facing, no sunglasses. Taken with the camera."
-                value={data.profile.photoUrl}
-                folder="kyc"
-                name="selfie"
-                required
-                cameraOnly
-                showError={showPhotoErrors}
-                onBusyChange={onBusy}
-                onChange={(url) => setProfile({ photoUrl: url })}
-              />
-              <Text style={[styles.sectionTitle, { marginTop: space.md }]}>Driving licence</Text>
-              <TextField
-                label="Driving licence number"
-                required
-                value={l.number}
-                onChangeText={(t) => setLicense({ number: t.toUpperCase() })}
-                autoCapitalize="characters"
-                placeholder="TN01 20190012345"
-                error={errors.licenseNumber}
-              />
-              <DateField label="Licence valid till" required value={l.expiryDate} onChange={(d) => setLicense({ expiryDate: d })} minimumDate={new Date()} error={errors.licenseExpiry} />
-              <PhotoField label="Licence front" value={l.frontPhotoUrl} folder="kyc" name="dl-front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ frontPhotoUrl: url })} />
-              <PhotoField label="Licence back" value={l.backPhotoUrl} folder="kyc" name="dl-back" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ backPhotoUrl: url })} />
-            </>
           ) : null}
 
-          {step === vehicleStep ? (
-            <>
-              <Text style={styles.sectionTitle}>Your vehicle</Text>
-              <TextField
-                label="Registration number"
-                required
-                value={v.vehicleNumber}
-                onChangeText={onPlateChange}
-                autoCapitalize="characters"
-                placeholder="TN 01 AB 1234"
-                error={errors.vehicleNumber}
-              />
-              {!AUTO_DETECT_ENABLED ? (
-                <>
-                  <Notice
-                    tone="info"
-                    message="Automatic vehicle detection is temporarily paused. Please choose your vehicle category below — NESAM will verify the vehicle details from your uploaded documents."
-                  />
-                  <OptionChips
-                    label="Vehicle category"
+          {vendorName && mode === 'signup' ? <Notice tone="info" message={`You were invited by ${vendorName}. Your account will be linked to this fleet and your vehicle will be assigned by them.`} /> : null}
+          {mode === 'resubmit' && rejectionReason ? <Notice message={`Reason for rejection: ${rejectionReason}`} /> : null}
+          {mode === 'update' ? <Notice tone="warning" message="Updated documents are re-verified by the NESAM team. You can keep taking trips meanwhile." /> : null}
+
+          <View style={styles.stepper}>
+            {steps.map((label, i) => {
+              const n = i + 1;
+              const active = step === n;
+              const done = step > n;
+              return (
+                <Pressable key={label} onPress={() => jumpTo(n)} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${n}: ${label}`}>
+                  <View style={[styles.stepDot, active && styles.stepDotActive, done && styles.stepDotDone]}>
+                    {done ? <Ionicons name="checkmark" size={14} color={colors.white} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{n}</Text>}
+                  </View>
+                  <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Card>
+            {step === 1 ? (
+              <DesktopRow spacing={space.lg}>
+                <DesktopCol flex={1}>
+                  <Text style={styles.sectionTitle}>Driver Identity</Text>
+                  <PhotoField
+                    label="Selfie photo"
+                    hint="Clear, front-facing, no sunglasses. Taken with the camera."
+                    value={data.profile.photoUrl}
+                    folder="kyc"
+                    name="selfie"
                     required
-                    options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                    value={v.vehicleType}
-                    onChange={(val) => {
-                      const t = VEHICLE_TYPES.find((x) => x.value === val)!;
-                      setVehicle({
-                        vehicleType: t.value,
-                        capacity: t.seats,
-                        vahan: snapshotFrom({ status: 'not_configured', registrationNumber: plate || normalizePlate(v.vehicleNumber) }, true),
-                      });
-                    }}
-                    error={errors.vehicleType}
+                    cameraOnly
+                    showError={showPhotoErrors}
+                    onBusyChange={onBusy}
+                    onChange={(url) => setProfile({ photoUrl: url })}
                   />
                   <TextField
-                    label="Vehicle make & model (optional)"
-                    value={[v.make, v.model].filter(Boolean).join(' ')}
-                    onChangeText={(text) => {
-                      const trimmed = text.trim();
-                      const parts = trimmed.split(' ');
-                      setVehicle({ make: parts[0] || '', model: parts.slice(1).join(' ') || '' });
-                    }}
-                    placeholder="e.g. Maruti Swift Dzire, Toyota Innova"
+                    label="Full Name (as per Licence)"
+                    value={data.profile.name}
+                    onChangeText={(t) => setProfile({ name: t })}
+                    placeholder="e.g. Ramesh Kumar"
                   />
-                </>
-              ) : (
-                <>
-                  <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
-                  <Button
-                    title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
-                    variant="secondary"
-                    loading={detection.state === 'loading'}
-                    disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
-                    onPress={() => void detect(v.vehicleNumber)}
-                    style={{ marginBottom: space.md }}
+                </DesktopCol>
+                <DesktopCol flex={1.2}>
+                  <Text style={styles.sectionTitle}>Driving Licence</Text>
+                  <TextField
+                    label="Driving licence number"
+                    required
+                    value={l.number}
+                    onChangeText={(t) => setLicense({ number: t.toUpperCase() })}
+                    autoCapitalize="characters"
+                    placeholder="TN01 20190012345"
+                    error={errors.licenseNumber}
                   />
+                  <DateField label="Licence valid till" required value={l.expiryDate} onChange={(d) => setLicense({ expiryDate: d })} minimumDate={new Date()} error={errors.licenseExpiry} />
+                  <DesktopRow spacing={space.sm}>
+                    <DesktopCol flex={1}>
+                      <PhotoField label="Licence front" value={l.frontPhotoUrl} folder="kyc" name="dl-front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ frontPhotoUrl: url })} />
+                    </DesktopCol>
+                    <DesktopCol flex={1}>
+                      <PhotoField label="Licence back" value={l.backPhotoUrl} folder="kyc" name="dl-back" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ backPhotoUrl: url })} />
+                    </DesktopCol>
+                  </DesktopRow>
+                </DesktopCol>
+              </DesktopRow>
+            ) : null}
 
-                  {detection.state === 'loading' ? (
-                    <View style={styles.detecting}>
-                      <ActivityIndicator color={colors.primary} />
-                      <Text style={type.small}>Looking up {v.vehicleNumber} in the vehicle register…</Text>
-                    </View>
-                  ) : null}
-                  {detection.state === 'error' ? <Notice message={detection.message} /> : null}
-                  {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
-                  {result?.status === 'found' && result.duplicate ? (
-                    <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." />
-                  ) : null}
-                  {detected && result?.status === 'found' ? <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} /> : null}
-                  {manual ? (
-                    <>
-                      <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents." />
-                      <OptionChips
-                        label="Vehicle type"
-                        required
-                        options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                        value={v.vahan?.manualType ? v.vehicleType : ''}
-                        onChange={(val) => {
-                          const t = VEHICLE_TYPES.find((x) => x.value === val)!;
-                          setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
-                        }}
-                        error={errors.vehicleType}
-                      />
-                    </>
-                  ) : null}
-                </>
-              )}
+          {step === vehicleStep ? (
+            <DesktopRow spacing={space.lg}>
+              <DesktopCol flex={1}>
+                <Text style={styles.sectionTitle}>Your Vehicle</Text>
+                <TextField
+                  label="Registration number"
+                  required
+                  value={v.vehicleNumber}
+                  onChangeText={onPlateChange}
+                  autoCapitalize="characters"
+                  placeholder="TN 01 AB 1234"
+                  error={errors.vehicleNumber}
+                />
+                {!AUTO_DETECT_ENABLED ? (
+                  <>
+                    <Notice
+                      tone="info"
+                      message="Automatic vehicle detection is temporarily paused. Please choose your vehicle category below — NESAM will verify the vehicle details from your uploaded documents."
+                    />
+                    <OptionChips
+                      label="Vehicle category"
+                      required
+                      options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                      value={v.vehicleType}
+                      onChange={(val) => {
+                        const t = VEHICLE_TYPES.find((x) => x.value === val)!;
+                        setVehicle({
+                          vehicleType: t.value,
+                          capacity: t.seats,
+                          vahan: snapshotFrom({ status: 'not_configured', registrationNumber: plate || normalizePlate(v.vehicleNumber) }, true),
+                        });
+                      }}
+                      error={errors.vehicleType}
+                    />
+                    <TextField
+                      label="Vehicle make & model (optional)"
+                      value={[v.make, v.model].filter(Boolean).join(' ')}
+                      onChangeText={(text) => {
+                        const trimmed = text.trim();
+                        const parts = trimmed.split(' ');
+                        setVehicle({ make: parts[0] || '', model: parts.slice(1).join(' ') || '' });
+                      }}
+                      placeholder="e.g. Maruti Swift Dzire, Toyota Innova"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
+                    <Button
+                      title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
+                      variant="secondary"
+                      loading={detection.state === 'loading'}
+                      disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
+                      onPress={() => void detect(v.vehicleNumber)}
+                      style={{ marginBottom: space.md }}
+                    />
 
-              <Text style={[styles.sectionTitle, { marginTop: space.md }]}>Vehicle documents</Text>
-              <PhotoField label="RC (registration certificate)" value={v.rcDocUrl} folder="vehicle" name="rc" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ rcDocUrl: url })} />
-              <PhotoField label="Insurance" value={v.insuranceDocUrl} folder="vehicle" name="insurance" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ insuranceDocUrl: url })} />
-              <DateField label="Insurance valid till" required value={v.insuranceExpiry} onChange={(d) => setVehicle({ insuranceExpiry: d })} minimumDate={new Date()} error={errors.insuranceExpiry} />
-              <PhotoField label="FC (fitness certificate)" value={v.fitnessDocUrl} folder="vehicle" name="fitness" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ fitnessDocUrl: url })} />
-              <DateField label="FC valid till" required value={v.fitnessExpiry} onChange={(d) => setVehicle({ fitnessExpiry: d })} minimumDate={new Date()} error={errors.fitnessExpiry} />
-              <PhotoField label="Permit" value={v.statePermitDocUrl} folder="vehicle" name="permit" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ statePermitDocUrl: url })} />
-              <DateField label="Permit valid till" required value={v.permitExpiry} onChange={(d) => setVehicle({ permitExpiry: d })} minimumDate={new Date()} error={errors.permitExpiry} />
-              <PhotoField label="Vehicle front (with plate)" value={v.frontPhotoUrl} folder="vehicle" name="front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ frontPhotoUrl: url })} />
-            </>
+                    {detection.state === 'loading' ? (
+                      <View style={styles.detecting}>
+                        <ActivityIndicator color={colors.primary} />
+                        <Text style={type.small}>Looking up {v.vehicleNumber} in the vehicle register…</Text>
+                      </View>
+                    ) : null}
+                    {detection.state === 'error' ? <Notice message={detection.message} /> : null}
+                    {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
+                    {result?.status === 'found' && result.duplicate ? (
+                      <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." />
+                    ) : null}
+                    {detected && result?.status === 'found' ? <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} /> : null}
+                    {manual ? (
+                      <>
+                        <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents." />
+                        <OptionChips
+                          label="Vehicle type"
+                          required
+                          options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                          value={v.vahan?.manualType ? v.vehicleType : ''}
+                          onChange={(val) => {
+                            const t = VEHICLE_TYPES.find((x) => x.value === val)!;
+                            setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
+                          }}
+                          error={errors.vehicleType}
+                        />
+                      </>
+                    ) : null}
+                  </>
+                )}
+              </DesktopCol>
+
+              <DesktopCol flex={1.2}>
+                <Text style={styles.sectionTitle}>Vehicle Documents</Text>
+                <PhotoField label="RC (registration certificate)" value={v.rcDocUrl} folder="vehicle" name="rc" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ rcDocUrl: url })} />
+                <DesktopRow spacing={space.sm}>
+                  <DesktopCol flex={1}>
+                    <PhotoField label="Insurance copy" value={v.insuranceDocUrl} folder="vehicle" name="insurance" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ insuranceDocUrl: url })} />
+                  </DesktopCol>
+                  <DesktopCol flex={1}>
+                    <DateField label="Insurance valid till" required value={v.insuranceExpiry} onChange={(d) => setVehicle({ insuranceExpiry: d })} minimumDate={new Date()} error={errors.insuranceExpiry} />
+                  </DesktopCol>
+                </DesktopRow>
+                <DesktopRow spacing={space.sm}>
+                  <DesktopCol flex={1}>
+                    <PhotoField label="FC (fitness cert)" value={v.fitnessDocUrl} folder="vehicle" name="fitness" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ fitnessDocUrl: url })} />
+                  </DesktopCol>
+                  <DesktopCol flex={1}>
+                    <DateField label="FC valid till" required value={v.fitnessExpiry} onChange={(d) => setVehicle({ fitnessExpiry: d })} minimumDate={new Date()} error={errors.fitnessExpiry} />
+                  </DesktopCol>
+                </DesktopRow>
+                <DesktopRow spacing={space.sm}>
+                  <DesktopCol flex={1}>
+                    <PhotoField label="Permit copy" value={v.statePermitDocUrl} folder="vehicle" name="permit" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ statePermitDocUrl: url })} />
+                  </DesktopCol>
+                  <DesktopCol flex={1}>
+                    <DateField label="Permit valid till" required value={v.permitExpiry} onChange={(d) => setVehicle({ permitExpiry: d })} minimumDate={new Date()} error={errors.permitExpiry} />
+                  </DesktopCol>
+                </DesktopRow>
+                <PhotoField label="Vehicle front (with plate)" value={v.frontPhotoUrl} folder="vehicle" name="front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ frontPhotoUrl: url })} />
+              </DesktopCol>
+            </DesktopRow>
           ) : null}
 
           {step === reviewStep ? (
             <>
               <Text style={styles.sectionTitle}>Review & submit</Text>
-              <View style={styles.reviewHead}>
-                {data.profile.photoUrl ? <Image source={{ uri: data.profile.photoUrl }} style={styles.reviewPhoto} /> : null}
-                <View style={{ flex: 1 }}>
-                  <Text style={type.h3}>{data.profile.name || 'New driver partner'}</Text>
-                  <Text style={type.small}>{data.profile.phone}</Text>
-                </View>
-              </View>
-              <ReviewSection title="Licence" onEdit={() => setStep(1)}>
-                <Row label="Licence no." value={l.number} />
-                <Row label="Valid till" value={displayDate(l.expiryDate)} />
-              </ReviewSection>
-              {!fleetDriver ? (
-                <ReviewSection title="Vehicle" onEdit={() => setStep(vehicleStep)}>
-                  <Row label="Registration" value={v.vehicleNumber} />
-                  <Row label="Vehicle" value={[v.make, v.model].filter(Boolean).join(' ') || v.vehicleType} />
-                  <Row label="Category" value={`${v.vehicleType}${v.capacity ? ` • ${v.capacity}+1 seats` : ''}${v.fuelType ? ` • ${v.fuelType}` : ''}`} />
-                  <Row label="Insurance till" value={displayDate(v.insuranceExpiry)} />
-                  <Row label="FC till" value={displayDate(v.fitnessExpiry)} />
-                  <Row label="Permit till" value={displayDate(v.permitExpiry)} />
-                  <Row label="Register check" value={v.vahan?.status === 'found' ? 'Verified from vehicle register' : 'Manual verification by NESAM'} />
-                </ReviewSection>
-              ) : null}
-              {[l.expiryDate, ...(fleetDriver ? [] : [v.insuranceExpiry, v.fitnessExpiry, v.permitExpiry])].some((d) => d && d <= today) ? (
-                <Notice message="A document above has expired. Go back and update it before submitting." />
-              ) : null}
-              <Pressable style={styles.consent} onPress={() => setConsent((c) => !c)} accessibilityRole="checkbox" accessibilityState={{ checked: consent }}>
-                <Switch value={consent} onValueChange={setConsent} trackColor={{ true: colors.primary, false: colors.border }} />
-                <Text style={[type.small, { flex: 1 }]}>
-                  I declare that the information and documents provided are genuine and belong to me / my vehicle, and I authorise NESAM Tours & Travels to verify them.
-                </Text>
-              </Pressable>
+              <DesktopRow spacing={space.lg}>
+                <DesktopCol flex={1}>
+                  <View style={styles.reviewHead}>
+                    {data.profile.photoUrl ? <Image source={{ uri: data.profile.photoUrl }} style={styles.reviewPhoto} /> : null}
+                    <View style={{ flex: 1 }}>
+                      <Text style={type.h3}>{data.profile.name || 'New driver partner'}</Text>
+                      <Text style={type.small}>{data.profile.phone}</Text>
+                    </View>
+                  </View>
+                  <ReviewSection title="Licence" onEdit={() => setStep(1)}>
+                    <Row label="Licence no." value={l.number} />
+                    <Row label="Valid till" value={displayDate(l.expiryDate)} />
+                  </ReviewSection>
+                </DesktopCol>
+                <DesktopCol flex={1.2}>
+                  {!fleetDriver ? (
+                    <ReviewSection title="Vehicle" onEdit={() => setStep(vehicleStep)}>
+                      <Row label="Registration" value={v.vehicleNumber} />
+                      <Row label="Vehicle" value={[v.make, v.model].filter(Boolean).join(' ') || v.vehicleType} />
+                      <Row label="Category" value={`${v.vehicleType}${v.capacity ? ` • ${v.capacity}+1 seats` : ''}${v.fuelType ? ` • ${v.fuelType}` : ''}`} />
+                      <Row label="Insurance till" value={displayDate(v.insuranceExpiry)} />
+                      <Row label="FC till" value={displayDate(v.fitnessExpiry)} />
+                      <Row label="Permit till" value={displayDate(v.permitExpiry)} />
+                      <Row label="Register check" value={v.vahan?.status === 'found' ? 'Verified from vehicle register' : 'Manual verification by NESAM'} />
+                    </ReviewSection>
+                  ) : null}
+                  {[l.expiryDate, ...(fleetDriver ? [] : [v.insuranceExpiry, v.fitnessExpiry, v.permitExpiry])].some((d) => d && d <= today) ? (
+                    <Notice message="A document above has expired. Go back and update it before submitting." />
+                  ) : null}
+                  <Pressable style={styles.consent} onPress={() => setConsent((c) => !c)} accessibilityRole="checkbox" accessibilityState={{ checked: consent }}>
+                    <Switch value={consent} onValueChange={setConsent} trackColor={{ true: colors.primary, false: colors.border }} />
+                    <Text style={[type.small, { flex: 1 }]}>
+                      I declare that the information and documents provided are genuine and belong to me / my vehicle, and I authorise NESAM Tours & Travels to verify them.
+                    </Text>
+                  </Pressable>
+                </DesktopCol>
+              </DesktopRow>
             </>
           ) : null}
 
@@ -529,6 +580,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
         </Card>
       </ScrollView>
     </SafeAreaView>
+  </DesktopWizardShell>
   );
 }
 

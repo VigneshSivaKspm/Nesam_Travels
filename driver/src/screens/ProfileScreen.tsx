@@ -2,7 +2,8 @@
 // driver/web ProfileScreen.tsx).
 import React, { useState } from 'react';
 import { Alert, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { DesktopCol, DesktopRow, ScrollView } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
@@ -68,77 +69,102 @@ export function ProfileScreen() {
           }}
         />
       ) : null}
+      <DesktopHeader
+        title="Driver Profile & Documents"
+        subtitle={`${driver.name || 'Driver Partner'} • ${driver.phone}`}
+        actions={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <Button
+              small
+              variant="secondary"
+              title="Update Documents"
+              onPress={() => (navigation as any).navigate('UpdateDocuments')}
+            />
+            <Button small variant="ghost" title="Sign Out" onPress={confirmSignOut} />
+          </View>
+        }
+      />
       <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.idCard}>
-          <Avatar name={driver.name} photoUrl={driver.photoUrl} size={72} />
-          <View style={{ flex: 1 }}>
-            <Text style={type.h2}>{driver.name}</Text>
-            <Text style={type.small}>{driver.phone}</Text>
-            <Text style={type.small}>
-              {driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} • {completedTrips.length} trips • since {driver.joiningDate}
+        <DesktopRow spacing={space.lg}>
+          {/* Identity & Bank Info (Left) */}
+          <DesktopCol flex={1}>
+            <Card style={styles.idCard}>
+              <Avatar name={driver.name} photoUrl={driver.photoUrl} size={72} />
+              <View style={{ flex: 1 }}>
+                <Text style={type.h2}>{driver.name}</Text>
+                <Text style={type.small}>{driver.phone}</Text>
+                <Text style={type.small}>
+                  {driver.rating != null ? `★ ${driver.rating.toFixed(1)} rating` : 'No ratings yet'} • {completedTrips.length} trips • since {driver.joiningDate}
+                </Text>
+                {driver.vendorName ? <Text style={type.small}>Fleet: {driver.vendorName}</Text> : null}
+                <View style={styles.badges}>
+                  <Badge label="Account approved" tone="success" />
+                  <Badge label={`Documents: ${driver.docStatus}`} tone={driver.docStatus === 'Approved' ? 'success' : driver.docStatus === 'Rejected' ? 'danger' : 'warning'} />
+                </View>
+              </View>
+            </Card>
+            {driver.docStatus === 'Rejected' && driver.rejectionReason ? <Notice message={`Document note from NESAM: ${driver.rejectionReason}`} /> : null}
+            {saved ? <Notice tone="success" message="Profile updated." /> : null}
+
+            <Card>
+              <View style={styles.cardHead}>
+                <Text style={type.h3}>Contact & Bank Details</Text>
+                <Button small variant="ghost" title="Edit" onPress={() => setEditing(true)} />
+              </View>
+              <Row label="Email" value={driver.email || '—'} />
+              <Row label="Date of birth" value={displayDate(driver.dob) || '—'} />
+              <Row label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
+              <Row label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'} />
+              <Row label="Account holder" value={bank.accountHolder || '—'} />
+              <Row label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
+              <Row label="IFSC" value={bank.ifsc || '—'} />
+              <Row label="UPI ID" value={bank.upiId || '—'} />
+            </Card>
+
+            <Button title={`Call 24/7 Helpline (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
+            <Text style={[type.tiny, { textAlign: 'center', marginTop: space.sm, color: colors.muted }]}>
+              NESAM Driver Partner v{Constants.expoConfig?.version ?? '1.0.0'}
             </Text>
-            {driver.vendorName ? <Text style={type.small}>Fleet: {driver.vendorName}</Text> : null}
-            <View style={styles.badges}>
-              <Badge label="Account approved" tone="success" />
-              <Badge label={`Documents: ${driver.docStatus}`} tone={driver.docStatus === 'Approved' ? 'success' : driver.docStatus === 'Rejected' ? 'danger' : 'warning'} />
-            </View>
-          </View>
-        </Card>
-        {driver.docStatus === 'Rejected' && driver.rejectionReason ? <Notice message={`Document note from NESAM: ${driver.rejectionReason}`} /> : null}
-        {saved ? <Notice tone="success" message="Profile updated." /> : null}
+          </DesktopCol>
 
-        <Card>
-          <View style={styles.cardHead}>
-            <Text style={type.h3}>Contact & bank</Text>
-            <Button small variant="ghost" title="Edit" onPress={() => setEditing(true)} />
-          </View>
-          <Row label="Email" value={driver.email || '—'} />
-          <Row label="Date of birth" value={displayDate(driver.dob) || '—'} />
-          <Row label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
-          <Row label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'} />
-          <Row label="Account holder" value={bank.accountHolder || '—'} />
-          <Row label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
-          <Row label="IFSC" value={bank.ifsc || '—'} />
-          <Row label="UPI" value={bank.upiId || '—'} />
-        </Card>
+          {/* Vehicle & Document Gallery (Right) */}
+          <DesktopCol flex={1.3}>
+            <Card>
+              <Text style={[type.h3, { marginBottom: space.sm }]}>Assigned Vehicle & Licence</Text>
+              <Row label="Licence no." value={license.number} />
+              <Row label="Licence valid till" value={displayDate(license.expiryDate)} />
+              <Row label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'} />
+              <Row label="PAN" value={identity.panNumber || '—'} />
+              <View style={{ borderTopWidth: 1, borderTopColor: colors.border, marginTop: space.sm, paddingTop: space.sm }}>
+                <Row label="Registration" value={vehicle.vehicleNumber} />
+                <Row label="Vehicle" value={`${vehicle.make} ${vehicle.model} (${vehicle.year})`} />
+                <Row label="Category" value={`${vehicle.vehicleType} • ${vehicle.capacity} seats • ${vehicle.fuelType}`} />
+                <Row label="Colour" value={vehicle.color} />
+              </View>
+            </Card>
 
-        <Card>
-          <Text style={[type.h3, { marginBottom: space.sm }]}>Licence & ID</Text>
-          <Row label="Licence no." value={license.number} />
-          <Row label="Licence valid till" value={displayDate(license.expiryDate)} />
-          <Row label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'} />
-          <Row label="PAN" value={identity.panNumber || '—'} />
-          <Text style={[type.h3, { marginVertical: space.sm }]}>Vehicle</Text>
-          <Row label="Registration" value={vehicle.vehicleNumber} />
-          <Row label="Vehicle" value={`${vehicle.make} ${vehicle.model} (${vehicle.year})`} />
-          <Row label="Category" value={`${vehicle.vehicleType} • ${vehicle.capacity} seats • ${vehicle.fuelType}`} />
-          <Row label="Colour" value={vehicle.color} />
-        </Card>
-
-        <Card>
-          <View style={styles.cardHead}>
-            <Text style={type.h3}>Documents</Text>
-            <Button small variant="dark" title="Update documents" onPress={() => navigation.navigate('UpdateDocuments')} />
-          </View>
-          <View style={styles.docs}>
-            <DocThumb label="Licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
-            <DocThumb label="Licence (back)" url={license.backPhotoUrl} />
-            <DocThumb label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
-            <DocThumb label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
-            <DocThumb label="RC" url={vehicle.rcDocUrl} />
-            <DocThumb label="Insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
-            <DocThumb label="Permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
-            <DocThumb label="Fitness (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
-            <DocThumb label="Vehicle front" url={vehicle.frontPhotoUrl} />
-            <DocThumb label="Vehicle rear" url={vehicle.rearPhotoUrl} />
-            <DocThumb label="Vehicle side" url={vehicle.sidePhotoUrl} />
-            <DocThumb label="Interior" url={vehicle.interiorPhotoUrl} />
-          </View>
-        </Card>
-
-        <Button title={`Call support (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
-        <Button title="Sign out" variant="ghost" onPress={confirmSignOut} style={{ marginTop: space.sm }} />
-        <Text style={[type.tiny, { textAlign: 'center', marginTop: space.md }]}>NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+            <Card>
+              <View style={styles.cardHead}>
+                <Text style={type.h3}>Verified Document Gallery</Text>
+                <Button small variant="dark" title="Update documents" onPress={() => (navigation as any).navigate('UpdateDocuments')} />
+              </View>
+              <View style={styles.docs}>
+                <DocThumb label="Licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
+                <DocThumb label="Licence (back)" url={license.backPhotoUrl} />
+                <DocThumb label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
+                <DocThumb label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
+                <DocThumb label="RC" url={vehicle.rcDocUrl} />
+                <DocThumb label="Insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
+                <DocThumb label="Permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
+                <DocThumb label="Fitness (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
+                <DocThumb label="Vehicle front" url={vehicle.frontPhotoUrl} />
+                <DocThumb label="Vehicle rear" url={vehicle.rearPhotoUrl} />
+                <DocThumb label="Vehicle side" url={vehicle.sidePhotoUrl} />
+                <DocThumb label="Interior" url={vehicle.interiorPhotoUrl} />
+              </View>
+            </Card>
+          </DesktopCol>
+        </DesktopRow>
       </ScrollView>
     </SafeAreaView>
   );

@@ -4,17 +4,21 @@ import React, { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlatList, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useVendorData } from '../context/VendorData';
 import { Badge, Button, Card, EmptyState, Notice, Row, Segmented, Sheet, TextField } from '../components/ui';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { acceptOfferedRate, submitCounterBid, validateCounterRate, VendorActionError, withdrawBid } from '../services/vendorService';
 import type { MarketTrip, VendorBid } from '../types/operations';
 import { formatINR } from '../utils/format';
 import { describeDataError } from '../utils/retry';
 import { colors, radius, space, type } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 type Tab = 'feed' | 'bids';
 
 export function MarketplaceScreen() {
+  const { isDesktop, isCompact } = useResponsive();
   const { identity, marketTrips, bids, errors } = useVendorData();
   const [tab, setTab] = useState<Tab>('feed');
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -59,6 +63,12 @@ export function MarketplaceScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <DesktopHeader
+        title="Trip Marketplace"
+        subtitle="Live open pool: accept pre-priced partner payouts instantly or submit counter-rates"
+        badge={`${marketTrips.length} Open Trips`}
+      />
+
       {bidTrip ? (
         <BidSheet
           key={bidTrip.id}
@@ -66,70 +76,94 @@ export function MarketplaceScreen() {
           onClose={() => setBidTrip(null)}
           onDone={() => {
             setBidTrip(null);
-            setMessage({ tone: 'success', text: 'Counter bid submitted. NESAM will review it.' });
+            setMessage({ tone: 'success', text: 'Counter bid submitted. NESAM operations will review it.' });
           }}
         />
       ) : null}
-      <Content kind="wide" style={styles.header}>
-        <Text style={type.h1}>Marketplace</Text>
-        <Text style={[type.small, { marginBottom: space.md }]}>Accept the offered rate instantly or submit a counter bid for NESAM review.</Text>
-        <Segmented
-          options={[
-            { value: 'feed', label: `Open trips (${marketTrips.length})` },
-            { value: 'bids', label: `My bids (${bids.length})` },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
-        {message ? <Notice tone={message.tone} message={message.text} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
-      </Content>
+
+      <View style={styles.headerArea}>
+        {isCompact ? (
+          <Content kind="wide" style={styles.header}>
+            <Text style={type.h1}>Marketplace</Text>
+            <Text style={[type.small, { marginBottom: space.md }]}>Accept the offered rate instantly or submit a counter bid for NESAM review.</Text>
+          </Content>
+        ) : null}
+
+        <View style={styles.tabsContainer}>
+          <Segmented
+            options={[
+              { value: 'feed', label: `Open Marketplace Trips (${marketTrips.length})` },
+              { value: 'bids', label: `My Active Bids (${bids.length})` },
+            ]}
+            value={tab}
+            onChange={setTab}
+          />
+        </View>
+        {message ? <Notice tone={message.tone} message={message.text} style={{ marginHorizontal: space.lg, marginTop: space.sm }} /> : null}
+      </View>
 
       {tab === 'feed' ? (
         <FlatList
-        multiColumn
+          multiColumn
           data={marketTrips}
           keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
           ListHeaderComponent={<Notice message={errors.market} />}
-          ListEmptyComponent={<EmptyState title="No open trips" message="New trip requests appear here the moment customers book." />}
+          ListEmptyComponent={<EmptyState title="No open trips" message="New passenger booking requests appear here the moment customers place them." />}
           renderItem={({ item: t }) => {
             const myBid = pendingByTrip.get(t.id);
             return (
-              <Card>
+              <Card style={styles.tripCard}>
                 <View style={styles.rowBetween}>
-                  <Text style={type.tiny}>{t.bookingId}</Text>
-                  <Badge label={t.vehicleCategory || 'Any vehicle'} tone="warning" />
+                  <Text style={styles.bookingIdText}>ID: {t.bookingId}</Text>
+                  <Badge label={t.vehicleCategory || 'Any Vehicle'} tone="warning" />
                 </View>
-                <Text style={[type.h3, { marginTop: 4 }]}>{t.route}</Text>
-                <Text style={type.small} numberOfLines={2}>
-                  Pickup: {t.pickup.address}
-                </Text>
-                <Text style={type.small} numberOfLines={2}>
-                  Drop: {t.drop.address}
-                </Text>
-                <Text style={type.small}>
-                  {t.travelDate || 'Date TBC'}
-                  {t.pickup.time ? ` · ${t.pickup.time}` : ''}
-                  {t.distanceKm ? ` · ${t.distanceKm} km` : ''}
-                  {t.service ? ` · ${t.service}` : ''}
-                  {t.tripType ? ` · ${t.tripType}` : ''}
-                </Text>
+                <Text style={styles.routeTitle}>{t.route}</Text>
+                
+                <View style={styles.addressesBox}>
+                  <View style={styles.addressRow}>
+                    <View style={[styles.dot, { backgroundColor: colors.success }]} />
+                    <Text style={styles.addressText} numberOfLines={2}>
+                      Pickup: {t.pickup.address}
+                    </Text>
+                  </View>
+                  <View style={styles.addressRow}>
+                    <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+                    <Text style={styles.addressText} numberOfLines={2}>
+                      Drop: {t.drop.address}
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.tripParams}>
+                  <Ionicons name="calendar-outline" size={16} color={colors.slate} />
+                  <Text style={styles.paramsText}>
+                    {t.travelDate || 'Date TBC'}
+                    {t.pickup.time ? ` at ${t.pickup.time}` : ''}
+                    {t.distanceKm ? ` · ${t.distanceKm} km` : ''}
+                    {t.service ? ` · ${t.service}` : ''}
+                    {t.tripType ? ` · ${t.tripType}` : ''}
+                  </Text>
+                </View>
+
                 <View style={styles.payRow}>
                   <View>
-                    <Text style={type.tiny}>OFFERED PAYOUT</Text>
+                    <Text style={styles.payLabel}>OFFERED PAYOUT</Text>
                     <Text style={styles.payout}>{formatINR(t.offeredPayout)}</Text>
                   </View>
                   {t.bidCount ? <Badge label={`${t.bidCount} bid${t.bidCount > 1 ? 's' : ''}`} tone="info" /> : null}
                 </View>
+
                 {myBid ? (
                   <View style={styles.myBid}>
-                    <Text style={[type.small, { flex: 1 }]}>Your bid {formatINR(myBid.vendorCounterRate)} is under review.</Text>
+                    <Text style={[styles.myBidText, { flex: 1 }]}>Your counter-bid of {formatINR(myBid.vendorCounterRate)} is pending review.</Text>
                     <Button small variant="ghost" title="Withdraw" onPress={() => withdraw(myBid)} />
                   </View>
                 ) : null}
+
                 <View style={styles.actions}>
-                  <Button small variant="dark" title="Counter bid" disabled={!!myBid || busyId !== null} onPress={() => setBidTrip(t)} style={{ flex: 1 }} />
-                  <Button small title={busyId === t.id ? 'Accepting…' : 'Accept rate'} loading={busyId === t.id} disabled={busyId !== null} onPress={() => accept(t)} style={{ flex: 1 }} />
+                  <Button small variant="dark" title="Counter Bid" disabled={!!myBid || busyId !== null} onPress={() => setBidTrip(t)} style={{ flex: 1 }} />
+                  <Button small title={busyId === t.id ? 'Accepting…' : 'Accept Rate'} loading={busyId === t.id} disabled={busyId !== null} onPress={() => accept(t)} style={{ flex: 1 }} />
                 </View>
               </Card>
             );
@@ -137,23 +171,27 @@ export function MarketplaceScreen() {
         />
       ) : (
         <FlatList
-        multiColumn
+          multiColumn
           data={bids}
           keyExtractor={(b) => `${b.tripId}/${b.id}`}
           contentContainerStyle={styles.list}
           ListHeaderComponent={<Notice message={errors.bids} />}
-          ListEmptyComponent={<EmptyState title="No bids yet" message="Counter bids you submit appear here with their review status." />}
+          ListEmptyComponent={<EmptyState title="No bids yet" message="Counter bids you submit appear here with real-time review status from NESAM operations." />}
           renderItem={({ item: b }) => (
-            <Card>
+            <Card style={styles.tripCard}>
               <View style={styles.rowBetween}>
-                <Text style={type.h3}>{b.bookingId}</Text>
+                <Text style={styles.bookingIdText}>BID ON: {b.bookingId}</Text>
                 <Badge label={b.status} tone={b.status === 'Accepted' ? 'success' : b.status === 'Pending Review' ? 'warning' : 'neutral'} />
               </View>
-              <Row label="Offered payout" value={formatINR(b.offeredPayout)} />
-              <Row label="Your counter rate" value={formatINR(b.vendorCounterRate)} bold />
-              {b.biddingNote ? <Text style={type.small}>Note: {b.biddingNote}</Text> : null}
-              <Text style={type.tiny}>{b.submittedAt ? `Submitted ${b.submittedAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Sending…'}</Text>
-              {b.status === 'Pending Review' ? <Button small variant="ghost" title="Withdraw bid" onPress={() => withdraw(b)} style={{ alignSelf: 'flex-start' }} /> : null}
+              <View style={styles.bidAmounts}>
+                <Row label="Offered Payout" value={formatINR(b.offeredPayout)} />
+                <Row label="Your Counter Rate" value={formatINR(b.vendorCounterRate)} bold />
+              </View>
+              {b.biddingNote ? <Text style={styles.bidNote}>Note: {b.biddingNote}</Text> : null}
+              <Text style={styles.bidDate}>{b.submittedAt ? `Submitted on ${b.submittedAt.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}` : 'Sending…'}</Text>
+              {b.status === 'Pending Review' ? (
+                <Button small variant="ghost" title="Withdraw Bid" onPress={() => withdraw(b)} style={{ alignSelf: 'flex-start', marginTop: space.sm }} />
+              ) : null}
             </Card>
           )}
         />
@@ -187,34 +225,57 @@ function BidSheet({ trip, onClose, onDone }: { trip: MarketTrip; onClose: () => 
   };
 
   return (
-    <Sheet visible onClose={onClose} title={`Counter bid · ${trip.bookingId}`} dismissible={!busy}>
+    <Sheet visible onClose={onClose} title={`Counter Bid · ${trip.bookingId}`} dismissible={!busy}>
       <Text style={[type.small, { marginBottom: space.md }]}>
-        {trip.route} · offered {formatINR(trip.offeredPayout)}
+        {trip.route} · Offered Payout: {formatINR(trip.offeredPayout)}
       </Text>
-      <TextField label="Your counter rate (₹)" value={rate} onChangeText={(t) => setRate(t.replace(/\D/g, '').slice(0, 7))} keyboardType="number-pad" />
-      <Text style={[type.label, { marginBottom: 6 }]}>Note for NESAM (optional)</Text>
+      <TextField label="Your Proposed Counter Rate (₹)" value={rate} onChangeText={(t) => setRate(t.replace(/\D/g, '').slice(0, 7))} keyboardType="number-pad" />
+      <Text style={[type.label, { marginBottom: 6 }]}>Justification Note for NESAM (optional)</Text>
       <TextInput
         value={note}
         onChangeText={(t) => setNote(t.slice(0, 300))}
-        placeholder="Vehicle, driver experience, anything that justifies your rate"
+        placeholder="Vehicle model, experienced driver, toll/fuel specifics…"
         placeholderTextColor={colors.faint}
         multiline
         style={styles.note}
       />
       <Notice message={error} />
-      <Button title={busy ? 'Submitting…' : 'Submit counter bid'} loading={busy} onPress={() => void submit()} />
+      <Button title={busy ? 'Submitting Counter Bid…' : 'Submit Counter Bid'} loading={busy} onPress={() => void submit()} />
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  header: { padding: space.lg, paddingBottom: space.sm },
+  root: { flex: 1, backgroundColor: colors.page },
+  headerArea: { paddingHorizontal: space.lg, paddingTop: space.sm },
+  header: { paddingBottom: space.sm },
+  tabsContainer: { maxWidth: 640 },
   list: { padding: space.lg, paddingTop: space.sm, paddingBottom: space.xxl },
+  tripCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    padding: space.lg,
+    marginBottom: space.md,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.03)' as any,
+  },
   rowBetween: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm },
-  payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.md },
-  payout: { fontSize: 22, fontWeight: '900', color: colors.primary },
-  myBid: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.warningSoft, borderRadius: radius.sm, paddingLeft: space.md, marginTop: space.sm },
+  bookingIdText: { fontSize: 13, fontWeight: '800', color: colors.slate },
+  routeTitle: { fontSize: 18, fontWeight: '800', color: colors.ink, marginTop: 4, marginBottom: 8 },
+  addressesBox: { backgroundColor: '#F8FAFC', borderRadius: radius.md, padding: space.md, gap: 6, marginVertical: 4 },
+  addressRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm },
+  dot: { width: 10, height: 10, borderRadius: 5, marginTop: 4 },
+  addressText: { fontSize: 13, color: colors.ink, flex: 1, lineHeight: 18 },
+  tripParams: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: space.sm },
+  paramsText: { fontSize: 13, color: colors.slate },
+  payRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.md, paddingTop: space.sm, borderTopWidth: 1, borderTopColor: colors.border },
+  payLabel: { fontSize: 11, fontWeight: '800', color: colors.slate, letterSpacing: 0.5 },
+  payout: { fontSize: 24, fontWeight: '900', color: colors.primary, marginTop: 2 },
+  myBid: { flexDirection: 'row', alignItems: 'center', backgroundColor: colors.warningSoft, borderRadius: radius.md, paddingHorizontal: space.md, paddingVertical: space.xs, marginTop: space.sm },
+  myBidText: { fontSize: 13, color: colors.ink, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
-  note: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: space.md, minHeight: 72, textAlignVertical: 'top', color: colors.ink, marginBottom: space.md },
+  bidAmounts: { marginVertical: space.sm, gap: 4 },
+  bidNote: { fontSize: 13, color: colors.slate, fontStyle: 'italic', marginVertical: 4 },
+  bidDate: { fontSize: 12, color: colors.muted, marginTop: 4 },
+  note: { borderWidth: 1.5, borderColor: colors.border, borderRadius: radius.md, padding: space.md, minHeight: 80, textAlignVertical: 'top', color: colors.ink, marginBottom: space.md, backgroundColor: '#F8FAFC' },
 });

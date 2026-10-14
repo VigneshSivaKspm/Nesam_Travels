@@ -1,21 +1,24 @@
 // Edit contact details (port of EditProfileModal in user/web ProfileScreen.tsx),
 // plus the language preference the customers/{uid} rules already allow.
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
-import { Button, Chip, Notice, Screen, TextField } from '../components/ui';
+import { Button, Card, Chip, Notice, Screen, TextField } from '../components/ui';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { updateCustomerProfile } from '../services/userService';
 import { formatPhone, isValidEmail, isValidIndianMobile, isValidName, localMobile } from '../utils/format';
 import { describeError } from '../utils/retry';
-import { space, type } from '../theme';
+import { colors, radius, space, type } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 const LANGUAGES = ['English', 'தமிழ் (Tamil)', 'हिन्दी (Hindi)'];
 
 type Props = NativeStackScreenProps<RootStackParamList, 'EditProfile'>;
 
 export function EditProfileScreen({ navigation }: Props) {
+  const { isDesktop } = useResponsive();
   const { profile } = useCustomerData();
   const [name, setName] = useState(profile.name);
   const [email, setEmail] = useState(profile.email);
@@ -72,25 +75,54 @@ export function EditProfileScreen({ navigation }: Props) {
 
   return (
     <Screen edges={[]}>
-      <TextField label="Mobile number" value={formatPhone(profile.phone)} editable={false} hint="Your login number can’t be changed here. Contact support to move your account." />
-      <TextField label="Full name" required value={name} onChangeText={setName} autoComplete="name" />
-      <TextField label="Email (optional)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
-      <TextField
-        label="Emergency contact (optional)"
-        prefix="+91"
-        value={emergency}
-        onChangeText={(v) => setEmergency(v.replace(/\D/g, '').slice(0, 10))}
-        keyboardType="phone-pad"
-        maxLength={10}
+      <DesktopHeader
+        title="Edit Profile"
+        subtitle="Update your full name, email and emergency contact information"
+        onBack={() => navigation.goBack()}
       />
-      <Text style={[type.label, { marginBottom: space.sm }]}>Preferred language</Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {LANGUAGES.map((l) => (
-          <Chip key={l} label={l} active={language === l} onPress={() => setLanguage(l)} />
-        ))}
+
+      <View style={[styles.container, isDesktop && styles.desktopContainer]}>
+        <Card style={styles.formCard}>
+          <TextField
+            label="Mobile number"
+            value={formatPhone(profile.phone)}
+            editable={false}
+            hint="Your registered login number cannot be changed here. Contact support to migrate."
+          />
+          <TextField label="Full name" required value={name} onChangeText={setName} autoComplete="name" />
+          <TextField label="Email address (optional)" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" hint="Used for booking confirmations and tax invoices." />
+          <TextField
+            label="Emergency contact (optional)"
+            prefix="+91"
+            value={emergency}
+            onChangeText={(v) => setEmergency(v.replace(/\D/g, '').slice(0, 10))}
+            keyboardType="phone-pad"
+            maxLength={10}
+            hint="Receives instant alerts if SOS is triggered during a ride."
+          />
+          <Text style={[type.label, { marginBottom: space.sm, marginTop: space.sm }]}>Preferred Language</Text>
+          <View style={styles.langRow}>
+            {LANGUAGES.map((l) => (
+              <Chip key={l} label={l} active={language === l} onPress={() => setLanguage(l)} />
+            ))}
+          </View>
+          <Notice message={error} style={{ marginTop: space.md }} />
+          <Button title={busy ? 'Saving…' : 'Save Changes'} loading={busy} disabled={!dirty} onPress={() => void save()} style={{ marginTop: space.lg }} />
+        </Card>
       </View>
-      <Notice message={error} style={{ marginTop: space.md }} />
-      <Button title={busy ? 'Saving…' : 'Save changes'} loading={busy} disabled={!dirty} onPress={() => void save()} style={{ marginTop: space.md }} />
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  container: { width: '100%' },
+  desktopContainer: { maxWidth: 680, alignSelf: 'center', width: '100%', marginTop: space.md },
+  formCard: {
+    padding: space.xl,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    boxShadow: '0 4px 16px rgba(0,0,0,0.04)' as any,
+  },
+  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+});

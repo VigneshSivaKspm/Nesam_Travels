@@ -1,20 +1,25 @@
 // Home / Work / favourite places (port of user/web SavedPlacesScreen.tsx).
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useCustomerData } from '../context/CustomerData';
 import { Button, Card, EmptyState, Notice, Screen, Segmented, TextField } from '../components/ui';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { PlaceSearchModal } from '../components/PlaceSearchModal';
 import { deleteSavedPlace, savePlace } from '../services/userService';
 import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import type { GeoPlace, LocationItem } from '../types';
 import { describeError } from '../utils/retry';
-import { colors, space, type } from '../theme';
+import { colors, radius, space, type } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 type SaveType = 'home' | 'work' | 'favorite';
 const ICON: Record<string, keyof typeof Ionicons.glyphMap> = { home: 'home-outline', work: 'briefcase-outline', favorite: 'star-outline' };
 
 export function SavedPlacesScreen() {
+  const { isDesktop } = useResponsive();
+  const navigation = useNavigation();
   const { profile, savedPlaces } = useCustomerData();
   const { position } = useDeviceLocation(false);
   const [adding, setAdding] = useState(false);
@@ -69,69 +74,95 @@ export function SavedPlacesScreen() {
 
   return (
     <Screen edges={[]}>
-      <PlaceSearchModal visible={searchOpen} title="Find a place" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
-      <Notice message={error} />
-      {adding ? (
-        <Card>
-          <Segmented
-            options={[
-              { value: 'home', label: 'Home' },
-              { value: 'work', label: 'Work' },
-              { value: 'favorite', label: 'Favourite' },
-            ]}
-            value={kind}
-            onChange={setKind}
-          />
-          <Pressable style={styles.pick} onPress={() => setSearchOpen(true)} accessibilityRole="button">
-            <Ionicons name="search" size={18} color={colors.muted} />
-            <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
-              {picked ? `${picked.name} — ${picked.address}` : 'Search address or landmark'}
-            </Text>
-          </Pressable>
-          {kind === 'favorite' ? <TextField label="Label (optional)" value={label} onChangeText={(v) => setLabel(v.slice(0, 40))} placeholder="e.g. Grandma’s house" /> : null}
-          <View style={styles.row}>
-            <Button title="Cancel" variant="secondary" onPress={reset} disabled={busy} style={{ flex: 1 }} />
-            <Button title={busy ? 'Saving…' : 'Save place'} loading={busy} disabled={!picked} onPress={() => void add()} style={{ flex: 1 }} />
-          </View>
-        </Card>
-      ) : (
-        <Button title="+ Add place" onPress={() => setAdding(true)} style={{ marginBottom: space.md }} />
-      )}
+      <DesktopHeader
+        title="Saved Places"
+        subtitle="Manage frequent destinations for fast one-tap booking"
+        onBack={() => navigation.goBack()}
+        actions={
+          !adding ? (
+            <Button small title="+ Add New Place" onPress={() => setAdding(true)} />
+          ) : undefined
+        }
+      />
 
-      {savedPlaces.length === 0 && !adding ? (
-        <EmptyState title="No saved places yet" message="Add Home and Work for one-tap booking." />
-      ) : (
-        savedPlaces.map((p) => (
-          <Card key={p.id} style={styles.item}>
-            <Ionicons name={ICON[p.type] ?? 'location-outline'} size={22} color={colors.primary} />
-            <View style={{ flex: 1 }}>
-              <Text style={type.h3}>{p.name}</Text>
-              <Text style={type.small} numberOfLines={2}>
-                {p.address}
+      <View style={[styles.container, isDesktop && styles.desktopContainer]}>
+        <PlaceSearchModal visible={searchOpen} title="Find a place" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
+        <Notice message={error} />
+        
+        {adding ? (
+          <Card style={styles.addCard}>
+            <Text style={styles.cardHeader}>Add Saved Place</Text>
+            <Segmented
+              options={[
+                { value: 'home', label: 'Home' },
+                { value: 'work', label: 'Work' },
+                { value: 'favorite', label: 'Favourite' },
+              ]}
+              value={kind}
+              onChange={setKind}
+            />
+            <Pressable style={styles.pick} onPress={() => setSearchOpen(true)} accessibilityRole="button">
+              <Ionicons name="search" size={20} color={colors.primary} />
+              <Text style={[type.body, { flex: 1 }]} numberOfLines={2}>
+                {picked ? `${picked.name} — ${picked.address}` : 'Search address, street or landmark…'}
               </Text>
-              {p.lat == null || p.lng == null ? <Text style={styles.warn}>No map position — re-add it to use it for booking.</Text> : null}
+            </Pressable>
+            {kind === 'favorite' ? <TextField label="Custom Label (optional)" value={label} onChangeText={(v) => setLabel(v.slice(0, 40))} placeholder="e.g. Vacation Home, Hospital, College" /> : null}
+            <View style={styles.row}>
+              <Button title="Cancel" variant="secondary" onPress={reset} disabled={busy} style={{ flex: 1 }} />
+              <Button title={busy ? 'Saving…' : 'Save Place'} loading={busy} disabled={!picked} onPress={() => void add()} style={{ flex: 1 }} />
             </View>
-            <Button small variant="ghost" title={deleting === p.id ? '…' : 'Remove'} disabled={deleting === p.id} onPress={() => remove(p)} />
           </Card>
-        ))
-      )}
+        ) : (
+          !isDesktop ? <Button title="+ Add place" onPress={() => setAdding(true)} style={{ marginBottom: space.md }} /> : null
+        )}
+
+        {savedPlaces.length === 0 && !adding ? (
+          <EmptyState title="No saved places yet" message="Add Home and Work for seamless one-tap booking." />
+        ) : (
+          <View style={styles.grid}>
+            {savedPlaces.map((p) => (
+              <Card key={p.id} style={styles.item}>
+                <View style={styles.iconBox}>
+                  <Ionicons name={ICON[p.type] ?? 'location-outline'} size={24} color={colors.primary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={type.h3}>{p.name}</Text>
+                  <Text style={type.small} numberOfLines={2}>
+                    {p.address}
+                  </Text>
+                  {p.lat == null || p.lng == null ? <Text style={styles.warn}>No map coordinates — re-add it to use for booking.</Text> : null}
+                </View>
+                <Button small variant="ghost" title={deleting === p.id ? '…' : 'Remove'} disabled={deleting === p.id} onPress={() => remove(p)} />
+              </Card>
+            ))}
+          </View>
+        )}
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  container: { width: '100%' },
+  desktopContainer: { maxWidth: 880, alignSelf: 'center', width: '100%', marginTop: space.md },
+  addCard: { marginBottom: space.lg, borderWidth: 1.5, borderColor: colors.border },
+  cardHeader: { fontSize: 18, fontWeight: '800', color: colors.ink, marginBottom: space.md },
   pick: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    borderWidth: 1,
+    gap: space.md,
+    borderWidth: 1.5,
     borderColor: colors.border,
-    borderRadius: 12,
+    borderRadius: radius.md,
     padding: space.md,
     marginVertical: space.md,
-    minHeight: 48,
+    minHeight: 52,
+    backgroundColor: '#F8FAFC',
   },
-  row: { flexDirection: 'row', gap: space.sm },
-  item: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  warn: { fontSize: 11, color: colors.warning, marginTop: 2 },
+  row: { flexDirection: 'row', gap: space.md, marginTop: space.sm },
+  grid: { gap: space.sm },
+  item: { flexDirection: 'row', alignItems: 'center', gap: space.md, borderWidth: 1.5, borderColor: colors.border },
+  iconBox: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
+  warn: { fontSize: 12, color: colors.warning, marginTop: 2 },
 });

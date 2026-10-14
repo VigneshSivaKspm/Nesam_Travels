@@ -3,9 +3,9 @@
  * goes through a super-admin Cloud Function (firestore.rules deny client
  * writes to admins/ and staff_roles/), which also writes the audit log.
  */
-import { httpsCallable } from "firebase/functions";
+import { callBackend } from "./backend";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
-import { db, functions } from "./firebase";
+import { db } from "./firebase";
 import { describeDataError } from "./adminFirestoreService";
 import { PERMISSIONS, accessFromAdminDoc, isPermission, type Permission } from "../config/permissions";
 
@@ -133,7 +133,7 @@ function describeCallError(err: unknown): string {
 
 async function call(name: string, data: Record<string, unknown>) {
   try {
-    await httpsCallable(functions, name)(data);
+    await callBackend(name, data);
   } catch (err) {
     throw new StaffActionError(describeCallError(err));
   }

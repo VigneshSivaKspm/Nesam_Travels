@@ -1,0 +1,25 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "npm run build",
+  "functions": {
+    "api/call/[name].js": { "maxDuration": 60, "memory": 1024, "includeFiles": "lib/**" },
+    "api/whatsapp-webhook.js": { "maxDuration": 30, "includeFiles": "lib/**" },
+    "api/cron/*.js": { "maxDuration": 60, "includeFiles": "lib/**" }
+  },
+  "crons": [
+    { "path": "/api/cron/reconcile", "schedule": "0 2 * * *" },
+    { "path": "/api/cron/alerts", "schedule": "30 2 * * *" }
+  ],
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Strict-Transport-Security", "value": "max-age=63072000; includeSubDomains; preload" },
+        { "key": "Cache-Control", "value": "no-store" }
+      ]
+    }
+  ]
+}

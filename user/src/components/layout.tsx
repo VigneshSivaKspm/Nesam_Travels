@@ -47,17 +47,20 @@ export function Frame({ kind = 'wide', style, children }: { kind?: ContentKind; 
 export function DesktopRow({
   children,
   gap = 24,
+  spacing,
   style,
   alignItems = 'flex-start',
 }: {
   children: React.ReactNode;
   gap?: number;
+  spacing?: number;
   style?: StyleProp<ViewStyle>;
   alignItems?: ViewStyle['alignItems'];
 }) {
   const { isDesktop } = useResponsive();
+  const actualGap = spacing !== undefined ? spacing : gap;
   return (
-    <View style={[{ flexDirection: isDesktop ? 'row' : 'column', gap, alignItems: isDesktop ? alignItems : 'stretch' }, style]}>
+    <View style={[{ flexDirection: isDesktop ? 'row' : 'column', gap: actualGap, alignItems: isDesktop ? alignItems : 'stretch' }, style]}>
       {children}
     </View>
   );

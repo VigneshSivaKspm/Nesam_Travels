@@ -1,5 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
-import { app } from '../config/firebase';
+import { callBackend } from './backend';
 
 /** Error whose message is safe to show to the driver. */
 export class ActionError extends Error {
@@ -9,8 +8,6 @@ export class ActionError extends Error {
     this.details = details;
   }
 }
-
-const functions = getFunctions(app);
 
 export function describeCallError(err: unknown): string {
   const code = (err as { code?: string }).code || '';
@@ -23,7 +20,7 @@ export function describeCallError(err: unknown): string {
 /** Calls a booking-server function; a failure becomes an ActionError with a readable message. */
 export async function callFunction<Req, Res>(name: string, data: Req, timeout = 60000): Promise<Res> {
   try {
-    return (await httpsCallable<Req, Res>(functions, name, { timeout })(data)).data;
+    return await callBackend<Req, Res>(name, data, timeout);
   } catch (err) {
     throw new ActionError(describeCallError(err), (err as { details?: unknown }).details);
   }

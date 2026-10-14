@@ -30,6 +30,8 @@ import { Badge, Button, Card, Chip, FullScreenLoader, Notice, Row, TextField } f
 import { FileUploadField } from '../../components/FileUploadField';
 import { DateField, displayDate } from '../../components/fields';
 import { colors, radius, space, type } from '../../theme';
+import { useResponsive } from '../../theme/responsive';
+import { DesktopWizardShell } from '../../components/DesktopWizardShell';
 
 const VEHICLE_TYPE_CHOICES = ['Hatchback', 'Sedan', 'SUV', 'Premium SUV', 'Tempo Traveller'] as const;
 const DETECT_DELAY_MS = 800;
@@ -61,6 +63,7 @@ function initialStep(record: VendorRecord | null): number {
 }
 
 export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardProps) {
+  const { isCompact } = useResponsive();
   const { online } = useNetworkStatus();
   const [step, setStep] = useState(() => initialStep(record));
   const [invite, setInvite] = useState<VendorInvite | null>(null);
@@ -112,52 +115,61 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <Content kind="narrow" style={styles.topBar}>
-        <View style={{ flex: 1 }}>
-          <Text style={type.h3}>Fleet Partner Onboarding</Text>
-          <Text style={type.tiny}>{phone}</Text>
-        </View>
-        <Button small variant="ghost" title="Sign out" onPress={onSignOut} />
-      </Content>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <View style={styles.stepper}>
-          {ONBOARDING_STEPS.map((s, i) => {
-            const done = i < step || (record?.onboardingStep ?? 0) > i;
-            const active = i === step;
-            const isFlagged = flagged.some((f) => stepOfSection(f) === i);
-            return (
-              <Pressable key={s.key} onPress={() => i <= maxReachable && setStep(i)} disabled={i > maxReachable} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${i + 1}: ${s.title}`}>
-                <View style={[styles.stepDot, active && styles.stepActive, !active && isFlagged && styles.stepFlagged, !active && !isFlagged && done && styles.stepDone]}>
-                  {done && !active && !isFlagged ? <Ionicons name="checkmark" size={14} color={colors.success} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{i + 1}</Text>}
-                </View>
-                <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
-                  {s.short}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-
-        {!online ? <Notice tone="warning" message="You’re offline. Uploads and saves will fail until you reconnect." /> : null}
-        {notice && step === 0 ? <Notice tone="info" message={notice} /> : null}
-        {correction ? (
-          <Notice
-            tone="warning"
-            message={`${correction.status === 'REJECTED' ? 'Your application was not approved.' : 'The NESAM team requested changes.'}${
-              correction.review?.note ? `\n${correction.review.note}` : ''
-            }${flagged.length ? `\nPlease update: ${flagged.map((s) => SECTION_LABELS[s]).join(', ')}. Then resubmit from the final step.` : ''}`}
-          />
+      <DesktopWizardShell
+        title="Fleet Partner Registration"
+        subtitle={`Applying with ${phone} · Progress saved automatically`}
+        badge="Vendor Portal"
+        onSignOut={onSignOut}
+      >
+        {isCompact ? (
+          <Content kind="narrow" style={styles.topBar}>
+            <View style={{ flex: 1 }}>
+              <Text style={type.h3}>Fleet Partner Onboarding</Text>
+              <Text style={type.tiny}>{phone}</Text>
+            </View>
+            <Button small variant="ghost" title="Sign out" onPress={onSignOut} />
+          </Content>
         ) : null}
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.stepper}>
+            {ONBOARDING_STEPS.map((s, i) => {
+              const done = i < step || (record?.onboardingStep ?? 0) > i;
+              const active = i === step;
+              const isFlagged = flagged.some((f) => stepOfSection(f) === i);
+              return (
+                <Pressable key={s.key} onPress={() => i <= maxReachable && setStep(i)} disabled={i > maxReachable} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${i + 1}: ${s.title}`}>
+                  <View style={[styles.stepDot, active && styles.stepActive, !active && isFlagged && styles.stepFlagged, !active && !isFlagged && done && styles.stepDone]}>
+                    {done && !active && !isFlagged ? <Ionicons name="checkmark" size={14} color={colors.success} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{i + 1}</Text>}
+                  </View>
+                  <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
+                    {s.short}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
 
-        <Card>
-          <Text style={type.tiny}>
-            STEP {step + 1} OF {ONBOARDING_STEPS.length}
-          </Text>
-          <Text style={[type.h2, { marginBottom: space.md }]}>{current.title}</Text>
-          {body}
-        </Card>
-        <Text style={[type.tiny, { textAlign: 'center' }]}>Your progress is saved after each step — you can sign out and continue later.</Text>
-      </ScrollView>
+          {!online ? <Notice tone="warning" message="You’re offline. Uploads and saves will fail until you reconnect." /> : null}
+          {notice && step === 0 ? <Notice tone="info" message={notice} /> : null}
+          {correction ? (
+            <Notice
+              tone="warning"
+              message={`${correction.status === 'REJECTED' ? 'Your application was not approved.' : 'The NESAM team requested changes.'}${
+                correction.review?.note ? `\n${correction.review.note}` : ''
+              }${flagged.length ? `\nPlease update: ${flagged.map((s) => SECTION_LABELS[s]).join(', ')}. Then resubmit from the final step.` : ''}`}
+            />
+          ) : null}
+
+          <Card style={styles.card}>
+            <Text style={type.tiny}>
+              STEP {step + 1} OF {ONBOARDING_STEPS.length}
+            </Text>
+            <Text style={[type.h2, { marginBottom: space.md }]}>{current.title}</Text>
+            {body}
+          </Card>
+          <Text style={[type.tiny, { textAlign: 'center', marginTop: space.sm }]}>Your progress is saved after each step — you can sign out and continue later.</Text>
+        </ScrollView>
+      </DesktopWizardShell>
     </SafeAreaView>
   );
 }
@@ -612,6 +624,14 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   topBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: space.lg, paddingVertical: space.sm, backgroundColor: colors.card, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   content: { padding: space.lg, paddingBottom: space.xxl },
+  card: {
+    padding: space.xl,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    boxShadow: '0 2px 12px rgba(0,0,0,0.04)' as any,
+  },
   stepper: { flexDirection: 'row', marginBottom: space.md },
   stepItem: { flex: 1, alignItems: 'center', gap: 4 },
   stepDot: { width: 30, height: 30, borderRadius: 15, borderWidth: 2, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.card },

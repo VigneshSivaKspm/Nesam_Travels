@@ -10,6 +10,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useDriverData } from '../context/DriverData';
+import { DesktopCol, DesktopRow } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { Badge, Button, Card, EmptyState, Notice, Row, Screen, TextField } from '../components/ui';
 import { ActionError } from '../services/callables';
 import { getCurrentPosition } from '../services/locationService';
@@ -100,6 +102,11 @@ export function PreTripScreen({ route, navigation }: Props) {
 
   return (
     <Screen edges={[]}>
+      <DesktopHeader
+        title="Pre-Trip Vehicle Verification"
+        subtitle={`Mandatory inspection for Trip ${trip.bookingId} • ${trip.customerName}`}
+        onBack={() => navigation.goBack()}
+      />
       <Card>
         <Text style={type.tiny}>MANDATORY BEFORE EVERY TRIP</Text>
         <Text style={type.h2}>Vehicle photo verification</Text>
@@ -115,30 +122,34 @@ export function PreTripScreen({ route, navigation }: Props) {
 
       {!session ? (
         <Card>
-          <Text style={type.body}>You will take 3 photos: vehicle front, vehicle rear, and the dashboard / interior. Then enter the odometer reading.</Text>
+          <Text style={type.bodyMedium}>You will take 3 photos: vehicle front, vehicle rear, and the dashboard / interior. Then enter the odometer reading.</Text>
           <Button title={busy ? 'Starting…' : 'Start verification'} loading={busy} onPress={() => void start()} style={{ marginTop: space.md }} />
         </Card>
       ) : (
         <>
-          {SLOTS.map((s) => (
-            <Card key={s.slot}>
-              <View style={styles.slotHead}>
-                <Text style={type.h3}>{s.label}</Text>
-                <Badge label={photos[s.slot] ? 'Captured' : 'Required'} tone={photos[s.slot] ? 'success' : 'warning'} />
-              </View>
-              <Text style={[type.small, { marginVertical: space.sm }]}>{s.hint}</Text>
-              {photos[s.slot] ? <Image source={{ uri: photos[s.slot] }} style={styles.thumb} accessibilityLabel={`${s.label} photo`} /> : null}
-              <Button
-                title={photos[s.slot] ? 'Retake photo' : 'Take photo'}
-                variant={photos[s.slot] ? 'secondary' : 'primary'}
-                disabled={busy}
-                onPress={() => {
-                  setError('');
-                  setCapturing(s.slot);
-                }}
-              />
-            </Card>
-          ))}
+          <DesktopRow spacing={space.md}>
+            {SLOTS.map((s) => (
+              <DesktopCol key={s.slot} flex={1}>
+                <Card>
+                  <View style={styles.slotHead}>
+                    <Text style={type.h3}>{s.label}</Text>
+                    <Badge label={photos[s.slot] ? 'Captured' : 'Required'} tone={photos[s.slot] ? 'success' : 'warning'} />
+                  </View>
+                  <Text style={[type.small, { marginVertical: space.sm }]} numberOfLines={2}>{s.hint}</Text>
+                  {photos[s.slot] ? <Image source={{ uri: photos[s.slot] }} style={styles.thumb} accessibilityLabel={`${s.label} photo`} /> : null}
+                  <Button
+                    title={photos[s.slot] ? 'Retake photo' : 'Take photo'}
+                    variant={photos[s.slot] ? 'secondary' : 'primary'}
+                    disabled={busy}
+                    onPress={() => {
+                      setError('');
+                      setCapturing(s.slot);
+                    }}
+                  />
+                </Card>
+              </DesktopCol>
+            ))}
+          </DesktopRow>
           <Card>
             <TextField
               label="Starting odometer reading (km)"

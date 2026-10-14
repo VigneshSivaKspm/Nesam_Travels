@@ -12,14 +12,16 @@ import { colors, space, type } from '../../theme';
 function Shell({ children, onSignOut }: { children: React.ReactNode; onSignOut: () => void }) {
   return (
     <Screen>
-      <Card style={{ marginTop: space.xl }}>
-        {children}
-        <View style={styles.footer}>
-          <Button title={`Call support (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
-          <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
-        </View>
-      </Card>
-      <Text style={[type.tiny, { textAlign: 'center' }]}>NESAM Tours & Travels • Driver Partner</Text>
+      <View style={{ maxWidth: 640, width: '100%', alignSelf: 'center' }}>
+        <Card style={{ marginTop: space.xl }}>
+          {children}
+          <View style={styles.footer}>
+            <Button title={`Call support (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
+            <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
+          </View>
+        </Card>
+        <Text style={[type.tiny, { textAlign: 'center', marginTop: space.sm }]}>NESAM Tours & Travels • Driver Partner</Text>
+      </View>
     </Screen>
   );
 }

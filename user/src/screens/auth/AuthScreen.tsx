@@ -8,7 +8,8 @@ import { useRecaptchaVerifier } from '../../components/RecaptchaVerifier';
 import { confirmOtpCode, describePhoneAuthError, sendOtpToPhone } from '../../services/authService';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { formatPhone, isValidIndianMobile } from '../../utils/format';
-import { colors, space, type } from '../../theme';
+import { colors, radius, space, type } from '../../theme';
+import { useResponsive } from '../../theme/responsive';
 import { setAuthIntent, type AuthIntent } from './authIntent';
 
 import logo from '../../../assets/icon.png';
@@ -16,6 +17,7 @@ import logo from '../../../assets/icon.png';
 const RESEND_COOLDOWN_S = 30;
 
 export function AuthScreen() {
+  const { isDesktop } = useResponsive();
   const [step, setStep] = useState<'welcome' | 'phone' | 'otp'>('welcome');
   const [intent, setIntent] = useState<AuthIntent>('login');
   const [mobile, setMobile] = useState('');
@@ -110,121 +112,136 @@ export function AuthScreen() {
 
   if (step === 'welcome') {
     return (
-      <Screen>
-        {header('Safe Journey, Happy Memories')}
-        <Card>
-          <Button title="Login" onPress={() => start('login')} />
-          <Text style={styles.helper}>I already have an account</Text>
-          <Button title="Sign Up" variant="dark" onPress={() => start('signup')} style={{ marginTop: space.lg }} />
-          <Text style={styles.helper}>Create a new passenger account</Text>
-        </Card>
-        <Text style={styles.legal}>By continuing you agree to NESAM’s Terms & Conditions and Privacy Policy.</Text>
+      <Screen bg={colors.page}>
+        <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
+          {header('Safe Journey, Happy Memories')}
+          <Card style={styles.authCard}>
+            <Button title="Login with Phone" onPress={() => start('login')} />
+            <Text style={styles.helper}>I already have a passenger account</Text>
+            <Button title="Create New Account" variant="dark" onPress={() => start('signup')} style={{ marginTop: space.lg }} />
+            <Text style={styles.helper}>New to NESAM Travels</Text>
+          </Card>
+          <Text style={styles.legal}>By continuing you agree to NESAM’s Terms & Conditions and Privacy Policy.</Text>
+        </View>
       </Screen>
     );
   }
 
   if (step === 'phone') {
     return (
-      <Screen>
-        {header(intent === 'signup' ? 'Create your passenger account' : 'Sign in with your mobile number')}
-        <Card>
-          <TextField
-            label={intent === 'signup' ? 'Mobile number' : 'Registered mobile number'}
-            prefix="+91"
-            value={mobile}
-            onChangeText={(v) => {
-              setMobile(v.replace(/\D/g, '').slice(0, 10));
-              setError('');
-            }}
-            keyboardType="phone-pad"
-            autoComplete="tel-national"
-            textContentType="telephoneNumber"
-            maxLength={10}
-            placeholder="98765 43210"
-            autoFocus
-            returnKeyType="done"
-            onSubmitEditing={() => void sendOtp()}
-            hint={intent === 'signup' ? 'This number becomes your login and primary contact for trips.' : undefined}
-          />
-          <Notice message={error} />
-          <Button title={sending ? 'Sending OTP…' : 'Send OTP'} loading={sending} disabled={mobile.length !== 10 || !online} onPress={() => void sendOtp()} />
-          <View style={styles.backRow}>
-            <LinkText onPress={() => !sending && setStep('welcome')}>← Back</LinkText>
-          </View>
-        </Card>
+      <Screen bg={colors.page}>
+        <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
+          {header(intent === 'signup' ? 'Create your passenger account' : 'Sign in with your mobile number')}
+          <Card style={styles.authCard}>
+            <TextField
+              label={intent === 'signup' ? 'Mobile number' : 'Registered mobile number'}
+              prefix="+91"
+              value={mobile}
+              onChangeText={(v) => {
+                setMobile(v.replace(/\D/g, '').slice(0, 10));
+                setError('');
+              }}
+              keyboardType="phone-pad"
+              autoComplete="tel-national"
+              textContentType="telephoneNumber"
+              maxLength={10}
+              placeholder="98765 43210"
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={() => void sendOtp()}
+              hint={intent === 'signup' ? 'This number becomes your login and primary contact for trips.' : undefined}
+            />
+            <Notice message={error} />
+            <Button title={sending ? 'Sending OTP…' : 'Send Verification OTP'} loading={sending} disabled={mobile.length !== 10 || !online} onPress={() => void sendOtp()} />
+            <View style={styles.backRow}>
+              <LinkText onPress={() => !sending && setStep('welcome')}>← Back</LinkText>
+            </View>
+          </Card>
+        </View>
       </Screen>
     );
   }
 
   return (
-    <Screen>
-      {header('Verify your mobile number')}
-      <Card>
-        <Text style={[type.body, { marginBottom: space.md }]}>
-          Enter the 6-digit OTP sent to <Text style={{ fontWeight: '800' }}>{formatPhone(mobile)}</Text>
-        </Text>
-        <TextInput
-          ref={otpRef}
-          value={otp}
-          onChangeText={(v) => {
-            const digits = v.replace(/\D/g, '').slice(0, 6);
-            setOtp(digits);
-            setError('');
-            if (digits.length === 6) void verify(digits);
-          }}
-          keyboardType="number-pad"
-          autoComplete="sms-otp"
-          textContentType="oneTimeCode"
-          maxLength={6}
-          editable={!verifying}
-          placeholder="••••••"
-          placeholderTextColor={colors.faint}
-          style={[styles.otp, !!error && { borderColor: colors.primary }]}
-          accessibilityLabel="6-digit OTP"
-        />
-        <Notice message={error} />
-        <Button title={verifying ? 'Verifying…' : 'Verify & Continue'} loading={verifying} disabled={otp.length !== 6} onPress={() => void verify(otp)} />
-        <View style={styles.resendRow}>
-          {cooldown > 0 ? (
-            <Text style={type.small}>Resend code in {cooldown}s</Text>
-          ) : (
-            <LinkText onPress={() => void sendOtp()}>{sending ? 'Resending…' : 'Resend code'}</LinkText>
-          )}
-          <LinkText
-            onPress={() => {
-              if (verifying) return;
-              setStep('phone');
-              setOtp('');
+    <Screen bg={colors.page}>
+      <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
+        {header('Verify your mobile number')}
+        <Card style={styles.authCard}>
+          <Text style={[type.body, { marginBottom: space.md, textAlign: 'center' }]}>
+            Enter the 6-digit OTP sent to <Text style={{ fontWeight: '800' }}>{formatPhone(mobile)}</Text>
+          </Text>
+          <TextInput
+            ref={otpRef}
+            value={otp}
+            onChangeText={(v) => {
+              const digits = v.replace(/\D/g, '').slice(0, 6);
+              setOtp(digits);
               setError('');
+              if (digits.length === 6) void verify(digits);
             }}
-          >
-            Change number
-          </LinkText>
-        </View>
-      </Card>
+            keyboardType="number-pad"
+            autoComplete="sms-otp"
+            textContentType="oneTimeCode"
+            maxLength={6}
+            editable={!verifying}
+            placeholder="••••••"
+            placeholderTextColor={colors.faint}
+            style={[styles.otp, !!error && { borderColor: colors.primary }]}
+            accessibilityLabel="6-digit OTP"
+          />
+          <Notice message={error} />
+          <Button title={verifying ? 'Verifying…' : 'Verify & Continue'} loading={verifying} disabled={otp.length !== 6} onPress={() => void verify(otp)} />
+          <View style={styles.resendRow}>
+            {cooldown > 0 ? (
+              <Text style={type.small}>Resend code in {cooldown}s</Text>
+            ) : (
+              <LinkText onPress={() => void sendOtp()}>{sending ? 'Resending…' : 'Resend code'}</LinkText>
+            )}
+            <LinkText
+              onPress={() => {
+                if (verifying) return;
+                setStep('phone');
+                setOtp('');
+                setError('');
+              }}
+            >
+              Change number
+            </LinkText>
+          </View>
+        </Card>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  brand: { alignItems: 'center', marginTop: space.xl, marginBottom: space.xl },
+  authContainer: { width: '100%' },
+  desktopAuthContainer: { maxWidth: 480, width: '100%', alignSelf: 'center', marginTop: space.xl },
+  authCard: {
+    padding: space.xl,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    boxShadow: '0 4px 20px rgba(0,0,0,0.06)' as any,
+  },
+  brand: { alignItems: 'center', marginTop: space.md, marginBottom: space.lg },
   logo: { width: 88, height: 88, borderRadius: 20, marginBottom: space.md },
-  title: { ...type.h1, textAlign: 'center' },
+  title: { fontSize: 24, fontWeight: '900', color: colors.ink, textAlign: 'center' },
   subtitle: { ...type.small, marginTop: 4, textAlign: 'center' },
   helper: { ...type.small, textAlign: 'center', marginTop: 6 },
-  legal: { ...type.tiny, textAlign: 'center', marginTop: space.md, paddingHorizontal: space.lg },
+  legal: { ...type.tiny, textAlign: 'center', marginTop: space.lg, paddingHorizontal: space.lg, color: colors.muted },
   backRow: { marginTop: space.lg, alignItems: 'center' },
   otp: {
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.border,
     borderRadius: 12,
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '800',
     letterSpacing: 12,
     textAlign: 'center',
-    paddingVertical: 12,
+    paddingVertical: 14,
     color: colors.ink,
-    backgroundColor: colors.card,
+    backgroundColor: '#F8FAFC',
     marginBottom: space.md,
   },
   resendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.lg },

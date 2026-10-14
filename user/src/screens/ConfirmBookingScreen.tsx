@@ -3,12 +3,13 @@
 // which re-prices and refuses a fare that changed).
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ScrollView, Content } from '../components/layout';
+import { ScrollView, Content, DesktopRow } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Notice, TextField } from '../components/ui';
 import { StepHeader } from '../components/brand';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { Checkbox } from '../components/Checkbox';
 import { FareLines } from '../components/FareLines';
 import { useCustomerData } from '../context/CustomerData';
@@ -21,6 +22,7 @@ import type { AppliedCoupon, FareBreakdown, PaymentMethod } from '../types';
 import { formatDate, formatINR, formatTime } from '../utils/format';
 import { describeError } from '../utils/retry';
 import { colors, radius, space } from '../theme';
+import { useResponsive } from '../theme/responsive';
 import { scheduleProblem, whatsappProblem } from '../utils/bookingRules';
 
 // The booking server records Cash or UPI only.
@@ -32,6 +34,7 @@ const PAYMENT_OPTIONS: { id: PaymentMethod; label: string; hint: string; icon: '
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 
 export function ConfirmBookingScreen() {
+  const { isDesktop, isCompact } = useResponsive();
   const navigation = useNavigation();
   const { profile, trips, liveRide } = useCustomerData();
   const { draft, reset, route, categories, adjustment, coupons } = useBookingDraft();
@@ -150,170 +153,290 @@ export function ConfirmBookingScreen() {
     }
   };
 
+  const fareBreakup = buildFareBreakup(category, quote, outstation);
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <DesktopHeader
+        title="Review & Confirm Booking"
+        subtitle="Step 3 of 3: Check trip parameters, payment method and rider contact"
+        badge="Final Step"
+        onBack={() => navigation.goBack()}
+      />
       <ScrollView contentContainerStyle={styles.pad} keyboardShouldPersistTaps="handled">
-        <StepHeader title="Review & book" step={3} onBack={() => navigation.goBack()} />
+        {isCompact ? <StepHeader title="Review & book" step={3} onBack={() => navigation.goBack()} /> : null}
 
-        <View style={styles.card}>
-          <View style={styles.placeRow}>
-            <View style={[styles.dot, { backgroundColor: colors.success }]} />
-            <Text style={styles.place} numberOfLines={2}>
-              {pickup.name}
-            </Text>
-          </View>
-          <View style={styles.connector} />
-          <View style={styles.placeRow}>
-            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
-            <Text style={styles.place} numberOfLines={2}>
-              {drop.name}
-            </Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Ionicons name="calendar-outline" size={20} color={colors.slate} />
-            <Text style={styles.meta}>{scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)}` : 'Today · Now'}</Text>
-          </View>
-          <View style={styles.metaRow}>
-            <Ionicons name="car-outline" size={20} color={colors.slate} />
-            <Text style={styles.meta}>
-              {category.name} · {category.seats} passengers · {tripType} · {service}
-            </Text>
-          </View>
-        </View>
+        <DesktopRow gap={24} style={styles.contentRow}>
+          {/* Left Column: Preferences, Payment, Contact, Notes */}
+          <View style={[styles.mainCol, isDesktop && { flex: 1.3 }]}>
+            {/* Payment Method */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Payment Method</Text>
+              <Text style={styles.cardSubtitle}>Select how you wish to settle this trip</Text>
+              <View style={styles.payRow} accessibilityRole="radiogroup">
+                {PAYMENT_OPTIONS.map((p) => {
+                  const on = payment === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      onPress={() => setPayment(p.id)}
+                      style={({ pressed, hovered }: any) => [
+                        styles.pay,
+                        on && styles.payOn,
+                        hovered && !on && styles.payHovered,
+                        pressed && { opacity: 0.9 },
+                      ]}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: on }}
+                    >
+                      <Ionicons name={p.icon} size={26} color={on ? colors.primary : colors.ink} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[styles.payLabel, on && { color: colors.primary }]}>{p.label}</Text>
+                        <Text style={styles.payHint}>{p.hint}</Text>
+                      </View>
+                      <Ionicons name={on ? 'checkmark-circle' : 'ellipse-outline'} size={22} color={on ? colors.primary : colors.faint} />
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
 
-        <Text style={styles.section}>Payment</Text>
-        <View style={styles.payRow} accessibilityRole="radiogroup">
-          {PAYMENT_OPTIONS.map((p) => {
-            const on = payment === p.id;
-            return (
-              <Pressable key={p.id} onPress={() => setPayment(p.id)} style={[styles.pay, on && styles.payOn]} accessibilityRole="radio" accessibilityState={{ selected: on }}>
-                <Ionicons name={p.icon} size={24} color={on ? colors.primary : colors.ink} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.payLabel, on && { color: colors.primary }]}>{p.label}</Text>
-                  <Text style={styles.payHint}>{p.hint}</Text>
+            {/* Contact details for this trip */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Contact Details</Text>
+              <Text style={styles.cardSubtitle}>Driver and booking dispatch updates will be sent here</Text>
+
+              <Checkbox checked={waSame} onChange={setWaSame} label={`WhatsApp number is the same as my mobile (${profile.phone || 'not set'})`} />
+              {!waSame ? (
+                <View style={styles.waRow}>
+                  <TextField label="Code" value={waCode} onChangeText={setWaCode} keyboardType="phone-pad" autoComplete="off" maxLength={4} style={{ width: 84, marginBottom: 0 }} accessibilityLabel="WhatsApp country code" />
+                  <TextField label="WhatsApp number" required value={waNumber} onChangeText={setWaNumber} keyboardType="phone-pad" autoComplete="off" maxLength={16} placeholder="10-digit number" style={{ flex: 1, marginBottom: 0 }} />
                 </View>
-              </Pressable>
-            );
-          })}
-        </View>
+              ) : null}
+              {waError ? <Text style={styles.err}>{waError}</Text> : null}
 
-        <Text style={styles.section}>Promo code</Text>
-        <View style={styles.promoRow}>
-          <TextInput
-            value={promoInput}
-            onChangeText={(v) => setPromoInput(v.toUpperCase())}
-            placeholder="Enter promo code"
-            placeholderTextColor={colors.faint}
-            autoCapitalize="characters"
-            style={styles.promoInput}
-            editable={!appliedCode}
-            accessibilityLabel="Promo code"
-          />
-          {appliedCode ? (
-            <Button
-              small
-              variant="secondary"
-              title="Remove"
-              onPress={() => {
-                setAppliedCode(null);
-                setPromoError('');
-                setPromoInput('');
-              }}
-            />
-          ) : (
-            <Button small variant="dark" title="Apply" disabled={!promoInput.trim()} onPress={applyPromo} />
-          )}
-        </View>
-        {promoMsg ? <Text style={[styles.promoMsg, { color: promoMsg.ok ? colors.success : colors.primaryDark }]}>{promoMsg.text}</Text> : null}
-
-        <Text style={styles.section}>Contact for this booking</Text>
-        <View style={styles.card}>
-          <Checkbox checked={waSame} onChange={setWaSame} label={`WhatsApp number is the same as my mobile (${profile.phone || 'not set'})`} />
-          {!waSame ? (
-            <View style={styles.waRow}>
-              <TextField label="Code" value={waCode} onChangeText={setWaCode} keyboardType="phone-pad" autoComplete="off" maxLength={4} style={{ width: 84, marginBottom: 0 }} accessibilityLabel="WhatsApp country code" />
-              <TextField label="WhatsApp number" required value={waNumber} onChangeText={setWaNumber} keyboardType="phone-pad" autoComplete="off" maxLength={16} placeholder="10-digit number" style={{ flex: 1, marginBottom: 0 }} />
+              <TextField
+                label="Email (optional)"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                placeholder={profile.email || 'name@example.com'}
+                hint={profile.email ? 'Leave blank to use your account email.' : 'For booking confirmation and GST receipt.'}
+                error={emailError}
+                style={{ marginTop: space.md, marginBottom: 0 }}
+              />
             </View>
-          ) : null}
-          {waError ? <Text style={styles.err}>{waError}</Text> : null}
-          <TextField
-            label="Email (optional)"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-            placeholder={profile.email || 'name@example.com'}
-            hint={profile.email ? 'Leave blank to use your account email.' : 'For the booking confirmation and receipt.'}
-            error={emailError}
-            style={{ marginTop: space.md, marginBottom: 0 }}
-          />
-        </View>
 
-        <Text style={styles.section}>Note for the driver</Text>
-        <TextInput
-          value={notes}
-          onChangeText={(v) => setNotes(v.slice(0, 300))}
-          placeholder="Gate number, landmark, luggage…"
-          placeholderTextColor={colors.faint}
-          multiline
-          style={styles.notes}
-          accessibilityLabel="Note for the driver"
-        />
-        <Text style={styles.counter}>{notes.length}/300</Text>
-
-        <View style={styles.card}>
-          <Pressable onPress={() => setShowFare((s) => !s)} style={styles.fareHead} accessibilityRole="button" accessibilityState={{ expanded: showFare }}>
-            <Ionicons name="document-text-outline" size={22} color={colors.ink} />
-            <Text style={styles.fareTitle}>Fare details</Text>
-            <Ionicons name={showFare ? 'chevron-up' : 'chevron-down'} size={22} color={colors.slate} />
-          </Pressable>
-          {showFare ? (
-            <View style={{ marginTop: space.md }}>
-              <FareLines lines={buildFareBreakup(category, quote, outstation).lines} total={quote.total} estimated />
+            {/* Note for the driver */}
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Driver Instructions</Text>
+              <Text style={styles.cardSubtitle}>Pickup landmark, gate number or luggage requirements</Text>
+              <TextInput
+                value={notes}
+                onChangeText={(v) => setNotes(v.slice(0, 300))}
+                placeholder="Gate number, building name, luggage notes…"
+                placeholderTextColor={colors.faint}
+                multiline
+                style={styles.notes}
+                accessibilityLabel="Note for the driver"
+              />
+              <Text style={styles.counter}>{notes.length}/300 characters</Text>
             </View>
-          ) : null}
-        </View>
 
-        <Notice message={submitError} onRetry={submitError && !serverQuote ? () => void submit() : undefined} style={{ marginTop: space.md }} />
+            {/* Mobile collapsible fare card */}
+            {isCompact ? (
+              <View style={styles.card}>
+                <Pressable onPress={() => setShowFare((s) => !s)} style={styles.fareHead} accessibilityRole="button" accessibilityState={{ expanded: showFare }}>
+                  <Ionicons name="document-text-outline" size={22} color={colors.ink} />
+                  <Text style={styles.fareTitle}>Fare details</Text>
+                  <Ionicons name={showFare ? 'chevron-up' : 'chevron-down'} size={22} color={colors.slate} />
+                </Pressable>
+                {showFare ? (
+                  <View style={{ marginTop: space.md }}>
+                    <FareLines lines={fareBreakup.lines} total={quote.total} estimated />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
+
+            {submitError ? <Notice message={submitError} onRetry={!serverQuote ? () => void submit() : undefined} style={{ marginTop: space.md }} /> : null}
+          </View>
+
+          {/* Right Column: Trip Overview, Promo Code, Fare Breakdown & CTA */}
+          <View style={[styles.sidebarCol, isDesktop && { flex: 1 }]}>
+            {/* Trip parameters overview */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.cardTitle}>Journey Summary</Text>
+              <View style={styles.placeRow}>
+                <View style={[styles.dot, { backgroundColor: colors.success }]} />
+                <Text style={styles.place} numberOfLines={2}>
+                  {pickup.name}
+                </Text>
+              </View>
+              <View style={styles.connector} />
+              <View style={styles.placeRow}>
+                <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+                <Text style={styles.place} numberOfLines={2}>
+                  {drop.name}
+                </Text>
+              </View>
+
+              <View style={styles.metaRow}>
+                <Ionicons name="calendar-outline" size={18} color={colors.slate} />
+                <Text style={styles.meta}>{scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)}` : 'Today · Now'}</Text>
+              </View>
+              <View style={styles.metaRow}>
+                <Ionicons name="car-outline" size={18} color={colors.slate} />
+                <Text style={styles.meta}>
+                  {category.name} · {category.seats} seats · {tripType}
+                </Text>
+              </View>
+            </View>
+
+            {/* Promo code box */}
+            <View style={styles.summaryCard}>
+              <Text style={styles.cardTitle}>Promo Code</Text>
+              <View style={styles.promoRow}>
+                <TextInput
+                  value={promoInput}
+                  onChangeText={(v) => setPromoInput(v.toUpperCase())}
+                  placeholder="Enter promo code"
+                  placeholderTextColor={colors.faint}
+                  autoCapitalize="characters"
+                  style={styles.promoInput}
+                  editable={!appliedCode}
+                  accessibilityLabel="Promo code"
+                />
+                {appliedCode ? (
+                  <Button
+                    small
+                    variant="secondary"
+                    title="Remove"
+                    onPress={() => {
+                      setAppliedCode(null);
+                      setPromoError('');
+                      setPromoInput('');
+                    }}
+                  />
+                ) : (
+                  <Button small variant="dark" title="Apply" disabled={!promoInput.trim()} onPress={applyPromo} />
+                )}
+              </View>
+              {promoMsg ? <Text style={[styles.promoMsg, { color: promoMsg.ok ? colors.success : colors.primaryDark }]}>{promoMsg.text}</Text> : null}
+            </View>
+
+            {/* Desktop Fare Summary & Book CTA Card */}
+            {isDesktop ? (
+              <View style={styles.summaryCard}>
+                <Text style={styles.cardTitle}>Payment Breakdown</Text>
+                <View style={{ marginVertical: space.sm }}>
+                  <FareLines lines={fareBreakup.lines} total={quote.total} estimated />
+                </View>
+
+                {blocker ? (
+                  <View style={styles.blockerBox}>
+                    <Ionicons name="alert-circle" size={18} color={colors.primaryDark} />
+                    <Text style={styles.blockerText}>{blocker}</Text>
+                  </View>
+                ) : null}
+
+                <Pressable
+                  onPress={() => void submit()}
+                  disabled={!!blocker || submitting}
+                  style={({ pressed, hovered }: any) => [
+                    styles.desktopBookBtn,
+                    (!!blocker || submitting) && { opacity: 0.45 },
+                    hovered && !blocker && !submitting && { backgroundColor: colors.primaryDark },
+                    pressed && !blocker && !submitting && { opacity: 0.85 },
+                  ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !!blocker || submitting, busy: submitting }}
+                >
+                  <Text style={styles.desktopBookText}>{submitting ? 'Placing Booking…' : scheduledAt ? 'Confirm Schedule Ride' : 'Confirm & Book Ride'}</Text>
+                  <Ionicons name="checkmark-circle" size={20} color={colors.white} />
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+        </DesktopRow>
       </ScrollView>
-      {blocker ? <Text style={styles.blocker}>{blocker}</Text> : null}
 
-      <View style={styles.bottomBarWrap}>
-<Content style={styles.bottomBar}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.estLabel}>{coupon ? `Estimated fare (−${formatINR(quote.discount)} promo)` : 'Estimated fare'}</Text>
-          <Text style={styles.estValue}>{formatINR(quote.total)}</Text>
+      {/* Mobile/Compact Blocker Banner & Bottom Bar */}
+      {isCompact && blocker ? <Text style={styles.blocker}>{blocker}</Text> : null}
+
+      {isCompact ? (
+        <View style={styles.bottomBarWrap}>
+          <Content style={styles.bottomBar}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.estLabel}>{coupon ? `Estimated fare (−${formatINR(quote.discount)} promo)` : 'Estimated fare'}</Text>
+              <Text style={styles.estValue}>{formatINR(quote.total)}</Text>
+            </View>
+            <Pressable
+              onPress={() => void submit()}
+              disabled={!!blocker || submitting}
+              style={({ pressed }) => [styles.book, (!!blocker || submitting) && { opacity: 0.45 }, pressed && { backgroundColor: colors.primaryDark }]}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !!blocker || submitting, busy: submitting }}
+            >
+              <Text style={styles.bookText}>{submitting ? 'Booking…' : scheduledAt ? 'Schedule ride' : 'Book ride'}</Text>
+            </Pressable>
+          </Content>
         </View>
-        <Pressable
-          onPress={() => void submit()}
-          disabled={!!blocker || submitting}
-          style={({ pressed }) => [styles.book, (!!blocker || submitting) && { opacity: 0.45 }, pressed && { backgroundColor: colors.primaryDark }]}
-          accessibilityRole="button"
-          accessibilityState={{ disabled: !!blocker || submitting, busy: submitting }}
-        >
-          <Text style={styles.bookText}>{submitting ? 'Booking…' : scheduledAt ? 'Schedule ride' : 'Book ride'}</Text>
-        </Pressable>
-      </Content>
-</View>
+      ) : null}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.page },
-  pad: { paddingHorizontal: space.lg, paddingBottom: space.xl },
-  card: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card, padding: space.lg, marginBottom: space.md },
+  pad: { paddingHorizontal: space.lg, paddingBottom: space.xxl, paddingTop: space.md },
+  contentRow: { alignItems: 'flex-start' },
+  mainCol: { width: '100%' },
+  sidebarCol: { width: '100%', minWidth: 320 },
+  card: {
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    padding: space.lg,
+    marginBottom: space.md,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)' as any,
+  },
+  summaryCard: {
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    padding: space.lg,
+    marginBottom: space.md,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)' as any,
+  },
+  cardTitle: { fontSize: 18, fontWeight: '800', color: colors.ink, marginBottom: 2 },
+  cardSubtitle: { fontSize: 14, color: colors.slate, marginBottom: space.md },
   placeRow: { flexDirection: 'row', alignItems: 'center', gap: space.md },
-  dot: { width: 14, height: 14, borderRadius: 7 },
-  connector: { width: 0, height: 18, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: colors.faint, marginLeft: 6 },
-  place: { flex: 1, fontSize: 18, fontWeight: '800', color: colors.ink },
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md },
-  meta: { flex: 1, fontSize: 15, color: colors.slate },
-  section: { fontSize: 18, fontWeight: '800', color: colors.ink, marginTop: space.md, marginBottom: space.sm },
-  payRow: { flexDirection: 'row', gap: space.md, flexWrap: 'wrap', marginBottom: space.sm },
-  pay: { flexBasis: '47%', flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: space.md, borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card, padding: space.md, minHeight: 64 },
+  dot: { width: 12, height: 12, borderRadius: 6 },
+  connector: { width: 0, height: 16, borderLeftWidth: 2, borderStyle: 'dashed', borderColor: colors.faint, marginLeft: 5 },
+  place: { flex: 1, fontSize: 16, fontWeight: '800', color: colors.ink },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginTop: space.sm },
+  meta: { flex: 1, fontSize: 14, color: colors.slate },
+  payRow: { flexDirection: 'row', gap: space.md, flexWrap: 'wrap' },
+  pay: {
+    flexBasis: '47%',
+    flexGrow: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    padding: space.md,
+    minHeight: 64,
+  },
   payOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  payHovered: { borderColor: colors.slate, backgroundColor: '#F8FAFC' },
   payLabel: { fontSize: 16, fontWeight: '800', color: colors.ink },
   payHint: { fontSize: 13, color: colors.slate },
   promoRow: { flexDirection: 'row', gap: space.sm, alignItems: 'center' },
@@ -338,16 +461,37 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     borderRadius: radius.md,
     padding: space.md,
-    minHeight: 72,
+    minHeight: 80,
     textAlignVertical: 'top',
-    fontSize: 16,
+    fontSize: 15,
     color: colors.ink,
     backgroundColor: colors.card,
   },
-  counter: { fontSize: 12, color: colors.slate, textAlign: 'right', marginTop: 4, marginBottom: space.md },
+  counter: { fontSize: 12, color: colors.slate, textAlign: 'right', marginTop: 4 },
   fareHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   fareTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.ink },
+  blockerBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.sm,
+    backgroundColor: colors.primarySoft,
+    padding: space.md,
+    borderRadius: radius.md,
+    marginVertical: space.sm,
+  },
+  blockerText: { fontSize: 13, fontWeight: '700', color: colors.primaryDark, flex: 1 },
   blocker: { fontSize: 14, fontWeight: '700', color: colors.primaryDark, backgroundColor: colors.primarySoft, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  desktopBookBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: space.sm,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 16,
+    marginTop: space.sm,
+  },
+  desktopBookText: { color: colors.white, fontSize: 17, fontWeight: '800' },
   bottomBarWrap: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
   bottomBar: {
     flexDirection: 'row',

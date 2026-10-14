@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { callBackend, settleBooking, settlePayout } from './backend';
 // Vendor operations: marketplace, bidding, dispatch, fleet, drivers, invites
 // and payouts.
 //
@@ -135,6 +135,7 @@ export async function acceptOfferedRate(vendor: VendorIdentity, trip: MarketTrip
       }),
       15000,
     );
+    settleBooking(trip.id);
   } catch (err) {
     if (err instanceof VendorActionError) throw err;
     const code = (err as { code?: string })?.code ?? '';
@@ -307,6 +308,7 @@ export async function dispatchDriver(booking: VendorBooking, driver: FleetDriver
   if (blocker) throw new VendorActionError('driver-busy', blocker);
   if (!vehicleNumber.trim()) throw new VendorActionError('no-vehicle', 'Choose the vehicle for this trip.');
   await withTimeout(updateDoc(doc(db, 'bookings', booking.id), buildDispatchUpdate(driver, vehicleNumber.trim().toUpperCase())), 15000);
+  settleBooking(booking.id);
 }
 
 // ── Fleet vehicles ─────────────────────────────────────────────────────────
@@ -575,5 +577,6 @@ export async function requestVendorPayout(amount: number, available: number, met
   const invalid = validateVendorPayout(amount, available);
   if (invalid) throw new VendorActionError('invalid-amount', invalid);
   const ref = doc(collection(db, 'payout_requests'));
-  await httpsCallable(getFunctions(), 'requestPartnerPayout')({ requestId: ref.id, role: 'vendor', amount, method });
+  await callBackend('requestPartnerPayout', { requestId: ref.id, role: 'vendor', amount, method });
+  settlePayout(ref.id);
 }

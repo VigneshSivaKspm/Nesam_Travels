@@ -231,7 +231,11 @@ export const onBookingMoneyChange = onDocumentUpdated('bookings/{bookingId}', as
   const after = event.data?.after.data();
   if (!before || !after) return;
   if (MONEY_KEYS.every((k) => JSON.stringify(before[k] ?? null) === JSON.stringify(after[k] ?? null))) return;
-  const bookingId = event.params.bookingId;
+  await reconcileBookingMoney(event.params.bookingId);
+});
+
+/** Recomputes the paid / balance figures from the booking and its transactions. Idempotent. */
+export async function reconcileBookingMoney(bookingId: string): Promise<void> {
   const ref = db.doc(`bookings/${bookingId}`);
   await db.runTransaction(async (tx) => {
     const [snap, all] = await Promise.all([tx.get(ref), tx.get(txnsRef(bookingId))]);
@@ -244,4 +248,4 @@ export const onBookingMoneyChange = onDocumentUpdated('bookings/{bookingId}', as
     if (!all.size && (b.payment === 'Paid' || b.paymentStatus === 'Paid') && !b.refund) return;
     tx.update(ref, fields);
   });
-});
+}

@@ -18,18 +18,7 @@ npm run build:web  # writes ./dist (static files, single-page app)
 npm run serve:web  # preview the build locally
 ```
 
-Deploy with Firebase Hosting using the multi-site config in `firebase.web.json`
-(it is separate from `firebase.json`, so normal function/rules deploys are unchanged).
-Create three Hosting sites in the Firebase console once, then:
-
-```bash
-firebase target:apply hosting customer <customer-site-id>
-firebase target:apply hosting driver   <driver-site-id>
-firebase target:apply hosting vendor   <vendor-site-id>
-firebase deploy --config firebase.web.json --only hosting
-```
-
-Any static host works too — serve `dist/` with a fallback of every path to `index.html`.
+Production hosting and the server API are on Vercel: see **VERCEL_DEPLOYMENT.md**.
 
 ## One-time Firebase setting
 

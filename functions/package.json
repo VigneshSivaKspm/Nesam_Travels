@@ -12,7 +12,9 @@
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth,storage",
     "shell": "npm run build && firebase functions:shell",
     "deploy": "firebase deploy --only functions",
-    "logs": "firebase functions:log"
+    "logs": "firebase functions:log",
+    "test:http": "npm run build && node --test test/http.test.js",
+    "vercel-build": "npm run build"
   },
   "dependencies": {
     "exifr": "^7.1.3",

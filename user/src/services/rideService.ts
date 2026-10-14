@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { callBackend, settleBooking } from './backend';
 // Ride lifecycle for the customer: request → dispatch → live tracking →
 // completion, cancellation, rating and SOS.
 //
@@ -311,12 +311,11 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
   const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.couponCode]);
   const requestId = pendingBookingIds.get(key) ?? doc(collection(db, BOOKINGS)).id;
   pendingBookingIds.set(key, requestId);
-  const call = httpsCallable(getFunctions(), 'createBooking', { timeout: 60000 });
-  await call({ requestId, pickup: input.pickup, drop: input.drop,
+  await callBackend('createBooking', { requestId, pickup: input.pickup, drop: input.drop,
     categoryId: input.category.id, tripType: input.tripType, expectedFare: input.fare.total,
     paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes,
     whatsapp: input.whatsapp, email: input.email || undefined,
-    scheduledAt: input.scheduledAt?.toISOString() ?? null });
+    scheduledAt: input.scheduledAt?.toISOString() ?? null }, 60000);
   pendingBookingIds.delete(key);
   return { id: requestId, unconfirmed: false };
 }
@@ -388,6 +387,7 @@ export async function cancelRide(trip: TripRecord, reason: string): Promise<void
 
   try {
     await withTimeout(build(true).commit(), 15000);
+    settleBooking(trip.id);
   } catch (err) {
     // Admin-created bookings have no marketplace doc, and the rules reject an
     // update to a missing doc — retry without it. If the booking update itself
@@ -395,6 +395,7 @@ export async function cancelRide(trip: TripRecord, reason: string): Promise<void
     const code = errorCode(err);
     if (code === 'not-found' || code === 'permission-denied') {
       await withTimeout(build(false).commit(), 15000);
+      settleBooking(trip.id);
       return;
     }
     throw err;

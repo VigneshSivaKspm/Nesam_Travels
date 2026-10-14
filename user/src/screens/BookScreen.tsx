@@ -7,6 +7,8 @@ import { useNavigation } from '@react-navigation/native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { Notice, Screen } from '../components/ui';
+import { DesktopCol, DesktopRow } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { BrandHeader, IconButton, SupportBanner } from '../components/brand';
 import { PlaceSearchModal } from '../components/PlaceSearchModal';
 import { useCustomerData } from '../context/CustomerData';
@@ -19,7 +21,7 @@ import { scheduleProblem } from '../utils/bookingRules';
 import type { GeoPlace, LatLng, LocationItem } from '../types';
 import { formatDate, formatTime } from '../utils/format';
 import { haversineKm, isValidLatLng } from '../utils/geo';
-import { colors, radius, space } from '../theme';
+import { colors, radius, space, type } from '../theme';
 
 type PickerTarget = { field: 'pickup' | 'drop'; query?: string } | null;
 
@@ -159,135 +161,183 @@ export function BookScreen() {
         onUseCurrentLocation={picker?.field === 'pickup' ? () => void locateMe() : undefined}
       />
 
-      <BrandHeader right={<IconButton icon="headset-outline" label="Help and support" onPress={() => navigation.navigate('Support')} />} />
-      <Text style={styles.welcome}>Welcome, {firstName}</Text>
-      <Text style={styles.headline} accessibilityRole="header">
-        Plan your next journey
-      </Text>
-
-      {liveRide ? (
-        <Pressable style={styles.liveBanner} onPress={() => navigation.navigate('ActiveRide', { bookingId: liveRide.id })} accessibilityRole="button">
-          <Ionicons name="navigate" size={18} color={colors.white} />
-          <Text style={styles.liveText} numberOfLines={1}>
-            Ride in progress · {liveRide.drop.name}
-          </Text>
-          <Text style={styles.liveText}>View →</Text>
-        </Pressable>
-      ) : null}
-
-      <View style={styles.tiles} accessibilityRole="radiogroup">
-        <Tile icon="car" label="One Way" active={tripType === 'One Way'} onPress={() => update({ tripType: 'One Way' })} />
-        <Tile icon="sync" label="Round Trip" active={tripType === 'Round Trip'} onPress={() => update({ tripType: 'Round Trip' })} />
-        <Tile icon="time-outline" label="Local Rental" hint="Call to book" onPress={callForRental} />
-        <Tile icon="airplane" label="Airport" hint={airport ? 'Airport trip' : undefined} active={airport} onPress={() => setPicker({ field: 'drop', query: 'airport' })} />
-      </View>
-
-      <View style={styles.routeCard}>
-        <View style={styles.placeRow}>
-          <View style={styles.dotCol}>
-            <View style={[styles.dot, { backgroundColor: colors.success }]} />
-            <View style={styles.dash} />
+      <DesktopHeader
+        title="Book Your Outstation & City Cab"
+        subtitle="Transparent fares • Verified commercial drivers • 24×7 customer care"
+        actions={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <IconButton icon="headset-outline" label="Support" onPress={() => navigation.navigate('Support')} />
+            <IconButton icon="bookmark-outline" label="Saved Places" onPress={() => navigation.navigate('SavedPlaces')} />
           </View>
-          <Pressable style={{ flex: 1 }} onPress={() => setPicker({ field: 'pickup' })} accessibilityRole="button" accessibilityLabel={`Pickup: ${pickup?.name ?? 'not set'}`}>
-            <Text style={styles.placeLabel}>PICKUP</Text>
-            <Text style={styles.placeName} numberOfLines={1}>
-              {pickup?.name ?? (locating ? 'Finding your location…' : 'Set pickup location')}
-            </Text>
-            {pickup && pickup.address !== pickup.name ? (
-              <Text style={styles.placeAddr} numberOfLines={1}>
-                {pickup.address}
+        }
+      />
+
+      <DesktopRow spacing={space.xl}>
+        {/* Booking Form & Journey Configuration (Left) */}
+        <DesktopCol flex={1.35}>
+          <Text style={styles.welcome}>Welcome back, {firstName}</Text>
+          <Text style={styles.headline} accessibilityRole="header">
+            Where would you like to travel?
+          </Text>
+
+          {liveRide ? (
+            <Pressable style={styles.liveBanner} onPress={() => navigation.navigate('ActiveRide', { bookingId: liveRide.id })} accessibilityRole="button">
+              <Ionicons name="navigate" size={18} color={colors.white} />
+              <Text style={styles.liveText} numberOfLines={1}>
+                Ride in progress · {liveRide.drop.name}
+              </Text>
+              <Text style={styles.liveText}>View live ride →</Text>
+            </Pressable>
+          ) : null}
+
+          <View style={styles.tiles} accessibilityRole="radiogroup">
+            <Tile icon="car" label="One Way" active={tripType === 'One Way'} onPress={() => update({ tripType: 'One Way' })} />
+            <Tile icon="sync" label="Round Trip" active={tripType === 'Round Trip'} onPress={() => update({ tripType: 'Round Trip' })} />
+            <Tile icon="time-outline" label="Local Rental" hint="Call to book" onPress={callForRental} />
+            <Tile icon="airplane" label="Airport" hint={airport ? 'Airport trip' : undefined} active={airport} onPress={() => setPicker({ field: 'drop', query: 'airport' })} />
+          </View>
+
+          <View style={styles.routeCard}>
+            <View style={styles.placeRow}>
+              <View style={styles.dotCol}>
+                <View style={[styles.dot, { backgroundColor: colors.success }]} />
+                <View style={styles.dash} />
+              </View>
+              <Pressable style={{ flex: 1 }} onPress={() => setPicker({ field: 'pickup' })} accessibilityRole="button" accessibilityLabel={`Pickup: ${pickup?.name ?? 'not set'}`}>
+                <Text style={styles.placeLabel}>PICKUP LOCATION</Text>
+                <Text style={styles.placeName} numberOfLines={1}>
+                  {pickup?.name ?? (locating ? 'Finding your location…' : 'Enter pickup address / landmark')}
+                </Text>
+                {pickup && pickup.address !== pickup.name ? (
+                  <Text style={styles.placeAddr} numberOfLines={1}>
+                    {pickup.address}
+                  </Text>
+                ) : null}
+              </Pressable>
+              <Pressable onPress={() => void locateMe()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Use my current location" style={styles.pinBtn}>
+                <Ionicons name="locate-outline" size={24} color={colors.slate} />
+              </Pressable>
+            </View>
+            <Pressable
+              onPress={() => pickup && drop && update({ pickup: drop, drop: pickup })}
+              disabled={!pickup || !drop}
+              style={[styles.swap, (!pickup || !drop) && { opacity: 0.4 }]}
+              accessibilityRole="button"
+              accessibilityLabel="Swap pickup and destination"
+            >
+              <Ionicons name="swap-vertical" size={22} color={colors.ink} />
+            </Pressable>
+            <View style={styles.placeRow}>
+              <View style={styles.dotCol}>
+                <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+              </View>
+              <Pressable style={{ flex: 1 }} onPress={() => setPicker({ field: 'drop' })} accessibilityRole="button" accessibilityLabel={`Destination: ${drop?.name ?? 'not set'}`}>
+                <Text style={styles.placeLabel}>DESTINATION LOCATION</Text>
+                <Text style={[styles.placeName, !drop && { color: colors.slate }]} numberOfLines={1}>
+                  {drop?.name ?? 'Where are you travelling to?'}
+                </Text>
+                {drop && drop.address !== drop.name ? (
+                  <Text style={styles.placeAddr} numberOfLines={1}>
+                    {drop.address}
+                  </Text>
+                ) : null}
+              </Pressable>
+              {drop ? (
+                <Pressable onPress={() => update({ drop: null })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear destination" style={styles.pinBtn}>
+                  <Ionicons name="close-circle" size={24} color={colors.faint} />
+                </Pressable>
+              ) : (
+                <Pressable onPress={() => setPicker({ field: 'drop' })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Search destination" style={styles.pinBtn}>
+                  <Ionicons name="location-outline" size={24} color={colors.slate} />
+                </Pressable>
+              )}
+            </View>
+
+            <View style={styles.whenRow}>
+              <Pressable style={styles.whenBox} onPress={openSchedulePicker} accessibilityRole="button" accessibilityLabel={`Pickup date: ${scheduledAt ? formatDate(scheduledAt) : 'today'}. Change`}>
+                <Ionicons name="calendar-outline" size={26} color={colors.ink} />
+                <View>
+                  <Text style={styles.whenLabel}>Pickup Date</Text>
+                  <Text style={styles.whenValue}>{scheduledAt ? formatDate(scheduledAt) : 'Today'}</Text>
+                </View>
+              </Pressable>
+              <Pressable style={styles.whenBox} onPress={openSchedulePicker} accessibilityRole="button" accessibilityLabel={`Pickup time: ${scheduledAt ? formatTime(scheduledAt) : 'now'}. Change`}>
+                <Ionicons name="time-outline" size={26} color={colors.ink} />
+                <View>
+                  <Text style={styles.whenLabel}>Pickup Time</Text>
+                  <Text style={styles.whenValue}>{scheduledAt ? formatTime(scheduledAt) : 'Now (Immediate)'}</Text>
+                </View>
+              </Pressable>
+            </View>
+            {scheduledAt ? (
+              <Text
+                style={styles.rideNow}
+                onPress={() => {
+                  update({ scheduledAt: null });
+                  setProblem('');
+                }}
+                accessibilityRole="button"
+              >
+                Ride now instead
               </Text>
             ) : null}
-          </Pressable>
-          <Pressable onPress={() => void locateMe()} hitSlop={10} accessibilityRole="button" accessibilityLabel="Use my current location" style={styles.pinBtn}>
-            <Ionicons name="locate-outline" size={24} color={colors.slate} />
-          </Pressable>
-        </View>
-        <Pressable
-          onPress={() => pickup && drop && update({ pickup: drop, drop: pickup })}
-          disabled={!pickup || !drop}
-          style={[styles.swap, (!pickup || !drop) && { opacity: 0.4 }]}
-          accessibilityRole="button"
-          accessibilityLabel="Swap pickup and destination"
-        >
-          <Ionicons name="swap-vertical" size={22} color={colors.ink} />
-        </Pressable>
-        <View style={styles.placeRow}>
-          <View style={styles.dotCol}>
-            <View style={[styles.dot, { backgroundColor: colors.primary }]} />
+
+            {problem ? <Notice message={problem} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
+            <Pressable onPress={findCab} style={({ pressed }) => [styles.findBtn, pressed && { backgroundColor: colors.primaryDark }]} accessibilityRole="button">
+              <Text style={styles.findText}>Find a Cab</Text>
+              <Ionicons name="arrow-forward" size={24} color={colors.white} />
+            </Pressable>
           </View>
-          <Pressable style={{ flex: 1 }} onPress={() => setPicker({ field: 'drop' })} accessibilityRole="button" accessibilityLabel={`Destination: ${drop?.name ?? 'not set'}`}>
-            <Text style={styles.placeLabel}>DESTINATION</Text>
-            <Text style={[styles.placeName, !drop && { color: colors.slate }]} numberOfLines={1}>
-              {drop?.name ?? 'Where to?'}
+
+          {locationHint && !pickup ? <Notice tone="warning" message={locationHint} style={{ marginTop: space.md }} /> : null}
+        </DesktopCol>
+
+        {/* Saved Destinations & Travel Guide (Right) */}
+        <DesktopCol flex={1}>
+          <View style={styles.savedHead}>
+            <Text style={styles.sectionTitle}>Saved places</Text>
+            <Text style={styles.viewAll} onPress={() => navigation.navigate('SavedPlaces')} accessibilityRole="link">
+              Manage saved
             </Text>
-            {drop && drop.address !== drop.name ? (
-              <Text style={styles.placeAddr} numberOfLines={1}>
-                {drop.address}
-              </Text>
-            ) : null}
-          </Pressable>
-          {drop ? (
-            <Pressable onPress={() => update({ drop: null })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear destination" style={styles.pinBtn}>
-              <Ionicons name="close-circle" size={24} color={colors.faint} />
-            </Pressable>
-          ) : (
-            <Pressable onPress={() => setPicker({ field: 'drop' })} hitSlop={10} accessibilityRole="button" accessibilityLabel="Search destination" style={styles.pinBtn}>
-              <Ionicons name="location-outline" size={24} color={colors.slate} />
-            </Pressable>
-          )}
-        </View>
+          </View>
+          <View style={styles.savedRow}>
+            <SavedCard icon="home-outline" label="Home" place={home} onPress={() => goToSaved(home)} />
+            <SavedCard icon="briefcase-outline" label="Office" place={work} onPress={() => goToSaved(work)} />
+          </View>
 
-        <View style={styles.whenRow}>
-          <Pressable style={styles.whenBox} onPress={openSchedulePicker} accessibilityRole="button" accessibilityLabel={`Pickup date: ${scheduledAt ? formatDate(scheduledAt) : 'today'}. Change`}>
-            <Ionicons name="calendar-outline" size={26} color={colors.ink} />
-            <View>
-              <Text style={styles.whenLabel}>Date</Text>
-              <Text style={styles.whenValue}>{scheduledAt ? formatDate(scheduledAt) : 'Today'}</Text>
+          {recentPlaces.length > 0 ? (
+            <View style={{ marginTop: space.lg }}>
+              <Text style={[styles.sectionTitle, { marginBottom: space.sm }]}>Recent destinations</Text>
+              <View style={{ gap: space.xs }}>
+                {recentPlaces.slice(0, 3).map((r) => (
+                  <Pressable
+                    key={r.id}
+                    onPress={() => update({ drop: r })}
+                    style={({ pressed }) => [
+                      styles.saved,
+                      { paddingVertical: space.sm },
+                      pressed && { opacity: 0.8 },
+                    ]}
+                  >
+                    <Ionicons name="time-outline" size={20} color={colors.slate} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[type.bodyMedium, { fontWeight: '600' }]} numberOfLines={1}>{r.name}</Text>
+                      {r.address && r.address !== r.name ? (
+                        <Text style={type.tiny} numberOfLines={1}>{r.address}</Text>
+                      ) : null}
+                    </View>
+                    <Ionicons name="arrow-forward" size={16} color={colors.slate} />
+                  </Pressable>
+                ))}
+              </View>
             </View>
-          </Pressable>
-          <Pressable style={styles.whenBox} onPress={openSchedulePicker} accessibilityRole="button" accessibilityLabel={`Pickup time: ${scheduledAt ? formatTime(scheduledAt) : 'now'}. Change`}>
-            <Ionicons name="time-outline" size={26} color={colors.ink} />
-            <View>
-              <Text style={styles.whenLabel}>Time</Text>
-              <Text style={styles.whenValue}>{scheduledAt ? formatTime(scheduledAt) : 'Now'}</Text>
-            </View>
-          </Pressable>
-        </View>
-        {scheduledAt ? (
-          <Text
-            style={styles.rideNow}
-            onPress={() => {
-              update({ scheduledAt: null });
-              setProblem('');
-            }}
-            accessibilityRole="button"
-          >
-            Ride now instead
-          </Text>
-        ) : null}
+          ) : null}
 
-        {problem ? <Notice message={problem} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
-        <Pressable onPress={findCab} style={({ pressed }) => [styles.findBtn, pressed && { backgroundColor: colors.primaryDark }]} accessibilityRole="button">
-          <Text style={styles.findText}>Find a Cab</Text>
-          <Ionicons name="arrow-forward" size={24} color={colors.white} />
-        </Pressable>
-      </View>
-
-      {locationHint && !pickup ? <Notice tone="warning" message={locationHint} style={{ marginTop: space.md }} /> : null}
-
-      <View style={styles.savedHead}>
-        <Text style={styles.sectionTitle}>Saved places</Text>
-        <Text style={styles.viewAll} onPress={() => navigation.navigate('SavedPlaces')} accessibilityRole="link">
-          View all
-        </Text>
-      </View>
-      <View style={styles.savedRow}>
-        <SavedCard icon="home-outline" label="Home" place={home} onPress={() => goToSaved(home)} />
-        <SavedCard icon="briefcase-outline" label="Office" place={work} onPress={() => goToSaved(work)} />
-      </View>
-
-      <SupportBanner />
+          <View style={{ marginTop: space.lg }}>
+            <SupportBanner />
+          </View>
+        </DesktopCol>
+      </DesktopRow>
     </Screen>
   );
 }

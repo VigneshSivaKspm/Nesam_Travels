@@ -3,7 +3,10 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { FlatList } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
+import { Button } from '../components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
 import { Card, EmptyState } from '../components/ui';
 import { last7Days } from '../utils/ledger';
@@ -65,8 +68,22 @@ export function EarningsScreen() {
     </View>
   );
 
+  const navigation = useNavigation();
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+      <DesktopHeader
+        title="Earnings & Payouts"
+        subtitle="Totals credited to your driver wallet and reimbursed expenses"
+        actions={
+          <Button
+            small
+            variant="secondary"
+            title="Driver Wallet"
+            onPress={() => (navigation as any).navigate('Tabs', { screen: 'Wallet' })}
+          />
+        }
+      />
       <FlatList
         multiColumn
         data={completedTrips}

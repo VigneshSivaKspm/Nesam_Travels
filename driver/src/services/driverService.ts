@@ -1,4 +1,4 @@
-import { getFunctions, httpsCallable } from 'firebase/functions';
+import { callBackend, settleBooking, settlePayout } from './backend';
 // Driver data layer. Copied from driver/web/src/services/driverFirestoreService.ts
 // and adapted for the mobile app:
 //   • the marketplace claim runs in a transaction that re-checks the offer is
@@ -464,6 +464,7 @@ export async function acceptMarketplaceTrip(driver: DriverProfile, registeredVeh
       }),
       WRITE_TIMEOUT_MS,
     );
+    settleBooking(offer.id);
   } catch (err) {
     if (err instanceof DriverActionError) throw err;
     const code = (err as { code?: string })?.code ?? '';
@@ -579,6 +580,7 @@ export async function saveTripTolls(bookingId: string, tolls: TollReceipt[]): Pr
     updateDoc(doc(db, BOOKINGS_COLLECTION, bookingId), { tolls, tollCharges: tollTotal(tolls), updatedAt: serverTimestamp() }),
     WRITE_TIMEOUT_MS,
   );
+  settleBooking(bookingId);
 }
 
 /** Live position for the customer's tracking view (allowed while Assigned/Ongoing). */
@@ -604,7 +606,8 @@ export async function requestPayout(amount: number, available: number, method: '
   const invalid = validatePayoutAmount(amount, available);
   if (invalid) throw new DriverActionError('invalid-amount', invalid);
   const payoutRef = doc(collection(db, PAYOUT_REQUESTS_COLLECTION));
-  await httpsCallable(getFunctions(), 'requestPartnerPayout')({ requestId: payoutRef.id, role: 'driver', amount, method });
+  await callBackend('requestPartnerPayout', { requestId: payoutRef.id, role: 'driver', amount, method });
+  settlePayout(payoutRef.id);
 }
 /** The server-computed wallet (wallets/driver_{uid}); a missing document is an empty wallet. */
 export function subscribeToDriverWallet(driverId: string, callback: (wallet: DriverWallet) => void, onError?: (e: unknown) => void) {

@@ -2,7 +2,8 @@
 // the accept/presence handlers of DriverWorkspace.tsx).
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { DesktopCol, DesktopRow, ScrollView } from '../components/layout';
+import { DesktopHeader } from '../components/DesktopHeader';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -87,6 +88,21 @@ export function HomeScreen() {
         <Button title={`Call police emergency (${EMERGENCY_NUMBER})`} variant="danger" onPress={() => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`)} />
         <Button title={`Call NESAM control room (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={{ marginTop: space.sm }} />
       </Sheet>
+      <DesktopHeader
+        title="Operations Dashboard"
+        subtitle={`${driver.name || 'Driver Partner'} • ${vehicle.vehicleNumber || 'Vehicle'} (${vehicle.vehicleType})`}
+        actions={
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
+            <Button small variant="danger" title="Emergency SOS" onPress={() => setSos(true)} />
+            <Button
+              small
+              variant="secondary"
+              title={unreadCount > 0 ? `Alerts (${unreadCount})` : 'Alerts'}
+              onPress={() => (navigation as any).navigate('Notifications')}
+            />
+          </View>
+        }
+      />
       <ScrollView kind="wide" contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={false} onRefresh={() => setMessage(null)} colors={[colors.primary]} />}>
         <View style={styles.topBar}>
           <Text style={type.h1}>Dashboard</Text>
@@ -94,141 +110,181 @@ export function HomeScreen() {
             <Pressable onPress={() => setSos(true)} accessibilityRole="button" accessibilityLabel="Emergency SOS" hitSlop={8}>
               <Ionicons name="warning" size={24} color={colors.danger} />
             </Pressable>
-            <Pressable onPress={() => navigation.navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications, ${unreadCount} unread`} hitSlop={8}>
+            <Pressable onPress={() => (navigation as any).navigate('Notifications')} accessibilityRole="button" accessibilityLabel={`Notifications, ${unreadCount} unread`} hitSlop={8}>
               <Ionicons name="notifications-outline" size={24} color={colors.ink} />
               {unreadCount > 0 ? <View style={styles.dot} /> : null}
             </Pressable>
           </View>
         </View>
 
-        <Card>
-          <View style={styles.profileRow}>
-            <Avatar name={driver.name} photoUrl={driver.photoUrl} size={56} />
-            <View style={{ flex: 1 }}>
-              <Text style={type.h2} numberOfLines={1}>
-                {driver.name}
-              </Text>
-              <Text style={type.small} numberOfLines={1}>
-                {vehicle.make} {vehicle.model} • {vehicle.vehicleNumber} • {vehicle.vehicleType}
-              </Text>
-              <Text style={type.small}>
-                {driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} · {completedTrips.length} trips{driver.vendorName ? ` · ${driver.vendorName}` : ''}
-              </Text>
-            </View>
-          </View>
-          <View style={styles.dutyRow}>
-            <Text style={type.label}>Duty status</Text>
-            <Badge label={status} tone={status === 'Online' ? 'success' : status === 'On Trip' ? 'brand' : 'neutral'} />
-          </View>
-          <View style={styles.toggle}>
-            {(['Offline', 'Online'] as DriverStatus[]).map((st) => {
-              const active = status === st || (st === 'Online' && status === 'On Trip');
-              return (
-                <Pressable
-                  key={st}
-                  disabled={presenceBusy || active || !!activeTrip}
-                  onPress={() => void changePresence(st)}
-                  style={[styles.toggleBtn, active && (st === 'Online' ? styles.online : styles.offline)]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active, disabled: presenceBusy || !!activeTrip }}
-                >
-                  <Text style={[styles.toggleText, active && { color: colors.white }]}>{st === 'Online' ? 'Go Online' : 'Go Offline'}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </Card>
-
-        {message ? <Notice tone={message.tone} message={message.text} /> : null}
-        {deviceWarning ? <Notice tone="warning" message={deviceWarning} /> : null}
-        <Notice message={bookingsError} />
-        {driver.docStatus === 'Rejected' ? (
-          <Notice
-            message={`Document update required: ${driver.rejectionReason || 'Some updated documents were not accepted. Please upload them again.'}`}
-            onRetry={() => navigation.navigate('UpdateDocuments')}
-          />
-        ) : null}
-
-        <View style={styles.stats}>
-          <Stat label="Today" value={formatINR(earnings.todayEarnings)} accent />
-          <Stat label="Last 7 days" value={formatINR(earnings.thisWeekEarnings)} />
-          <Stat label="Trips" value={String(completedTrips.length)} />
-          <Stat label="Rating" value={driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : '—'} />
-        </View>
-
-        {activeTrip ? (
-          <Card style={styles.activeCard}>
-            <View style={styles.activeHead}>
-              <Text style={type.h3}>Current trip</Text>
-              <Badge label={activeTrip.subStatus === 'Not Started' ? 'Go to pickup' : activeTrip.subStatus === 'Reached Pickup' ? 'At pickup' : 'Trip started'} tone="brand" />
-            </View>
-            <Text style={type.small}>{activeTrip.bookingId}</Text>
-            <Text style={[type.body, { marginTop: space.sm }]} numberOfLines={2}>
-              <Text style={{ fontWeight: '800' }}>Pickup: </Text>
-              {activeTrip.pickup.address}
-            </Text>
-            <Text style={type.body} numberOfLines={2}>
-              <Text style={{ fontWeight: '800' }}>Drop: </Text>
-              {activeTrip.drop.address}
-            </Text>
-            <Text style={styles.payout}>Your payout {payoutText(activeTrip)}</Text>
-            {!activeTrip.verificationSubmitted && activeTrip.subStatus !== 'Trip Started' ? (
-              <Text style={[type.small, { marginBottom: space.sm }]}>Vehicle photos are needed before Trip Started — take them now or at the pickup.</Text>
+        <DesktopRow spacing={space.lg}>
+          {/* Main Dispatch Feed (Left) */}
+          <DesktopCol flex={1.35}>
+            {message ? <Notice tone={message.tone} message={message.text} /> : null}
+            {deviceWarning ? <Notice tone="warning" message={deviceWarning} /> : null}
+            <Notice message={bookingsError} />
+            {driver.docStatus === 'Rejected' ? (
+              <Notice
+                message={`Document update required: ${driver.rejectionReason || 'Some updated documents were not accepted. Please upload them again.'}`}
+                onRetry={() => (navigation as any).navigate('UpdateDocuments')}
+              />
             ) : null}
-            <Button title="Open trip" variant="dark" onPress={() => navigation.navigate('Tabs', { screen: 'Trip' })} />
-          </Card>
-        ) : null}
 
-        <View style={styles.marketHead}>
-          <View style={{ flex: 1 }}>
-            <Text style={type.h3}>Available trips</Text>
-            <Text style={type.small}>{showAll ? 'All open trips' : `Trips for ${vehicle.vehicleType} vehicles`}</Text>
-          </View>
-          {isOnline && !activeTrip ? <Button small variant="ghost" title={showAll ? 'My category' : `Show all (${offers.length})`} onPress={() => setShowAll((s) => !s)} /> : null}
-        </View>
-        <Notice message={offersError} />
-
-        {driver.vendorId ? (
-          <EmptyState title="Trips come from your fleet" message={`${driver.vendorName || 'Your vendor'} assigns your trips. They appear on this screen as soon as they are assigned.`} />
-        ) : !isOnline ? (
-          <EmptyState title="You are offline" message="Go online to see and accept trips." action={<Button title="Go online now" variant="success" loading={presenceBusy} onPress={() => void changePresence('Online')} />} />
-        ) : activeTrip ? (
-          <EmptyState title="Finish your current trip" message="New trips appear here once you complete it." />
-        ) : visible.length === 0 ? (
-          <EmptyState title="No open trips right now" message="New bookings appear here instantly — stay online." />
-        ) : (
-          visible.map((offer) => {
-            const mismatch = !categoryMatches(offer.vehicleCategory, vehicle.vehicleType);
-            return (
-              <Card key={offer.id}>
-                <View style={styles.offerHead}>
-                  <Text style={type.tiny}>{offer.bookingId}</Text>
-                  <Badge label={offer.vehicleCategory || 'Any vehicle'} tone={mismatch ? 'warning' : 'success'} />
-                </View>
-                <View style={styles.place}>
-                  <View style={[styles.pdot, { backgroundColor: colors.success }]} />
-                  <Text style={[type.body, { flex: 1 }]}>{offer.pickup.address}</Text>
-                </View>
-                <View style={styles.place}>
-                  <View style={[styles.pdot, { backgroundColor: colors.primary }]} />
-                  <Text style={[type.body, { flex: 1 }]}>{offer.drop.address}</Text>
-                </View>
-                <Text style={type.small}>
-                  {offer.travelDate || 'Date TBC'}
-                  {offer.pickupTime ? ` • ${offer.pickupTime}` : ''}
-                  {offer.distanceKm > 0 ? ` • ${offer.distanceKm} km` : ''}
-                </Text>
-                <View style={styles.offerFoot}>
+            {activeTrip ? (
+              <Card style={styles.activeCard}>
+                <View style={styles.activeHead}>
                   <View>
-                    <Text style={type.tiny}>YOUR PAYOUT</Text>
-                    <Text style={styles.offerPayout}>{formatINR(offer.offeredPayout)}</Text>
+                    <Text style={type.h2}>Active Trip in Progress</Text>
+                    <Text style={type.small}>Booking ID: {activeTrip.bookingId}</Text>
                   </View>
-                  <Button small title={acceptingId === offer.id ? 'Accepting…' : 'Accept trip'} loading={acceptingId === offer.id} disabled={acceptingId !== null} onPress={() => accept(offer)} />
+                  <Badge label={activeTrip.subStatus === 'Not Started' ? 'Go to pickup' : activeTrip.subStatus === 'Reached Pickup' ? 'At pickup' : 'Trip started'} tone="brand" />
                 </View>
+                <View style={{ marginVertical: space.md, gap: space.xs }}>
+                  <View style={styles.place}>
+                    <View style={[styles.pdot, { backgroundColor: colors.success }]} />
+                    <Text style={[type.bodyMedium, { flex: 1, fontWeight: '700' }]}>{activeTrip.pickup.address}</Text>
+                  </View>
+                  <View style={styles.place}>
+                    <View style={[styles.pdot, { backgroundColor: colors.primary }]} />
+                    <Text style={[type.bodyMedium, { flex: 1, fontWeight: '700' }]}>{activeTrip.drop.address}</Text>
+                  </View>
+                </View>
+                <Text style={styles.payout}>Your payout: {payoutText(activeTrip)}</Text>
+                {!activeTrip.verificationSubmitted && activeTrip.subStatus !== 'Trip Started' ? (
+                  <Text style={[type.small, { marginBottom: space.sm, color: colors.warning }]}>
+                    Vehicle inspection photos are needed before Trip Started — take them now or at pickup.
+                  </Text>
+                ) : null}
+                <Button title="Open Trip Execution" variant="dark" onPress={() => (navigation as any).navigate('Tabs', { screen: 'Trip' })} />
               </Card>
-            );
-          })
-        )}
+            ) : null}
+
+            <View style={styles.marketHead}>
+              <View style={{ flex: 1 }}>
+                <Text style={type.h2}>Available Trips</Text>
+                <Text style={type.small}>{showAll ? 'All open market trips' : `Trips matching ${vehicle.vehicleType} vehicles`}</Text>
+              </View>
+              {isOnline && !activeTrip ? (
+                <Button small variant="ghost" title={showAll ? 'My category only' : `Show all (${offers.length})`} onPress={() => setShowAll((s) => !s)} />
+              ) : null}
+            </View>
+            <Notice message={offersError} />
+
+            {driver.vendorId ? (
+              <EmptyState title="Trips come from your fleet" message={`${driver.vendorName || 'Your vendor'} assigns your trips. They appear on this screen as soon as they are assigned.`} />
+            ) : !isOnline ? (
+              <EmptyState title="You are offline" message="Turn your duty switch to Online to see and accept trips." action={<Button title="Go online now" variant="success" loading={presenceBusy} onPress={() => void changePresence('Online')} />} />
+            ) : activeTrip ? (
+              <EmptyState title="Finish your current trip" message="New trips appear here once you complete your current booking." />
+            ) : visible.length === 0 ? (
+              <EmptyState title="No open trips right now" message="New customer bookings appear here instantly. Keep your status online." />
+            ) : (
+              visible.map((offer) => {
+                const mismatch = !categoryMatches(offer.vehicleCategory, vehicle.vehicleType);
+                return (
+                  <Card key={offer.id}>
+                    <View style={styles.offerHead}>
+                      <Text style={[type.tiny, { fontWeight: '700' }]}>{offer.bookingId}</Text>
+                      <Badge label={offer.vehicleCategory || 'Any vehicle'} tone={mismatch ? 'warning' : 'success'} />
+                    </View>
+                    <View style={styles.place}>
+                      <View style={[styles.pdot, { backgroundColor: colors.success }]} />
+                      <Text style={[type.bodyMedium, { flex: 1 }]}>{offer.pickup.address}</Text>
+                    </View>
+                    <View style={styles.place}>
+                      <View style={[styles.pdot, { backgroundColor: colors.primary }]} />
+                      <Text style={[type.bodyMedium, { flex: 1 }]}>{offer.drop.address}</Text>
+                    </View>
+                    <Text style={[type.small, { color: colors.muted, marginTop: 4 }]}>
+                      {offer.travelDate || 'Date TBC'}
+                      {offer.pickupTime ? ` • ${offer.pickupTime}` : ''}
+                      {offer.distanceKm > 0 ? ` • ${offer.distanceKm} km` : ''}
+                    </Text>
+                    <View style={styles.offerFoot}>
+                      <View>
+                        <Text style={type.tiny}>GUARANTEED PAYOUT</Text>
+                        <Text style={styles.offerPayout}>{formatINR(offer.offeredPayout)}</Text>
+                      </View>
+                      <Button small title={acceptingId === offer.id ? 'Accepting…' : 'Accept trip'} loading={acceptingId === offer.id} disabled={acceptingId !== null} onPress={() => accept(offer)} />
+                    </View>
+                  </Card>
+                );
+              })
+            )}
+          </DesktopCol>
+
+          {/* Operational Control Center (Right) */}
+          <DesktopCol flex={0.9}>
+            <Card>
+              <View style={styles.profileRow}>
+                <Avatar name={driver.name} photoUrl={driver.photoUrl} size={56} />
+                <View style={{ flex: 1 }}>
+                  <Text style={type.h2} numberOfLines={1}>
+                    {driver.name}
+                  </Text>
+                  <Text style={type.small} numberOfLines={1}>
+                    {vehicle.make} {vehicle.model} • {vehicle.vehicleNumber}
+                  </Text>
+                  <Text style={type.small}>
+                    {driver.rating != null ? `★ ${driver.rating.toFixed(1)} rating` : 'No ratings yet'} · {completedTrips.length} trips
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.dutyRow}>
+                <Text style={type.label}>Duty Status</Text>
+                <Badge label={status} tone={status === 'Online' ? 'success' : status === 'On Trip' ? 'brand' : 'neutral'} />
+              </View>
+              <View style={styles.toggle}>
+                {(['Offline', 'Online'] as DriverStatus[]).map((st) => {
+                  const active = status === st || (st === 'Online' && status === 'On Trip');
+                  return (
+                    <Pressable
+                      key={st}
+                      disabled={presenceBusy || active || !!activeTrip}
+                      onPress={() => void changePresence(st)}
+                      style={[styles.toggleBtn, active && (st === 'Online' ? styles.online : styles.offline)]}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: active, disabled: presenceBusy || !!activeTrip }}
+                    >
+                      <Text style={[styles.toggleText, active && { color: colors.white }]}>{st === 'Online' ? 'Go Online' : 'Go Offline'}</Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Card>
+
+            <View style={styles.stats}>
+              <Stat label="Today" value={formatINR(earnings.todayEarnings)} accent />
+              <Stat label="Last 7 days" value={formatINR(earnings.thisWeekEarnings)} />
+              <Stat label="Trips" value={String(completedTrips.length)} />
+              <Stat label="Rating" value={driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : '5.0'} />
+            </View>
+
+            <Card>
+              <Text style={[type.h3, { marginBottom: space.sm }]}>Operations Shortcuts</Text>
+              <View style={{ gap: space.sm }}>
+                <Button
+                  small
+                  variant="secondary"
+                  title="Pre-Trip Vehicle Inspection"
+                  onPress={() => (navigation as any).navigate('PreTrip', { bookingId: activeTrip?.bookingId || '' })}
+                />
+                <Button
+                  small
+                  variant="secondary"
+                  title="Update Vehicle Documents"
+                  onPress={() => (navigation as any).navigate('UpdateDocuments')}
+                />
+                <Button
+                  small
+                  variant="secondary"
+                  title="Earnings & Payout Ledger"
+                  onPress={() => (navigation as any).navigate('Tabs', { screen: 'Earnings' })}
+                />
+              </View>
+            </Card>
+          </DesktopCol>
+        </DesktopRow>
       </ScrollView>
     </SafeAreaView>
   );

@@ -209,8 +209,19 @@ export const onBookingCancelled = onDocumentUpdated('bookings/{bookingId}', asyn
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!before || !after || before.status === 'Cancelled' || after.status !== 'Cancelled' || after.refund) return;
-  const bookingId = event.params.bookingId;
+  await reconcileCancelledBooking(event.params.bookingId, text(before.status));
+});
+
+/**
+ * Gives a customer-cancelled booking its cancellation + refund record. Idempotent: it does
+ * nothing unless the booking is Cancelled and has no refund record yet, so it can run from the
+ * Firestore trigger, from the API right after a cancel, or from the reconcile sweep.
+ */
+export async function reconcileCancelledBooking(bookingId: string, previousStatus = 'unknown'): Promise<void> {
   const ref = db.doc(`bookings/${bookingId}`);
+  const after = (await ref.get()).data();
+  if (!after || after.status !== 'Cancelled' || after.refund) return;
+  const before = { status: previousStatus };
   await db.runTransaction(async (tx) => {
     const [snap, all] = await Promise.all([tx.get(ref), tx.get(txnsRef(bookingId))]);
     const b = snap.data();
@@ -236,7 +247,7 @@ export const onBookingCancelled = onDocumentUpdated('bookings/{bookingId}', asyn
       cta: { label: 'Open booking', page: 'booking-detail', bookingId }, dedupeKey: `refund_review_${bookingId}`, push: true,
     }).catch(() => null);
   }
-});
+}
 
 export const updateRefund = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'finance');

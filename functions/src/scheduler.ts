@@ -42,7 +42,7 @@ export async function runUnassignedAlerts(now = new Date()): Promise<{ checked: 
 }
 
 /** Clears the flag once a booking has a driver (or is no longer open). Runs on the same schedule. */
-async function clearResolvedFlags(): Promise<void> {
+export async function clearResolvedFlags(): Promise<void> {
   const flagged = await db.collection('bookings').where('unassignedAlert.severity', 'in', ['warning', 'critical']).get();
   await Promise.all(flagged.docs.filter((d) => {
     const b = d.data();

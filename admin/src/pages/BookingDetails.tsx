@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
+import { settleBooking } from "../services/backend";
 import { InvoiceActionError, issueInvoiceForBooking } from "../services/invoiceService";
 import type { Booking, Driver, Vehicle, Vendor } from "../types";
 import FareOverrideModal from "../components/FareOverrideModal";
@@ -145,6 +146,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
   const approveTolls = async () => {
     try {
       await updateDoc(doc(db, "bookings", booking.id), { tollsApproved: true, updatedAt: serverTimestamp() });
+      settleBooking(booking.id);
       show("Toll receipts approved.");
     } catch (e) {
       show(describeDataError(e), "error");

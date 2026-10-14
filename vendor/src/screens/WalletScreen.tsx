@@ -5,11 +5,14 @@ import React, { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useVendorData } from '../context/VendorData';
 import { Badge, Button, Card, EmptyState, Notice, Row, Screen, Segmented, Sheet, TextField } from '../components/ui';
+import { DesktopHeader } from '../components/DesktopHeader';
+import { DesktopRow } from '../components/layout';
 import { MIN_PAYOUT, requestVendorPayout, validateVendorPayout, VendorActionError } from '../services/vendorService';
 import { formatINR } from '../utils/format';
 import { formatDateTime12 } from '../utils/time';
 import { describeDataError } from '../utils/retry';
-import { colors, space, type } from '../theme';
+import { colors, radius, space, type } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 const ENTRY_LABEL: Record<string, string> = {
   trip_earning: 'Trip earning',
@@ -26,6 +29,7 @@ const ENTRY_STATUS: Record<string, string> = {
 };
 
 export function WalletScreen() {
+  const { isDesktop } = useResponsive();
   const { wallet, ledger, payouts, profile, monthEarnings, errors } = useVendorData();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -33,6 +37,21 @@ export function WalletScreen() {
 
   return (
     <Screen edges={[]}>
+      <DesktopHeader
+        title="Fleet Wallet & Payouts"
+        subtitle="Live earnings balance, banking settlement account, payout requests and transaction ledger"
+        badge={formatINR(wallet.available)}
+        actions={
+          withdrawable >= MIN_PAYOUT ? (
+            <Button
+              small
+              title="Request Payout"
+              onPress={() => setOpen(true)}
+            />
+          ) : undefined
+        }
+      />
+
       {open ? (
         <PayoutSheet
           withdrawable={withdrawable}
@@ -43,83 +62,100 @@ export function WalletScreen() {
           }}
         />
       ) : null}
+
       <Notice message={errors.wallet} />
-      <Card>
-        <Text style={type.tiny}>AVAILABLE TO WITHDRAW</Text>
-        <Text style={[styles.balance, wallet.available < 0 && { color: colors.danger }]}>{formatINR(wallet.available)}</Text>
-        {wallet.available < 0 ? (
-          <Text style={[type.small, { color: colors.danger }]}>Cash fares your fleet collected exceed your earnings; upcoming earnings settle this first.</Text>
-        ) : null}
-        <Text style={type.small}>
-          {formatINR(wallet.pending)} awaiting customer payment · {formatINR(wallet.reserved)} held for requests · {formatINR(wallet.paidOut)} paid out
-        </Text>
-        <Button title="Request payout" disabled={withdrawable < MIN_PAYOUT} onPress={() => setOpen(true)} style={{ marginTop: space.md }} />
-        {withdrawable < MIN_PAYOUT ? (
-          <Text style={[type.small, { marginTop: space.sm }]}>Payouts can be requested once your available balance reaches {formatINR(MIN_PAYOUT)}.</Text>
-        ) : null}
-      </Card>
-      {done ? <Notice tone="success" message="Payout request submitted. The amount is held from your balance until NESAM finance pays it and shares the UTR." /> : null}
+      {done ? <Notice tone="success" message="Payout request submitted. The amount is held from your balance until NESAM finance processes the transfer and issues the UTR." /> : null}
 
-      <Card>
-        <Text style={[type.h3, { marginBottom: space.sm }]}>Earnings summary</Text>
-        <Row label="Trip earnings credited" value={formatINR(wallet.tripEarnings)} />
-        <Row label="Toll reimbursements" value={formatINR(wallet.tollReimbursements)} />
-        <Row label="Cash collected by your fleet" value={`− ${formatINR(wallet.cashCollected)}`} />
-        <Row label="Earned this month" value={formatINR(monthEarnings)} bold />
-        <Text style={[type.tiny, { marginTop: space.sm }]}>Figures are recorded by NESAM on each completed trip; the payout per trip is the rate you accepted.</Text>
-      </Card>
-
-      <Card>
-        <Text style={type.h3}>Settlement account</Text>
-        <Text style={[type.body, { marginTop: 4 }]}>{profile.bankAccountName || 'Not on file'}</Text>
-        <Text style={type.small}>
-          {profile.bankAccountNumber} {profile.ifscCode ? `· ${profile.ifscCode}` : ''}
-        </Text>
-        {profile.upiId ? <Text style={type.small}>UPI {profile.upiId}</Text> : null}
-        <Text style={[type.tiny, { marginTop: 4 }]}>NESAM pays only to this account. Bank changes after approval are handled by NESAM support.</Text>
-      </Card>
-
-      <Text style={[type.h3, styles.section]}>Payout requests</Text>
-      {payouts.length === 0 ? (
-        <EmptyState title="No payout requests yet" />
-      ) : (
-        payouts.map((p) => (
-          <View key={p.id} style={styles.txn}>
-            <View style={{ flex: 1 }}>
-              <Text style={type.body}>Payout · {p.method}</Text>
-              {p.utr ? <Text style={type.tiny}>UTR {p.utr}</Text> : null}
-              {p.createdMs ? <Text style={type.tiny}>Requested {formatDateTime12(new Date(p.createdMs))}</Text> : null}
-            </View>
-            <View style={{ alignItems: 'flex-end', gap: 2 }}>
-              <Text style={styles.amount}>{formatINR(p.amount)}</Text>
-              <Badge label={p.status} tone={p.status === 'Paid' ? 'success' : p.status === 'Pending' ? 'warning' : 'neutral'} />
-            </View>
-          </View>
-        ))
-      )}
-
-      <Text style={[type.h3, styles.section]}>Ledger</Text>
-      {ledger.length === 0 ? (
-        <EmptyState title="No entries yet" message="Trip earnings, cash collected and payouts recorded by NESAM appear here." />
-      ) : (
-        ledger.slice(0, 50).map((e) => (
-          <View key={e.id} style={styles.txn}>
-            <View style={{ flex: 1 }}>
-              <Text style={type.body}>
-                {ENTRY_LABEL[e.type] ?? e.type}
-                {e.bookingCode ? ` · ${e.bookingCode}` : ''}
+      <DesktopRow gap={24} style={styles.contentRow}>
+        {/* Left Column: Balances, Earnings & Bank Account */}
+        <View style={[styles.mainCol, isDesktop && { flex: 1 }]}>
+          <Card style={styles.balanceCard}>
+            <Text style={styles.balanceLabel}>AVAILABLE TO WITHDRAW</Text>
+            <Text style={[styles.balanceValue, wallet.available < 0 && { color: colors.danger }]}>{formatINR(wallet.available)}</Text>
+            {wallet.available < 0 ? (
+              <Text style={styles.negWarning}>Cash fares your fleet collected exceed your earnings; upcoming earnings settle this first.</Text>
+            ) : null}
+            <View style={styles.metaBalances}>
+              <Text style={styles.metaBalanceItem}>
+                {formatINR(wallet.pending)} awaiting customer payment
               </Text>
-              <Text style={type.tiny}>
-                {e.createdAt ? formatDateTime12(e.createdAt) : ''}
-                {ENTRY_STATUS[e.status] ? ` · ${ENTRY_STATUS[e.status]}` : ''}
+              <Text style={styles.metaBalanceItem}>
+                {formatINR(wallet.reserved)} held for requests · {formatINR(wallet.paidOut)} paid out
               </Text>
             </View>
-            <Text style={[styles.amount, { color: e.direction === 'credit' ? colors.success : colors.danger }]}>
-              {e.direction === 'credit' ? '+' : '−'} {formatINR(e.amount)}
+            <Button
+              title={withdrawable < MIN_PAYOUT ? `Min Payout ${formatINR(MIN_PAYOUT)}` : 'Request Payout'}
+              disabled={withdrawable < MIN_PAYOUT}
+              onPress={() => setOpen(true)}
+              style={{ marginTop: space.md }}
+            />
+          </Card>
+
+          <Card style={styles.summaryCard}>
+            <Text style={styles.cardTitle}>Earnings Breakdown</Text>
+            <View style={styles.rowsBox}>
+              <Row label="Trip earnings credited" value={formatINR(wallet.tripEarnings)} />
+              <Row label="Toll reimbursements" value={formatINR(wallet.tollReimbursements)} />
+              <Row label="Cash collected by fleet" value={`− ${formatINR(wallet.cashCollected)}`} />
+              <Row label="Earned this month" value={formatINR(monthEarnings)} bold />
+            </View>
+            <Text style={styles.cardNote}>Figures are recorded by NESAM on each completed trip; the payout per trip is the rate you accepted.</Text>
+          </Card>
+
+          <Card style={styles.bankCard}>
+            <Text style={styles.cardTitle}>Settlement Bank Account</Text>
+            <Text style={styles.bankName}>{profile.bankAccountName || 'Account Holder: Not on file'}</Text>
+            <Text style={styles.bankDetails}>
+              A/C: {profile.bankAccountNumber} {profile.ifscCode ? `· IFSC: ${profile.ifscCode}` : ''}
             </Text>
-          </View>
-        ))
-      )}
+            {profile.upiId ? <Text style={styles.bankDetails}>UPI VPA: {profile.upiId}</Text> : null}
+            <Text style={styles.cardNote}>NESAM transfers funds only to this verified business account. Contact support to update banking details.</Text>
+          </Card>
+        </View>
+
+        {/* Right Column: Payout Requests & Transaction Ledger */}
+        <View style={[styles.sidebarCol, isDesktop && { flex: 1.2 }]}>
+          <Text style={styles.sectionTitle}>Payout Requests ({payouts.length})</Text>
+          {payouts.length === 0 ? (
+            <EmptyState title="No payout requests yet" message="When you request payouts, transfer progress and bank UTR numbers will be displayed here." />
+          ) : (
+            payouts.map((p) => (
+              <View key={p.id} style={styles.txn}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.txnTitle}>Payout · {p.method}</Text>
+                  {p.utr ? <Text style={styles.txnUtr}>Bank UTR: {p.utr}</Text> : null}
+                  {p.createdMs ? <Text style={styles.txnTime}>Requested {formatDateTime12(new Date(p.createdMs))}</Text> : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={styles.amount}>{formatINR(p.amount)}</Text>
+                  <Badge label={p.status} tone={p.status === 'Paid' ? 'success' : p.status === 'Pending' ? 'warning' : 'neutral'} />
+                </View>
+              </View>
+            ))
+          )}
+
+          <Text style={[styles.sectionTitle, { marginTop: space.lg }]}>Recent Financial Ledger ({ledger.length})</Text>
+          {ledger.length === 0 ? (
+            <EmptyState title="No transactions yet" message="Completed trip earnings and payouts will appear here." />
+          ) : (
+            ledger.slice(0, 15).map((e) => (
+              <View key={e.id} style={styles.txn}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.txnTitle}>{ENTRY_LABEL[e.type] ?? e.type}</Text>
+                  {e.bookingCode ? <Text style={styles.txnUtr}>Booking: {e.bookingCode}</Text> : null}
+                  {e.createdAt ? <Text style={styles.txnTime}>{formatDateTime12(e.createdAt)}</Text> : null}
+                </View>
+                <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                  <Text style={[styles.amount, e.amount < 0 && { color: colors.danger }]}>
+                    {e.amount > 0 ? `+${formatINR(e.amount)}` : formatINR(e.amount)}
+                  </Text>
+                  <Badge label={ENTRY_STATUS[e.status] ?? e.status} tone={e.status === 'completed' || e.status === 'available' ? 'success' : 'neutral'} />
+                </View>
+              </View>
+            ))
+          )}
+        </View>
+      </DesktopRow>
     </Screen>
   );
 }
@@ -127,7 +163,7 @@ export function WalletScreen() {
 function PayoutSheet({ withdrawable, onClose, onDone }: { withdrawable: number; onClose: () => void; onDone: () => void }) {
   const { profile } = useVendorData();
   const [amount, setAmount] = useState(String(withdrawable));
-  const [method, setMethod] = useState<'UPI' | 'Bank Transfer'>(profile.bankAccountNumber || !profile.upiId ? 'Bank Transfer' : 'UPI');
+  const [method, setMethod] = useState<'bank' | 'upi'>('bank');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
@@ -135,13 +171,11 @@ function PayoutSheet({ withdrawable, onClose, onDone }: { withdrawable: number; 
     const value = Number(amount);
     const invalid = validateVendorPayout(value, withdrawable);
     if (invalid) return setError(invalid);
-    // The server pays only to the account in the vendor's KYC.
-    if (method === 'UPI' && !profile.upiId) return setError('No UPI ID on file. Contact NESAM support to add one.');
-    if (method === 'Bank Transfer' && !profile.bankAccountNumber) return setError('No bank account on file. Contact NESAM support.');
     setBusy(true);
     setError('');
     try {
-      await requestVendorPayout(value, withdrawable, method);
+      const payoutMethod: 'Bank Transfer' | 'UPI' = method === 'bank' ? 'Bank Transfer' : 'UPI';
+      await requestVendorPayout(value, withdrawable, payoutMethod);
       onDone();
     } catch (e) {
       setError(e instanceof VendorActionError ? e.message : describeDataError(e));
@@ -152,41 +186,80 @@ function PayoutSheet({ withdrawable, onClose, onDone }: { withdrawable: number; 
   };
 
   return (
-    <Sheet visible onClose={onClose} title="Request payout" dismissible={!busy}>
+    <Sheet visible onClose={onClose} title="Request Payout" dismissible={!busy}>
       <Text style={[type.small, { marginBottom: space.md }]}>
-        Available {formatINR(withdrawable)} · minimum {formatINR(MIN_PAYOUT)}
+        Withdrawable balance: <Text style={{ fontWeight: '800' }}>{formatINR(withdrawable)}</Text>
       </Text>
-      <TextField label="Amount (₹)" value={amount} onChangeText={(t) => setAmount(t.replace(/\D/g, '').slice(0, 8))} keyboardType="number-pad" />
+      <TextField label="Payout Amount (₹)" value={amount} onChangeText={(t) => setAmount(t.replace(/\D/g, ''))} keyboardType="number-pad" />
+      <Text style={[type.label, { marginBottom: 6 }]}>Payout Transfer Method</Text>
       <Segmented
         options={[
-          { value: 'Bank Transfer', label: 'Bank (NEFT/IMPS)' },
-          { value: 'UPI', label: 'UPI' },
+          { value: 'bank', label: `Bank (${profile.bankAccountNumber ? `…${profile.bankAccountNumber.slice(-4)}` : 'Bank'})` },
+          { value: 'upi', label: profile.upiId ? `UPI (${profile.upiId})` : 'UPI' },
         ]}
         value={method}
         onChange={setMethod}
       />
-      <Card style={{ marginTop: space.md }}>
-        <Text style={type.tiny}>PAID TO</Text>
-        {method === 'UPI' ? (
-          <Text style={type.body}>{profile.upiId || 'No UPI ID on file'}</Text>
-        ) : (
-          <>
-            <Text style={type.body}>{profile.bankAccountName || 'No account on file'}</Text>
-            <Text style={type.small}>
-              {profile.bankAccountNumber} {profile.ifscCode}
-            </Text>
-          </>
-        )}
-      </Card>
-      <Notice message={error} />
-      <Button title={busy ? 'Submitting…' : 'Confirm request'} loading={busy} onPress={() => void submit()} />
+      <Notice message={error} style={{ marginTop: space.md }} />
+      <Button title={busy ? 'Submitting Request…' : 'Submit Payout Request'} loading={busy} onPress={() => void submit()} style={{ marginTop: space.md }} />
     </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  balance: { fontSize: 32, fontWeight: '900', color: colors.ink, marginVertical: 4 },
-  section: { marginTop: space.md, marginBottom: space.sm },
-  txn: { flexDirection: 'row', gap: space.md, paddingVertical: space.sm, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  amount: { fontSize: 15, fontWeight: '900' },
+  contentRow: { alignItems: 'flex-start' },
+  mainCol: { width: '100%' },
+  sidebarCol: { width: '100%' },
+  balanceCard: {
+    padding: space.xl,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+    marginBottom: space.md,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.04)' as any,
+  },
+  balanceLabel: { fontSize: 11, fontWeight: '800', color: colors.slate, letterSpacing: 0.5 },
+  balanceValue: { fontSize: 32, fontWeight: '900', color: colors.success, marginVertical: 6 },
+  negWarning: { fontSize: 13, color: colors.danger, marginBottom: space.xs },
+  metaBalances: { marginVertical: space.xs, gap: 2 },
+  metaBalanceItem: { fontSize: 13, color: colors.slate },
+  summaryCard: {
+    padding: space.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    marginBottom: space.md,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)' as any,
+  },
+  cardTitle: { fontSize: 17, fontWeight: '800', color: colors.ink, marginBottom: space.sm },
+  rowsBox: { gap: 6, marginVertical: space.xs },
+  cardNote: { fontSize: 12, color: colors.muted, marginTop: space.sm, lineHeight: 16 },
+  bankCard: {
+    padding: space.lg,
+    borderRadius: radius.lg,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    marginBottom: space.md,
+    boxShadow: '0 2px 6px rgba(0,0,0,0.03)' as any,
+  },
+  bankName: { fontSize: 16, fontWeight: '800', color: colors.ink },
+  bankDetails: { fontSize: 14, color: colors.slate, marginTop: 2 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: colors.ink, marginBottom: space.sm },
+  txn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.md,
+    backgroundColor: colors.card,
+    borderRadius: radius.md,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    padding: space.md,
+    marginBottom: space.sm,
+    boxShadow: '0 2px 4px rgba(0,0,0,0.02)' as any,
+  },
+  txnTitle: { fontSize: 15, fontWeight: '700', color: colors.ink },
+  txnUtr: { fontSize: 12, color: colors.slate, marginTop: 1 },
+  txnTime: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  amount: { fontSize: 18, fontWeight: '900', color: colors.ink },
 });
