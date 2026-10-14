@@ -45,13 +45,14 @@ export type VehicleErrors = Partial<Record<'registrationNumber' | 'category' | '
  * FC / permit with an unexpired validity, and the front photo.
  * `detectedFor` is the plate the last register check was run for.
  */
-export function validateVehicle(v: FleetVehicleDoc, ctx: { detectedFor: string; duplicate: boolean; notFound: boolean; others: string[]; today?: string }): VehicleErrors {
+export function validateVehicle(v: FleetVehicleDoc, ctx: { detectedFor: string; duplicate: boolean; notFound: boolean; others: string[]; today?: string; autoDetect?: boolean }): VehicleErrors {
   const today = ctx.today ?? indiaToday();
   const e: VehicleErrors = {};
   const plate = normalizePlate(v.registrationNumber);
+  const requireDetect = ctx.autoDetect !== false;
   if (!isPlate(plate)) e.registrationNumber = 'Enter a valid registration number (e.g. TN 01 AB 1234).';
   else if (ctx.others.includes(plate)) e.registrationNumber = 'This vehicle is already in your application.';
-  else if (ctx.detectedFor !== plate) e.registrationNumber = 'Check the vehicle first: tap "Detect vehicle".';
+  else if (requireDetect && ctx.detectedFor !== plate) e.registrationNumber = 'Check the vehicle first: tap "Detect vehicle".';
   else if (ctx.notFound) e.registrationNumber = 'This registration number was not found in the vehicle register. Check it and try again.';
   else if (ctx.duplicate) e.registrationNumber = 'This vehicle is already registered with another NESAM partner. Contact NESAM support.';
   if (!v.category) e.category = 'Choose the vehicle type.';

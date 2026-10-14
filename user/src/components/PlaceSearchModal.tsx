@@ -2,7 +2,7 @@
 // debounced Photon search (native port of user/web PlaceSearch.tsx).
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { FlatList } from './layout';
+import { FlatList, Frame } from './layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { GeoPlace, LatLng, LocationItem } from '../types';
@@ -117,6 +117,7 @@ function PlaceSearchBody({ title, onClose, onSelect, savedPlaces = [], recentPla
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+<Frame>
         <View style={styles.header}>
           <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
             <Ionicons name="arrow-back" size={24} color={colors.ink} />
@@ -178,7 +179,8 @@ function PlaceSearchBody({ title, onClose, onSelect, savedPlaces = [], recentPla
             !active ? <Text style={styles.hint}>Type at least 3 letters to search.</Text> : null
           }
         />
-    </SafeAreaView>
+    </Frame>
+</SafeAreaView>
   );
 }
 

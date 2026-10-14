@@ -34,6 +34,13 @@ const VEHICLE_TYPES: { value: VehicleCategory; label: string; seats: number }[] 
 const draftKey = (uid: string) => `nesam-driver-signup-draft-${uid}`;
 const DETECT_DELAY_MS = 800;
 
+/**
+ * Temporary bypass for automatic vehicle detection until Friday.
+ * Drivers can directly enter plate, pick their vehicle category, and submit documents
+ * without being blocked by external VAHAN register lookups.
+ */
+export const AUTO_DETECT_ENABLED = false;
+
 type Detection =
   | { state: 'idle' }
   | { state: 'loading' }
@@ -130,6 +137,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   /** Asks the server to identify the vehicle and fills the form from the register. */
   const detect = useCallback(async (raw: string) => {
+    if (!AUTO_DETECT_ENABLED) return;
     const wanted = normalizePlate(raw);
     if (!isPlate(wanted)) return;
     const seq = ++detectSeq.current;
@@ -168,7 +176,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   // Detect on its own once a full plate is typed.
   useEffect(() => {
-    if (fleetDriver || step !== 2) return undefined;
+    if (!AUTO_DETECT_ENABLED || fleetDriver || step !== 2) return undefined;
     // Only from idle: after an error the partner retries with the button, so a failing provider is not hammered.
     if (!isPlate(v.vehicleNumber) || v.vahan?.lookupId === plate || detection.state !== 'idle') return undefined;
     const t = setTimeout(() => void detect(v.vehicleNumber), DETECT_DELAY_MS);
@@ -177,15 +185,22 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   const onPlateChange = (text: string) => {
     const upper = text.toUpperCase();
-    if (normalizePlate(upper) !== plate) {
+    const wanted = normalizePlate(upper);
+    if (wanted !== plate) {
       detectSeq.current++;
       setDetection({ state: 'idle' });
       setDetected(null);
-      setVehicle({ vehicleNumber: upper, rcNumber: '', vahan: undefined });
+      setVehicle({
+        vehicleNumber: upper,
+        rcNumber: wanted,
+        vahan: !AUTO_DETECT_ENABLED && wanted
+          ? snapshotFrom({ status: 'not_configured', registrationNumber: wanted }, true)
+          : undefined,
+      });
     } else setVehicle({ vehicleNumber: upper });
   };
 
-  const validate = (s: number) => validateStep(s, data, { fleetDriver });
+  const validate = (s: number) => validateStep(s, data, { fleetDriver, autoDetect: AUTO_DETECT_ENABLED });
 
   const goNext = () => {
     if (uploads > 0) return setSubmitError('Please wait for uploads to finish.');
@@ -236,11 +251,22 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
     setSubmitError('');
     setSubmitting(true);
     try {
+      const wantedPlate = normalizePlate(data.vehicle.vehicleNumber);
+      const submissionData: RegistrationData = {
+        ...data,
+        vehicle: {
+          ...data.vehicle,
+          rcNumber: wantedPlate,
+          vahan: data.vehicle.vahan?.lookupId === wantedPlate
+            ? data.vehicle.vahan
+            : snapshotFrom({ status: 'not_configured', registrationNumber: wantedPlate }, true),
+        },
+      };
       if (mode === 'signup') {
-        await registerDriver(data);
+        await registerDriver(submissionData);
         await AsyncStorage.removeItem(draftKey(uid)).catch(() => undefined);
       } else {
-        await resubmitDriverDocuments(uid, data, currentStatus ?? 'Pending', { fleetDriver });
+        await resubmitDriverDocuments(uid, submissionData, currentStatus ?? 'Pending', { fleetDriver });
       }
       onDone?.();
     } catch (err) {
@@ -349,44 +375,80 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
                 placeholder="TN 01 AB 1234"
                 error={errors.vehicleNumber}
               />
-              <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
-              <Button
-                title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
-                variant="secondary"
-                loading={detection.state === 'loading'}
-                disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
-                onPress={() => void detect(v.vehicleNumber)}
-                style={{ marginBottom: space.md }}
-              />
-
-              {detection.state === 'loading' ? (
-                <View style={styles.detecting}>
-                  <ActivityIndicator color={colors.primary} />
-                  <Text style={type.small}>Looking up {v.vehicleNumber} in the vehicle register…</Text>
-                </View>
-              ) : null}
-              {detection.state === 'error' ? <Notice message={detection.message} /> : null}
-              {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
-              {result?.status === 'found' && result.duplicate ? (
-                <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." />
-              ) : null}
-              {detected && result?.status === 'found' ? <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} /> : null}
-              {manual ? (
+              {!AUTO_DETECT_ENABLED ? (
                 <>
-                  <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents." />
+                  <Notice
+                    tone="info"
+                    message="Automatic vehicle detection is temporarily paused. Please choose your vehicle category below — NESAM will verify the vehicle details from your uploaded documents."
+                  />
                   <OptionChips
-                    label="Vehicle type"
+                    label="Vehicle category"
                     required
                     options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                    value={v.vahan?.manualType ? v.vehicleType : ''}
+                    value={v.vehicleType}
                     onChange={(val) => {
                       const t = VEHICLE_TYPES.find((x) => x.value === val)!;
-                      setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
+                      setVehicle({
+                        vehicleType: t.value,
+                        capacity: t.seats,
+                        vahan: snapshotFrom({ status: 'not_configured', registrationNumber: plate || normalizePlate(v.vehicleNumber) }, true),
+                      });
                     }}
                     error={errors.vehicleType}
                   />
+                  <TextField
+                    label="Vehicle make & model (optional)"
+                    value={[v.make, v.model].filter(Boolean).join(' ')}
+                    onChangeText={(text) => {
+                      const trimmed = text.trim();
+                      const parts = trimmed.split(' ');
+                      setVehicle({ make: parts[0] || '', model: parts.slice(1).join(' ') || '' });
+                    }}
+                    placeholder="e.g. Maruti Swift Dzire, Toyota Innova"
+                  />
                 </>
-              ) : null}
+              ) : (
+                <>
+                  <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
+                  <Button
+                    title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
+                    variant="secondary"
+                    loading={detection.state === 'loading'}
+                    disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
+                    onPress={() => void detect(v.vehicleNumber)}
+                    style={{ marginBottom: space.md }}
+                  />
+
+                  {detection.state === 'loading' ? (
+                    <View style={styles.detecting}>
+                      <ActivityIndicator color={colors.primary} />
+                      <Text style={type.small}>Looking up {v.vehicleNumber} in the vehicle register…</Text>
+                    </View>
+                  ) : null}
+                  {detection.state === 'error' ? <Notice message={detection.message} /> : null}
+                  {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
+                  {result?.status === 'found' && result.duplicate ? (
+                    <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." />
+                  ) : null}
+                  {detected && result?.status === 'found' ? <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} /> : null}
+                  {manual ? (
+                    <>
+                      <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents." />
+                      <OptionChips
+                        label="Vehicle type"
+                        required
+                        options={VEHICLE_TYPES.map((t) => ({ value: t.value, label: t.label }))}
+                        value={v.vahan?.manualType ? v.vehicleType : ''}
+                        onChange={(val) => {
+                          const t = VEHICLE_TYPES.find((x) => x.value === val)!;
+                          setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
+                        }}
+                        error={errors.vehicleType}
+                      />
+                    </>
+                  ) : null}
+                </>
+              )}
 
               <Text style={[styles.sectionTitle, { marginTop: space.md }]}>Vehicle documents</Text>
               <PhotoField label="RC (registration certificate)" value={v.rcDocUrl} folder="vehicle" name="rc" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ rcDocUrl: url })} />

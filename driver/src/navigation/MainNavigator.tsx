@@ -50,7 +50,7 @@ function Tabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: isCompact ? 11 : navWidth > 100 ? 14 : 11, fontWeight: '700' },
-        tabBarStyle: isCompact ? undefined : { width: navWidth, minWidth: navWidth, maxWidth: navWidth, borderRightColor: colors.border },
+        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: navWidth, minWidth: navWidth, maxWidth: navWidth, borderRightColor: colors.border },
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
       })}
     >

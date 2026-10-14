@@ -339,13 +339,14 @@ export function Sheet({
   children: React.ReactNode;
   dismissible?: boolean;
 }) {
-  const wide = !useResponsive().isCompact;
+  const r = useResponsive();
+  const wide = !r.isCompact;
   return (
     <Modal visible={visible} transparent animationType={wide ? 'fade' : 'slide'} onRequestClose={dismissible ? onClose : () => undefined}>
       <View style={[styles.sheetBackdrop, wide && styles.sheetBackdropWide]}>
         <Pressable style={wide ? StyleSheet.absoluteFill : { flex: 1 }} onPress={dismissible ? onClose : undefined} accessibilityLabel="Close" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={wide ? styles.sheetWideWrap : undefined}>
-          <SafeAreaView edges={wide ? [] : ['bottom']} style={[styles.sheet, wide && styles.sheetWide]}>
+          <SafeAreaView edges={wide ? [] : ['bottom']} style={[styles.sheet, wide && styles.sheetWide, { maxHeight: wide ? r.height - space.xl * 2 : Math.round(r.height * 0.9) }]}>
             {wide ? null : <View style={styles.sheetHandle} />}
             <View style={styles.sheetHeader}>
               <Text style={type.h2} numberOfLines={2}>
@@ -477,7 +478,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     paddingHorizontal: space.lg,
-    maxHeight: '90%',
   },
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginTop: space.sm },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space.md, gap: space.md },

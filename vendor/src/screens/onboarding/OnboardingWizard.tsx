@@ -34,6 +34,17 @@ import { colors, radius, space, type } from '../../theme';
 const VEHICLE_TYPE_CHOICES = ['Hatchback', 'Sedan', 'SUV', 'Premium SUV', 'Tempo Traveller'] as const;
 const DETECT_DELAY_MS = 800;
 
+/**
+ * Temporary switch: turns off automatic VAHAN vehicle lookup until Friday.
+ * While false:
+ *  - entering a registration plate does NOT auto-fetch or call lookupVehicle
+ *  - the "Detect vehicle" button and lookup loader are bypassed
+ *  - vendors pick their vehicle category manually
+ *  - validateVehicle allows proceeding without requiring VAHAN detection
+ * Re-enable by flipping to true once the vehicle register backend service is ready.
+ */
+export const AUTO_DETECT_ENABLED = false;
+
 interface WizardProps {
   record: VendorRecord | null;
   phone: string;
@@ -273,6 +284,7 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
   const manual = result != null && (result.status === 'unavailable' || result.status === 'not_configured');
 
   const detect = useCallback(async (raw: string) => {
+    if (!AUTO_DETECT_ENABLED) return;
     const wanted = normalizePlate(raw);
     if (!isPlate(wanted)) return;
     const mine = ++seq.current;
@@ -292,7 +304,7 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
 
   // Detect on its own once a full plate is typed (from idle only: errors are retried by the button).
   useEffect(() => {
-    if (!adding || !isPlate(draft.registrationNumber) || detectedFor === plate || detection.state !== 'idle') return undefined;
+    if (!AUTO_DETECT_ENABLED || !adding || !isPlate(draft.registrationNumber) || detectedFor === plate || detection.state !== 'idle') return undefined;
     const t = setTimeout(() => void detect(draft.registrationNumber), DETECT_DELAY_MS);
     return () => clearTimeout(t);
   }, [adding, draft.registrationNumber, plate, detectedFor, detection.state, detect]);
@@ -302,19 +314,32 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
     if (normalizePlate(upper) !== plate) {
       seq.current++;
       setDetection({ state: 'idle' });
-      setDetectedFor('');
-      setDraft((d) => ({ ...emptyVehicle(), registrationNumber: upper, rcFiles: d.rcFiles, insuranceFiles: d.insuranceFiles, fitnessFiles: d.fitnessFiles, permitFiles: d.permitFiles, frontPhotoFiles: d.frontPhotoFiles }));
-    } else setDraft((d) => ({ ...d, registrationNumber: upper }));
+      setDetectedFor(!AUTO_DETECT_ENABLED ? normalizePlate(upper) : '');
+      setDraft((d) => ({
+        ...emptyVehicle(),
+        registrationNumber: upper,
+        source: 'manual',
+        rcFiles: d.rcFiles,
+        insuranceFiles: d.insuranceFiles,
+        fitnessFiles: d.fitnessFiles,
+        permitFiles: d.permitFiles,
+        frontPhotoFiles: d.frontPhotoFiles,
+      }));
+    } else {
+      setDraft((d) => ({ ...d, registrationNumber: upper }));
+      if (!AUTO_DETECT_ENABLED) setDetectedFor(normalizePlate(upper));
+    }
   };
 
   const setFiles = (key: 'rcFiles' | 'insuranceFiles' | 'fitnessFiles' | 'permitFiles' | 'frontPhotoFiles') => (files: StoredFile[]) => setDraft((d) => ({ ...d, [key]: files }));
 
   const addVehicle = () => {
     const e = validateVehicle(draft, {
-      detectedFor,
+      detectedFor: !AUTO_DETECT_ENABLED ? plate : detectedFor,
       duplicate: result?.status === 'found' && result.duplicate,
       notFound: result?.status === 'not_found',
       others: vehicles.map((v) => normalizePlate(v.registrationNumber)),
+      autoDetect: AUTO_DETECT_ENABLED,
     });
     setErrors(e);
     if (Object.keys(e).length || uploading) return;
@@ -376,44 +401,12 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
         <View style={styles.editor}>
           <Text style={[type.h3, { marginBottom: space.sm }]}>{vehicles.length ? 'Add another vehicle' : 'Add a vehicle'}</Text>
           <TextField label="Registration number" required value={draft.registrationNumber} onChangeText={onPlate} autoCapitalize="characters" placeholder="TN 01 AB 1234" error={errors.registrationNumber} />
-          <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
-          <Button
-            title={detection.state === 'loading' ? 'Checking…' : detectedFor === plate && plate ? 'Check again' : 'Detect vehicle'}
-            variant="secondary"
-            loading={detection.state === 'loading'}
-            disabled={!isPlate(draft.registrationNumber) || detection.state === 'loading'}
-            onPress={() => void detect(draft.registrationNumber)}
-            style={{ marginBottom: space.md }}
-          />
-          {detection.state === 'loading' ? (
-            <View style={styles.detecting}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={type.small}>Looking up {draft.registrationNumber} in the vehicle register…</Text>
-            </View>
-          ) : null}
-          {detection.state === 'error' ? <Notice message={detection.message} /> : null}
-          {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
-          {result?.status === 'found' && result.duplicate ? <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." /> : null}
-          {result?.status === 'found' && draft.source === 'vahan' ? (
-            <View style={styles.detected}>
-              <View style={styles.detectedHead}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={[type.h3, { flex: 1 }]}>Vehicle found</Text>
-                <Badge label={draft.category === 'Premium SUV' ? 'Innova Crysta' : draft.category} tone="brand" />
-              </View>
-              <Text style={type.body}>{[draft.make, draft.model].filter(Boolean).join(' ')}</Text>
-              <Text style={type.small}>{[draft.fuelType, draft.seatClass ? `${draft.seatClass} seats` : '', draft.year].filter(Boolean).join(' • ')}</Text>
-              <Text style={[type.tiny, { marginTop: 4 }]}>Registered to {result.vehicle.ownerNameMasked || 'the owner on record'}.</Text>
-              {result.issues.map((i) => (
-                <Text key={i.code} style={[type.tiny, { color: colors.warning, marginTop: 4 }]}>
-                  ⚠ {i.message} Enter the dates from your current document below.
-                </Text>
-              ))}
-            </View>
-          ) : null}
-          {manual ? (
+          {!AUTO_DETECT_ENABLED ? (
             <>
-              <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose the vehicle type — NESAM will verify the vehicle from your documents." />
+              <Notice
+                tone="info"
+                message="Automatic vehicle detection is temporarily paused. Please choose the vehicle type below — NESAM will verify the vehicle details from your uploaded documents."
+              />
               <Text style={[type.label, { marginBottom: 6 }]}>
                 Vehicle type<Text style={{ color: colors.primary }}> *</Text>
               </Text>
@@ -423,8 +416,70 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
                 ))}
               </View>
               {errors.category ? <Text style={styles.err}>{errors.category}</Text> : null}
+              <TextField
+                label="Vehicle make & model (optional)"
+                value={[draft.make, draft.model].filter(Boolean).join(' ')}
+                onChangeText={(text) => {
+                  const trimmed = text.trim();
+                  const parts = trimmed.split(' ');
+                  setDraft((d) => ({ ...d, make: parts[0] || '', model: parts.slice(1).join(' ') || '' }));
+                }}
+                placeholder="e.g. Maruti Dzire, Toyota Innova"
+              />
             </>
-          ) : null}
+          ) : (
+            <>
+              <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
+              <Button
+                title={detection.state === 'loading' ? 'Checking…' : detectedFor === plate && plate ? 'Check again' : 'Detect vehicle'}
+                variant="secondary"
+                loading={detection.state === 'loading'}
+                disabled={!isPlate(draft.registrationNumber) || detection.state === 'loading'}
+                onPress={() => void detect(draft.registrationNumber)}
+                style={{ marginBottom: space.md }}
+              />
+              {detection.state === 'loading' ? (
+                <View style={styles.detecting}>
+                  <ActivityIndicator color={colors.primary} />
+                  <Text style={type.small}>Looking up {draft.registrationNumber} in the vehicle register…</Text>
+                </View>
+              ) : null}
+              {detection.state === 'error' ? <Notice message={detection.message} /> : null}
+              {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
+              {result?.status === 'found' && result.duplicate ? <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." /> : null}
+              {result?.status === 'found' && draft.source === 'vahan' ? (
+                <View style={styles.detected}>
+                  <View style={styles.detectedHead}>
+                    <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+                    <Text style={[type.h3, { flex: 1 }]}>Vehicle found</Text>
+                    <Badge label={draft.category === 'Premium SUV' ? 'Innova Crysta' : draft.category} tone="brand" />
+                  </View>
+                  <Text style={type.body}>{[draft.make, draft.model].filter(Boolean).join(' ')}</Text>
+                  <Text style={type.small}>{[draft.fuelType, draft.seatClass ? `${draft.seatClass} seats` : '', draft.year].filter(Boolean).join(' • ')}</Text>
+                  <Text style={[type.tiny, { marginTop: 4 }]}>Registered to {result.vehicle.ownerNameMasked || 'the owner on record'}.</Text>
+                  {result.issues.map((i) => (
+                    <Text key={i.code} style={[type.tiny, { color: colors.warning, marginTop: 4 }]}>
+                      ⚠ {i.message} Enter the dates from your current document below.
+                    </Text>
+                  ))}
+                </View>
+              ) : null}
+              {manual ? (
+                <>
+                  <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose the vehicle type — NESAM will verify the vehicle from your documents." />
+                  <Text style={[type.label, { marginBottom: 6 }]}>
+                    Vehicle type<Text style={{ color: colors.primary }}> *</Text>
+                  </Text>
+                  <View style={styles.chips}>
+                    {VEHICLE_TYPE_CHOICES.map((t) => (
+                      <Chip key={t} label={t === 'Premium SUV' ? 'Innova Crysta' : t} active={draft.category === t} onPress={() => setDraft((d) => ({ ...d, category: t }))} />
+                    ))}
+                  </View>
+                  {errors.category ? <Text style={styles.err}>{errors.category}</Text> : null}
+                </>
+              ) : null}
+            </>
+          )}
 
           <Text style={[type.h3, { marginVertical: space.sm }]}>Vehicle documents</Text>
           <FileUploadField label="RC (registration certificate)" required category="vehicle_rc" files={draft.rcFiles} onChange={setFiles('rcFiles')} persistedPaths={persisted} onBusyChange={onRc} error={errors.rcFiles} max={2} />

@@ -30,6 +30,16 @@ export function Content({ kind = 'narrow', style, children }: { kind?: ContentKi
   return <View style={[c, style]}>{children}</View>;
 }
 
+/**
+ * Fills its parent and keeps its children in a centred column on wide windows.
+ * Used inside full-screen modals / pages whose header, search box and list are
+ * separate blocks (a plain width cap on the list alone would misalign them).
+ */
+export function Frame({ kind = 'narrow', style, children }: { kind?: ContentKind; style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
+  const c = useContentStyle(kind);
+  return <View style={[{ flex: 1 }, c, style]}>{children}</View>;
+}
+
 type LayoutProps = { kind?: ContentKind };
 
 export const ScrollView = forwardRef<RNScrollView, ScrollViewProps & LayoutProps>(function ScrollView(

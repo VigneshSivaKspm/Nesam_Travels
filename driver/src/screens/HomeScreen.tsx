@@ -87,7 +87,7 @@ export function HomeScreen() {
         <Button title={`Call police emergency (${EMERGENCY_NUMBER})`} variant="danger" onPress={() => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`)} />
         <Button title={`Call NESAM control room (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={{ marginTop: space.sm }} />
       </Sheet>
-      <ScrollView contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={false} onRefresh={() => setMessage(null)} colors={[colors.primary]} />}>
+      <ScrollView kind="wide" contentContainerStyle={styles.content} refreshControl={<RefreshControl refreshing={false} onRefresh={() => setMessage(null)} colors={[colors.primary]} />}>
         <View style={styles.topBar}>
           <Text style={type.h1}>Dashboard</Text>
           <View style={{ flexDirection: 'row', gap: space.md }}>
@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   offline: { backgroundColor: '#4B5563' },
   toggleText: { fontWeight: '800', color: colors.muted },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.md },
-  stat: { flexGrow: 1, flexBasis: '45%', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
+  stat: { flexGrow: 1, flexBasis: 150, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
   statValue: { fontSize: 20, fontWeight: '900', color: colors.ink, marginTop: 4 },
   activeCard: { borderColor: colors.primary, borderWidth: 2 },
   activeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

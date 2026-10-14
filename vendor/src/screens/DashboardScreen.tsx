@@ -39,7 +39,7 @@ export function DashboardScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView kind="wide" contentContainerStyle={styles.content}>
         <Text style={type.tiny}>NESAM FLEET PARTNER</Text>
         <Text style={type.h1} numberOfLines={1}>
           {profile.companyName}
@@ -121,11 +121,11 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { padding: space.lg, paddingBottom: space.xxl },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  stat: { flexGrow: 1, flexBasis: '45%', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
+  stat: { flexGrow: 1, flexBasis: 150, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
   statValue: { fontSize: 20, fontWeight: '900', color: colors.ink, marginTop: 4 },
   section: { marginTop: space.lg, marginBottom: space.sm },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  action: { flexBasis: '31%', flexGrow: 1, alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: space.md },
+  action: { flexBasis: 100, flexGrow: 1, alignItems: 'center', gap: 6, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, paddingVertical: space.md },
   actionText: { fontSize: 12, fontWeight: '700', color: colors.ink, textAlign: 'center' },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
 });

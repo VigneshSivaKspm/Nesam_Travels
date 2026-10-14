@@ -60,6 +60,8 @@ export interface ValidateOptions {
   /** A vendor's employee: no vehicle step. */
   fleetDriver?: boolean;
   today?: string;
+  /** Whether the vehicle must be verified against the VAHAN register (defaults to true). Set false to temporarily bypass. */
+  autoDetect?: boolean;
 }
 
 /** Plate as printed, with or without spaces/hyphens. */
@@ -88,11 +90,12 @@ export function validateStep(step: number, d: RegistrationData, opts: ValidateOp
 
   if (step === 2 && !opts.fleetDriver) {
     const v = d.vehicle;
+    const requireDetect = opts.autoDetect !== false;
     if (!isPlate(v.vehicleNumber)) e.vehicleNumber = 'Enter a valid registration number (e.g. TN 01 AB 1234)';
-    else if (!v.vahan || v.vahan.lookupId !== normalizePlate(v.vehicleNumber)) e.vehicleNumber = 'Check the vehicle first: tap "Detect vehicle".';
-    else if (v.vahan.status === 'not_found') e.vehicleNumber = 'This registration number was not found in the vehicle register. Check it and try again.';
-    else if (v.vahan.duplicate) e.vehicleNumber = 'This vehicle is already registered with another NESAM partner. Contact NESAM support.';
-    else if (v.vahan.status !== 'found' && !v.vahan.manualType) e.vehicleType = 'Choose your vehicle type.';
+    else if (requireDetect && (!v.vahan || v.vahan.lookupId !== normalizePlate(v.vehicleNumber))) e.vehicleNumber = 'Check the vehicle first: tap "Detect vehicle".';
+    else if (v.vahan && v.vahan.status === 'not_found') e.vehicleNumber = 'This registration number was not found in the vehicle register. Check it and try again.';
+    else if (v.vahan && v.vahan.duplicate) e.vehicleNumber = 'This vehicle is already registered with another NESAM partner. Contact NESAM support.';
+    if (!v.vehicleType || (v.vahan && v.vahan.status !== 'found' && !v.vahan.manualType)) e.vehicleType = 'Choose your vehicle type.';
     req('rcDocUrl', v.rcDocUrl, 'RC photo is required');
     req('insuranceDocUrl', v.insuranceDocUrl, 'Insurance photo is required');
     req('insuranceExpiry', v.insuranceExpiry);

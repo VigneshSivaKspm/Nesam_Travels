@@ -2,7 +2,7 @@
 // document changes go to NESAM review (docStatus 'Pending' — firestore.rules).
 import React, { useState } from 'react';
 import { Alert, Modal, StyleSheet, Text, View } from 'react-native';
-import { FlatList, ScrollView } from '../components/layout';
+import { FlatList, ScrollView, Frame } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVendorData } from '../context/VendorData';
 import { Badge, Button, Card, Chip, EmptyState, Notice, Row, Segmented, TextField } from '../components/ui';
@@ -183,6 +183,7 @@ function VehicleForm({ existing, onClose, onSaved }: { existing: FleetVehicle | 
   return (
     <Modal visible animationType="slide" onRequestClose={() => !busy && onClose()}>
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <Frame>
         <View style={styles.formHead}>
           <Text style={[type.h2, { flex: 1 }]}>{existing ? `Update ${existing.vehicleNumber}` : 'Add vehicle'}</Text>
           <Button small variant="ghost" title="Close" disabled={busy} onPress={onClose} />
@@ -234,6 +235,7 @@ function VehicleForm({ existing, onClose, onSaved }: { existing: FleetVehicle | 
           <Notice message={error} />
           <Button title={busy ? 'Saving…' : uploads > 0 ? 'Uploading…' : existing ? 'Save & resubmit' : 'Add vehicle'} loading={busy} disabled={uploads > 0} onPress={() => void save()} />
         </ScrollView>
+      </Frame>
       </SafeAreaView>
     </Modal>
   );

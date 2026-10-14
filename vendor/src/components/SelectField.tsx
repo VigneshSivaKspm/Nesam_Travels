@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList } from './layout';
+import { FlatList, Frame } from './layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, space, type } from '../theme';
@@ -40,6 +40,7 @@ export function SelectField({
       {error ? <Text style={styles.err}>{error}</Text> : null}
       <Modal visible={open} animationType="slide" onRequestClose={() => setOpen(false)}>
         <SafeAreaView style={{ flex: 1, backgroundColor: colors.card }} edges={['top', 'bottom']}>
+<Frame>
           <View style={styles.header}>
             <Pressable onPress={() => setOpen(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
               <Ionicons name="close" size={24} color={colors.ink} />
@@ -64,7 +65,8 @@ export function SelectField({
               </Pressable>
             )}
           />
-        </SafeAreaView>
+        </Frame>
+</SafeAreaView>
       </Modal>
     </View>
   );
