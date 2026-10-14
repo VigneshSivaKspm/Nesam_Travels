@@ -97,7 +97,7 @@ export function EarningsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.md },
-  stat: { flexGrow: 1, flexBasis: 150, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
+  stat: { flexGrow: 1, flexBasis: 130, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
   statValue: { fontSize: 20, fontWeight: '900', marginTop: 4 },
   chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
   chart: { flexDirection: 'row', alignItems: 'flex-end', height: 170, gap: 4 },

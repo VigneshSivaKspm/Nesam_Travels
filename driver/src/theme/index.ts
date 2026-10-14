@@ -22,18 +22,47 @@ export const colors = {
   info: '#1D4ED8',
   infoSoft: '#EFF6FF',
   white: '#FFFFFF',
+  page: '#FFFFFF',
+  slate: '#64748B',
+  navy: '#1E2B58',
   overlay: 'rgba(17,17,17,0.55)',
 } as const;
 
 export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999 } as const;
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 
+export const shadows = {
+  sm: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 1,
+  },
+  md: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  lg: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.12,
+    shadowRadius: 20,
+    elevation: 6,
+  },
+} as const;
+
 export const type = {
-  h1: { fontSize: 22, fontWeight: '800' as const, color: colors.ink },
-  h2: { fontSize: 18, fontWeight: '800' as const, color: colors.ink },
-  h3: { fontSize: 15, fontWeight: '700' as const, color: colors.ink },
-  body: { fontSize: 14, color: colors.text },
-  small: { fontSize: 12, color: colors.muted },
-  tiny: { fontSize: 11, color: colors.faint },
-  label: { fontSize: 12, fontWeight: '700' as const, color: colors.text },
+  display: { fontSize: 30, fontWeight: '800' as const, color: colors.ink, letterSpacing: -0.5 },
+  h1: { fontSize: 24, fontWeight: '800' as const, color: colors.ink, letterSpacing: -0.3 },
+  h2: { fontSize: 20, fontWeight: '700' as const, color: colors.ink, letterSpacing: -0.2 },
+  h3: { fontSize: 16, fontWeight: '700' as const, color: colors.ink },
+  body: { fontSize: 15, color: colors.text, lineHeight: 22 },
+  bodyMedium: { fontSize: 15, fontWeight: '600' as const, color: colors.text, lineHeight: 22 },
+  small: { fontSize: 13, color: colors.muted, lineHeight: 18 },
+  tiny: { fontSize: 12, fontWeight: '600' as const, color: colors.muted, lineHeight: 16 },
+  label: { fontSize: 14, fontWeight: '700' as const, color: colors.text },
 } as const;

@@ -3,7 +3,7 @@
 // rule-violating write).
 import React, { useMemo, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList } from '../components/layout';
+import { FlatList, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useVendorData } from '../context/VendorData';
@@ -41,7 +41,7 @@ export function TripsScreen() {
           }}
         />
       ) : null}
-      <View style={styles.header}>
+      <Content kind="wide" style={styles.header}>
         <Text style={type.h1}>Trips</Text>
         <Segmented
           options={[
@@ -52,7 +52,7 @@ export function TripsScreen() {
           onChange={setTab}
         />
         {message ? <Notice tone="success" message={message} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
-      </View>
+      </Content>
       <FlatList
         multiColumn
         data={data}

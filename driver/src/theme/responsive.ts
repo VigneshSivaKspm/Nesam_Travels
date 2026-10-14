@@ -11,19 +11,24 @@ import { useWindowDimensions } from 'react-native';
 
 export type SizeClass = 'compact' | 'medium' | 'expanded';
 
-export const BREAKPOINTS = { medium: 600, expanded: 1024 } as const;
+export const BREAKPOINTS = { medium: 600, expanded: 1024, desktop: 1280, wide: 1536 } as const;
 
 /** Side navigation width when the tab bar moves to the left: icon rail (medium) / labelled sidebar (expanded). */
-export const NAV_WIDTH = { medium: 96, expanded: 232 } as const;
+export const NAV_WIDTH = { medium: 96, expanded: 260 } as const;
 
-/** Widest the content of a form / detail / reading screen gets. */
-export const NARROW_MAX = 640;
-/** Widest a dashboard or card grid gets. */
-export const WIDE_MAX = 1040;
+/** Widest the content of a single-column form or focused reader gets. */
+export const NARROW_MAX = 780;
+/** Two-column forms, modals, profile settings. */
+export const MEDIUM_MAX = 1080;
+/** Widest a dashboard, table, or card grid gets. */
+export const WIDE_MAX = 1440;
+/** Full-width fluid operational layout (dispatch tables, live maps). */
+export const FLUID_MAX = 1680;
+
 /** Target width of one card in a multi-column list. */
-const CARD_MIN = 420;
+const CARD_MIN = 380;
 
-export type ContentKind = 'narrow' | 'wide';
+export type ContentKind = 'narrow' | 'medium' | 'wide' | 'fluid' | 'full';
 
 export interface Responsive {
   /** Window size in dp / CSS px. */
@@ -33,6 +38,7 @@ export interface Responsive {
   isCompact: boolean;
   isMedium: boolean;
   isExpanded: boolean;
+  isDesktop: boolean;
   isLandscape: boolean;
   /** A phone held sideways: plenty of width, very little height. */
   isShort: boolean;
@@ -54,7 +60,7 @@ export function sizeClassFor(width: number): SizeClass {
   return 'compact';
 }
 
-export function columnsFor(available: number, maxColumns = 3): number {
+export function columnsFor(available: number, maxColumns = 4): number {
   return Math.max(1, Math.min(maxColumns, Math.floor((available - 32) / CARD_MIN)));
 }
 
@@ -63,6 +69,7 @@ export function useResponsive(): Responsive {
   return useMemo(() => {
     const sizeClass = sizeClassFor(width);
     const isCompact = sizeClass === 'compact';
+    const isDesktop = width >= BREAKPOINTS.expanded;
     const navWidth = isCompact ? 0 : sizeClass === 'medium' ? NAV_WIDTH.medium : NAV_WIDTH.expanded;
     const available = width - navWidth;
     return {
@@ -72,13 +79,30 @@ export function useResponsive(): Responsive {
       isCompact,
       isMedium: sizeClass === 'medium',
       isExpanded: sizeClass === 'expanded',
+      isDesktop,
       isLandscape: width > height,
       isShort: height < 480,
       available,
       navWidth,
-      maxWidth: (kind: ContentKind = 'narrow') => (isCompact ? Infinity : kind === 'wide' ? WIDE_MAX : NARROW_MAX),
+      maxWidth: (kind: ContentKind = 'wide') => {
+        if (isCompact) return Infinity;
+        switch (kind) {
+          case 'narrow':
+            return NARROW_MAX;
+          case 'medium':
+            return MEDIUM_MAX;
+          case 'wide':
+            return WIDE_MAX;
+          case 'fluid':
+            return FLUID_MAX;
+          case 'full':
+            return Infinity;
+          default:
+            return WIDE_MAX;
+        }
+      },
       columns: isCompact ? 1 : columnsFor(available),
-      gutter: isCompact ? 16 : 24,
+      gutter: isCompact ? 16 : isDesktop ? 32 : 24,
     };
   }, [width, height]);
 }

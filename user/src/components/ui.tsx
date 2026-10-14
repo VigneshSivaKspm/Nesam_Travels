@@ -16,7 +16,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { colors, radius, space, type } from '../theme';
+import { colors, radius, shadows, space, type } from '../theme';
 import { useResponsive, type ContentKind } from '../theme/responsive';
 import { ScrollView, useContentStyle } from './layout';
 import { initials } from '../utils/format';
@@ -30,7 +30,7 @@ export function Screen({
   padded = true,
   footer,
   refreshControl,
-  kind = 'narrow',
+  kind = 'wide',
   bg,
 }: {
   children: React.ReactNode;
@@ -384,29 +384,31 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: space.lg,
     marginBottom: space.md,
+    ...shadows.sm,
   },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm, marginTop: space.sm },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
-  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, gap: space.md },
-  rowLabel: { flex: 1, fontSize: 13, color: colors.muted },
-  rowValue: { flexShrink: 1, fontSize: 13, color: colors.ink, fontWeight: '600', textAlign: 'right' },
-  bold: { fontWeight: '800', color: colors.ink, fontSize: 15 },
-  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: space.sm },
+  sectionTitle: { fontSize: 13, fontWeight: '800', color: colors.muted, letterSpacing: 0.8, textTransform: 'uppercase' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, gap: space.md },
+  rowLabel: { flex: 1, fontSize: 14, color: colors.muted },
+  rowValue: { flexShrink: 1, fontSize: 14, color: colors.ink, fontWeight: '600', textAlign: 'right' },
+  bold: { fontWeight: '800', color: colors.ink, fontSize: 16 },
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: colors.border, marginVertical: space.md },
   btn: {
     minHeight: 48,
-    paddingHorizontal: space.lg,
+    paddingHorizontal: space.xl,
     borderRadius: radius.md,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
     flexDirection: 'row',
+    cursor: 'pointer' as any,
   },
-  btnSmall: { minHeight: 36, paddingHorizontal: space.md, borderRadius: radius.sm },
-  btnDisabled: { opacity: 0.5 },
-  btnPressed: { opacity: 0.85 },
+  btnSmall: { minHeight: 38, paddingHorizontal: space.md, borderRadius: radius.sm },
+  btnDisabled: { opacity: 0.5, cursor: 'not-allowed' as any },
+  btnPressed: { opacity: 0.88 },
   btnText: { fontSize: 15, fontWeight: '700', textAlign: 'center', flexShrink: 1 },
   btnTextSmall: { fontSize: 13 },
-  link: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  link: { color: colors.primary, fontWeight: '700', fontSize: 14, cursor: 'pointer' as any },
   fieldLabel: { fontSize: 14, fontWeight: '700', color: colors.ink, marginBottom: 6 },
   inputWrap: {
     flexDirection: 'row',

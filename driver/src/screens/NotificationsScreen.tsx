@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList, ScrollView } from '../components/layout';
+import { FlatList, ScrollView, Content } from '../components/layout';
 import { useDriverData } from '../context/DriverData';
 import { EmptyState } from '../components/ui';
 import { markNotificationRead } from '../services/driverService';
@@ -14,7 +14,7 @@ export function NotificationsScreen() {
   const shown = filter === 'all' ? notifications : notifications.filter((n) => n.category === filter);
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View>
+      <Content kind="narrow">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {(['all', ...CATEGORIES] as const).map((c) => {
             const count = c === 'all' ? notifications.filter((n) => !n.read).length : notifications.filter((n) => n.category === c && !n.read).length;
@@ -29,7 +29,7 @@ export function NotificationsScreen() {
             );
           })}
         </ScrollView>
-      </View>
+      </Content>
       <FlatList
         data={shown}
         keyExtractor={(n) => n.id}

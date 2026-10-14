@@ -87,9 +87,11 @@ function installLayout(): void {
     html, body, #root { height: 100%; }
     @supports (height: 100dvh) { html, body, #root { height: 100dvh; } }
     input, textarea, select, button { font-family: inherit; }
+    /* Native inputs have an intrinsic width; without this a flex row of input + button overflows on narrow phones. */
+    input, textarea, select { min-width: 0; }
     /* Keyboard users get a visible focus ring; mouse and touch users do not. */
     :focus { outline: none; }
-    :focus-visible { outline: 2px solid #E31E24; outline-offset: 2px; }
+    :focus-visible:not(input):not(textarea):not(select) { outline: 2px solid #E31E24; outline-offset: 2px; }
     @media (prefers-reduced-motion: reduce) { * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; } }
   `;
   document.head.appendChild(style);

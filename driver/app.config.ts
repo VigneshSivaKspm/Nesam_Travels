@@ -11,12 +11,13 @@ const config: ExpoConfig = {
   scheme: 'nesamdriver',
   version: '1.0.0',
   platforms: ['android', 'ios', 'web'],
-  orientation: 'portrait',
+  // Phones stay comfortable in portrait; tablets, foldables and landscape use the responsive layout (theme/responsive.ts).
+  orientation: 'default',
   icon: './assets/icon.png',
   userInterfaceStyle: 'light',
   backgroundColor: '#F7F7F7',
   ios: {
-    supportsTablet: false,
+    supportsTablet: true,
     bundleIdentifier: 'com.nesamtours.driver',
   },
   android: {

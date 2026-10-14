@@ -1,5 +1,6 @@
 import React from 'react';
-import { Alert, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Linking, Pressable, StyleSheet, Text } from 'react-native';
+import { Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -38,7 +39,7 @@ export function MoreScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.content}>
+      <Content kind="narrow" style={styles.content}>
         <Text style={type.h1}>More</Text>
         <Text style={[type.small, { marginBottom: space.md }]}>{profile.companyName}</Text>
         <Card style={{ padding: 0 }}>
@@ -52,7 +53,7 @@ export function MoreScreen() {
           <Item icon="log-out-outline" label="Sign out" onPress={confirmSignOut} danger />
         </Card>
         <Text style={[type.tiny, { textAlign: 'center' }]}>NESAM Vendor v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
-      </View>
+      </Content>
     </SafeAreaView>
   );
 }

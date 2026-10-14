@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList, ScrollView } from '../components/layout';
+import { FlatList, ScrollView, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useInbox } from '../context/Inbox';
 import { EmptyState, LinkText, Notice } from '../components/ui';
@@ -30,14 +30,14 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.header}>
+      <Content kind="narrow" style={styles.header}>
         <View style={{ flex: 1 }}>
           <Text style={type.h1}>Notifications</Text>
           <Text style={type.small}>Booking updates, driver alerts & offers</Text>
         </View>
         {unread.length > 0 ? <LinkText onPress={() => void markAll()}>Mark all read</LinkText> : null}
-      </View>
-      <View>
+      </Content>
+      <Content kind="narrow">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {tabs.map((c) => {
             const count = (c === 'all' ? unread : unread.filter((n) => n.category === c)).length;
@@ -52,7 +52,7 @@ export function NotificationsScreen() {
             );
           })}
         </ScrollView>
-      </View>
+      </Content>
       <FlatList
         data={shown}
         keyExtractor={(n) => n.id}

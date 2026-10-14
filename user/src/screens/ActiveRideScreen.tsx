@@ -240,7 +240,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
 
           <View style={styles.driverRow}>
             <Avatar name={trip.driver.name} photoUrl={trip.driver.photoUrl} size={52} />
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 120 }}>
               <Text style={type.h3} numberOfLines={1}>
                 {trip.driver.name}
               </Text>
@@ -351,11 +351,11 @@ export function ActiveRideScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   head: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginBottom: space.md },
-  etaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm, gap: space.sm },
-  etaLabel: { fontSize: 11, fontWeight: '800', color: colors.muted, flexShrink: 1 },
+  etaRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: space.sm, columnGap: space.sm },
+  etaLabel: { fontSize: 11, fontWeight: '800', color: colors.muted, flexShrink: 1, flexGrow: 1, minWidth: 160 },
   eta: { fontSize: 24, fontWeight: '900', color: colors.primary },
   stale: { fontSize: 12, color: colors.warning },
-  driverRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, marginTop: space.md },
+  driverRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: space.md, marginTop: space.md },
   plate: {
     borderWidth: 2,
     borderColor: colors.ink,

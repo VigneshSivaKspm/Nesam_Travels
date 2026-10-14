@@ -4,6 +4,7 @@ import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Ionicons } from '@expo/vector-icons';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import { colors, radius, space } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 const LOGO = require('../../assets/logo.png') as number;
 
@@ -33,6 +34,7 @@ export function IconButton({ icon, label, onPress }: { icon: keyof typeof Ionico
 
 /** Back arrow, title and "Step n of 3" for the booking steps. */
 export function StepHeader({ title, step, onBack }: { title: string; step: number; onBack: () => void }) {
+  const narrow = useResponsive().width < 360;
   return (
     <View style={styles.stepRow}>
       <Pressable onPress={onBack} hitSlop={10} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
@@ -41,7 +43,7 @@ export function StepHeader({ title, step, onBack }: { title: string; step: numbe
       <Text style={styles.stepTitle} accessibilityRole="header" numberOfLines={1}>
         {title}
       </Text>
-      <Text style={styles.stepCount}>Step {step} of 3</Text>
+      <Text style={styles.stepCount}>{narrow ? `${step}/3` : `Step ${step} of 3`}</Text>
     </View>
   );
 }

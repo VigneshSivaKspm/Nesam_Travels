@@ -8,7 +8,8 @@
 // driver refreshing documents). The signup draft survives an app restart.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Image, Pressable, StyleSheet, Switch, Text, View, type ScrollView as RNScrollView } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { DesktopCol, DesktopRow, ScrollView } from '../components/layout';
+import { DesktopWizardShell } from '../components/DesktopWizardShell';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';

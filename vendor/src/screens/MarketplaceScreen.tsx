@@ -2,7 +2,7 @@
 // vendor/web MarketplaceBiddingScreen.tsx, wired to the real rules).
 import React, { useMemo, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, View } from 'react-native';
-import { FlatList } from '../components/layout';
+import { FlatList, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useVendorData } from '../context/VendorData';
 import { Badge, Button, Card, EmptyState, Notice, Row, Segmented, Sheet, TextField } from '../components/ui';
@@ -70,7 +70,7 @@ export function MarketplaceScreen() {
           }}
         />
       ) : null}
-      <View style={styles.header}>
+      <Content kind="wide" style={styles.header}>
         <Text style={type.h1}>Marketplace</Text>
         <Text style={[type.small, { marginBottom: space.md }]}>Accept the offered rate instantly or submit a counter bid for NESAM review.</Text>
         <Segmented
@@ -82,7 +82,7 @@ export function MarketplaceScreen() {
           onChange={setTab}
         />
         {message ? <Notice tone={message.tone} message={message.text} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
-      </View>
+      </Content>
 
       {tab === 'feed' ? (
         <FlatList

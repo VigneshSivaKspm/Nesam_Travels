@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { VendorDesktopSidebar } from '../components/DesktopSidebar';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
 import { useVendorData } from '../context/VendorData';
@@ -18,7 +19,7 @@ import { PenaltiesScreen } from '../screens/PenaltiesScreen';
 import { NotificationPopups } from '../components/NotificationPopups';
 import { PenaltyAckModal } from '../components/PenaltyAckModal';
 import { useInbox } from '../context/Inbox';
-import { markNotificationRead, } from '../services/partnerNotifications';
+import { markNotificationRead } from '../services/partnerNotifications';
 import { onPushOpened } from '../services/notificationService';
 import { navigationRef } from './navigationRef';
 import { colors } from '../theme';
@@ -39,25 +40,22 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
 };
 
 function Tabs() {
-  const { isCompact, navWidth } = useResponsive();
+  const { isCompact } = useResponsive();
   const { awaitingDispatch, marketTrips } = useVendorData();
   return (
     <Tab.Navigator
+      tabBar={(props) => (isCompact ? <BottomTabBar {...props} /> : <VendorDesktopSidebar {...props} />)}
       screenOptions={({ route }) => ({
         headerShown: false,
-        // Phones: bottom tabs. Tablets / desktop: a side rail, so the content keeps its height.
         tabBarPosition: isCompact ? 'bottom' : 'left',
-        tabBarVariant: isCompact ? 'uikit' : 'material',
-        tabBarLabelPosition: navWidth > 100 ? 'beside-icon' : 'below-icon',
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: isCompact ? 11 : navWidth > 100 ? 14 : 11, fontWeight: '700' },
-        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: navWidth, minWidth: navWidth, maxWidth: navWidth, borderRightColor: colors.border },
+        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: 260 },
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
       })}
     >
-      <Tab.Screen name="Home" component={DashboardScreen} options={{ title: 'Dashboard' }} />
-      <Tab.Screen name="Market" component={MarketplaceScreen} options={{ title: 'Marketplace', tabBarBadge: marketTrips.length || undefined }} />
+      <Tab.Screen name="Home" component={DashboardScreen} options={{ title: 'Dashboard', tabBarLabel: isCompact ? 'Home' : 'Dashboard' }} />
+      <Tab.Screen name="Market" component={MarketplaceScreen} options={{ title: 'Marketplace', tabBarLabel: isCompact ? 'Market' : 'Marketplace', tabBarBadge: marketTrips.length || undefined }} />
       <Tab.Screen name="Trips" component={TripsScreen} options={{ tabBarBadge: awaitingDispatch.length || undefined }} />
       <Tab.Screen name="Fleet" component={FleetScreen} />
       <Tab.Screen name="More" component={MoreScreen} />

@@ -258,7 +258,7 @@ const styles = StyleSheet.create({
   offline: { backgroundColor: '#4B5563' },
   toggleText: { fontWeight: '800', color: colors.muted },
   stats: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.md },
-  stat: { flexGrow: 1, flexBasis: 150, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
+  stat: { flexGrow: 1, flexBasis: 130, backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
   statValue: { fontSize: 20, fontWeight: '900', color: colors.ink, marginTop: 4 },
   activeCard: { borderColor: colors.primary, borderWidth: 2 },
   activeHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

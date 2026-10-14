@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { UserDesktopSidebar } from '../components/DesktopSidebar';
 import { navigationRef } from './navigationRef';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
@@ -45,20 +46,17 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
 };
 
 function Tabs() {
-  const { isCompact, navWidth } = useResponsive();
+  const { isCompact } = useResponsive();
   const { unreadCount } = useInbox();
   return (
     <Tab.Navigator
+      tabBar={(props) => (isCompact ? <BottomTabBar {...props} /> : <UserDesktopSidebar {...props} />)}
       screenOptions={({ route }) => ({
         headerShown: false,
-        // Phones: bottom tabs. Tablets / desktop: a side rail, so the content keeps its height.
         tabBarPosition: isCompact ? 'bottom' : 'left',
-        tabBarVariant: isCompact ? 'uikit' : 'material',
-        tabBarLabelPosition: navWidth > 100 ? 'beside-icon' : 'below-icon',
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: isCompact ? 13 : navWidth > 100 ? 14 : 11, fontWeight: '700' },
-        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: navWidth, minWidth: navWidth, maxWidth: navWidth, borderRightColor: colors.border },
+        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: 260 },
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
       })}
     >

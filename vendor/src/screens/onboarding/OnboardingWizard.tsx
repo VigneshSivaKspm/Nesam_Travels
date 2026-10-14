@@ -5,7 +5,7 @@
 // resumed on any device; admin-flagged sections are highlighted.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, BackHandler, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
-import { ScrollView } from '../../components/layout';
+import { ScrollView, Content } from '../../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import type { FleetVehicleDoc, OnboardingSection, PayoutDetails, StoredFile, VendorRecord } from '../../types/vendor';
@@ -112,13 +112,13 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.topBar}>
+      <Content kind="narrow" style={styles.topBar}>
         <View style={{ flex: 1 }}>
           <Text style={type.h3}>Fleet Partner Onboarding</Text>
           <Text style={type.tiny}>{phone}</Text>
         </View>
         <Button small variant="ghost" title="Sign out" onPress={onSignOut} />
-      </View>
+      </Content>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.stepper}>
           {ONBOARDING_STEPS.map((s, i) => {

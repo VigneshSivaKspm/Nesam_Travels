@@ -41,7 +41,7 @@ domain (e.g. `customer.example.com`).
 
 | Area | On the web |
 |---|---|
-| Layout | Shown as a centred phone-width column (max 480 px) on large screens. |
+| Layout | Fully responsive (see below): phone, tablet, desktop, landscape. |
 | Dialogs / date & time pickers | Replaced by in-page dialogs and the browser's own date/time inputs (`src/platform/`). |
 | OTP security check | Firebase's own invisible reCAPTCHA instead of the Android WebView. |
 | Maps (customer) | Route card with "Open in Google Maps" links, same as a phone without a Maps key. |
@@ -53,3 +53,17 @@ domain (e.g. `customer.example.com`).
 Platform-specific code lives in `src/platform/`, `*.web.ts(x)` files and `metro.config.js`
 (web-only stand-ins for `jail-monkey`, `@expo/app-integrity` and the date picker).
 Android and iOS builds do not load any of it.
+
+## Responsive layout
+
+One model for Android, iOS and the browser (`src/theme/responsive.ts`, `src/components/layout.tsx`):
+
+| Window width | Class | Behaviour |
+|---|---|---|
+| under 600 | compact | Phone layout: full-width content, bottom tabs, bottom sheets. |
+| 600 – 1023 | medium | Tablets / landscape phones: content centred (max 640), icon side rail, centred dialogs, 2-up card lists. |
+| 1024 and up | expanded | Desktop / large tablets: labelled side navigation, dashboards up to 1040, 2-up card lists. |
+
+- Screens use `ScrollView` / `FlatList` from `components/layout` (drop-in replacements) and `Screen` from `components/ui`; wide windows get a centred column automatically.
+- Card lists opt in to columns with `multiColumn`; headers / footers outside a list use `<Content>` / `<Frame>`.
+- Tested at 320, 360, 390, 414, 480, 599, 600, 768, 820, 1024, 1280 and 1920 px with no horizontal overflow.

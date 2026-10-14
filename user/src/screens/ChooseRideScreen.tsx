@@ -3,7 +3,7 @@
 // package includes and what is billed separately.
 import React, { useEffect, useState } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { ScrollView, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,8 +19,10 @@ import { SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import type { FareBreakdown } from '../types';
 import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '../utils/format';
 import { colors, radius, space } from '../theme';
+import { useResponsive } from '../theme/responsive';
 
 export function ChooseRideScreen() {
+  const narrow = useResponsive().width < 360;
   const navigation = useNavigation();
   const { draft, update, route, setRoute, routeKey, categories, categoryStatus, adjustment } = useBookingDraft();
   const { pickup, drop, tripType, scheduledAt, categoryId } = draft;
@@ -71,11 +73,11 @@ export function ChooseRideScreen() {
         <View style={styles.summary}>
           <View style={styles.summaryRoute}>
             <Ionicons name="location-outline" size={22} color={colors.primary} />
-            <Text style={styles.summaryPlace} numberOfLines={1}>
+            <Text style={styles.summaryPlace} numberOfLines={2}>
               {pickup.name}
             </Text>
             <Ionicons name="arrow-forward" size={20} color={colors.ink} />
-            <Text style={styles.summaryPlace} numberOfLines={1}>
+            <Text style={styles.summaryPlace} numberOfLines={2}>
               {drop.name}
             </Text>
           </View>
@@ -110,20 +112,20 @@ export function ChooseRideScreen() {
               <Pressable
                 key={c.id}
                 onPress={() => update({ categoryId: c.id })}
-                style={({ pressed }) => [styles.car, selected && styles.carOn, pressed && { opacity: 0.9 }]}
+                style={({ pressed }) => [styles.car, narrow && styles.carNarrow, selected && styles.carOn, pressed && { opacity: 0.9 }]}
                 accessibilityRole="radio"
                 accessibilityState={{ selected }}
                 accessibilityLabel={`${c.name}, ${c.seats} passengers, ${q ? formatINR(q.total) : 'fare loading'}`}
               >
                 {c.imageUrl ? (
-                  <Image source={{ uri: c.imageUrl }} style={styles.carImg} resizeMode="contain" />
+                  <Image source={{ uri: c.imageUrl }} style={[styles.carImg, narrow && styles.carImgNarrow]} resizeMode="contain" />
                 ) : (
-                  <View style={[styles.carImg, styles.carIcon]}>
-                    <Ionicons name={c.seats > 7 ? 'bus' : 'car-sport'} size={44} color={selected ? colors.primary : colors.slate} />
+                  <View style={[styles.carImg, narrow && styles.carImgNarrow, styles.carIcon]}>
+                    <Ionicons name={c.seats > 7 ? 'bus' : 'car-sport'} size={narrow ? 30 : 44} color={selected ? colors.primary : colors.slate} />
                   </View>
                 )}
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.carName} numberOfLines={2}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.carName, narrow && styles.carNameNarrow]} numberOfLines={2}>
                     {c.name}
                   </Text>
                   <Text style={styles.carSeats}>{c.seats} passengers</Text>
@@ -160,7 +162,8 @@ export function ChooseRideScreen() {
         ) : null}
       </ScrollView>
 
-      <View style={styles.bottomBar}>
+      <View style={styles.bottomBarWrap}>
+<Content style={styles.bottomBar}>
         <View style={{ flex: 1 }}>
           <Text style={styles.estLabel}>Estimated fare</Text>
           <Text style={styles.estValue}>{quote ? formatINR(quote.total) : '—'}</Text>
@@ -175,7 +178,8 @@ export function ChooseRideScreen() {
           <Text style={styles.continueText}>Continue</Text>
           <Ionicons name="arrow-forward" size={22} color={colors.white} />
         </Pressable>
-      </View>
+      </Content>
+</View>
     </SafeAreaView>
   );
 }
@@ -201,7 +205,10 @@ const styles = StyleSheet.create({
     minHeight: 104,
   },
   carOn: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
+  carNarrow: { padding: space.sm, gap: space.sm, minHeight: 84 },
   carImg: { width: 96, height: 64 },
+  carImgNarrow: { width: 56, height: 40 },
+  carNameNarrow: { fontSize: 16 },
   carIcon: { alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: '#F1F5F9' },
   carName: { fontSize: 19, fontWeight: '800', color: colors.ink },
   carSeats: { fontSize: 15, color: colors.slate, marginTop: 4 },
@@ -212,15 +219,13 @@ const styles = StyleSheet.create({
   fareBox: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.border, backgroundColor: colors.card, padding: space.lg, marginTop: space.sm },
   fareHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   fareTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.ink },
+  bottomBarWrap: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.lg,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.card,
   },
   estLabel: { fontSize: 14, color: colors.slate },
   estValue: { fontSize: 26, fontWeight: '900', color: colors.ink },

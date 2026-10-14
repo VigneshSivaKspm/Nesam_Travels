@@ -3,7 +3,7 @@
 // which re-prices and refuses a fare that changed).
 import React, { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { ScrollView, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -279,7 +279,8 @@ export function ConfirmBookingScreen() {
       </ScrollView>
       {blocker ? <Text style={styles.blocker}>{blocker}</Text> : null}
 
-      <View style={styles.bottomBar}>
+      <View style={styles.bottomBarWrap}>
+<Content style={styles.bottomBar}>
         <View style={{ flex: 1 }}>
           <Text style={styles.estLabel}>{coupon ? `Estimated fare (−${formatINR(quote.discount)} promo)` : 'Estimated fare'}</Text>
           <Text style={styles.estValue}>{formatINR(quote.total)}</Text>
@@ -293,7 +294,8 @@ export function ConfirmBookingScreen() {
         >
           <Text style={styles.bookText}>{submitting ? 'Booking…' : scheduledAt ? 'Schedule ride' : 'Book ride'}</Text>
         </Pressable>
-      </View>
+      </Content>
+</View>
     </SafeAreaView>
   );
 }
@@ -346,15 +348,13 @@ const styles = StyleSheet.create({
   fareHead: { flexDirection: 'row', alignItems: 'center', gap: space.md },
   fareTitle: { flex: 1, fontSize: 17, fontWeight: '700', color: colors.ink },
   blocker: { fontSize: 14, fontWeight: '700', color: colors.primaryDark, backgroundColor: colors.primarySoft, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  bottomBarWrap: { borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: space.lg,
     paddingHorizontal: space.lg,
     paddingVertical: space.md,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    backgroundColor: colors.card,
   },
   estLabel: { fontSize: 14, color: colors.slate },
   estValue: { fontSize: 26, fontWeight: '900', color: colors.ink },

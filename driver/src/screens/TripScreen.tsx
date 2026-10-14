@@ -6,7 +6,7 @@
 // before leaving or at the pickup).
 import React, { useRef, useState } from 'react';
 import { Image, Linking, StyleSheet, Text, TextInput, View } from 'react-native';
-import { ScrollView } from '../components/layout';
+import { ScrollView, Content } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
@@ -43,9 +43,9 @@ export function TripScreen() {
   if (!activeTrip) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
-        <View style={styles.content}>
+        <Content kind="narrow" style={styles.content}>
           <EmptyState title="No active trip" message="Go online and accept a trip from the dashboard." action={<Button title="Go to dashboard" onPress={() => navigation.navigate('Tabs', { screen: 'Home' })} />} />
-        </View>
+        </Content>
       </SafeAreaView>
     );
   }

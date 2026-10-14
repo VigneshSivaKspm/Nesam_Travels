@@ -18,14 +18,14 @@ import {
 import { useResponsive, type ContentKind } from '../theme/responsive';
 
 /** Style that centres a block and caps its width for the current window. */
-export function useContentStyle(kind: ContentKind = 'narrow'): ViewStyle {
+export function useContentStyle(kind: ContentKind = 'wide'): ViewStyle {
   const r = useResponsive();
   const max = r.maxWidth(kind);
   return useMemo<ViewStyle>(() => (Number.isFinite(max) ? { width: '100%', maxWidth: max, alignSelf: 'center' } : { width: '100%' }), [max]);
 }
 
 /** A centred, width-capped block (use inside non-scrolling screens, footers, headers). */
-export function Content({ kind = 'narrow', style, children }: { kind?: ContentKind; style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
+export function Content({ kind = 'wide', style, children }: { kind?: ContentKind; style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
   const c = useContentStyle(kind);
   return <View style={[c, style]}>{children}</View>;
 }
@@ -35,15 +35,60 @@ export function Content({ kind = 'narrow', style, children }: { kind?: ContentKi
  * Used inside full-screen modals / pages whose header, search box and list are
  * separate blocks (a plain width cap on the list alone would misalign them).
  */
-export function Frame({ kind = 'narrow', style, children }: { kind?: ContentKind; style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
+export function Frame({ kind = 'wide', style, children }: { kind?: ContentKind; style?: StyleProp<ViewStyle>; children?: React.ReactNode }) {
   const c = useContentStyle(kind);
   return <View style={[{ flex: 1 }, c, style]}>{children}</View>;
+}
+
+/**
+ * Responsive row that splits into side-by-side columns on desktop (>=1024px)
+ * and stacks vertically on mobile (<1024px).
+ */
+export function DesktopRow({
+  children,
+  gap = 24,
+  style,
+  alignItems = 'flex-start',
+}: {
+  children: React.ReactNode;
+  gap?: number;
+  style?: StyleProp<ViewStyle>;
+  alignItems?: ViewStyle['alignItems'];
+}) {
+  const { isDesktop } = useResponsive();
+  return (
+    <View style={[{ flexDirection: isDesktop ? 'row' : 'column', gap, alignItems: isDesktop ? alignItems : 'stretch' }, style]}>
+      {children}
+    </View>
+  );
+}
+
+/**
+ * Responsive column for use inside DesktopRow.
+ */
+export function DesktopCol({
+  children,
+  flex = 1,
+  style,
+  width,
+}: {
+  children: React.ReactNode;
+  flex?: number;
+  width?: number | string;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const { isDesktop } = useResponsive();
+  return (
+    <View style={[isDesktop && (width ? { width: width as any } : { flex }), style]}>
+      {children}
+    </View>
+  );
 }
 
 type LayoutProps = { kind?: ContentKind };
 
 export const ScrollView = forwardRef<RNScrollView, ScrollViewProps & LayoutProps>(function ScrollView(
-  { kind = 'narrow', contentContainerStyle, ...props },
+  { kind = 'wide', contentContainerStyle, ...props },
   ref,
 ) {
   const content = useContentStyle(kind);

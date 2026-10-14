@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { DriverDesktopSidebar } from '../components/DesktopSidebar';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
 import { navigationRef } from './navigationRef';
@@ -37,28 +38,25 @@ const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
 };
 
 function Tabs() {
-  const { isCompact, navWidth } = useResponsive();
+  const { isCompact } = useResponsive();
   const { activeTrip } = useDriverData();
   return (
     <Tab.Navigator
+      tabBar={(props) => (isCompact ? <BottomTabBar {...props} /> : <DriverDesktopSidebar {...props} />)}
       screenOptions={({ route }) => ({
         headerShown: false,
-        // Phones: bottom tabs. Tablets / desktop: a side rail, so the content keeps its height.
         tabBarPosition: isCompact ? 'bottom' : 'left',
-        tabBarVariant: isCompact ? 'uikit' : 'material',
-        tabBarLabelPosition: navWidth > 100 ? 'beside-icon' : 'below-icon',
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: isCompact ? 11 : navWidth > 100 ? 14 : 11, fontWeight: '700' },
-        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: navWidth, minWidth: navWidth, maxWidth: navWidth, borderRightColor: colors.border },
+        tabBarStyle: isCompact ? { minHeight: 64, paddingTop: 6, borderTopColor: colors.border } : { width: 260 },
         tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Trip" component={TripScreen} options={{ tabBarBadge: activeTrip ? '●' : undefined, tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.white } }} />
-      <Tab.Screen name="Earnings" component={EarningsScreen} />
-      <Tab.Screen name="Wallet" component={WalletScreen} />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Operations' }} />
+      <Tab.Screen name="Trip" component={TripScreen} options={{ title: 'Active Trip', tabBarBadge: activeTrip ? '●' : undefined, tabBarBadgeStyle: { backgroundColor: colors.primary, color: colors.white } }} />
+      <Tab.Screen name="Earnings" component={EarningsScreen} options={{ title: 'Earnings' }} />
+      <Tab.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'Profile' }} />
     </Tab.Navigator>
   );
 }
