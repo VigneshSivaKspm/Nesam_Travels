@@ -54,6 +54,7 @@ export function TripsScreen() {
         {message ? <Notice tone="success" message={message} style={{ marginTop: space.md, marginBottom: 0 }} /> : null}
       </View>
       <FlatList
+        multiColumn
         data={data}
         keyExtractor={(b) => b.id}
         contentContainerStyle={styles.list}

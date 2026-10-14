@@ -33,6 +33,7 @@ export function TripsScreen() {
     <SafeAreaView style={styles.root} edges={['top']}>
       <CancelRideSheet key={cancelTrip?.id ?? 'none'} trip={cancelTrip} onClose={() => setCancelTrip(null)} />
       <FlatList
+        multiColumn
         data={shown}
         keyExtractor={(t) => t.id}
         contentContainerStyle={styles.list}

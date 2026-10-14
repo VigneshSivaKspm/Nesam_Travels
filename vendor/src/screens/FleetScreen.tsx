@@ -59,6 +59,7 @@ export function FleetScreen() {
         />
       ) : null}
       <FlatList
+        multiColumn
         data={vehicles}
         keyExtractor={(v) => v.id}
         contentContainerStyle={styles.list}

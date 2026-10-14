@@ -49,6 +49,7 @@ export default function MarketplaceScreen({ navigation }: any) {
       </View>
 
       <FlatList
+        multiColumn
         data={offers}
         keyExtractor={(item) => item.id}
         contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 40 }}

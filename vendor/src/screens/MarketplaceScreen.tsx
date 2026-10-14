@@ -86,6 +86,7 @@ export function MarketplaceScreen() {
 
       {tab === 'feed' ? (
         <FlatList
+        multiColumn
           data={marketTrips}
           keyExtractor={(t) => t.id}
           contentContainerStyle={styles.list}
@@ -136,6 +137,7 @@ export function MarketplaceScreen() {
         />
       ) : (
         <FlatList
+        multiColumn
           data={bids}
           keyExtractor={(b) => `${b.tripId}/${b.id}`}
           contentContainerStyle={styles.list}
