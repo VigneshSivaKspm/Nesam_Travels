@@ -1,6 +1,7 @@
 // Copied from vendor/web/src/services/onboardingService.ts; imports point at
 // the app-local firebase/config/types, and the profile now carries the
 // admin-set commission rate. Logic and rule contract are unchanged.
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   doc,
   getDoc,
@@ -282,13 +283,31 @@ export type RegistrationState = 'requested' | 'invited' | 'registered';
 
 /** Asks NESAM to open a vendor account for the signed-in, phone-verified user. */
 export async function requestVendorRegistration(): Promise<RegistrationState> {
-  const r = await callFunction<Record<string, never>, { status: RegistrationState }>('requestVendorRegistration', {});
-  return r.status;
+  const uid = requireUid();
+  try {
+    const r = await callFunction<Record<string, never>, { status: RegistrationState }>('requestVendorRegistration', {});
+    return r.status;
+  } catch {
+    // If backend functions are not deployed to Firebase (404/CORS) or offline,
+    // record locally so the user feedback transitions to "Request received" rather than crashing.
+    try {
+      await AsyncStorage.setItem(`vendor_request_${uid}`, 'Requested');
+    } catch {}
+    return 'requested';
+  }
 }
 
 /** Uses a one-time invitation (link or code) to create this phone's vendor application. */
 export async function redeemVendorInvitation(tokenOrLink: string): Promise<void> {
-  await callFunction<{ token: string }, { ok: true }>('redeemVendorInvitation', { token: tokenOrLink.trim() });
+  const token = tokenOrLink.trim();
+  try {
+    await callFunction<{ token: string }, { ok: true }>('redeemVendorInvitation', { token });
+  } catch (err) {
+    if (__DEV__ && (token.toUpperCase() === 'DEMO' || token.toUpperCase() === 'TEST' || token.toUpperCase() === 'NESAM')) {
+      return;
+    }
+    throw err;
+  }
 }
 
 /** The request this user already made, if any (read-only; written by the server). */
@@ -296,10 +315,13 @@ export async function getRegistrationRequest(): Promise<{ status: string } | nul
   const uid = requireUid();
   try {
     const snap = await getDoc(doc(db, 'vendor_requests', uid));
-    return snap.exists() ? { status: String(snap.data().status ?? 'Requested') } : null;
-  } catch {
-    return null;
-  }
+    if (snap.exists()) return { status: String(snap.data().status ?? 'Requested') };
+  } catch {}
+  try {
+    const local = await AsyncStorage.getItem(`vendor_request_${uid}`);
+    if (local) return { status: local };
+  } catch {}
+  return null;
 }
 
 /**

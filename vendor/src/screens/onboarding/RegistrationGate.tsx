@@ -22,7 +22,15 @@ export function inviteTokenFrom(input: string): string {
   return /^[A-Za-z0-9_-]{20,64}$/.test(t) ? t : '';
 }
 
-export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOut: () => void }) {
+export function RegistrationGate({
+  phone,
+  onSignOut,
+  onDevPreview,
+}: {
+  phone: string;
+  onSignOut: () => void;
+  onDevPreview?: (mode: 'onboarding' | 'dashboard') => void;
+}) {
   const [state, setState] = useState<RegistrationState | null>(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState<'request' | 'redeem' | null>(null);
@@ -123,6 +131,31 @@ export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOu
 
         {error ? <Notice message={error} style={{ marginTop: space.md }} /> : null}
 
+        {__DEV__ && onDevPreview ? (
+          <Card style={styles.devCard}>
+            <View style={styles.devHeader}>
+              <Ionicons name="sparkles" size={20} color={colors.primary} />
+              <Text style={styles.devTitle}>Developer Preview Mode</Text>
+            </View>
+            <Text style={styles.devSubtitle}>
+              Instantly preview and test the newly redesigned desktop pages without requiring backend Cloud Functions or waiting for manual admin approval:
+            </Text>
+            <View style={styles.devButtons}>
+              <Button
+                title="Open Fleet Partner Dashboard"
+                onPress={() => onDevPreview('dashboard')}
+                style={{ flex: 1 }}
+              />
+              <Button
+                title="Open Onboarding Wizard"
+                variant="secondary"
+                onPress={() => onDevPreview('onboarding')}
+                style={{ flex: 1 }}
+              />
+            </View>
+          </Card>
+        ) : null}
+
         <View style={styles.footer}>
           <Button title={`Call partner support (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
           <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
@@ -134,7 +167,36 @@ export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOu
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: space.lg, paddingBottom: space.xxl },
+  content: { padding: space.lg, paddingBottom: space.xxl, maxWidth: 640, width: '100%', alignSelf: 'center' },
   hero: { alignItems: 'center', marginVertical: space.lg },
   footer: { marginTop: space.xl },
+  devCard: {
+    marginTop: space.lg,
+    borderWidth: 1.5,
+    borderColor: colors.primaryBorder,
+    backgroundColor: colors.primarySoft,
+    padding: space.lg,
+  },
+  devHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: space.xs,
+    marginBottom: 4,
+  },
+  devTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: colors.primary,
+  },
+  devSubtitle: {
+    fontSize: 13,
+    color: colors.slate,
+    lineHeight: 18,
+    marginBottom: space.md,
+  },
+  devButtons: {
+    flexDirection: 'row',
+    gap: space.sm,
+  },
 });
+
