@@ -23,7 +23,8 @@ import { tripFareLines } from '@/lib/fareLines';
 import { amountDue, isPaid, payableAmount, upiLink } from '@/lib/tripMoney';
 import { buildTripShareText, shareText } from '@/lib/share';
 import { printReceipt } from '@/lib/receipt';
-import { useDeviceLocation, useOnline, usePageTitle } from '@/lib/hooks';
+import { useDeviceLocation, useOnline } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useToasts } from '@/state/Toasts';
 import { useBooking } from '@/state/Booking';
 import { CancelDialog, SafetyDialog } from './dialogs';
@@ -77,7 +78,7 @@ function buildTimeline(trip: TripRecord): TimelineStep[] {
 
   const label: Record<(typeof order)[number], { done: string; now: string; todo: string; detail: string }> = {
     requested: { done: 'Booking received', now: 'Booking received', todo: 'Booking received', detail: at(trip.createdAt) },
-    approved: { done: 'Approved by one_way_car_rental', now: 'Waiting for one_way_car_rental approval', todo: 'one_way_car_rental approval', detail: at(trip.approvedAt) },
+    approved: { done: 'Approved by One Way Car Rental', now: 'Waiting for One Way Car Rental approval', todo: 'One Way Car Rental approval', detail: at(trip.approvedAt) },
     assigned: {
       done: 'Driver and vehicle assigned',
       now: phase === 'partner_confirmed' ? 'Vendor assigned — driver details pending' : 'Arranging your vehicle',
@@ -139,7 +140,7 @@ export function RidePage() {
   const [printing, setPrinting] = useState('');
   const [tripRoute, setTripRoute] = useState<{ key: string; info: RouteInfo } | null>(null);
 
-  usePageTitle(trip ? titleOf(trip) : 'Your ride');
+  useSeo({ title: trip ? titleOf(trip) : 'Your ride', noindex: true });
 
   // Leaving this page (back, minimise) stops it re-opening automatically.
   useEffect(() => {
@@ -274,7 +275,7 @@ export function RidePage() {
   const streamingNote = tracking && driverLoc && !driverFresh ? `Driver location last updated ${timeAgo(driverLoc.updatedAt, now)}.` : '';
 
   const doShare = async () => {
-    const r = await shareText(`one_way_car_rental ride ${trip.bookingId}`, buildTripShareText(trip, sharePoint));
+    const r = await shareText(`One Way Car Rental ride ${trip.bookingId}`, buildTripShareText(trip, sharePoint));
     if (r === 'copied') push({ title: 'Trip details copied', message: 'Paste them into a message to share.', tone: 'success' });
   };
   const bookAgain = () => {
@@ -568,7 +569,7 @@ export function RidePage() {
           </button>
         ) : null}
         <a className="option" href={`tel:${SUPPORT_PHONE}`}>
-          <Icon name="phone" /> Call one_way_car_rental · {SUPPORT_PHONE_DISPLAY}
+          <Icon name="phone" /> Call One Way Car Rental · {SUPPORT_PHONE_DISPLAY}
         </a>
       </section>
 

@@ -11,6 +11,7 @@ import { Icon } from '@/components/Icon';
 import { RoutePoints } from '@/components/RoutePoints';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { useSeo } from '@/lib/seo';
+import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { CancelDialog } from './ride/dialogs';
 
@@ -88,11 +89,37 @@ function TripCard({ trip, onCancel }: { trip: TripRecord; onCancel: (t: TripReco
 
 export function TripsPage() {
   useSeo({ title: 'My Trips', noindex: true });
-  const { trips, tripsLoading, tripsError, retryTrips } = useCustomerData();
+  const { trips, tripsLoading, tripsError, retryTrips, profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const [tab, setTab] = useState<TripTab>('Upcoming');
   const [query, setQuery] = useState('');
   const [limit, setLimit] = useState(PAGE);
   const [cancelTrip, setCancelTrip] = useState<TripRecord | null>(null);
+
+  if (!profile) {
+    return (
+      <>
+        <PageHead eyebrow="Your journeys" title="My trips">
+          Track what’s coming up and find receipts for what you’ve taken.
+        </PageHead>
+        <div className="page">
+          <div className="card card--center">
+            <EmptyState
+              art="welcome"
+              title="Sign in to see your trips"
+              action={
+                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to see trips' })}>
+                  Sign in
+                </Button>
+              }
+            >
+              Sign in with your mobile number to view upcoming bookings, trip history and receipts.
+            </EmptyState>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const counts = useMemo(() => {
     const c: Record<TripTab, number> = { Upcoming: 0, Completed: 0, Cancelled: 0 };

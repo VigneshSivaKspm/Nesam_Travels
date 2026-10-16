@@ -12,7 +12,7 @@ function SectionHead({ eyebrow, title, text, action }: { eyebrow: string; title:
   return (
     <header className="sec-head">
       <div>
-        <p className="eyebrow eyebrow--red">{eyebrow}</p>
+        <p className="eyebrow eyebrow--brand">{eyebrow}</p>
         <h2>{title}</h2>
         {text ? <p className="sec-head__text">{text}</p> : null}
       </div>
@@ -23,7 +23,7 @@ function SectionHead({ eyebrow, title, text, action }: { eyebrow: string; title:
 
 export function TrustStrip() {
   return (
-    <section className="band band--strip" aria-label="Why riders choose one_way_car_rental">
+    <section className="band band--strip" aria-label="Why riders choose One Way Car Rental">
       <ul className="wrap strip">
         {FEATURES.map((f) => (
           <li key={f.title} className="strip__item">
@@ -45,7 +45,7 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
       <div className="wrap">
         <header className="sec-head">
           <div>
-            <p className="eyebrow eyebrow--red">Ways to travel</p>
+            <p className="eyebrow eyebrow--brand">Ways to travel</p>
             <h2 id="sec-services">A ride for every kind of journey</h2>
             <p className="sec-head__text">Choose a starting point and we’ll set up your trip. You’ll see the fare for every vehicle before you book.</p>
           </div>
@@ -92,7 +92,7 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
       <div className="wrap">
         <header className="sec-head">
           <div>
-            <p className="eyebrow eyebrow--red">Popular routes</p>
+            <p className="eyebrow eyebrow--brand">Popular routes</p>
             <h2 id="sec-routes">Favourite drives across the south</h2>
             <p className="sec-head__text">Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book.</p>
           </div>
@@ -252,7 +252,7 @@ export function AssuranceSection() {
     <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
         <div className="assure__body">
-          <p className="eyebrow eyebrow--red">Travel with confidence</p>
+          <p className="eyebrow eyebrow--brand">Travel with confidence</p>
           <h2 id="sec-safe">Built for long journeys and peace of mind</h2>
           <p className="sec-head__text">From the moment your driver is assigned to the receipt in your inbox, every step is visible to you.</p>
           <ul className="assure__list">
@@ -312,7 +312,7 @@ export function FaqSection() {
     <section className="band" aria-labelledby="sec-faq" id="sec-faq-band">
       <div className="wrap faq-band">
         <div className="faq-band__intro">
-          <p className="eyebrow eyebrow--red">Good to know</p>
+          <p className="eyebrow eyebrow--brand">Good to know</p>
           <h2 id="sec-faq">Questions, answered</h2>
           <p className="sec-head__text">Still unsure about something? Our team is a call away.</p>
           <Link className="btn btn--secondary" to="/support">

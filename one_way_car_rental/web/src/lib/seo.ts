@@ -39,7 +39,7 @@ function setCanonical(href: string) {
 }
 
 export function updateSeo({ title, description, canonical, noindex, ogImage }: SeoProps): void {
-  const fullTitle = title.includes('one_way_car_rental') || title.includes('One Way Car Rental')
+  const fullTitle = title.includes('One Way Car Rental')
     ? title
     : `${title} · One Way Car Rental`;
   const fullDescription = description || DEFAULT_DESCRIPTION;

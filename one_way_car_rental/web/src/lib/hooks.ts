@@ -47,7 +47,7 @@ export function useOnline(): { online: boolean; recovered: boolean } {
 
 export function usePageTitle(title: string): void {
   useEffect(() => {
-    document.title = title ? `${title} · one_way_car_rental` : 'one_way_car_rental';
+    document.title = title ? `${title} · One Way Car Rental` : 'One Way Car Rental';
   }, [title]);
 }
 

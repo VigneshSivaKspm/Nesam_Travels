@@ -8,6 +8,7 @@ import { describeError } from '@core/utils/retry';
 import { Button, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { pathForPage, useInbox } from '@/state/Inbox';
+import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 
 type Filter = 'all' | 'unread' | NotificationCategory;
@@ -24,10 +25,36 @@ const ICON: Record<NotificationCategory, string> = {
 export function NotificationsPage() {
   useSeo({ title: 'Notifications', noindex: true });
   const navigate = useNavigate();
+  const { state, openLoginModal } = useAuth();
   const { notifications, loaded } = useInbox();
   const [filter, setFilter] = useState<Filter>('all');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+
+  if (state.status !== 'ready') {
+    return (
+      <>
+        <PageHead eyebrow="Updates & alerts" title="Notifications">
+          Ride status, driver arrivals and fare updates.
+        </PageHead>
+        <div className="page">
+          <div className="card card--center">
+            <EmptyState
+              art="welcome"
+              title="Sign in to view notifications"
+              action={
+                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to view notifications' })}>
+                  Sign in
+                </Button>
+              }
+            >
+              Sign in with your mobile number to view updates about your rides.
+            </EmptyState>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const unread = notifications.filter((n) => !n.read);
   const present = CATEGORIES.filter((c) => notifications.some((n) => n.category === c));

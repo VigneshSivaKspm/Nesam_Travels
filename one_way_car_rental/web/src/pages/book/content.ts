@@ -141,19 +141,19 @@ export const FEATURES = [
   { image: 'features/feature-transparent-fare', title: 'Fares before you book', text: 'See the fare for every vehicle, with what is and isn’t included, before you commit.' },
   { image: 'features/feature-chauffeur', title: 'Verified chauffeurs', text: 'Commercial drivers who know the highways and take pride in the journey.' },
   { image: 'features/feature-clean-ac', title: 'Clean, air-conditioned cars', text: 'A well-kept fleet, from hatchbacks to vans, ready for long distances.' },
-  { image: 'features/feature-support', title: 'A team you can call', text: 'Talk to one_way_car_rental about a booking or a trip in progress, any time you need.' },
+  { image: 'features/feature-support', title: 'A team you can call', text: 'Talk to One Way Car Rental about a booking or a trip in progress, any time you need.' },
 ];
 
 export const STEPS = [
   { image: 'illustrations/book-journey', title: 'Tell us your trip', text: 'Pickup, destination and when you want to leave. Round trip? Add your return too.' },
   { image: 'illustrations/choose-vehicle', title: 'Compare and choose', text: 'See the fare for each vehicle, apply a promo code and pick what fits your group.' },
-  { image: 'illustrations/driver-arriving', title: 'We confirm, you ride', text: 'one_way_car_rental reviews your request and assigns a driver. You pay your driver in cash or UPI.' },
+  { image: 'illustrations/driver-arriving', title: 'We confirm, you ride', text: 'One Way Car Rental reviews your request and assigns a driver. You pay your driver in cash or UPI.' },
 ];
 
 export const ASSURANCE = [
   { icon: 'verified', title: 'Boarding code for every trip', text: 'Your driver can’t start the trip without the code only you can see.' },
   { icon: 'navigation', title: 'Live tracking', text: 'Follow your driver on the map once they’re on the way, with a live arrival estimate.' },
-  { icon: 'emergency', title: 'Safety centre', text: 'One tap to call emergency services, share your trip or alert the one_way_car_rental team.' },
+  { icon: 'emergency', title: 'Safety centre', text: 'One tap to call emergency services, share your trip or alert the One Way Car Rental team.' },
   { icon: 'receipt', title: 'Receipt for every ride', text: 'A clear fare breakup, saved to your trips and ready to print.' },
 ];
 

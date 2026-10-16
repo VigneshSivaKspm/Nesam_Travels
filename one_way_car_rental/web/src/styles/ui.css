@@ -36,17 +36,17 @@
   cursor: not-allowed;
 }
 .btn--primary {
-  --btn-bg: var(--red);
+  --btn-bg: var(--brand);
   --btn-fg: #fff;
-  --btn-line: var(--red);
-  box-shadow: 0 6px 18px rgb(227 30 36 / 0.28);
+  --btn-line: var(--brand);
+  box-shadow: 0 6px 18px rgb(14 138 63 / 0.28);
 }
 .btn--primary:hover:not(:disabled) {
-  --btn-bg: var(--red-hover);
-  --btn-line: var(--red-hover);
+  --btn-bg: var(--brand-hover);
+  --btn-line: var(--brand-hover);
 }
 .btn--primary:active:not(:disabled) {
-  --btn-bg: var(--red-press);
+  --btn-bg: var(--brand-press);
 }
 .btn--primary:disabled {
   --btn-bg: var(--line-strong);
@@ -78,12 +78,12 @@
 }
 .btn--danger {
   --btn-bg: var(--surface);
-  --btn-fg: var(--red-ink);
-  --btn-line: var(--red-line);
+  --btn-fg: var(--danger-ink);
+  --btn-line: var(--danger-line);
 }
 .btn--danger:hover:not(:disabled) {
-  background: var(--red-soft);
-  --btn-line: var(--red);
+  background: var(--danger-soft);
+  --btn-line: var(--danger);
 }
 .btn--sm {
   min-height: 38px;
@@ -152,7 +152,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--red-ink);
+  color: var(--brand-ink);
   font-weight: 700;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -186,7 +186,7 @@
 .field__error {
   font-size: var(--fs-sm);
   font-weight: 600;
-  color: var(--red-ink);
+  color: var(--danger-ink);
 }
 
 .input,
@@ -229,12 +229,12 @@
 .textarea:focus,
 .select:focus {
   outline: none;
-  border-color: var(--red);
+  border-color: var(--brand);
   box-shadow: var(--ring);
 }
 .input[aria-invalid='true'],
 .textarea[aria-invalid='true'] {
-  border-color: var(--red);
+  border-color: var(--danger);
 }
 .input[readonly] {
   background: var(--sunken);
@@ -250,7 +250,7 @@
   transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 .input-affix:focus-within {
-  border-color: var(--red);
+  border-color: var(--brand);
   box-shadow: var(--ring);
 }
 .input-affix > span {
@@ -289,8 +289,8 @@
   transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 .check input:checked {
-  border-color: var(--red);
-  background-color: var(--red);
+  border-color: var(--brand);
+  background-color: var(--brand);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
 }
 .check input:focus-visible {
@@ -414,8 +414,8 @@
   background: currentColor;
 }
 .badge--red {
-  background: var(--red-soft);
-  color: var(--red-ink);
+  background: var(--danger-soft);
+  color: var(--danger-ink);
 }
 .badge--green {
   background: var(--green-soft);
@@ -447,7 +447,7 @@
   height: 20px;
   padding: 0 6px;
   border-radius: var(--r-pill);
-  background: var(--red);
+  background: var(--brand);
   color: #fff;
   font-size: 11px;
   font-style: normal;
@@ -491,11 +491,11 @@
   color: var(--amber);
 }
 .notice--error {
-  border-color: var(--red-line);
-  background: var(--red-soft);
+  border-color: var(--danger-line);
+  background: var(--danger-soft);
 }
 .notice--error > .icon {
-  color: var(--red);
+  color: var(--danger);
 }
 .notice--success {
   border-color: var(--green-line);
@@ -523,7 +523,7 @@
 .page-loader .spinner {
   width: 30px;
   height: 30px;
-  color: var(--red);
+  color: var(--brand);
 }
 
 .skeleton {

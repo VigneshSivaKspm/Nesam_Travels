@@ -1,22 +1,35 @@
 import { useEffect } from 'react';
 
+export interface BreadcrumbItem {
+  name: string;
+  path: string;
+}
+
 export interface SeoProps {
   /** Page specific title. Will be formatted as "${title} · NESAM Cabs" or used directly if it includes branding */
   title: string;
   /** Meta description for search engine snippets and social cards (140-160 chars recommended) */
   description?: string;
-  /** Canonical URL path (e.g. '/book', '/offers') or full absolute URL */
+  /** Targeted SEO keywords */
+  keywords?: string;
+  /** Canonical URL path (e.g. '/book', '/routes/chennai-to-pondicherry') or full absolute URL */
   canonical?: string;
   /** Set true for user-private screens like /account, /trips, /ride to prevent search indexing */
   noindex?: boolean;
   /** Optional custom OpenGraph image URL */
   ogImage?: string;
+  /** Optional Breadcrumb hierarchy for automatic BreadcrumbList JSON-LD */
+  breadcrumbs?: BreadcrumbItem[];
+  /** Optional custom Schema.org JSON-LD object or array of objects */
+  schema?: object | object[];
 }
 
-const BASE_URL = 'https://nesamcabs.com';
-const DEFAULT_DESCRIPTION =
+export const BASE_URL = 'https://nesamcabs.com';
+export const DEFAULT_DESCRIPTION =
   'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 customer support.';
-const DEFAULT_OG_IMAGE = `${BASE_URL}/website-images/web/heroes/hero-desktop.webp`;
+export const DEFAULT_KEYWORDS =
+  'one way drop taxi, outstation cabs tamil nadu, drop taxi chennai, chennai to pondicherry cab, chennai to bangalore taxi, coimbatore to ooty cab, madurai outstation cabs, trichy drop taxi, intercity cab booking, airport taxi chennai, drop taxi online booking, nesam cabs, nesam travels';
+export const DEFAULT_OG_IMAGE = `${BASE_URL}/website-images/web/heroes/hero-desktop.webp`;
 
 function setMetaTag(attrName: 'name' | 'property', attrValue: string, content: string) {
   let element = document.querySelector(`meta[${attrName}="${attrValue}"]`) as HTMLMetaElement | null;
@@ -38,9 +51,48 @@ function setCanonical(href: string) {
   element.setAttribute('href', href);
 }
 
-export function updateSeo({ title, description, canonical, noindex, ogImage }: SeoProps): void {
+function setDynamicSchema(schemaData: object | null) {
+  const SCRIPT_ID = 'dynamic-page-schema';
+  let element = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
+  if (!schemaData) {
+    if (element) element.remove();
+    return;
+  }
+  if (!element) {
+    element = document.createElement('script');
+    element.id = SCRIPT_ID;
+    element.type = 'application/ld+json';
+    document.head.appendChild(element);
+  }
+  element.textContent = JSON.stringify(schemaData, null, 2);
+}
+
+export function buildBreadcrumbSchema(breadcrumbs: BreadcrumbItem[], baseUrl = BASE_URL): object {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: breadcrumbs.map((b, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: b.name,
+      item: b.path.startsWith('http') ? b.path : `${baseUrl}${b.path.startsWith('/') ? b.path : `/${b.path}`}`,
+    })),
+  };
+}
+
+export function updateSeo({
+  title,
+  description,
+  keywords,
+  canonical,
+  noindex,
+  ogImage,
+  breadcrumbs,
+  schema,
+}: SeoProps): void {
   const fullTitle = title.includes('NESAM') ? title : `${title} · NESAM Cabs`;
   const fullDescription = description || DEFAULT_DESCRIPTION;
+  const fullKeywords = keywords || DEFAULT_KEYWORDS;
   const canonicalUrl = canonical
     ? canonical.startsWith('http')
       ? canonical
@@ -54,6 +106,7 @@ export function updateSeo({ title, description, canonical, noindex, ogImage }: S
   // Primary Meta Tags
   setMetaTag('name', 'title', fullTitle);
   setMetaTag('name', 'description', fullDescription);
+  setMetaTag('name', 'keywords', fullKeywords);
   setMetaTag(
     'name',
     'robots',
@@ -75,13 +128,51 @@ export function updateSeo({ title, description, canonical, noindex, ogImage }: S
   setMetaTag('name', 'twitter:title', fullTitle);
   setMetaTag('name', 'twitter:description', fullDescription);
   setMetaTag('name', 'twitter:image', image);
+
+  // Dynamic Schema.org injection
+  const schemaList: object[] = [];
+  if (breadcrumbs && breadcrumbs.length > 0) {
+    schemaList.push(buildBreadcrumbSchema(breadcrumbs, BASE_URL));
+  }
+  if (schema) {
+    if (Array.isArray(schema)) {
+      schemaList.push(...schema);
+    } else {
+      schemaList.push(schema);
+    }
+  }
+
+  if (schemaList.length === 1) {
+    setDynamicSchema(schemaList[0]);
+  } else if (schemaList.length > 1) {
+    setDynamicSchema({
+      '@context': 'https://schema.org',
+      '@graph': schemaList,
+    });
+  } else {
+    setDynamicSchema(null);
+  }
 }
 
 /**
- * Hook to manage page titles, meta descriptions, canonical URLs, and robots directives.
+ * Hook to manage page titles, meta descriptions, canonical URLs, robots directives, and JSON-LD structured data.
  */
 export function useSeo(props: SeoProps): void {
   useEffect(() => {
     updateSeo(props);
-  }, [props.title, props.description, props.canonical, props.noindex, props.ogImage]);
+    return () => {
+      // Clean up dynamic schema on unmount
+      const el = document.getElementById('dynamic-page-schema');
+      if (el) el.remove();
+    };
+  }, [
+    props.title,
+    props.description,
+    props.keywords,
+    props.canonical,
+    props.noindex,
+    props.ogImage,
+    JSON.stringify(props.breadcrumbs),
+    JSON.stringify(props.schema),
+  ]);
 }

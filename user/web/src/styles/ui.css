@@ -733,3 +733,47 @@
     width: auto;
   }
 }
+
+/* ── Login Modal ──────────────────────────────────────────────────────────── */
+.login-modal {
+  display: grid;
+  gap: 18px;
+}
+.login-modal__head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+.login-modal__art {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+}
+.login-modal__sub {
+  color: var(--ink-muted);
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  margin: 0;
+}
+.login-modal__form {
+  display: grid;
+  gap: 16px;
+}
+.login-modal__note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--ink-muted);
+  font-size: var(--fs-xs);
+  margin: 0;
+}
+.login-modal__links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 4px;
+}
+

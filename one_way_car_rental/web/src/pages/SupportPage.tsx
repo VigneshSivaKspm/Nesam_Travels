@@ -8,12 +8,16 @@ import { describeError } from '@core/utils/retry';
 import { Badge, Button, EmptyState, FieldShell, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { FAQS } from '@/pages/book/content';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 type Tab = 'help' | 'ticket' | 'mine';
 
 export function SupportPage() {
-  usePageTitle('Help and support');
+  useSeo({
+    title: 'Customer Support & 24/7 Helpline',
+    description: 'Need help with your outstation cab or drop taxi booking? Call One Way Car Rental at 85319 70197 or submit a ticket. Fast 24/7 assistance across Tamil Nadu.',
+    canonical: '/support',
+  });
   const [params] = useSearchParams();
   const initialBooking = params.get('booking') ?? '';
   const { profile } = useCustomerData();
@@ -59,7 +63,7 @@ export function SupportPage() {
   return (
     <>
       <PageHead eyebrow="We’re here to help" title="Help and support">
-        Answers, a direct line to one_way_car_rental, and a way to raise an issue with a trip.
+        Answers, a direct line to One Way Car Rental, and a way to raise an issue with a trip.
       </PageHead>
 
       <div className="page">
@@ -171,7 +175,7 @@ export function SupportPage() {
             <section className="contact-card">
               <img src="/website-images/web/photography/trust-support.webp" alt="" width={724} height={543} loading="lazy" />
               <div className="contact-card__body">
-                <h2>Talk to one_way_car_rental</h2>
+                <h2>Talk to One Way Car Rental</h2>
                 <p>Need help with a ride in progress? Call us — we’re here around the clock.</p>
                 <a className="btn btn--primary btn--block" href={`tel:${SUPPORT_PHONE}`}>
                   <Icon name="phone" /> Call {SUPPORT_PHONE_DISPLAY}

@@ -1,35 +1,43 @@
 /*
-  one_way_car_rental Travels — design tokens.
-  A premium chauffeur-travel system: deep ink, one_way_car_rental red used only for action and brand moments,
-  warm paper surfaces, a restrained champagne accent. Every colour, size and radius comes from here.
+  One Way Car Rental — design tokens.
+  A taxi-booking system: deep black ink, one signature green used for action and brand moments,
+  clean neutral surfaces. Red is kept only for errors and cancellations. Every colour, size and radius comes from here.
 */
 :root {
   color-scheme: light;
 
   /* Brand */
-  --red: #e31e24;
-  --red-hover: #c9171d;
-  --red-press: #a9121a;
-  --red-soft: #fff2f1;
-  --red-tint: #fde2e0;
-  --red-line: #f6b8b4;
-  --red-ink: #b3161b; /* red text on pale surfaces (AA) */
+  --brand: #0e8a3f;
+  --brand-hover: #0b7535;
+  --brand-press: #095f2c;
+  --brand-soft: #effaf3;
+  --brand-tint: #d3f2de;
+  --brand-line: #9fdcb5;
+  --brand-ink: #0a6a2f; /* green text on pale surfaces (AA) */
+  --brand-bright: #3ddc84; /* green accent on black surfaces */
+
+  /* Danger (errors and cancellations only) */
+  --danger: #d92d20;
+  --danger-soft: #fef3f2;
+  --danger-tint: #fee4e2;
+  --danger-line: #fda29b;
+  --danger-ink: #b42318;
 
   /* Ink + neutrals */
-  --ink: #0d0d11;
-  --ink-2: #17171d;
-  --ink-3: #25252d;
-  --text: #2a2a32;
-  --muted: #5b5b66;
-  --faint: #8a8a95;
-  --on-dark: #f4f1ec;
-  --on-dark-muted: #b7b3ac;
+  --ink: #0a0b0a;
+  --ink-2: #131513;
+  --ink-3: #212421;
+  --text: #232623;
+  --muted: #576057;
+  --faint: #8a928a;
+  --on-dark: #f1f5f1;
+  --on-dark-muted: #b4bcb4;
 
-  --paper: #faf8f5;
+  --paper: #f7f9f7;
   --surface: #ffffff;
-  --sunken: #f3f0eb;
-  --line: #e8e4de;
-  --line-strong: #d6d0c7;
+  --sunken: #eff3ef;
+  --line: #e3e9e3;
+  --line-strong: #cfd8cf;
 
   /* Accent (used sparingly: stars, "premium" marks) */
   --gold: #b3802f;
@@ -87,10 +95,10 @@
   --r-pill: 999px;
 
   /* Elevation */
-  --shadow-1: 0 1px 2px rgb(13 13 17 / 0.06);
-  --shadow-2: 0 4px 14px rgb(13 13 17 / 0.07), 0 1px 3px rgb(13 13 17 / 0.05);
-  --shadow-3: 0 18px 44px rgb(13 13 17 / 0.14), 0 3px 10px rgb(13 13 17 / 0.06);
-  --shadow-4: 0 32px 80px rgb(13 13 17 / 0.28);
+  --shadow-1: 0 1px 2px rgb(10 11 10 / 0.06);
+  --shadow-2: 0 4px 14px rgb(10 11 10 / 0.07), 0 1px 3px rgb(10 11 10 / 0.05);
+  --shadow-3: 0 18px 44px rgb(10 11 10 / 0.14), 0 3px 10px rgb(10 11 10 / 0.06);
+  --shadow-4: 0 32px 80px rgb(10 11 10 / 0.28);
 
   /* Layout: sections run edge to edge; only the gutter changes with the screen. */
   --gutter: clamp(16px, 4.2vw, 88px);
@@ -100,7 +108,7 @@
   --panel-w: clamp(460px, 34vw, 640px);
   --tap: 48px;
 
-  --ring: 0 0 0 3px rgb(227 30 36 / 0.3);
+  --ring: 0 0 0 3px rgb(14 138 63 / 0.3);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dur: 180ms;
 }

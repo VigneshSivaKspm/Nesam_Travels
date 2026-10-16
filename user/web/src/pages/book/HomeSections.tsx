@@ -51,22 +51,54 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
           </div>
         </header>
         <ul className="services" id="services">
-          {SERVICES.map((s) => (
-            <li key={s.id} id={s.id}>
-              <button type="button" className="service" onClick={() => onPick(s)}>
-                <span className="service__media">
-                  <img src={IMG(s.image)} alt={`NESAM Cabs - ${s.title}`} width={724} height={543} loading="lazy" />
-                </span>
-                <span className="service__body">
-                  <strong>{s.title}</strong>
-                  <span>{s.text}</span>
-                </span>
-                <span className="service__go" aria-hidden="true">
-                  <Icon name="arrow-right" size={20} />
-                </span>
-              </button>
-            </li>
-          ))}
+          {SERVICES.map((s) => {
+            const serviceSlug =
+              s.id === 'one-way'
+                ? 'one-way-drop-taxi'
+                : s.id === 'round-trip'
+                  ? 'outstation-round-trip'
+                  : s.id === 'airport'
+                    ? 'airport-taxi'
+                    : s.id === 'local-rental'
+                      ? 'local-rental'
+                      : s.id === 'pilgrimage'
+                        ? 'pilgrimage-tours'
+                        : null;
+            return (
+              <li key={s.id} id={s.id}>
+                <button type="button" className="service" onClick={() => onPick(s)}>
+                  <span className="service__media">
+                    <img src={IMG(s.image)} alt={`NESAM Cabs - ${s.title}`} width={724} height={543} loading="lazy" />
+                  </span>
+                  <span className="service__body">
+                    <strong>{s.title}</strong>
+                    <span>{s.text}</span>
+                  </span>
+                  <span className="service__go" aria-hidden="true">
+                    <Icon name="arrow-right" size={20} />
+                  </span>
+                </button>
+                {serviceSlug ? (
+                  <div style={{ padding: '6px 4px 0', textAlign: 'right' }}>
+                    <Link
+                      to={`/services/${serviceSlug}`}
+                      style={{
+                        fontSize: '0.85rem',
+                        color: '#e31e24',
+                        fontWeight: 600,
+                        textDecoration: 'none',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                      }}
+                    >
+                      Service details &amp; tariff <Icon name="arrow-right" size={14} />
+                    </Link>
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
           <li>
             <a className="service service--call" href={`tel:${SUPPORT_PHONE}`}>
               <span className="service__body">
@@ -122,16 +154,32 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
                   Plan this trip <Icon name="arrow-right" size={18} />
                 </span>
               </button>
+              <div style={{ padding: '6px 4px 0', textAlign: 'right' }}>
+                <Link
+                  to={`/routes/${c.id}`}
+                  style={{
+                    fontSize: '0.85rem',
+                    color: '#e31e24',
+                    fontWeight: 600,
+                    textDecoration: 'none',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                >
+                  Route guide &amp; tariff <Icon name="arrow-right" size={14} />
+                </Link>
+              </div>
             </li>
           ))}
         </ul>
         <div className="more-routes" role="group" aria-label="More routes">
           <span className="eyebrow">More routes</span>
           {MORE_CORRIDORS.map((c) => (
-            <button key={c.id} type="button" className="chip" onClick={() => onRoute(c)}>
+            <Link key={c.id} to={`/routes/${c.id}`} className="chip" style={{ textDecoration: 'none' }}>
               {c.origin} <Icon name="arrow-right" size={15} /> {c.destination}
               <span className="chip__count">{c.km}</span>
-            </button>
+            </Link>
           ))}
         </div>
       </div>

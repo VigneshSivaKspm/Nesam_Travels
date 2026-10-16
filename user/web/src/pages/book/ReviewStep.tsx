@@ -1,13 +1,13 @@
 // Step 3 — review and confirm: route, time, vehicle, payment, contact, the final fare
 // breakup and the booking itself. The server re-prices and refuses a fare that changed.
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { FareBreakdown as Fare } from '@core/types';
 import { useCustomerData } from '@core/context/CustomerData';
 import { createRideRequest } from '@core/services/rideService';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { inclusionLine, scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
-import { formatDate, formatDistance, formatDuration, formatINR, formatTime, isValidEmail } from '@core/utils/format';
+import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
 import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS } from '@core/config/constants';
 import { Button, Checkbox, Notice, TextArea, TextField } from '@/components/ui';
@@ -17,6 +17,7 @@ import { RoutePoints } from '@/components/RoutePoints';
 import { TripMap, Workspace } from '@/components/Workspace';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useToasts } from '@/state/Toasts';
+import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { PaymentChoice, PromoControl, StepHead } from './parts';
@@ -24,6 +25,7 @@ import { PaymentChoice, PromoControl, StepHead } from './parts';
 export function ReviewStep() {
   const navigate = useNavigate();
   const { profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const { draft, update, reset, route, adjustment } = useBooking();
   const q = useBookingQuote();
   const { online } = useOnline();
@@ -33,6 +35,7 @@ export function ReviewStep() {
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [serverQuote, setServerQuote] = useState<{ key: string; fare: Fare } | null>(null);
   const submittingRef = useRef(false);
+  const pendingSubmitRef = useRef(false);
 
   const { pickup, drop, tripType, scheduledAt, tripEndAt, payment, notes, waSame, waCode, waNumber, email } = draft;
   const category = q.category;
@@ -60,6 +63,17 @@ export function ReviewStep() {
     : scheduleProblem(scheduledAt) || (!q.authoritative ? (q.quoteLoading ? 'Confirming your fare with NESAM…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') || (waError || emailError ? 'Check your contact details below.' : '') || (!termsAccepted ? 'Accept the booking terms to submit your request.' : '');
 
   const submit = async () => {
+    if (!profile) {
+      pendingSubmitRef.current = true;
+      openLoginModal({
+        title: 'Sign in to complete booking',
+        subtitle: 'Enter your mobile number to confirm your ride request.',
+        onSuccess: () => {
+          pendingSubmitRef.current = true;
+        },
+      });
+      return;
+    }
     if (blocker || submittingRef.current) return;
     submittingRef.current = true;
     setSubmitting(true);
@@ -97,6 +111,14 @@ export function ReviewStep() {
     }
   };
 
+  // If user signed in via login popup while trying to book, auto-submit once profile is ready
+  useEffect(() => {
+    if (profile && pendingSubmitRef.current && !blocker && !submittingRef.current) {
+      pendingSubmitRef.current = false;
+      void submit();
+    }
+  }, [profile, blocker]);
+
   const freeHours = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000);
   const when = scheduledAt ? `${formatDate(scheduledAt)}, ${formatTime(scheduledAt)}` : 'Not chosen';
 
@@ -104,7 +126,7 @@ export function ReviewStep() {
     <>
       {submitError ? <Notice tone="error">{submitError}</Notice> : blocker ? <Notice tone="warning">{blocker}</Notice> : null}
       <Button block size="lg" loading={submitting} disabled={!!blocker} onClick={() => void submit()}>
-        <span>{submitting ? 'Submitting…' : 'Submit booking request'}</span>
+        <span>{submitting ? 'Submitting…' : profile ? 'Submit booking request' : 'Sign in & submit booking'}</span>
         {!submitting ? <span className="btn__price num">{formatINR(quote.total)}</span> : null}
       </Button>
       <p className="foot-note">
@@ -204,7 +226,7 @@ export function ReviewStep() {
         </header>
         <div className="stack">
           <Checkbox checked={waSame} onChange={(v) => update({ waSame: v })}>
-            Send WhatsApp updates to my mobile number <span className="muted">({profile.phone || 'not set'})</span>
+            Send WhatsApp updates to my mobile number <span className="muted">({profile?.phone ? formatPhone(profile.phone) : 'verified at sign-in'})</span>
           </Checkbox>
           {!waSame ? (
             <div className="wa-row">
@@ -227,8 +249,8 @@ export function ReviewStep() {
             value={email}
             onChange={(e) => update({ email: e.target.value })}
             autoComplete="email"
-            placeholder={profile.email || 'name@example.com'}
-            hint={profile.email ? 'Leave blank to use your account email.' : 'For your booking confirmation and GST receipt.'}
+            placeholder={profile?.email || 'name@example.com'}
+            hint={profile?.email ? 'Leave blank to use your account email.' : 'For your booking confirmation and GST receipt.'}
             error={emailError}
           />
           <TextArea
@@ -238,6 +260,11 @@ export function ReviewStep() {
             placeholder="Gate number, building name, luggage…"
             hint={`${notes.length}/300`}
           />
+          {!profile ? (
+            <p className="muted small" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 0' }}>
+              <Icon name="information" size={14} /> You’ll verify your mobile number when you submit this booking.
+            </p>
+          ) : null}
         </div>
       </section>
 

@@ -15,7 +15,7 @@ export function isPaid(trip: TripRecord): boolean {
   return trip.paymentStatus === 'Paid' || (trip.paid !== null && trip.paid.totalPaid > 0 && amountDue(trip) === 0);
 }
 
-/** UPI deep link; only offered when one_way_car_rental has configured its UPI id. */
+/** UPI deep link; only offered when One Way Car Rental has configured its UPI id. */
 export function upiLink(trip: TripRecord): string | null {
   if (!COMPANY_UPI_ID) return null;
   const params = [

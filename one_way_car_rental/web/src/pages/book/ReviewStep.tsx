@@ -57,7 +57,7 @@ export function ReviewStep() {
   const waError = whatsappProblem(waSame, waCode, waNumber);
   const blocker = !online
     ? 'You’re offline. Reconnect to book.'
-    : scheduleProblem(scheduledAt) || (!q.authoritative ? (q.quoteLoading ? 'Confirming your fare with one_way_car_rental…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') || (waError || emailError ? 'Check your contact details below.' : '') || (!termsAccepted ? 'Accept the booking terms to submit your request.' : '');
+    : scheduleProblem(scheduledAt) || (!q.authoritative ? (q.quoteLoading ? 'Confirming your fare with One Way Car Rental…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') || (waError || emailError ? 'Check your contact details below.' : '') || (!termsAccepted ? 'Accept the booking terms to submit your request.' : '');
 
   const submit = async () => {
     if (blocker || submittingRef.current) return;
@@ -83,7 +83,7 @@ export function ReviewStep() {
         email: email.trim(),
       });
       reset();
-      push({ title: 'Booking request submitted', message: 'one_way_car_rental will review it and confirm here. Nothing is dispatched until then.', tone: 'success' });
+      push({ title: 'Booking request submitted', message: 'One Way Car Rental will review it and confirm here. Nothing is dispatched until then.', tone: 'success' });
       navigate(`/ride/${res.id}`, { replace: true });
     } catch (e) {
       const currentFare = (e as { details?: { fare?: Fare } }).details?.fare;
@@ -247,10 +247,10 @@ export function ReviewStep() {
         </header>
         <p>
           Free to cancel until {freeHours} hour before pickup; after that a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies. Tolls, parking and permits are charged at actuals
-          unless listed as included. This is a booking request: one_way_car_rental reviews it first, then arranges your vehicle and driver.
+          unless listed as included. This is a booking request: One Way Car Rental reviews it first, then arranges your vehicle and driver.
         </p>
         <Checkbox checked={termsAccepted} onChange={setTermsAccepted}>
-          I accept the booking terms and the one_way_car_rental <Link to="/legal">terms and privacy policy</Link>, and understand this request is subject to one_way_car_rental review.
+          I accept the booking terms and the One Way Car Rental <Link to="/legal">terms and privacy policy</Link>, and understand this request is subject to One Way Car Rental review.
         </Checkbox>
       </section>
     </Workspace>

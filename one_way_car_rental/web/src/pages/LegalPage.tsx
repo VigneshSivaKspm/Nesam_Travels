@@ -1,4 +1,4 @@
-// Terms & privacy: the customer documents one_way_car_rental has published, the version in force and
+// Terms & privacy: the customer documents One Way Car Rental has published, the version in force and
 // whether this account has accepted it (acceptance itself happens in LegalGate when a new
 // version is published).
 import { useEffect, useState } from 'react';
@@ -9,7 +9,7 @@ import { callFunction } from '@core/services/callables';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Badge, Button, EmptyState, Notice, PageHead, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 interface DocRow {
   key: string;
@@ -20,7 +20,11 @@ interface DocRow {
 }
 
 export function LegalPage() {
-  usePageTitle('Terms and privacy');
+  useSeo({
+    title: 'Terms of Service & Customer Privacy Policy',
+    description: 'Read the official terms and conditions, customer privacy policy, fare transparency rules and cancellation guidelines for One Way Car Rental.',
+    canonical: '/legal',
+  });
   const [rows, setRows] = useState<DocRow[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState('');
@@ -58,7 +62,7 @@ export function LegalPage() {
           </Link>
         }
       >
-        The agreements and policies that apply when you ride with one_way_car_rental.
+        The agreements and policies that apply when you ride with One Way Car Rental.
       </PageHead>
 
       <div className="page split">
@@ -87,7 +91,7 @@ export function LegalPage() {
                   </a>
                 }
               >
-                one_way_car_rental hasn’t published customer terms or a privacy policy online yet. Contact support for a copy.
+                One Way Car Rental hasn’t published customer terms or a privacy policy online yet. Contact support for a copy.
               </EmptyState>
             </div>
           ) : null}

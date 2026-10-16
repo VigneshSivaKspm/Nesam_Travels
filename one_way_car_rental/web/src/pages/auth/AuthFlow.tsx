@@ -27,14 +27,16 @@ function AuthLayout({ art, title, subtitle, children }: { art: string; title: st
       <aside className="auth__hero">
         <picture>
           <source media="(max-width: 720px)" srcSet="/website-images/web/heroes/hero-mobile.webp" />
-          <img className="auth__bg" src="/website-images/web/heroes/hero-family.webp" alt="" width={1774} height={887} />
+          <img className="auth__bg" src="/website-images/web/heroes/hero-family.webp" alt="Family traveling comfortably with One Way Car Rental outstation taxi" width={1774} height={887} />
         </picture>
         <span className="auth__shade" aria-hidden="true" />
         <div className="auth__top">
           <span className="brand brand--light">
-            <img src="/brand/logo.png" alt="" width={44} height={44} />
+            <img src="/brand/logo.svg" alt="" width={44} height={44} />
             <span className="brand__word">
-              <b>one_way_car_rental</b>
+              <b>
+                One Way <i>Car Rental</i>
+              </b>
             </span>
           </span>
         </div>
@@ -59,7 +61,7 @@ function AuthLayout({ art, title, subtitle, children }: { art: string; title: st
           <p className="auth__sub">{subtitle}</p>
           {children}
           <p className="auth__legal">
-            Need help? Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>. By continuing you agree to one_way_car_rental’s terms and privacy policy.
+            Need help? Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>. By continuing you agree to One Way Car Rental’s terms and privacy policy.
           </p>
         </div>
       </main>
@@ -183,7 +185,7 @@ export function AuthFlow() {
   }
 
   return (
-    <AuthLayout art="welcome" title="Book your ride" subtitle="Enter your mobile number to sign in or create your one_way_car_rental account.">
+    <AuthLayout art="welcome" title="Book your ride" subtitle="Enter your mobile number to sign in or create your One Way Car Rental account.">
       <form
         className="auth__form"
         onSubmit={(e) => {

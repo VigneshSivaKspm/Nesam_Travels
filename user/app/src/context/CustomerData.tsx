@@ -12,7 +12,7 @@ import { describeError } from '../utils/retry';
 const RATING_PROMPT_WINDOW_MS = 3 * 60 * 60 * 1000;
 
 interface CustomerDataValue {
-  profile: UserProfile;
+  profile: UserProfile | null;
   trips: TripRecord[];
   tripsLoading: boolean;
   tripsError: string;
@@ -31,9 +31,9 @@ export function useCustomerData(): CustomerDataValue {
   return v;
 }
 
-export function CustomerDataProvider({ profile, children }: { profile: UserProfile; children: React.ReactNode }) {
+export function CustomerDataProvider({ profile = null, children }: { profile?: UserProfile | null; children: React.ReactNode }) {
   const [trips, setTrips] = useState<TripRecord[]>([]);
-  const [tripsLoading, setTripsLoading] = useState(true);
+  const [tripsLoading, setTripsLoading] = useState(false);
   const [tripsError, setTripsError] = useState('');
   const [tripsKey, setTripsKey] = useState(0);
   const [savedPlaces, setSavedPlaces] = useState<LocationItem[]>([]);
@@ -42,6 +42,13 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
   // The provider is keyed by uid, so only an explicit retry needs a reset —
   // done in retryTrips, not here.
   useEffect(() => {
+    if (!profile?.uid) {
+      setTrips([]);
+      setTripsLoading(false);
+      setTripsError('');
+      return undefined;
+    }
+    setTripsLoading(true);
     return subscribeToUserBookings(
       profile.uid,
       (t) => {
@@ -54,9 +61,15 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
         setTripsError(describeError(e, 'We couldn’t load your trips.'));
       },
     );
-  }, [profile.uid, tripsKey]);
+  }, [profile?.uid, tripsKey]);
 
-  useEffect(() => subscribeToSavedPlaces(profile.uid, setSavedPlaces), [profile.uid]);
+  useEffect(() => {
+    if (!profile?.uid) {
+      setSavedPlaces([]);
+      return undefined;
+    }
+    return subscribeToSavedPlaces(profile.uid, setSavedPlaces);
+  }, [profile?.uid]);
 
   // Scheduled rides become "live" an hour before pickup without any write.
   useEffect(() => {

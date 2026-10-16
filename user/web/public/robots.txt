@@ -4,6 +4,10 @@
 User-agent: Googlebot
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
@@ -25,6 +29,10 @@ Disallow: /book/confirm
 User-agent: Bingbot
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
@@ -41,6 +49,10 @@ Disallow: /book/confirm
 User-agent: Applebot
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
@@ -52,6 +64,10 @@ Disallow: /notifications
 User-agent: DuckDuckBot
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
@@ -63,6 +79,10 @@ Disallow: /notifications
 User-agent: YandexBot
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
@@ -71,9 +91,25 @@ Disallow: /trips/
 Disallow: /ride/
 Disallow: /notifications
 
+User-agent: Baiduspider
+Allow: /
+Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
+Disallow: /account/
+Disallow: /trips/
+Disallow: /ride/
+Disallow: /notifications
+
 User-agent: *
 Allow: /
 Allow: /book
+Allow: /routes/
+Allow: /routes/*
+Allow: /services/
+Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal

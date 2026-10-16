@@ -1,4 +1,4 @@
-// One icon family: the one_way_car_rental icon set (24-unit grid, 1.8 stroke, round caps, currentColor).
+// One icon family: the One Way Car Rental icon set (24-unit grid, 1.8 stroke, round caps, currentColor).
 import type { CSSProperties } from 'react';
 
 const files = import.meta.glob('../assets/icons/*.svg', { query: '?raw', import: 'default', eager: true }) as Record<string, string>;

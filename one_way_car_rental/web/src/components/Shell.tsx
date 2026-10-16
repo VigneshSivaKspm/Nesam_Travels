@@ -11,10 +11,12 @@ import { Icon } from './Icon';
 
 export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
-    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="one_way_car_rental — book a ride">
-      <img src="/brand/logo.png" alt="" width={40} height={40} />
+    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a ride">
+      <img src="/brand/logo.svg" alt="" width={40} height={40} />
       <span className="brand__word">
-        <b>one_way_car_rental</b>
+        <b>
+          One Way <i>Car Rental</i>
+        </b>
       </span>
     </Link>
   );
@@ -90,7 +92,7 @@ function ProfileMenu() {
       ) : null}
       {confirm ? (
         <Dialog
-          title="Log out of one_way_car_rental?"
+          title="Log out of One Way Car Rental?"
           onClose={() => setConfirm(false)}
           footer={
             <>
@@ -129,7 +131,7 @@ function Footer() {
             <a className="footer__call" href={`tel:${SUPPORT_PHONE}`}>
               <Icon name="phone" size={22} />
               <span>
-                <small>Talk to one_way_car_rental</small>
+                <small>Talk to One Way Car Rental</small>
                 <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
               </span>
             </a>
@@ -248,7 +250,7 @@ export function Shell() {
               <Icon name="support" size={20} />
               <span className="help-link__text">Help</span>
             </Link>
-            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call one_way_car_rental support ${SUPPORT_PHONE_DISPLAY}`}>
+            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call One Way Car Rental support ${SUPPORT_PHONE_DISPLAY}`}>
               <Icon name="phone" size={18} />
               <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
             </a>

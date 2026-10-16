@@ -61,7 +61,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
   const state = useMemo<AuthState>(() => {
-    if (user === undefined) return { status: 'loading', label: 'Starting one_way_car_rental…' };
+    if (user === undefined) return { status: 'loading', label: 'Starting One Way Car Rental…' };
     if (!user) return { status: 'signed-out' };
     const current = result.key === key ? result : null;
     if (current?.error && current.profile === undefined) return { status: 'error', message: current.error, user };

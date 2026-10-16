@@ -93,7 +93,7 @@ export function CancelDialog({ trip, onClose }: { trip: TripRecord; onClose: () 
   );
 }
 
-/** Safety centre: call, text, share and alert one_way_car_rental operations. */
+/** Safety centre: call, text, share and alert One Way Car Rental operations. */
 export function SafetyDialog({ trip, profile, location, onClose }: { trip: TripRecord; profile: UserProfile; location: LatLng | null; onClose: () => void }) {
   const [alerting, setAlerting] = useState(false);
   const [state, setState] = useState<'idle' | 'sent' | 'failed'>('idle');
@@ -110,14 +110,14 @@ export function SafetyDialog({ trip, profile, location, onClose }: { trip: TripR
       setState('sent');
     } catch (e) {
       setState('failed');
-      setError(`${describeError(e, 'The alert could not be sent.')} Call ${EMERGENCY_NUMBER} or one_way_car_rental support now.`);
+      setError(`${describeError(e, 'The alert could not be sent.')} Call ${EMERGENCY_NUMBER} or One Way Car Rental support now.`);
     } finally {
       setAlerting(false);
     }
   };
 
   const share = async () => {
-    const result = await shareText(`one_way_car_rental ride ${trip.bookingId}`, buildTripShareText(trip, location));
+    const result = await shareText(`One Way Car Rental ride ${trip.bookingId}`, buildTripShareText(trip, location));
     if (result === 'copied') push({ title: 'Trip details copied', message: 'Paste them into a message to share.', tone: 'success' });
   };
 
@@ -130,7 +130,7 @@ export function SafetyDialog({ trip, profile, location, onClose }: { trip: TripR
           <Icon name="emergency" /> Call emergency ({EMERGENCY_NUMBER})
         </a>
         <a className="btn btn--secondary btn--block" href={`tel:${SUPPORT_PHONE}`}>
-          <Icon name="phone" /> Call one_way_car_rental support ({SUPPORT_PHONE_DISPLAY})
+          <Icon name="phone" /> Call One Way Car Rental support ({SUPPORT_PHONE_DISPLAY})
         </a>
         {emergencyLocal ? (
           <a className="btn btn--secondary btn--block" href={sms}>
@@ -141,9 +141,9 @@ export function SafetyDialog({ trip, profile, location, onClose }: { trip: TripR
           Share trip details
         </Button>
         <div className="sos">
-          <h3>Alert the one_way_car_rental safety team</h3>
-          <p className="muted small">Sends your booking, driver, vehicle and location to one_way_car_rental operations.</p>
-          {state === 'sent' ? <Notice tone="success">Alert sent. The one_way_car_rental team has your trip and location.</Notice> : null}
+          <h3>Alert the One Way Car Rental safety team</h3>
+          <p className="muted small">Sends your booking, driver, vehicle and location to One Way Car Rental operations.</p>
+          {state === 'sent' ? <Notice tone="success">Alert sent. The One Way Car Rental team has your trip and location.</Notice> : null}
           {error ? <Notice tone="error">{error}</Notice> : null}
           <Button variant="dark" block loading={alerting} onClick={() => void sendAlert()}>
             {state === 'sent' ? 'Send again' : 'Send SOS alert'}

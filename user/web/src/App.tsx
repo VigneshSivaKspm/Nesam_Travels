@@ -11,6 +11,7 @@ import { isRideDismissed } from '@/state/rideFocus';
 import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
 import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
+import { LoginModal } from '@/components/LoginModal';
 
 // Pages load on demand: the booking map (Leaflet) and the other screens stay out of the first download.
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<never>>>, name: K) =>
@@ -26,6 +27,8 @@ const PaymentsPage = page(() => import('@/pages/PaymentsPage'), 'PaymentsPage');
 const OffersPage = page(() => import('@/pages/OffersPage'), 'OffersPage');
 const SupportPage = page(() => import('@/pages/SupportPage'), 'SupportPage');
 const LegalPage = page(() => import('@/pages/LegalPage'), 'LegalPage');
+const RouteLandingPage = page(() => import('@/pages/routes/RouteLandingPage'), 'RouteLandingPage');
+const ServiceLandingPage = page(() => import('@/pages/services/ServiceLandingPage'), 'ServiceLandingPage');
 
 /** State restoration: open the live ride (or a just-finished, unrated one) when the site opens. */
 function RideAutoFocus() {
@@ -45,32 +48,38 @@ function RideAutoFocus() {
   return null;
 }
 
-function Authed({ children }: { children: ReactNode }) {
-  const { state, retry, signOut } = useAuth();
+
+function AppShellProvider({ children }: { children: ReactNode }) {
+  const { state, retry, signOut, isLoginModalOpen } = useAuth();
   if (state.status === 'loading')
     return (
       <main id="main">
         <PageLoader label={state.label} />
       </main>
     );
-  if (state.status === 'signed-out') return <AuthFlow />;
   if (state.status === 'error') return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
-  if (state.status === 'needs-profile') return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
+  if (state.status === 'needs-profile' && !isLoginModalOpen) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
   if (state.status === 'on-hold') return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
-  return (
-    <LegalGate>
-      <ToastProvider>
-        <InboxProvider userId={state.profile.uid}>
-          <CustomerDataProvider profile={state.profile}>
-            <BookingProvider>
-              <RideAutoFocus />
-              {children}
-            </BookingProvider>
-          </CustomerDataProvider>
-        </InboxProvider>
-      </ToastProvider>
-    </LegalGate>
+
+  const profile = state.status === 'ready' ? state.profile : null;
+  const content = (
+    <ToastProvider>
+      <InboxProvider userId={profile?.uid}>
+        <CustomerDataProvider profile={profile}>
+          <BookingProvider>
+            {profile ? <RideAutoFocus /> : null}
+            {children}
+            <LoginModal />
+          </BookingProvider>
+        </CustomerDataProvider>
+      </InboxProvider>
+    </ToastProvider>
   );
+
+  if (profile) {
+    return <LegalGate>{content}</LegalGate>;
+  }
+  return content;
 }
 
 function NotFound() {
@@ -113,6 +122,8 @@ export function AppRoutes() {
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/routes/:routeId" element={<RouteLandingPage />} />
+        <Route path="/services/:serviceId" element={<ServiceLandingPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>
@@ -124,9 +135,9 @@ export function App() {
   useOnline();
   return (
     <AuthProvider>
-      <Authed>
+      <AppShellProvider>
         <AppRoutes />
-      </Authed>
+      </AppShellProvider>
     </AuthProvider>
   );
 }

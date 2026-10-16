@@ -284,7 +284,7 @@ export function RidePage() {
   };
   const doPrint = () => {
     try {
-      printReceipt(trip, profile.name);
+      printReceipt(trip, profile?.name || 'Customer');
     } catch {
       setPrinting('We couldn’t open the print dialog. Please try again.');
     }
@@ -530,7 +530,7 @@ export function RidePage() {
               </p>
             ) : null}
           </section>
-          <RatingCard trip={trip} profile={profile} />
+          {profile ? <RatingCard trip={trip} profile={profile} /> : null}
           {tripCard}
           <details className="rcard rcard--fold">
             <summary>
@@ -574,7 +574,7 @@ export function RidePage() {
       </section>
 
       {showCancel ? <CancelDialog trip={trip} onClose={() => setShowCancel(false)} /> : null}
-      {showSafety ? <SafetyDialog trip={trip} profile={profile} location={sharePoint} onClose={() => setShowSafety(false)} /> : null}
+      {showSafety && profile ? <SafetyDialog trip={trip} profile={profile} location={sharePoint} onClose={() => setShowSafety(false)} /> : null}
     </Workspace>
   );
 }

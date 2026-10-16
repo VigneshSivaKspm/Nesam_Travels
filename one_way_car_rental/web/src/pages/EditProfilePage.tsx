@@ -6,13 +6,13 @@ import { formatPhone, isValidEmail, isValidIndianMobile, isValidName, localMobil
 import { describeError } from '@core/utils/retry';
 import { Button, Dialog, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useToasts } from '@/state/Toasts';
 
 const LANGUAGES = ['English', 'தமிழ் (Tamil)', 'हिन्दी (Hindi)'];
 
 export function EditProfilePage() {
-  usePageTitle('Edit profile');
+  useSeo({ title: 'Edit Profile', noindex: true });
   const navigate = useNavigate();
   const { profile } = useCustomerData();
   const { push } = useToasts();

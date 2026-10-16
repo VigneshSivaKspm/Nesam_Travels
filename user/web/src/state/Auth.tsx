@@ -1,6 +1,6 @@
 // Who is signed in and what state their account is in. Same resolution order as the
 // customer app: signed out → profile loading / failed → needs profile → on hold → ready.
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { User } from 'firebase/auth';
 import type { UserProfile } from '@core/types';
 import { subscribeToCustomerProfile } from '@core/services/userService';
@@ -18,10 +18,20 @@ export type AuthState =
   | { status: 'on-hold'; user: User; profile: UserProfile }
   | { status: 'ready'; user: User; profile: UserProfile };
 
+export interface LoginModalOptions {
+  title?: string;
+  subtitle?: string;
+  onSuccess?: () => void;
+}
+
 interface AuthApi {
   state: AuthState;
   retry: () => void;
   signOut: () => Promise<void>;
+  openLoginModal: (options?: LoginModalOptions) => void;
+  closeLoginModal: () => void;
+  isLoginModalOpen: boolean;
+  loginModalOptions: LoginModalOptions | null;
 }
 
 const Ctx = createContext<AuthApi | null>(null);
@@ -43,6 +53,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null | undefined>(undefined);
   const [result, setResult] = useState<ProfileResult>({ key: '', error: '' });
   const [attempt, setAttempt] = useState(0);
+  const [modalState, setModalState] = useState<{ open: boolean; options: LoginModalOptions | null }>({
+    open: false,
+    options: null,
+  });
 
   useEffect(() => subscribeToAuthUser(setUser), []);
 
@@ -60,6 +74,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
+  const openLoginModal = useCallback((options?: LoginModalOptions) => {
+    setModalState({ open: true, options: options ?? null });
+  }, []);
+
+  const closeLoginModal = useCallback(() => {
+    setModalState((s) => ({ ...s, open: false }));
+  }, []);
+
   const state = useMemo<AuthState>(() => {
     if (user === undefined) return { status: 'loading', label: 'Starting NESAM…' };
     if (!user) return { status: 'signed-out' };
@@ -71,6 +93,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { status: 'ready', user, profile: current.profile };
   }, [user, result, key]);
 
-  const value = useMemo<AuthApi>(() => ({ state, retry, signOut: signOutUser }), [state, retry]);
+  // When successfully signed in and ready, if login modal was open and has onSuccess callback, trigger it
+  const onSuccessRef = useRef<(() => void) | undefined>(undefined);
+  onSuccessRef.current = modalState.options?.onSuccess;
+  const prevStatusRef = useRef<string>(state.status);
+
+  useEffect(() => {
+    if (state.status === 'ready' && prevStatusRef.current !== 'ready') {
+      if (modalState.open) {
+        onSuccessRef.current?.();
+        setModalState({ open: false, options: null });
+      }
+    }
+    prevStatusRef.current = state.status;
+  }, [state.status, modalState.open]);
+
+  const value = useMemo<AuthApi>(
+    () => ({
+      state,
+      retry,
+      signOut: signOutUser,
+      openLoginModal,
+      closeLoginModal,
+      isLoginModalOpen: modalState.open,
+      loginModalOptions: modalState.options,
+    }),
+    [state, retry, openLoginModal, closeLoginModal, modalState.open, modalState.options],
+  );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

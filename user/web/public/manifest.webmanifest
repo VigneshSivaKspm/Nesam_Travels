@@ -50,6 +50,13 @@
       "description": "Get help or call customer support",
       "url": "/support",
       "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Chennai to Pondicherry Taxi",
+      "short_name": "Pondy Taxi",
+      "description": "Book one way drop taxi to Pondicherry",
+      "url": "/routes/chennai-to-pondicherry",
+      "icons": [{ "src": "/brand/icon-192.png", "sizes": "192x192" }]
     }
   ]
 }

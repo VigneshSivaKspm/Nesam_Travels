@@ -36,7 +36,7 @@ const IMMERSIVE = [/^\/book\/(ride|confirm)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
 
 function ProfileMenu() {
   const { profile } = useCustomerData();
-  const { signOut } = useAuth();
+  const { signOut, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -57,6 +57,18 @@ function ProfileMenu() {
       document.removeEventListener('keydown', key);
     };
   }, [open]);
+
+  if (!profile) {
+    return (
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => openLoginModal({ title: 'Sign in to NESAM' })}
+      >
+        <Icon name="profile" size={16} /> Sign in
+      </Button>
+    );
+  }
 
   const first = profile.name.split(' ')[0] || 'Account';
   return (
@@ -135,20 +147,43 @@ function Footer() {
               </span>
             </a>
           </div>
-          <nav className="footer__col" aria-label="Book">
-            <h2>Book</h2>
+          <nav className="footer__col" aria-label="Popular Routes">
+            <h2>Popular Routes</h2>
             <ul>
               <li>
-                <Link to="/book">Outstation one way</Link>
+                <Link to="/routes/chennai-to-pondicherry">Chennai to Pondicherry Taxi</Link>
               </li>
               <li>
-                <Link to="/book">Round trip</Link>
+                <Link to="/routes/chennai-to-bangalore">Chennai to Bangalore Cab</Link>
               </li>
               <li>
-                <Link to="/book">Airport transfer</Link>
+                <Link to="/routes/coimbatore-to-ooty">Coimbatore to Ooty Taxi</Link>
               </li>
               <li>
-                <Link to="/offers">Offers</Link>
+                <Link to="/routes/madurai-to-rameshwaram">Madurai to Rameshwaram Cab</Link>
+              </li>
+              <li>
+                <Link to="/routes/bangalore-to-mysore">Bangalore to Mysore Cab</Link>
+              </li>
+            </ul>
+          </nav>
+          <nav className="footer__col" aria-label="Services">
+            <h2>Services</h2>
+            <ul>
+              <li>
+                <Link to="/services/one-way-drop-taxi">One-Way Drop Taxi</Link>
+              </li>
+              <li>
+                <Link to="/services/outstation-round-trip">Outstation Round Trips</Link>
+              </li>
+              <li>
+                <Link to="/services/airport-taxi">Airport Taxi Transfers</Link>
+              </li>
+              <li>
+                <Link to="/services/local-rental">Hourly City Rentals</Link>
+              </li>
+              <li>
+                <Link to="/services/pilgrimage-tours">Temple Pilgrimage Tours</Link>
               </li>
             </ul>
           </nav>
@@ -176,6 +211,9 @@ function Footer() {
                 <Link to="/support">Help &amp; tickets</Link>
               </li>
               <li>
+                <Link to="/offers">Special Offers</Link>
+              </li>
+              <li>
                 <a href={`tel:${SUPPORT_PHONE}`}>Call {SUPPORT_PHONE_DISPLAY}</a>
               </li>
               <li>
@@ -195,6 +233,8 @@ function Footer() {
 
 export function Shell() {
   const { unreadCount } = useInbox();
+  const { profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
   const navigate = useNavigate();
@@ -256,6 +296,15 @@ export function Shell() {
             <ProfileMenu />
           </div>
           <div className="topbar__mobile">
+            {!profile ? (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => openLoginModal({ title: 'Sign in to NESAM' })}
+              >
+                Sign in
+              </Button>
+            ) : null}
             <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
               <Icon name="support" size={22} />
             </button>

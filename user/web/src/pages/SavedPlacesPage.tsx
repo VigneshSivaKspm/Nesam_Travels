@@ -8,6 +8,7 @@ import { Button, Dialog, EmptyState, Notice, PageHead, Segmented, TextField } fr
 import { Icon } from '@/components/Icon';
 import { PlaceSuggestions } from '@/components/PlaceSuggestions';
 import { useDeviceLocation } from '@/lib/hooks';
+import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 
 type Kind = 'home' | 'work' | 'favorite';
@@ -25,6 +26,7 @@ function AddPlaceDialog({ onClose }: { onClose: () => void }) {
 
   const save = async () => {
     if (!picked) return setError('Search for the place to save.');
+    if (!profile) return setError('Sign in to save this place.');
     const name = kind === 'home' ? 'Home' : kind === 'work' ? 'Work' : label.trim() || picked.name;
     // Only one Home and one Work: replace the existing entry.
     const existing = kind !== 'favorite' ? savedPlaces.find((p) => p.type === kind) : undefined;
@@ -98,11 +100,45 @@ function AddPlaceDialog({ onClose }: { onClose: () => void }) {
 
 export function SavedPlacesPage() {
   useSeo({ title: 'Saved Places', noindex: true });
-  const { savedPlaces } = useCustomerData();
+  const { savedPlaces, profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<LocationItem | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+
+  if (!profile) {
+    return (
+      <>
+        <PageHead
+          eyebrow="Account"
+          title="Saved places"
+          back={
+            <Link to="/account" className="back-link">
+              <Icon name="arrow-left" size={18} /> Account
+            </Link>
+          }
+        >
+          Home, work and the places you go often — one tap when booking.
+        </PageHead>
+        <div className="page">
+          <div className="card card--center">
+            <EmptyState
+              art="welcome"
+              title="Sign in to view saved places"
+              action={
+                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to saved places' })}>
+                  Sign in
+                </Button>
+              }
+            >
+              Sign in with your mobile number to save your home, work and favorite locations for quick booking.
+            </EmptyState>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const remove = async () => {
     if (!removing) return;

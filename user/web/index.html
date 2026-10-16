@@ -75,7 +75,7 @@
     <link rel="dns-prefetch" href="https://router.project-osrm.org" />
     <link rel="dns-prefetch" href="https://photon.komoot.io" />
 
-    <!-- Structured Data (JSON-LD) - TaxiService, LocalBusiness, FAQ, Website, Breadcrumb -->
+    <!-- Structured Data (JSON-LD) - TaxiService, LocalBusiness, FAQ, Website, Breadcrumb, OfferCatalog -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
@@ -135,18 +135,19 @@
             { "@type": "City", "name": "Kodaikanal" },
             { "@type": "City", "name": "Rameshwaram" },
             { "@type": "City", "name": "Thanjavur" },
-            { "@type": "City", "name": "Tirupati" }
+            { "@type": "City", "name": "Tirupati" },
+            { "@type": "City", "name": "Theni" }
           ],
           "hasOfferCatalog": {
             "@type": "OfferCatalog",
-            "name": "NESAM Cabs Services",
+            "name": "NESAM Cabs Fleet & Travel Services",
             "itemListElement": [
               {
                 "@type": "Offer",
                 "itemOffered": {
                   "@type": "Service",
                   "name": "One-Way Outstation Drop Taxi",
-                  "description": "Pay only for one-way distance between cities with zero return charges."
+                  "description": "Point-to-point drop taxi across Tamil Nadu with zero return charges. Fares from ₹15/km for Sedan and ₹20/km for SUV."
                 }
               },
               {
@@ -154,7 +155,7 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Outstation Round Trips",
-                  "description": "Multi-day outstation car rentals with dedicated driver for family and corporate travel."
+                  "description": "Multi-day outstation car rentals with dedicated chauffeur. Calendar-day billing with 250 km/day minimum from ₹14/km."
                 }
               },
               {
@@ -162,15 +163,23 @@
                 "itemOffered": {
                   "@type": "Service",
                   "name": "Airport Taxi Transfers",
-                  "description": "Guaranteed on-time pickups and drops for Chennai, Bangalore, Coimbatore, and Madurai airports."
+                  "description": "Guaranteed on-time pickups and drops for Chennai (MAA), Bangalore (BLR), Coimbatore (CJB), Madurai (IXM), and Trichy (TRZ) airports from ₹800."
                 }
               },
               {
                 "@type": "Offer",
                 "itemOffered": {
                   "@type": "Service",
-                  "name": "Temple & Pilgrimage Tours",
-                  "description": "Pilgrimage packages to Rameshwaram, Tirupati Balaji, Madurai Meenakshi, and Navagraha temples."
+                  "name": "Hourly Local City Rentals",
+                  "description": "Chauffeur-driven vehicles at your disposal by the hour within city limits. Flexible 4-hr, 8-hr, and 12-hr packages."
+                }
+              },
+              {
+                "@type": "Offer",
+                "itemOffered": {
+                  "@type": "Service",
+                  "name": "Temple & Pilgrimage Circuits",
+                  "description": "Custom pilgrimage darshan packages to Rameshwaram, Tirupati Balaji, Madurai Meenakshi, and Navagraha temples."
                 }
               }
             ]
@@ -336,6 +345,52 @@
         font-weight: 600;
         margin-top: 12px;
       }
+      .seo-route-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 16px;
+        list-style: none;
+        padding: 0 !important;
+        margin: 24px 0;
+      }
+      .seo-route-card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      }
+      .seo-route-card a {
+        font-weight: 700;
+        color: #0f172a;
+        text-decoration: none;
+        font-size: 1.05rem;
+      }
+      .seo-route-card a:hover {
+        color: #e31e24;
+        text-decoration: underline;
+      }
+      .seo-route-meta {
+        font-size: 0.85rem;
+        color: #64748b;
+        margin-top: 4px;
+      }
+      .seo-faq-item {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        margin-bottom: 12px;
+        padding: 14px 18px;
+      }
+      .seo-faq-item summary {
+        font-weight: 600;
+        color: #0f172a;
+        cursor: pointer;
+      }
+      .seo-faq-item p {
+        margin-top: 10px;
+        color: #475569;
+      }
     </style>
   </head>
   <body>
@@ -375,49 +430,106 @@
 
       <main>
         <h2>Popular Outstation &amp; Drop Taxi Routes in South India</h2>
-        <ul>
-          <li><strong>Chennai to Pondicherry One-Way Drop Taxi:</strong> ~150 km, approx 3 hr 10 min. Scenic East Coast Road (ECR) drive.</li>
-          <li><strong>Chennai to Bangalore Outstation Cab:</strong> ~345 km, approx 6 hr. Highway cruising via Vellore and Hosur with experienced highway chauffeurs.</li>
-          <li><strong>Coimbatore to Ooty Hill Station Taxi:</strong> ~88 km, approx 2 hr 50 min. Skilled ghat road driving with clean AC cars.</li>
-          <li><strong>Madurai to Rameshwaram Pilgrimage Taxi:</strong> ~172 km, approx 3 hr 30 min. Temple darshan and Pamban bridge crossing.</li>
-          <li><strong>Trichy to Thanjavur Heritage Taxi:</strong> ~58 km, approx 1 hr 10 min. Ideal for visiting the UNESCO World Heritage Big Temple.</li>
-          <li><strong>Bangalore to Mysore Outstation Cab:</strong> ~142 km, approx 2 hr 30 min. Fast expressway ride for palace and city sightseeing.</li>
-          <li><strong>Salem to Yercaud Hill Station Taxi:</strong> ~32 km, approx 1 hr. Ghat-road certified drivers for family vacations.</li>
-          <li><strong>Chennai to Tirupati Balaji Pilgrimage Cab:</strong> ~138 km, approx 3 hr. Reliable round-trip and one-way temple darshan rides.</li>
-        </ul>
-
-        <h2>Vehicle Fleet Options</h2>
-        <ul>
-          <li><strong>Hatchback / Mini (4 Seats):</strong> Compact, economical cars (Swift, WagonR, etc.) for solo travellers and couples.</li>
-          <li><strong>Sedan (4 Seats):</strong> Spacious AC sedans (Dzire, Etios, etc.) with large boot space for luggage and small families.</li>
-          <li><strong>SUV (6–7 Seats):</strong> High-comfort SUVs (Ertiga, etc.) designed for family road trips, rougher terrain and group comfort.</li>
-          <li><strong>Premium SUV (7 Seats):</strong> Innova Crysta class with top-tier comfort, dual AC, and executive chauffeurs.</li>
-          <li><strong>Tempo Traveller (12 Seats):</strong> Spacious group vans for family gatherings, weddings, and pilgrimage tours.</li>
+        <p>Explore our most popular intercity highway routes with upfront approved fares and zero return fare charges:</p>
+        <ul class="seo-route-grid">
+          <li class="seo-route-card">
+            <a href="/routes/chennai-to-pondicherry">Chennai to Pondicherry Drop Taxi</a>
+            <div class="seo-route-meta">150 km · ~3 hr 10 min · ECR Scenic Route · From ₹2,783</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/chennai-to-bangalore">Chennai to Bangalore Outstation Cab</a>
+            <div class="seo-route-meta">345 km · ~6 hr · NH-48 via Vellore &amp; Hosur · From ₹5,854</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/coimbatore-to-ooty">Coimbatore to Ooty Hill Station Taxi</a>
+            <div class="seo-route-meta">88 km · ~2 hr 50 min · Mountain Ghat Certified · From ₹2,468</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/madurai-to-rameshwaram">Madurai to Rameshwaram Pilgrimage Taxi</a>
+            <div class="seo-route-meta">172 km · ~3 hr 30 min · Pamban Sea Bridge Tour · From ₹3,129</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/bangalore-to-mysore">Bangalore to Mysore Expressway Cab</a>
+            <div class="seo-route-meta">142 km · ~2 hr 30 min · 10-Lane Expressway · From ₹2,657</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/trichy-to-thanjavur">Trichy to Thanjavur Heritage Taxi</a>
+            <div class="seo-route-meta">58 km · ~1 hr 10 min · Big Temple Darshan · From ₹2,468</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/salem-to-yercaud">Salem to Yercaud Hill Station Taxi</a>
+            <div class="seo-route-meta">32 km · ~1 hr · 20 Hairpin Bends Route · From ₹2,468</div>
+          </li>
+          <li class="seo-route-card">
+            <a href="/routes/chennai-to-tirupati">Chennai to Tirupati Balaji Pilgrimage Cab</a>
+            <div class="seo-route-meta">138 km · ~3 hr · Andhra Permit Support · From ₹2,594</div>
+          </li>
         </ul>
 
         <h2>Travel Services Offered</h2>
         <ul>
-          <li><strong>One-Way Drop Taxi:</strong> Direct point-to-point drop from city to city with zero return charge.</li>
-          <li><strong>Outstation Round Trips:</strong> Multi-day car rentals with driver for vacations, temple tours, and corporate visits.</li>
-          <li><strong>Airport Transfers:</strong> Guaranteed on-time pickups and drops to Chennai (MAA), Bangalore (BLR), Coimbatore (CJB), and Madurai (IXM) airports.</li>
-          <li><strong>Hourly Local Rentals:</strong> Chauffeur-driven vehicles at your disposal by the hour within city limits.</li>
-          <li><strong>Temple &amp; Pilgrimage Packages:</strong> Custom darshan circuits across Navagraha, Rameshwaram, Tirupati, and Palani.</li>
+          <li>
+            <strong><a href="/services/one-way-drop-taxi">One-Way Drop Taxi</a>:</strong> Direct point-to-point drop from city to city with zero return charge. Available across Chennai, Bangalore, Coimbatore, Madurai, Trichy, Salem, and Pondicherry.
+          </li>
+          <li>
+            <strong><a href="/services/outstation-round-trip">Outstation Round Trips</a>:</strong> Multi-day car rentals with dedicated chauffeur for family vacations, temple tours, and corporate visits. Billed simply by calendar day with generous 250 km/day allowances.
+          </li>
+          <li>
+            <strong><a href="/services/airport-taxi">Airport Taxi Transfers</a>:</strong> Guaranteed on-time pickups and drops to Chennai (MAA), Bangalore (BLR), Coimbatore (CJB), Madurai (IXM), and Trichy (TRZ) airports.
+          </li>
+          <li>
+            <strong><a href="/services/local-rental">Hourly Local City Rentals</a>:</strong> Chauffeur-driven vehicles at your disposal by the hour within city limits for shopping, hospital visits, and business meetings.
+          </li>
+          <li>
+            <strong><a href="/services/pilgrimage-tours">Temple &amp; Pilgrimage Packages</a>:</strong> Custom darshan circuits across Navagraha, Rameshwaram, Tirupati Balaji, Madurai Meenakshi, and Palani Murugan temples.
+          </li>
+        </ul>
+
+        <h2>Vehicle Fleet &amp; Approved Tariffs</h2>
+        <ul>
+          <li><strong>Sedan (4 Seats):</strong> Spacious AC sedans (Swift Dzire, Toyota Etios) with boot space for luggage. ₹15/km one-way (₹14/km round trip) + ₹400 driver bata.</li>
+          <li><strong>SUV 6+1 (6 Seats):</strong> High-comfort SUVs (Maruti Ertiga) designed for family road trips. ₹20/km one-way (₹19/km round trip) + ₹400 driver bata.</li>
+          <li><strong>SUV 7+1 (7 Seats):</strong> Versatile 7-seater vehicles (Toyota Innova, Ertiga) for larger families. ₹20/km one-way (₹19/km round trip) + ₹400 driver bata.</li>
+          <li><strong>Innova Crysta (7 Seats):</strong> Top-tier comfort, dual air conditioning, and executive chauffeurs. ₹26/km one-way (₹22/km round trip) + ₹600 driver bata.</li>
+          <li><strong>Tempo Traveller (12+ Seats):</strong> Spacious group vans for weddings, college reunions, and extended family pilgrimages.</li>
         </ul>
 
         <h2>Frequently Asked Questions</h2>
-        <section>
-          <h3>How does NESAM one-way drop taxi work in Tamil Nadu?</h3>
-          <p>With NESAM one-way drop taxi, you only pay for the one-way distance between your pickup location and destination. There is no return fare charge, making it significantly more affordable than traditional round-trip rentals.</p>
+        <section aria-label="FAQ Accordion">
+          <details name="faq" class="seo-faq-item">
+            <summary>How does NESAM one-way drop taxi work in Tamil Nadu?</summary>
+            <p>With NESAM one-way drop taxi, you only pay for the one-way distance between your pickup location and destination. There is no return fare charge, making it significantly more affordable than traditional round-trip rentals.</p>
+          </details>
 
-          <h3>How do I cancel my booking?</h3>
-          <p>Scheduled rides can be cancelled free of charge up to 1 hour before scheduled pickup time through the site or customer helpline.</p>
+          <details name="faq" class="seo-faq-item">
+            <summary>How do I cancel my booking?</summary>
+            <p>Scheduled rides can be cancelled free of charge up to 1 hour before scheduled pickup time through the site or customer helpline.</p>
+          </details>
 
-          <h3>What payment methods are accepted?</h3>
-          <p>You pay your chauffeur at the end of the trip via Cash or UPI (Google Pay, PhonePe, Paytm). Nothing is charged upfront during online booking.</p>
+          <details name="faq" class="seo-faq-item">
+            <summary>What payment methods are accepted?</summary>
+            <p>You pay your chauffeur at the end of the trip via Cash or UPI (Google Pay, PhonePe, Paytm). Nothing is charged upfront during online booking.</p>
+          </details>
 
-          <h3>How are tolls and permits charged?</h3>
-          <p>Tolls, state entry permits, and parking are paid at actual cost against receipts, ensuring complete transparency with zero hidden markups.</p>
+          <details name="faq" class="seo-faq-item">
+            <summary>How are tolls and permits charged?</summary>
+            <p>Tolls, state entry permits, and parking are paid at actual cost against receipts, ensuring complete transparency with zero hidden markups.</p>
+          </details>
+
+          <details name="faq" class="seo-faq-item">
+            <summary>What is the 4-digit boarding code?</summary>
+            <p>A secure 4-digit code generated exclusively for your trip. Share it with your driver only once you are seated inside the car; the trip cannot start without it.</p>
+          </details>
         </section>
+
+        <nav aria-label="Quick Links" style="margin-top: 36px; padding-top: 20px; border-top: 1px solid #e2e8f0;">
+          <ul style="display: flex; flex-wrap: wrap; gap: 16px; list-style: none; padding: 0;">
+            <li><a href="/book" style="color: #e31e24; font-weight: 600;">Book a Ride Online</a></li>
+            <li><a href="/offers" style="color: #475569;">Special Offers &amp; Discounts</a></li>
+            <li><a href="/support" style="color: #475569;">24/7 Customer Care</a></li>
+            <li><a href="/legal" style="color: #475569;">Terms &amp; Privacy Policy</a></li>
+          </ul>
+        </nav>
 
         <footer>
           <p><strong>Head Office:</strong> NESAM Tours and Travels Private Limited, Theni, Tamil Nadu 625531, India.</p>

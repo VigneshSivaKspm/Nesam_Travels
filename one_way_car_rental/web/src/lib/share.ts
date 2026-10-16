@@ -4,7 +4,7 @@ import { googleMapsLink, isValidLatLng } from '@core/utils/geo';
 
 export function buildTripShareText(trip: TripRecord, where: LatLng | null): string {
   const d = trip.driver;
-  const lines = [`I'm on a one_way_car_rental ride (booking ${trip.bookingId}).`, `From: ${trip.pickup.name}`, `To: ${trip.drop.name}`];
+  const lines = [`I'm on a One Way Car Rental ride (booking ${trip.bookingId}).`, `From: ${trip.pickup.name}`, `To: ${trip.drop.name}`];
   if (d) {
     lines.push(`Driver: ${d.name}${d.phone ? ` (${formatPhone(d.phone)})` : ''}`);
     lines.push(`Vehicle: ${[d.vehicleModel, d.vehicleNumber].filter(Boolean).join(' · ') || trip.categoryName}`);
