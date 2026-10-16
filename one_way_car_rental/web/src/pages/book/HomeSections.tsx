@@ -193,8 +193,8 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
         <ul className="fleet" id="sec-fleet">
           {live.length
             ? live.map((c) => (
-                <li key={c.id} className="vehicle">
-                  <img src={vehicleArtUrl(c)} alt="" width={320} height={210} loading="lazy" />
+                <li key={c.id} id={`vehicle-${c.id}`} className="vehicle">
+                  <img src={vehicleArtUrl(c)} alt={`One Way Car Rental ${c.name} - ${c.seats} seater cab`} width={320} height={210} loading="lazy" />
                   <div className="vehicle__body">
                     <strong>{c.name}</strong>
                     <span className="vehicle__seats">
@@ -205,8 +205,8 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                 </li>
               ))
             : FALLBACK_FLEET.map((v) => (
-                <li key={v.art} className="vehicle">
-                  <img src={`/vehicles/${v.art}.webp`} alt="" width={320} height={210} loading="lazy" />
+                <li key={v.art} id={`vehicle-${v.art}`} className="vehicle">
+                  <img src={`/vehicles/${v.art}.webp`} alt={`One Way Car Rental ${v.name} rental`} width={320} height={210} loading="lazy" />
                   <div className="vehicle__body">
                     <strong>{v.name}</strong>
                     <p>{v.text}</p>
@@ -221,10 +221,10 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
 
 export function HowSection() {
   return (
-    <section className="band band--dark" aria-labelledby="sec-how">
+    <section className="band band--dark" aria-labelledby="sec-how" id="sec-how-band">
       <div className="wrap how">
         <div className="how__photo">
-          <img src={IMG('photography/about-fleet')} alt="" width={1448} height={1086} loading="lazy" />
+          <img src={IMG('photography/about-fleet')} alt="One Way Car Rental verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
         <div className="how__body">
           <p className="eyebrow eyebrow--gold">How it works</p>
@@ -233,7 +233,7 @@ export function HowSection() {
             {STEPS.map((s, i) => (
               <li key={s.title}>
                 <span className="how__num">{i + 1}</span>
-                <img src={IMG(s.image)} alt="" width={96} height={96} loading="lazy" />
+                <img src={IMG(s.image)} alt={s.title} width={96} height={96} loading="lazy" />
                 <div>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
@@ -249,7 +249,7 @@ export function HowSection() {
 
 export function AssuranceSection() {
   return (
-    <section className="band" aria-labelledby="sec-safe">
+    <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
         <div className="assure__body">
           <p className="eyebrow eyebrow--red">Travel with confidence</p>
@@ -270,9 +270,9 @@ export function AssuranceSection() {
           </ul>
         </div>
         <div className="assure__collage" aria-hidden="true">
-          <img className="assure__a" src={IMG('photography/trust-driver')} alt="" width={724} height={543} loading="lazy" />
-          <img className="assure__b" src={IMG('photography/trust-interior')} alt="" width={724} height={543} loading="lazy" />
-          <img className="assure__c" src={IMG('photography/trust-support')} alt="" width={724} height={543} loading="lazy" />
+          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with One Way Car Rental" width={724} height={543} loading="lazy" />
+          <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
+          <img className="assure__c" src={IMG('photography/trust-support')} alt="24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>
       </div>
     </section>
@@ -299,7 +299,7 @@ export function Banners() {
             Call us on {SUPPORT_PHONE_DISPLAY}. Cancel free until {freeHours} hour before pickup, then a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
           </span>
           <span className="banner__cta">
-            <Icon name="phone" size={18} /> Call one_way_car_rental
+            <Icon name="phone" size={18} /> Call us
           </span>
         </a>
       </div>
@@ -309,7 +309,7 @@ export function Banners() {
 
 export function FaqSection() {
   return (
-    <section className="band" aria-labelledby="sec-faq">
+    <section className="band" aria-labelledby="sec-faq" id="sec-faq-band">
       <div className="wrap faq-band">
         <div className="faq-band__intro">
           <p className="eyebrow eyebrow--red">Good to know</p>
@@ -319,7 +319,7 @@ export function FaqSection() {
             <Icon name="support" size={18} /> Help &amp; support
           </Link>
         </div>
-        <div className="faq">
+        <div className="faq" id="faq">
           {FAQS.map((f) => (
             <details key={f.q} className="faq__item">
               <summary>
