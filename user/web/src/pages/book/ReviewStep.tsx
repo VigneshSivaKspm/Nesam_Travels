@@ -14,7 +14,7 @@ import { Button, Checkbox, Notice, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { FareBreakdown } from '@/components/FareBreakdown';
 import { RoutePoints } from '@/components/RoutePoints';
-import { TripMap, Workspace } from '@/components/Workspace';
+import { RouteMap } from '@/components/RouteMap';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useToasts } from '@/state/Toasts';
 import { useAuth } from '@/state/Auth';
@@ -42,13 +42,15 @@ export function ReviewStep() {
 
   if (!pickup || !drop || !route || !category || !q.quote) {
     return (
-      <Workspace label="Review and confirm" map={<TripMap pickup={pickup} drop={drop} route={route} />}>
-        <StepHead title="Review and confirm" step={3} onBack={() => navigate('/book/ride')} />
-        <Notice tone="warning">Your trip details changed. Go back and choose your ride again.</Notice>
-        <Button block variant="secondary" onClick={() => navigate('/book/ride')}>
-          Back to rides
-        </Button>
-      </Workspace>
+      <div className="review-page">
+        <div className="review-page__inner" style={{ maxWidth: 640 }}>
+          <StepHead title="Review and confirm" step={3} onBack={() => navigate('/book/ride')} />
+          <Notice tone="warning">Your trip details changed. Go back and choose your ride again.</Notice>
+          <Button block variant="secondary" onClick={() => navigate('/book/ride')}>
+            Back to rides
+          </Button>
+        </div>
+      </div>
     );
   }
 
