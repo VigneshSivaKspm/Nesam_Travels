@@ -37,6 +37,9 @@ export default defineConfig(({ mode }) => {
   if (env.VITE_API_URL && !processEnv.EXPO_PUBLIC_API_URL) processEnv.EXPO_PUBLIC_API_URL = env.VITE_API_URL;
 
   return {
+    // Files from ../app would otherwise resolve ../app/tsconfig.json, which extends
+    // `expo/tsconfig.base` (not installed in the web build). Use this project's config for all files.
+    tsconfig: path.resolve(here, 'tsconfig.json'),
     plugins: [sharedAppSource(), react()],
     envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
     resolve: {
