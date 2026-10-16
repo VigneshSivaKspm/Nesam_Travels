@@ -1,9 +1,10 @@
 import { useMemo, useState } from "react";
 import type { Booking, Driver, Vehicle, Vendor } from "../../types";
 import { ConfirmDialog, Modal } from "../Feedback";
+import PostingOptions, { postingPayload, usePostingOptions } from "./PostingOptions";
 import { Field, Notice, inputCls, inputErrCls, primaryBtn, secondaryBtn } from "../FormKit";
 import {
-  assignDriver, approveBooking, cancelBooking, recordPayment, rejectBooking, updateRefund, voidPayment,
+  assignDriver, assignVendor, approveBooking, cancelBooking, publishToMarketplace, recordPayment, rejectBooking, updateRefund, voidPayment,
   type CollectorType, type PaymentMethodName,
 } from "../../services/bookingOpsService";
 import { ActionError } from "../../services/callables";
@@ -26,7 +27,7 @@ export function ApproveDialog({ booking, onClose, onDone }: { booking: Booking; 
     try {
       const r = await approveBooking(booking.id, note);
       const failed = r.customerChannels.filter((c) => c.status !== "sent");
-      onDone(`${code(booking)} approved. ${r.partnersNotified} driver/vendor${r.partnersNotified === 1 ? "" : "s"} notified.${failed.length ? ` Customer message issue: ${failed.map((f) => `${f.channel} ${f.status === "not_configured" ? "not set up" : "failed"}`).join(", ")}.` : ""}`);
+      onDone(`${code(booking)} approved — it is not visible to partners yet. Now choose how to fulfil it: publish to the marketplace, assign a vendor, or assign an owner driver.${failed.length ? ` Customer message issue: ${failed.map((f) => `${f.channel} ${f.status === "not_configured" ? "not set up" : "failed"}`).join(", ")}.` : ""}`);
     } catch (e) {
       setError(msg(e, "The booking was not approved."));
       setBusy(false);
@@ -37,7 +38,7 @@ export function ApproveDialog({ booking, onClose, onDone }: { booking: Booking; 
       title="Approve booking" confirmLabel="Approve" busy={busy} error={error} onConfirm={go} onCancel={onClose}
       message={
         <div className="space-y-3">
-          <p>Approving <strong>{code(booking)}</strong> makes it available to eligible approved drivers and vendors and sends the customer their confirmation.</p>
+          <p>Approving <strong>{code(booking)}</strong> confirms the request is valid and tells the customer it is being arranged. It does <strong>not</strong> publish the booking: afterwards you choose to publish it to the marketplace, assign a vendor, or assign an owner driver.</p>
           <Field label="Note (optional)"><input value={note} onChange={(e) => setNote(e.target.value)} maxLength={300} className={inputCls} /></Field>
         </div>
       }
@@ -126,7 +127,7 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
     setError(null);
     try {
       await assignDriver({ bookingId: booking.id, driverId: removing ? "" : driverId, vehicleId: vehicleId || undefined, reason: reason.trim(), force });
-      onDone(removing ? `Assignment removed from ${code(booking)}. It is open to partners again.` : `${chosen?.name || "Driver"} ${hasDriver ? "now assigned to" : "assigned to"} ${code(booking)}.`);
+      onDone(removing ? `Assignment removed from ${code(booking)}. It is approved and awaiting fulfilment again — choose a new route.` : `${chosen?.name || "Driver"} ${hasDriver ? "now assigned to" : "assigned to"} ${code(booking)}.`);
     } catch (e) {
       setConflict(e instanceof ActionError && (e.details as { conflict?: boolean } | undefined)?.conflict === true);
       setError(msg(e, "The assignment was not changed."));
@@ -161,7 +162,7 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
         {hasDriver && (
           <label className="flex items-center gap-2 font-semibold text-[#333]">
             <input type="checkbox" checked={removing} onChange={(e) => { setRemoving(e.target.checked); setError(null); }} className="w-4 h-4 accent-[#E21B23]" />
-            Remove the assignment only (reopen to drivers and vendors)
+            Remove the assignment only (the booking returns to approved, awaiting fulfilment)
           </label>
         )}
         {!removing && (
@@ -214,6 +215,97 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
             <div className="text-xs text-[#555]">The change, who made it, when and why is kept permanently in the booking’s assignment history.</div>
           </div>
         )}
+      </div>
+    </Modal>
+  );
+}
+
+// ── Fulfilment: publish / assign vendor ───────────────────────────────────
+
+export function PublishDialog({ booking, canSetPayout, onClose, onDone }: { booking: Booking; canSetPayout: boolean; onClose: () => void; onDone: (text: string) => void }) {
+  const [payout, setPayout] = useState("");
+  const options = usePostingOptions();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const go = async () => {
+    const manual = payout.trim() ? Number(payout) : undefined;
+    if (manual !== undefined && (!Number.isSafeInteger(manual) || manual <= 0)) return setError("Enter the payout in whole rupees, or leave it blank to use the commission policy.");
+    const opts = postingPayload(options.value);
+    if (!opts.ok) return setError(opts.error);
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await publishToMarketplace(booking.id, manual, opts.data);
+      onDone(`${code(booking)} published at ${rupees(r.offeredPayout)} payout. ${r.partnersNotified} driver/vendor${r.partnersNotified === 1 ? "" : "s"} notified.`);
+    } catch (e) {
+      setError(msg(e, "The booking was not published."));
+      setBusy(false);
+    }
+  };
+  return (
+    <ConfirmDialog
+      title="Publish to marketplace" confirmLabel="Publish to Open Duties" busy={busy} error={error} onConfirm={go} onCancel={onClose}
+      message={
+        <div className="space-y-3">
+          <p><strong>{code(booking)}</strong> becomes visible in Open Duties to eligible approved owner drivers and vendors, and they are notified. The first valid claim (or an awarded bid) takes it.</p>
+          {canSetPayout ? (
+            <Field label="Partner payout (₹)" hint="Leave blank to use the commission policy offer."><input value={payout} onChange={(e) => setPayout(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className={inputCls} /></Field>
+          ) : (
+            <p className="text-xs text-[#555]">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
+          )}
+          <PostingOptions value={options.value} onChange={options.set} />
+        </div>
+      }
+    />
+  );
+}
+
+export function AssignVendorModal({ booking, vendors, canSetPayout, onClose, onDone }: { booking: Booking; vendors: Vendor[]; canSetPayout: boolean; onClose: () => void; onDone: (text: string) => void }) {
+  const eligible = useMemo(
+    () => vendors.filter((v) => ["APPROVED", "Approved", "Active"].includes(String(v.status))).sort((a, b) => (a.companyName || a.name || "").localeCompare(b.companyName || b.name || "")),
+    [vendors],
+  );
+  const [vendorId, setVendorId] = useState("");
+  const [payout, setPayout] = useState("");
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const chosen = eligible.find((v) => v.id === vendorId);
+  const go = async () => {
+    if (!vendorId) return setError("Choose a vendor.");
+    const manual = payout.trim() ? Number(payout) : undefined;
+    if (manual !== undefined && (!Number.isSafeInteger(manual) || manual <= 0)) return setError("Enter the payout in whole rupees, or leave it blank to use the commission policy.");
+    setBusy(true);
+    setError(null);
+    try {
+      const r = await assignVendor({ bookingId: booking.id, vendorId, ...(manual !== undefined ? { payout: manual } : {}), reason: reason.trim() });
+      onDone(`${code(booking)} reserved to ${r.vendorName} at ${rupees(r.payout)} payout. The vendor now assigns a driver and vehicle.`);
+    } catch (e) {
+      setError(msg(e, "The vendor was not assigned."));
+      setBusy(false);
+    }
+  };
+  return (
+    <Modal
+      title="Assign vendor" subtitle={`Booking ${code(booking)} · ${booking.pickup} → ${booking.drop}`} onClose={onClose} busy={busy}
+      footer={<><button onClick={onClose} disabled={busy} className={secondaryBtn}>Cancel</button><button onClick={go} disabled={busy} className={primaryBtn}>{busy ? "Assigning…" : "Assign vendor"}</button></>}
+    >
+      <div className="space-y-4 text-sm">
+        {error && <Notice tone="error">{error}</Notice>}
+        <Notice tone="info">The vendor holds the booking and then assigns its own driver and vehicle. The customer is told a partner has confirmed and driver details will follow — not that a driver is assigned.</Notice>
+        <Field label="Approved vendor" required>
+          <select value={vendorId} onChange={(e) => setVendorId(e.target.value)} className={inputCls}>
+            <option value="">Choose a vendor…</option>
+            {eligible.map((v) => <option key={v.id} value={v.id}>{v.companyName || v.name}{v.phone ? ` · ${v.phone}` : ""}</option>)}
+          </select>
+        </Field>
+        {canSetPayout ? (
+          <Field label="Agreed payout (₹)" hint="Leave blank to use the commission policy offer."><input value={payout} onChange={(e) => setPayout(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className={inputCls} /></Field>
+        ) : (
+          <p className="text-xs text-[#555]">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
+        )}
+        <Field label="Note (optional)"><input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="e.g. Regular partner for this route" className={inputCls} /></Field>
+        {chosen && <p className="text-xs text-[#555]">After assigning, only {chosen.companyName || chosen.name}’s own drivers can be given this booking.</p>}
       </div>
     </Modal>
   );

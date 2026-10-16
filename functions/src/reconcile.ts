@@ -16,6 +16,8 @@ import { db } from './admin';
 import { reconcileCancelledBooking } from './bookingOps';
 import { reconcileBookingMoney } from './bookingPayments';
 import { syncBookingFinance, syncPayoutLedger, recomputeWallet } from './ledger';
+import { syncRating } from './ratings';
+import { syncSettlementDue } from './settlement';
 import { requireAdmin } from './shared';
 
 const ID = /^[A-Za-z0-9_-]{1,128}$/;
@@ -26,6 +28,8 @@ export async function reconcileBooking(bookingId: string): Promise<void> {
   await reconcileBookingMoney(bookingId);
   const actor = await syncBookingFinance(bookingId);
   if (actor) await recomputeWallet(actor.type, actor.id);
+  await syncSettlementDue(bookingId);
+  await syncRating(bookingId);
 }
 
 export async function reconcilePayout(requestId: string): Promise<void> {

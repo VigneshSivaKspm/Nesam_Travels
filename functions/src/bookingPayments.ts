@@ -8,7 +8,7 @@ import { onDocumentUpdated } from 'firebase-functions/v2/firestore';
 import { DocumentData, FieldValue, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx, AuditRole } from './audit';
-import { PAYMENT_KINDS, PAYMENT_METHODS, CollectorType, COLLECTOR_TYPES, PaymentTxn, PaymentSummary, amountDueFor, legacyPaymentField, summarizePayments } from './domain/bookingFlow';
+import { PAYMENT_KINDS, MANUAL_PAYMENT_METHODS, CollectorType, COLLECTOR_TYPES, PaymentTxn, PaymentSummary, amountDueFor, legacyPaymentField, summarizePayments } from './domain/bookingFlow';
 import { formatDateTime12 } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { approved, requestIdOf, requireAdmin, text } from './shared';
@@ -28,8 +28,8 @@ export const txnsRef = (bookingId: string) => db.collection(`bookings/${bookingI
 async function enabledMethods(tx: Transaction): Promise<string[]> {
   const snap = await tx.get(db.doc('settings/payment_methods'));
   const list = snap.data()?.enabled;
-  const extra = Array.isArray(list) ? list.filter((m: unknown): m is string => typeof m === 'string' && m.length > 0 && m.length <= 30) : [];
-  return extra.length ? extra : [...PAYMENT_METHODS];
+  const extra = Array.isArray(list) ? list.filter((m: unknown): m is string => typeof m === 'string' && m.length > 0 && m.length <= 30 && m !== 'Gateway') : [];
+  return extra.length ? extra : [...MANUAL_PAYMENT_METHODS];
 }
 
 function toPaymentTxn(d: DocumentData): PaymentTxn {

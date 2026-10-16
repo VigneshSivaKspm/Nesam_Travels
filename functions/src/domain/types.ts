@@ -138,7 +138,7 @@ export interface DiscountDetail {
 }
 
 export type PaymentMethod = 'Cash' | 'UPI' | 'Wallet' | 'Card';
-export type TripType = 'One Way' | 'Round Trip';
+export type TripType = 'One Way' | 'Round Trip' | 'Local Rental' | 'Airport Taxi';
 
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Assigned' | 'Ongoing' | 'Completed' | 'Cancelled';
 export type TripStage =

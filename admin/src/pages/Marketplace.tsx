@@ -7,6 +7,7 @@ import type { MarketplaceTrip, Driver } from "../types";
 import { useCan } from "../components/AccessContext";
 import { Toast, useToast } from "../components/Feedback";
 import { Field, Notice, inputCls, primaryBtn, secondaryBtn } from "../components/FormKit";
+import PostingOptions, { postingPayload, usePostingOptions } from "../components/booking/PostingOptions";
 
 interface MarketplaceProps {
   onSelectBooking?: (bookingId: string) => void;
@@ -74,6 +75,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
   const [showPostingForm, setShowPostingForm] = useState(false);
+  const posting = usePostingOptions();
 
   useEffect(() => {
     setLoading(true);
@@ -141,8 +143,14 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
     const code = bookingCode.trim();
     if (!code) return;
     const customPayout = payout.trim() ? Number(payout) : null;
+    const opts = postingPayload(posting.value);
+    if (!opts.ok) {
+      setActionError(opts.error);
+      return;
+    }
     await act(async () => {
-      await postBooking(code, customPayout);
+      await postBooking(code, customPayout, opts.data);
+      posting.reset();
       setBookingCode("");
       setPayout("");
       setShowPostingForm(false);
@@ -194,7 +202,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
         <div>
           <h1 className="text-xl md:text-2xl font-bold text-[#111111]">Open Trip Marketplace</h1>
           <p className="text-sm text-[#666666] mt-0.5">
-            Broadcast verified trips to eligible independent drivers and partner vendors, review bids, and award assignments.
+            Publish approved bookings to eligible independent drivers and partner vendors, review bids, and award assignments. Approving a booking does not publish it — you publish it here or from the booking.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -291,6 +299,8 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                 </button>
               </div>
             </div>
+
+            <PostingOptions value={posting.value} onChange={posting.set} />
 
             <p className="text-xs text-[#777777] bg-gray-50 rounded-lg p-2.5 border border-gray-100">
               ℹ️ When posted, vendors will see this trip under their Marketplace offers. If no custom payout is specified by Finance, the platform commission rule calculates the offer rate automatically.
@@ -420,6 +430,14 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                       {trip.distanceKm ? (
                         <span className="text-xs text-[#666666] font-medium">· {trip.distanceKm} km</span>
                       ) : null}
+                      <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
+                        {trip.mode === "bid_review" ? "Bids reviewed by NESAM" : trip.mode === "accept_offer" ? "Accept current offer" : "Offer or bid (older post)"}
+                      </span>
+                      {trip.escalation?.enabled ? (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                          Escalating +{trip.escalation.stepPercent ?? 5}% / {trip.escalation.intervalMinutes ?? 60} min · step {trip.escalation.step ?? 0}
+                        </span>
+                      ) : null}
                       {onSelectBooking && (
                         <button
                           type="button"
@@ -524,7 +542,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="text-sm font-bold text-[#111111]">{b.vendorName || "Partner Vendor"}</div>
+                                    <div className="text-sm font-bold text-[#111111]">{b.vendorName || (b.bidderType === "driver" ? "Owner driver" : "Partner Vendor")}{b.bidderType === "driver" ? " · owner-driver" : ""}</div>
                                     <div className="text-xs text-[#666666] font-mono mt-0.5">ID: {b.vendorId || b.id}</div>
                                   </div>
                                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${statusCls}`}>

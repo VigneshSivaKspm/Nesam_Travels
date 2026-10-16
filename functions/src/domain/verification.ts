@@ -6,16 +6,20 @@
 import { createHash, createHmac, randomInt } from 'crypto';
 import * as jpeg from 'jpeg-js';
 
-export const VEHICLE_SLOTS = ['front', 'rear', 'interior'] as const;
+// The driver's own live selfie (identity) plus the vehicle front, rear and dashboard. All are taken live
+// with the in-app camera; the selfie slot is what Tariff & Operations v2 p.11 requires before departure.
+export const VEHICLE_SLOTS = ['selfie', 'front', 'rear', 'interior'] as const;
 export type VehicleSlot = (typeof VEHICLE_SLOTS)[number];
 
-export const SLOT_FIELD: Record<VehicleSlot, 'vehicleFrontPhoto' | 'vehicleRearPhoto' | 'vehicleInteriorPhoto'> = {
+export const SLOT_FIELD: Record<VehicleSlot, 'driverSelfiePhoto' | 'vehicleFrontPhoto' | 'vehicleRearPhoto' | 'vehicleInteriorPhoto'> = {
+  selfie: 'driverSelfiePhoto',
   front: 'vehicleFrontPhoto',
   rear: 'vehicleRearPhoto',
   interior: 'vehicleInteriorPhoto',
 };
 
 export const SLOT_LABEL: Record<VehicleSlot, string> = {
+  selfie: 'Driver selfie',
   front: 'Vehicle front',
   rear: 'Vehicle rear',
   interior: 'Dashboard / interior',
@@ -33,6 +37,7 @@ export const MAX_CAPTURE_TO_UPLOAD_MS = 3 * 60 * 1000;
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;
 
 const INSTRUCTIONS: Record<VehicleSlot, string[]> = {
+  selfie: ['Face the camera with your face fully visible', 'Remove sunglasses and keep your cap off', 'Hold the phone at eye level in good light'],
   front: ['Turn the headlights on', 'Keep the number plate fully readable', 'Stand about 3 metres in front of the vehicle'],
   rear: ['Turn the parking lights on', 'Keep the number plate fully readable', 'Open the boot slightly'],
   interior: ['Show the dashboard with the ignition on', 'Include the steering wheel and odometer', 'Keep the cabin lights on'],

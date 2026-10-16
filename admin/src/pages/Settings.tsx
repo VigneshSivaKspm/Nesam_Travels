@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import OperationsSettingsCard from "../components/OperationsSettingsCard";
+import DispatchRulesCard from "../components/DispatchRulesCard";
 import {
   subscribeSettings,
   saveSettings,
@@ -111,7 +112,7 @@ export default function Settings() {
         </div>
       )}
       <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-6">
-        {activeTab === "Operations & Security" && <OperationsSettingsCard />}
+        {activeTab === "Operations & Security" && (<><OperationsSettingsCard /><DispatchRulesCard /></>)}
         {activeTab === "Company" && (
           <div className="space-y-6 max-w-2xl">
             <div>

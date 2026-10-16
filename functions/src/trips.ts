@@ -13,12 +13,31 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { LEGACY_STAGE_FOR, TRIP_SUB_STATUSES, TripSubStatus, tripStageBlocker, tripSubStatusOf } from './domain/bookingFlow';
 import { distanceKm } from './domain/verification';
-import { formatDateTime12 } from './domain/time';
+import { finalizeFare, finalizeLegacyFare, PricingSnapshot } from './domain/tariff';
+import { assertDriverEligible, assertVehicleEligible, loadScheduleConfig } from './eligibility';
+import { formatDateTime12, pickupInstant } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { assertDeviceTrusted, logSecurityEvent, requestIp } from './security';
-import { approved, inIndia, text } from './shared';
+import { approved, inIndia, requirePermission, text } from './shared';
 
-const PICKUP_RADIUS_KM = 2;
+// Operational limits. All are staff-configurable in settings/operations; these defaults are the
+// working values in the Tariff & Operations spec (pickup radius 3 km, subject to confirmation).
+const DEFAULT_PICKUP_RADIUS_KM = 3;
+const DEFAULT_FIX_MAX_AGE_S = 120;
+const DEFAULT_FIX_MAX_ACCURACY_M = 200;
+const DEFAULT_START_WINDOW_MIN = 360;
+const MAX_TOTAL_KM = 6000;
+
+interface TripLimits { radiusKm: number; maxAgeMs: number; maxAccuracyM: number; startWindowMs: number }
+function limitsOf(settings: Record<string, unknown> | undefined): TripLimits {
+  const n = (v: unknown, d: number, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : d);
+  return {
+    radiusKm: n(settings?.pickupRadiusKm, DEFAULT_PICKUP_RADIUS_KM, 0.1, 25),
+    maxAgeMs: n(settings?.locationMaxAgeSeconds, DEFAULT_FIX_MAX_AGE_S, 10, 900) * 1000,
+    maxAccuracyM: n(settings?.locationMaxAccuracyMeters, DEFAULT_FIX_MAX_ACCURACY_M, 10, 2000),
+    startWindowMs: n(settings?.tripStartWindowMinutes, DEFAULT_START_WINDOW_MIN, 15, 4320) * 60000,
+  };
+}
 const MAX_TOLLS = 50000;
 const BOARDING_MAX_ATTEMPTS = 5;
 const BOARDING_LOCK_MS = 10 * 60000;
@@ -28,13 +47,14 @@ const docId = (v: unknown, what: string): string => {
   return v;
 };
 
-interface Fix { lat: number; lng: number; accuracy: number | null }
+interface Fix { lat: number; lng: number; accuracy: number | null; capturedAt: number | null }
 
 function fixOf(v: unknown): Fix | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   if (!inIndia(o.lat, o.lng)) return null;
-  return { lat: o.lat as number, lng: o.lng as number, accuracy: typeof o.accuracy === 'number' && Number.isFinite(o.accuracy) ? Math.round(o.accuracy) : null };
+  const at = typeof o.capturedAt === 'number' && Number.isFinite(o.capturedAt) ? o.capturedAt : null;
+  return { lat: o.lat as number, lng: o.lng as number, accuracy: typeof o.accuracy === 'number' && Number.isFinite(o.accuracy) ? Math.round(o.accuracy) : null, capturedAt: at };
 }
 
 async function activeDriver(uid: string | undefined) {
@@ -76,7 +96,13 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0;
     violation = '';
-    const [snap, verification] = await Promise.all([tx.get(ref), to === 'Trip Started' ? tx.get(db.doc(`vehicle_verifications/${bookingId}`)) : Promise.resolve(null)]);
+    const [snap, verification, settingsSnap, myOngoing, driverDoc] = await Promise.all([
+      tx.get(ref), to === 'Reached Pickup' || to === 'Trip Started' ? tx.get(db.doc(`vehicle_verifications/${bookingId}`)) : Promise.resolve(null),
+      tx.get(db.doc('settings/operations')),
+      to === 'Reached Pickup' || to === 'Trip Started' ? tx.get(db.collection('bookings').where('assignedDriverId', '==', driver.uid).where('status', '==', 'Ongoing')) : Promise.resolve(null),
+      to === 'Reached Pickup' ? tx.get(db.doc(`drivers/${driver.uid}`)) : Promise.resolve(null),
+    ]);
+    const limits = limitsOf(settingsSnap.data());
     if (!snap.exists) throw new HttpsError('not-found', 'This trip no longer exists.');
     const b = snap.data()!;
     if (b.assignedDriverId !== driver.uid) throw new HttpsError('permission-denied', 'This trip is not assigned to you.');
@@ -97,15 +123,48 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (to === 'Reached Pickup') {
       // 'Ongoing' only for a trip begun under the earlier order (driver still on the way).
       if (!['Assigned', 'Confirmed', 'Ongoing'].includes(b.status)) throw new HttpsError('failed-precondition', 'This trip cannot be updated in its current state.');
-      let locationNote = '';
-      if (fix && Number.isFinite(b.pickupLat) && Number.isFinite(b.pickupLng)) {
-        const d = distanceKm(fix, { lat: b.pickupLat, lng: b.pickupLng });
-        if (d > PICKUP_RADIUS_KM) throw new HttpsError('failed-precondition', `You are ${d.toFixed(1)} km from the pickup point. Move within ${PICKUP_RADIUS_KM} km to continue.`, { distanceKm: Math.round(d * 10) / 10 });
-      } else locationNote = 'location_unavailable';
-      update = { ...base, reachedPickupAt: stamp, reachedPickupLocation: geo, ...(locationNote ? { reachedPickupLocationNote: locationNote } : {}) };
+      // The upcoming duty cannot start while the same driver is still executing another trip.
+      const other = myOngoing?.docs.find((d) => d.id !== bookingId);
+      if (other) throw new HttpsError('failed-precondition', `Finish your current trip ${text(other.data().bookingId) || other.id} before starting this one.`, { code: 'trip-in-progress', bookingId: other.id });
+      // The same car cannot be on two trips: another driver's running trip in this vehicle blocks the start.
+      if (b.assignedVehicleId) {
+        const sameVehicle = await tx.get(db.collection('bookings').where('assignedVehicleId', '==', b.assignedVehicleId).where('status', '==', 'Ongoing'));
+        const busy = sameVehicle.docs.find((d) => d.id !== bookingId);
+        if (busy) throw new HttpsError('failed-precondition', `This vehicle is still on trip ${text(busy.data().bookingId) || busy.id}. It must finish before this one can start.`, { code: 'vehicle-in-use', bookingId: busy.id });
+      }
+      // Start check: it is this driver's trip, the licence and vehicle are valid, and it is not too early.
+      const at = pickupInstant(b);
+      if (at && at.getTime() - Date.now() > limits.startWindowMs) {
+        throw new HttpsError('failed-precondition', `This trip can be started from ${formatDateTime12(new Date(at.getTime() - limits.startWindowMs))}.`, { code: 'too-early' });
+      }
+      const scheduleCfg = await loadScheduleConfig(tx);
+      if (driverDoc?.data()) assertDriverEligible(driverDoc.data()!, b, scheduleCfg);
+      if (b.assignedVehicleId) {
+        const vs = await tx.get(db.doc(`vehicles/${b.assignedVehicleId}`));
+        const v = vs.data();
+        if (!vs.exists || !v || v.docStatus !== 'Approved' || ['Inactive', 'Maintenance', 'Accident Hold'].includes(v.status)) {
+          throw new HttpsError('failed-precondition', 'The assigned vehicle is not approved or not in service. Contact NESAM support.', { code: 'vehicle-blocked' });
+        }
+        assertVehicleEligible(v, vs.id, b, scheduleCfg);
+      }
+      // Reached needs a FRESH, ACCURATE fix inside the configured radius. A missing fix is refused,
+      // never recorded as a note; the only exception is the audited overrideReachedPickup function.
+      if (!fix) throw new HttpsError('failed-precondition', 'Turn on location and try again. NESAM needs your live position to confirm you are at the pickup.', { code: 'location-required' });
+      const ageMs = fix.capturedAt === null ? Infinity : Date.now() - fix.capturedAt;
+      if (ageMs > limits.maxAgeMs || ageMs < -60000) throw new HttpsError('failed-precondition', 'Your location is out of date. Wait for a fresh GPS fix and try again.', { code: 'location-stale' });
+      if (fix.accuracy !== null && fix.accuracy > limits.maxAccuracyM) throw new HttpsError('failed-precondition', `GPS accuracy is too low (±${fix.accuracy} m). Move to an open area and try again.`, { code: 'location-inaccurate' });
+      if (!Number.isFinite(b.pickupLat) || !Number.isFinite(b.pickupLng)) throw new HttpsError('failed-precondition', 'This booking has no pickup coordinates. Contact NESAM support.', { code: 'pickup-unknown' });
+      const d = distanceKm(fix, { lat: b.pickupLat, lng: b.pickupLng });
+      if (d > limits.radiusKm) throw new HttpsError('failed-precondition', `You are ${d.toFixed(1)} km from the pickup point. Move within ${limits.radiusKm} km to continue.`, { distanceKm: Math.round(d * 10) / 10, radiusKm: limits.radiusKm });
+      update = { ...base, reachedPickupAt: stamp, reachedPickupLocation: geo, reachedPickupDistanceKm: Math.round(d * 100) / 100 };
       adminMsg = `${driver.name} reached the pickup for ${label}.`;
     } else if (to === 'Trip Started') {
       if (!['Assigned', 'Confirmed', 'Ongoing'].includes(b.status)) throw new HttpsError('failed-precondition', 'This trip cannot be started in its current state.');
+      if (myOngoing?.docs.some((d) => d.id !== bookingId)) throw new HttpsError('failed-precondition', 'Finish your current trip before starting this one.', { code: 'trip-in-progress' });
+      if (b.assignedVehicleId) {
+        const sameVehicle = await tx.get(db.collection('bookings').where('assignedVehicleId', '==', b.assignedVehicleId).where('status', '==', 'Ongoing'));
+        if (sameVehicle.docs.some((d) => d.id !== bookingId)) throw new HttpsError('failed-precondition', 'This vehicle is still on another trip. It must finish before this one can start.', { code: 'vehicle-in-use' });
+      }
       if (!b.boardingVerifiedAt) throw new HttpsError('failed-precondition', "Verify the customer's boarding OTP before starting the trip.", { boardingRequired: true });
       const v = verification!.data();
       if (!verification!.exists || !v || v.driverId !== driver.uid || v.status !== 'Submitted') {
@@ -119,14 +178,55 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
       adminMsg = `Trip ${label} started by ${driver.name}.`;
     } else {
       if (b.status !== 'Ongoing') throw new HttpsError('failed-precondition', 'This trip is not in progress.');
+      // The driver's input at Trip End is the total trip kilometres. A closing odometer reading is
+      // optional and is used only to flag an unusual entry for review.
       const end = input.endOdometer;
       const start = typeof b.startOdometer === 'number' ? b.startOdometer : 0;
-      if (!Number.isFinite(end) || end <= 0) throw new HttpsError('invalid-argument', 'Enter the ending odometer reading.');
-      if (end < start) throw new HttpsError('invalid-argument', `The ending reading must be at least the starting reading (${start} km).`);
-      const tolls = tollsOf(input.tolls);
+      const hasEnd = Number.isFinite(end) && end > 0;
+      if (hasEnd && end < start) throw new HttpsError('invalid-argument', `The ending reading must be at least the starting reading (${start} km).`);
+      const totalKm = input.totalKm;
+      if (!hasEnd && !(typeof totalKm === 'number' && Number.isFinite(totalKm) && totalKm > 0)) {
+        throw new HttpsError('invalid-argument', 'Enter the total kilometres driven for the whole trip.', { code: 'total-km-required' });
+      }
+      const pricing = b.pricing && typeof b.pricing === 'object' && b.pricing.schema === 2 ? (b.pricing as PricingSnapshot) : null;
+      // The driver states the total kilometres; the server derives the fare. A rate or amount from the driver is ignored.
+      if (pricing && (typeof totalKm !== 'number' || !Number.isFinite(totalKm) || totalKm <= 0 || totalKm > MAX_TOTAL_KM)) {
+        throw new HttpsError('invalid-argument', 'Enter the total kilometres driven for the whole trip.', { code: 'total-km-required' });
+      }
+      const tolls = input.tolls != null ? tollsOf(input.tolls) : (Array.isArray(b.tolls) ? (b.tolls as TollIn[]) : []);
+      const driven = start > 0 && hasEnd ? end - start : null;
+      const discrepancy = typeof totalKm === 'number' && driven !== null && Math.abs(driven - totalKm) > Math.max(5, totalKm * 0.1);
+      let money: Record<string, unknown> = {};
+      if (pricing && typeof totalKm === 'number') {
+        const endMs = Date.now();
+        if (pricing.source === 'tariff_v2') {
+          const f = finalizeFare({ pricing, totalKm, endMs });
+          money = {
+            fare: f.fare.total, fareBreakdown: f.fare,
+            finalFare: { schema: 1, totalKm, quotedKm: pricing.quotedKm, includedKm: pricing.includedKm, extraKm: f.extraKm, days: f.days, extraDays: f.extraDays, quotedFare: b.fare, finalFare: f.fare.total, at: Timestamp.now() },
+            ...(b.payoutSource === 'tariff' && f.partnerPaise !== null
+              ? { [b.assignedVendorId ? 'vendorPayout' : 'driverPayout']: Math.round(f.partnerPaise) / 100 }
+              : {}),
+          };
+        } else {
+          const fb = b.fareBreakdown ?? {};
+          const f = finalizeLegacyFare({
+            total: Number(b.fare) || 0, taxable: Number(fb.taxableAmount) || 0, gstRate: Number(fb.gstRate) || 0.05, discount: Number(fb.discount) || 0,
+            quotedKm: pricing.quotedKm, extraKmRate: pricing.extraKmRatePaise / 100, totalKm,
+          });
+          const record = { schema: 1, totalKm, quotedKm: pricing.quotedKm, includedKm: pricing.includedKm, extraKm: f.extraKm, days: 1, extraDays: 0, quotedFare: b.fare, at: Timestamp.now() };
+          if (f.extra > 0) {
+            const next = { ...fb, taxableAmount: f.taxable, gst: f.gst, total: f.total, subtotal: (Number(fb.subtotal) || 0) + f.extra, distanceFare: (Number(fb.distanceFare) || 0) + f.extra, distanceKm: f.distanceKm };
+            money = { fare: f.total, fareBreakdown: next, finalFare: { ...record, finalFare: f.total } };
+          } else {
+            money = { finalFare: { ...record, finalFare: b.fare } };
+          }
+        }
+      }
       update = {
-        ...base, status: 'Completed', tripEndedAt: stamp, completedAt: stamp, tripEndedLocation: geo, endOdometer: end,
-        tolls, tollCharges: tolls.reduce((s, t) => s + t.amount, 0),
+        ...base, status: 'Completed', tripEndedAt: stamp, completedAt: stamp, tripEndedLocation: geo, ...(hasEnd ? { endOdometer: end } : {}),
+        ...(typeof totalKm === 'number' ? { totalKm, ...(discrepancy ? { distanceDiscrepancy: { odometerKm: driven, enteredKm: totalKm, flaggedAt: Timestamp.now() } } : {}) } : {}),
+        ...money, tolls, tollCharges: tolls.reduce((s, t) => s + t.amount, 0),
       };
       adminMsg = `Trip ${label} completed by ${driver.name}.`;
     }
@@ -206,4 +306,35 @@ export const verifyBoarding = onCall(async (request) => {
     throw new HttpsError('failed-precondition', locked ? 'Too many wrong codes. The check is locked for 10 minutes.' : `That code is not correct. ${out.remaining} attempt${out.remaining === 1 ? '' : 's'} left.`);
   }
   return out;
+});
+
+/**
+ * Audited exception to the pickup gate: staff mark a trip "Reached Pickup" when the driver's GPS
+ * cannot confirm it (dead phone, no signal) and the reason is on record. It is a distinct,
+ * logged path — the driver-facing advanceTrip never accepts a missing or distant location.
+ */
+export const overrideReachedPickup = onCall({ timeoutSeconds: 60 }, async (request) => {
+  const admin = await requirePermission(request.auth, 'operations');
+  const bookingId = docId(request.data?.bookingId, 'booking');
+  const reason = text(request.data?.reason, 300);
+  if (reason.length < 10) throw new HttpsError('invalid-argument', 'Give the reason (at least 10 characters). It is kept on the trip record.');
+  const ref = db.doc(`bookings/${bookingId}`);
+  await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) throw new HttpsError('not-found', 'Booking not found.');
+    const b = snap.data()!;
+    if (!['Assigned', 'Ongoing'].includes(b.status) || !b.assignedDriverId) throw new HttpsError('failed-precondition', 'Only an assigned trip can be marked as reached.');
+    if (tripSubStatusOf(b) !== 'Not Started') throw new HttpsError('failed-precondition', 'This trip has already moved past the pickup stage.');
+    const stamp = FieldValue.serverTimestamp();
+    tx.update(ref, {
+      tripSubStatus: 'Reached Pickup', tripStage: LEGACY_STAGE_FOR['Reached Pickup'], reachedPickupAt: stamp, updatedAt: stamp,
+      reachedPickupOverride: { by: admin.uid, byName: admin.name, reason, at: Timestamp.now() },
+    });
+    tx.create(ref.collection('events').doc(), { type: 'trip_reached_pickup_override', actorId: admin.uid, actorRole: 'admin', reason, at: stamp });
+    auditInTx(tx, {
+      action: 'reached_pickup_override', entity: 'booking', entityId: bookingId, performedBy: admin.uid, performedByName: admin.name, role: 'admin', bookingId,
+      previous: { tripSubStatus: 'Not Started' }, next: { tripSubStatus: 'Reached Pickup' }, reason,
+    });
+  });
+  return { ok: true };
 });

@@ -4,7 +4,7 @@ import { Modal } from "./Feedback";
 import { AdminBookingError, fareOverrideBlocker, overrideBookingFare } from "../services/adminBookingService";
 import { parseAmount } from "../utils/analytics";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 /** Changes a booking's fare through the server (reason required, audited). */
 export default function FareOverrideModal({ booking, onClose, onDone }: { booking: Booking; onClose: () => void; onDone: (fare: number) => void }) {

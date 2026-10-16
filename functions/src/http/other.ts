@@ -4,7 +4,8 @@ import { createHmac } from 'crypto';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from '../admin';
 import { runUnassignedAlerts, clearResolvedFlags } from '../scheduler';
-import { sweepRecentBookings } from '../reconcile';
+import { reconcileBacklog, runPeriodicJobs } from '../jobs';
+import { handleRazorpayEvent, razorpayWebhookValid } from '../payments';
 import { ApiRequest, ApiResponse, apiHeaders, cronAuthorized, header, safeEqual, sendError, sendJson } from './util';
 
 export async function health(_req: ApiRequest, res: ApiResponse): Promise<void> {
@@ -91,14 +92,59 @@ export async function cronAlerts(req: ApiRequest, res: ApiResponse): Promise<voi
   }
 }
 
-/** Safety net for the reconcile hooks: settles any booking written in the last 30 minutes. */
+/** Backlog-based safety net: settles every booking written since the stored watermark (not just the last N minutes). */
 export async function cronReconcile(req: ApiRequest, res: ApiResponse): Promise<void> {
   apiHeaders(res);
   if (!cronAuthorized(req)) return sendError(res, 401, 'unauthenticated', 'Unauthorized.');
   try {
-    sendJson(res, 200, { ok: true, ...(await sweepRecentBookings(30)) });
+    sendJson(res, 200, { ok: true, ...(await reconcileBacklog()) });
   } catch (err) {
     console.error('[cron] reconcile failed', err);
     sendError(res, 500, 'internal', 'Job failed.');
+  }
+}
+
+/** Runs every periodic job (backlog reconcile, alerts, offer escalation, cut-offs, waves, settlements, expiries). */
+export async function cronTick(req: ApiRequest, res: ApiResponse): Promise<void> {
+  apiHeaders(res);
+  if (!cronAuthorized(req)) return sendError(res, 401, 'unauthenticated', 'Unauthorized.');
+  try {
+    sendJson(res, 200, { ok: true, ...(await runPeriodicJobs()) });
+  } catch (err) {
+    console.error('[cron] tick failed', err);
+    sendError(res, 500, 'internal', 'Job failed.');
+  }
+}
+
+/**
+ * Razorpay webhook. Accepts only a body signed with RAZORPAY_WEBHOOK_SECRET (X-Razorpay-Signature over
+ * the raw bytes). A captured payment becomes a canonical receipt exactly once, even when Razorpay
+ * redelivers the event or the customer's own checkout callback also verified it.
+ */
+export async function razorpayWebhook(req: ApiRequest, res: ApiResponse): Promise<void> {
+  apiHeaders(res);
+  if (req.method !== 'POST') return sendError(res, 405, 'method-not-allowed', 'Use POST.');
+  const secret = (process.env.RAZORPAY_WEBHOOK_SECRET ?? '').trim();
+  if (!secret) return sendError(res, 503, 'unavailable', 'Webhook is not configured.');
+  let raw: Buffer;
+  try {
+    raw = await readRawBody(req);
+  } catch {
+    return sendError(res, 413, 'invalid-argument', 'Request is too large.');
+  }
+  if (!razorpayWebhookValid(raw, header(req, 'x-razorpay-signature'), secret)) return sendError(res, 403, 'permission-denied', 'Forbidden.');
+  let body: any;
+  try {
+    body = JSON.parse(raw.toString('utf8'));
+  } catch {
+    return sendError(res, 400, 'invalid-argument', 'Invalid JSON.');
+  }
+  try {
+    const r = await handleRazorpayEvent(body);
+    sendJson(res, 200, { ok: true, ...r });
+  } catch (err) {
+    // 5xx makes Razorpay retry; the receipt is idempotent so a retry is safe.
+    console.error('[razorpay] webhook failed', err);
+    sendError(res, 500, 'internal', 'Could not process the event.');
   }
 }

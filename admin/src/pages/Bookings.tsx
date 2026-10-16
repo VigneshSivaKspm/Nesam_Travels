@@ -7,7 +7,7 @@ import { AdminBookingError, normalizePhone, updateBookingContact, emailError } f
 import ManualBookingModal from "../components/ManualBookingModal";
 import { ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { Field, inputCls } from "../components/FormKit";
-import { AlertBadge, PaymentBadge, StatusBadge } from "../components/booking/BookingBadges";
+import { AlertBadge, PaymentBadge, StatusBadge, FulfilmentBadge } from "../components/booking/BookingBadges";
 import { ApproveDialog, AssignDriverModal, CancelBookingModal, RejectDialog } from "../components/booking/BookingActions";
 import { BOOKING_TABS, paymentOf, tabOf, unassignedSeverity, type BookingTab } from "../domain/bookingFlow";
 import { useCan } from "../components/AccessContext";
@@ -17,7 +17,7 @@ import { bookingPickupDate, formatDate, formatTime12, isoDateIST, relativeFromNo
 
 type TabKey = BookingTab | "Cancelled";
 const PAGE_SIZE = 20;
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 const fareNumber = (b: Booking) => (typeof b.fare === "number" ? b.fare : Number(String(b.fare ?? "").replace(/[^\d.]/g, "")) || 0);
 
 interface Filters {
@@ -244,7 +244,7 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
                       <td className="px-3 py-3 text-sm"><div className="font-semibold text-[#111]">{b.customer}</div><div className="text-xs text-[#555]">{b.phone}</div></td>
                       <td className="px-3 py-3 text-sm max-w-[200px]"><div className="truncate" title={b.pickup}>{b.pickup}</div><div className="truncate text-[#555]" title={b.drop}>→ {b.drop}</div></td>
                       <td className="px-3 py-3 text-sm whitespace-nowrap"><div className="font-semibold text-[#111]">{p ? formatTime12(p) : b.time}</div><div className="text-xs text-[#555]">{p ? formatDate(p) : b.date}{p && tab !== "Completed" && tab !== "Cancelled" ? ` · ${relativeFromNow(p, now)}` : ""}</div></td>
-                      <td className="px-3 py-3 text-sm"><div>{b.vehicleCategory || b.vehicle}</div><div className="text-xs text-[#555]">{b.assignedDriverName || b.driver || (b.assignedVendorName ? `Vendor: ${b.assignedVendorName}` : "No driver")}{b.assignedVehicleNumber ? ` · ${b.assignedVehicleNumber}` : ""}</div><div className="mt-1"><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div></td>
+                      <td className="px-3 py-3 text-sm"><div>{b.vehicleCategory || b.vehicle}</div><div className="text-xs text-[#555]">{b.assignedDriverName || b.driver || (b.assignedVendorName ? `Vendor: ${b.assignedVendorName}` : "No driver")}{b.assignedVehicleNumber ? ` · ${b.assignedVehicleNumber}` : ""}</div><div className="mt-1 flex flex-wrap gap-1"><FulfilmentBadge booking={b} /><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div></td>
                       <td className="px-3 py-3 text-sm font-semibold whitespace-nowrap">{rupees(fareNumber(b))}</td>
                       <td className="px-3 py-3"><PaymentBadge status={pay.status} />{pay.balanceDue > 0 && pay.totalPaid > 0 && <div className="text-xs text-[#555] mt-1">Due {rupees(pay.balanceDue)}</div>}</td>
                       <td className="px-3 py-3"><StatusBadge status={b.status} /></td>
@@ -274,7 +274,7 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
                   <div className="text-sm text-[#333]">{b.pickup} → {b.drop}</div>
                   <div className="text-sm"><strong>{p ? formatTime12(p) : b.time}</strong> · {p ? formatDate(p) : b.date} · {b.vehicleCategory || b.vehicle}</div>
                   <div className="text-sm text-[#555]">{b.assignedDriverName || b.driver || "No driver assigned"}{b.assignedVehicleNumber ? ` · ${b.assignedVehicleNumber}` : ""}</div>
-                  <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{rupees(fareNumber(b))}</span><PaymentBadge status={pay.status} /><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div>
+                  <div className="flex flex-wrap items-center gap-2"><span className="font-semibold">{rupees(fareNumber(b))}</span><PaymentBadge status={pay.status} /><FulfilmentBadge booking={b} /><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div>
                   <RowActions b={b} onView={() => onSelectBooking(b.id)} onApprove={() => setApproving(b)} onReject={() => setRejecting(b)} onAssign={() => setAssigning(b)} onCancel={() => setCancelling(b)} onEdit={() => setEditing(b)} />
                 </li>
               );

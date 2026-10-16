@@ -27,18 +27,26 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   assignDriver: fns.assignDriver,
   acknowledgeUnassignedAlert: fns.acknowledgeUnassignedAlert,
   migrateMarketplaceVisibility: fns.migrateMarketplaceVisibility,
+  backfillFulfilmentRoute: fns.backfillFulfilmentRoute,
   // money
   recordPayment: fns.recordPayment,
   voidPayment: fns.voidPayment,
   saveFareAdjustment: fns.saveFareAdjustment,
+  saveTariffConfig: fns.saveTariffConfig,
+  quoteBooking: fns.quoteBooking,
   saveCommissionPolicy: fns.saveCommissionPolicy,
   requestPartnerPayout: fns.requestPartnerPayout,
   rebuildPartnerLedger: fns.rebuildPartnerLedger,
+  updateSettlement: fns.updateSettlement,
   createRazorpayOrder,
   verifyRazorpayPayment,
   reconcile,
   // trips
+  getCustomerContact: fns.getCustomerContact,
+  updateBookingContact: fns.updateBookingContact,
+  migrateBookingContacts: fns.migrateBookingContacts,
   advanceTrip: fns.advanceTrip,
+  overrideReachedPickup: fns.overrideReachedPickup,
   verifyBoarding: fns.verifyBoarding,
   createCaptureSession: fns.createCaptureSession,
   getSlotChallenge: fns.getSlotChallenge,
@@ -46,8 +54,14 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   finalizeVehicleVerification: fns.finalizeVehicleVerification,
   // marketplace
   awardMarketplaceBid: fns.awardMarketplaceBid,
+  rejectMarketplaceBid: fns.rejectMarketplaceBid,
   postBookingToMarketplace: fns.postBookingToMarketplace,
   assignIndependentDriver: fns.assignIndependentDriver,
+  assignVendor: fns.assignVendor,
+  vendorAssignDriver: fns.vendorAssignDriver,
+  claimMarketplaceDuty: fns.claimMarketplaceDuty,
+  submitMarketplaceBid: fns.submitMarketplaceBid,
+  withdrawMarketplaceBid: fns.withdrawMarketplaceBid,
   // penalties
   issuePenalty: fns.issuePenalty,
   transitionPenalty: fns.transitionPenalty,
@@ -84,7 +98,7 @@ export const BOOKING_ID_FIELDS = ['bookingId', 'requestId', 'tripId', 'id'] as c
 /** Callables that create / change bookings or payout requests (reconciled after success). */
 export const RECONCILES_BOOKING = new Set([
   'createBooking', 'createAdminBooking', 'overrideBookingFare', 'approveBooking', 'rejectBooking', 'cancelBooking', 'updateRefund',
-  'assignDriver', 'recordPayment', 'voidPayment', 'advanceTrip', 'verifyBoarding', 'awardMarketplaceBid', 'postBookingToMarketplace',
-  'assignIndependentDriver', 'finalizeVehicleVerification',
+  'assignDriver', 'recordPayment', 'voidPayment', 'advanceTrip', 'overrideReachedPickup', 'verifyBoarding', 'awardMarketplaceBid', 'rejectMarketplaceBid', 'postBookingToMarketplace',
+  'assignIndependentDriver', 'assignVendor', 'vendorAssignDriver', 'claimMarketplaceDuty', 'submitMarketplaceBid', 'withdrawMarketplaceBid', 'finalizeVehicleVerification',
 ]);
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);

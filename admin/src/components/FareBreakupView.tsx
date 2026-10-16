@@ -3,7 +3,7 @@ import type { Booking } from "../types";
 type Breakup = NonNullable<Booking["fareBreakup"]>;
 type Line = Breakup["lines"][number];
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 const TREATMENT: Record<Line["treatment"], { label: string; cls: string }> = {
   included: { label: "Included", cls: "bg-green-50 text-green-800 border-green-200" },

@@ -97,7 +97,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
             driverPhone: a.driverPhone || a.assignedDriverPhone || "",
             preTrip: a.preTrip || null,
             vehicleVerification: a.vehicleVerification || null,
-            hasVerificationPhotos: !!(a.vehicleFrontPhoto || a.vehicleRearPhoto || a.vehicleInteriorPhoto),
+            hasVerificationPhotos: !!(a.driverSelfiePhoto || a.vehicleFrontPhoto || a.vehicleRearPhoto || a.vehicleInteriorPhoto),
           })),
         );
       } else {
@@ -401,9 +401,10 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
             {/* Pre-Trip Verification Photos */}
             {(() => {
               const photos = [
+                { label: "Driver Selfie", src: trip.preTrip?.driverSelfie },
                 { label: "Vehicle Front", src: trip.preTrip?.vehicleFront },
-                { label: "Odometer", src: trip.preTrip?.odometer },
-                { label: "Rear Seat", src: trip.preTrip?.rearSeat },
+                { label: "Vehicle Rear", src: trip.preTrip?.vehicleRear },
+                { label: "Dashboard / Interior", src: trip.preTrip?.vehicleInterior },
               ];
               const submitted = photos.filter(
                 (p) => typeof p.src === "string" && p.src.length > 0,
@@ -417,15 +418,15 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                     />
                     Pre-Trip Verification Photos
                     <span
-                      className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${trip.hasVerificationPhotos || submitted.length === 3 ? "text-green-600 bg-green-50" : "text-[#999] bg-[#F5F5F5]"}`}
+                      className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${trip.hasVerificationPhotos || submitted.length === 4 ? "text-green-600 bg-green-50" : "text-[#999] bg-[#F5F5F5]"}`}
                     >
-                      {trip.hasVerificationPhotos ? "Camera verification submitted" : `${submitted.length}/3 Submitted`}
+                      {trip.hasVerificationPhotos ? "Camera verification submitted" : `${submitted.length}/4 Submitted`}
                     </span>
                   </h4>
                   {trip.hasVerificationPhotos ? (
                     <div className="py-3 text-[12px] text-[#333] space-y-2">
                       <div>
-                        Front, rear and dashboard photos were captured live with the camera
+                        The driver's selfie and the front, rear and dashboard photos were captured live with the camera
                         {trip.vehicleVerification?.riskLevel ? ` — fraud risk: ${String(trip.vehicleVerification.riskLevel).toUpperCase()}` : ""}.
                       </div>
                       {onOpenBooking && (
@@ -439,7 +440,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                       Driver has not uploaded verification photos yet
                     </div>
                   ) : (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {photos.map((p) => (
                         <div key={p.label} className="text-center">
                           <button

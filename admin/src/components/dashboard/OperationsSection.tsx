@@ -87,7 +87,7 @@ export default function OperationsSection({ bookings, penalties, now, thresholds
     return { today, tomorrow, unassigned, pending, approved, ongoing, completedToday, paymentsDue, paymentsDueAmount, refundsPending, refundsPendingAmount, penaltiesOpen };
   }, [bookings, penalties, now, thresholds]);
 
-  const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+  const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
   const critical = data.unassigned.filter((u) => u.sev === "critical").length;
   const cards: { label: string; value: string; sub?: string; tone: "red" | "amber" | "blue" | "green" | "neutral"; go: string }[] = [
     { label: "Today’s trips", value: String(data.today.length), tone: "blue", go: "bookings" },

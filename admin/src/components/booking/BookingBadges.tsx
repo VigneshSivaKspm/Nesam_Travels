@@ -1,4 +1,4 @@
-import type { AlertSeverity } from "../../domain/bookingFlow";
+import { FULFILMENT_LABEL, fulfilmentOf, type AlertSeverity, type Fulfilment } from "../../domain/bookingFlow";
 
 const STATUS: Record<string, string> = {
   Pending: "bg-yellow-50 text-yellow-800 border-yellow-300",
@@ -38,4 +38,20 @@ export function AlertBadge({ severity, label }: { severity: AlertSeverity; label
       {label ? ` · ${label}` : ""}
     </span>
   );
+}
+
+const FULFILMENT_STYLE: Partial<Record<Fulfilment, string>> = {
+  awaiting_review: "bg-yellow-50 text-yellow-800 border-yellow-300",
+  awaiting_fulfilment: "bg-orange-50 text-orange-800 border-orange-300",
+  published: "bg-emerald-50 text-emerald-800 border-emerald-300",
+  vendor_assigned: "bg-blue-50 text-blue-800 border-blue-300",
+  driver_assigned: "bg-indigo-50 text-indigo-800 border-indigo-300",
+};
+
+/** Where an open booking is in fulfilment: awaiting a route, published, vendor-held or fully assigned. */
+export function FulfilmentBadge({ booking }: { booking: { status?: unknown; assignedVendorId?: unknown; assignedDriverId?: unknown; fulfilmentRoute?: unknown } }) {
+  const f = fulfilmentOf(booking);
+  const cls = FULFILMENT_STYLE[f];
+  if (!cls) return null;
+  return <span className={`inline-flex px-2 py-0.5 rounded border text-xs font-semibold ${cls}`}>{FULFILMENT_LABEL[f]}</span>;
 }

@@ -8,6 +8,7 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
 import { db } from './admin';
 import { audit } from './audit';
+import { loadContact } from './contacts';
 import { contactOf } from './customerComms';
 import { deliveryRow } from './notify';
 import { Channel, SendResult, mask, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
@@ -39,7 +40,8 @@ export const sendVerificationCode = onCall({ timeoutSeconds: 60 }, async (reques
   const snap = await db.doc(`bookings/${bookingId}`).get();
   if (!snap.exists) throw new HttpsError('not-found', 'Booking not found.');
   const b = snap.data()!;
-  const c = contactOf(b);
+  const stored = await loadContact(bookingId, b);
+  const c = { ...contactOf(b), phone: stored.phone, whatsapp: stored.whatsapp, email: stored.email };
   const dest: Partial<Record<Channel, string>> = {};
   if (wanted.includes('whatsapp') && toDigits(c.whatsapp).length >= 10) dest.whatsapp = c.whatsapp;
   if (wanted.includes('sms') && toDigits(c.phone).length >= 10) dest.sms = c.phone;

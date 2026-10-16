@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import SettlementQueue from "../components/SettlementQueue";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import type { Booking, PaymentTransaction } from "../types";
 import { subscribeBookings, subscribePayments, subscribeToCollection } from "../services/adminFirestoreService";
@@ -37,7 +38,7 @@ function downloadCsv(filename: string, headers: string[], rows: (string | number
   URL.revokeObjectURL(url);
 }
 
-export default function Payments() {
+export default function Payments({ onSelectBooking }: { onSelectBooking?: (id: string) => void } = {}) {
   const [rawPayments, setRawPayments] = useState<PaymentTransaction[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [admins, setAdmins] = useState<{ id: string; name?: string; email?: string }[]>([]);
@@ -45,7 +46,7 @@ export default function Payments() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
 
-  const [tab, setTab] = useState<"transactions" | "awaiting">("transactions");
+  const [tab, setTab] = useState<"transactions" | "awaiting" | "settlements">("transactions");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [methodFilter, setMethodFilter] = useState("All");
@@ -230,6 +231,7 @@ export default function Payments() {
         {[
           { key: "transactions" as const, label: `Transactions (${payments.length})` },
           { key: "awaiting" as const, label: `Awaiting Verification (${awaiting.length})` },
+          { key: "settlements" as const, label: "Partner payouts due" },
         ].map((t) => (
           <button
             key={t.key}
@@ -242,7 +244,9 @@ export default function Payments() {
         ))}
       </div>
 
-      {tab === "transactions" ? (
+      {tab === "settlements" ? (
+        <SettlementQueue onOpenBooking={onSelectBooking} />
+      ) : tab === "transactions" ? (
         <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-[#E5E5E5] space-y-3 bg-[#FAFAFA]">
             <div className="flex flex-wrap items-center justify-between gap-2">

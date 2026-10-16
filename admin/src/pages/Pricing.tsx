@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
+import TariffConfigCard from "../components/TariffConfigCard";
 import { FareRule, PricingModel, TravelService, VehicleCategory, MasterLocation, FareCalculationInput } from "../types";
 import { subscribeFareRules, subscribeServices, subscribeVehicleCategories, subscribeLocations } from "../services/adminFirestoreService";
 import { calculateCentralFare } from "../services/fareEngine";
@@ -242,6 +243,7 @@ export default function Pricing() {
         </div>
       </div>
 
+      <TariffConfigCard />
       <FareAdjustmentCard />
 
       {/* Summary Cards */}

@@ -11,8 +11,29 @@ export interface ChannelResult {
   error?: string;
 }
 
+/** Approval is a review decision only: it does not publish the booking or notify partners. */
 export const approveBooking = (bookingId: string, note = "") =>
-  callFunction<unknown, { ok: boolean; partnersNotified: number; customerChannels: ChannelResult[] }>("approveBooking", { bookingId, note }, 120000);
+  callFunction<unknown, { ok: boolean; published: boolean; customerChannels: ChannelResult[] }>("approveBooking", { bookingId, note }, 120000);
+
+/** Fulfilment route 1: publish an approved booking to Open Duties. `payout` (whole rupees) needs finance access; omit it to use the commission policy. */
+export const publishToMarketplace = (bookingId: string, payout?: number, options: Record<string, unknown> = {}) =>
+  callFunction<unknown, { bookingId: string; offeredPayout: number; partnersNotified: number }>("postBookingToMarketplace", { booking: bookingId, ...(payout != null ? { payout } : {}), ...options }, 120000);
+
+/** Audited exception to the pickup GPS gate: staff mark a trip as reached with a written reason. */
+export const overrideReachedPickup = (bookingId: string, reason: string) =>
+  callFunction<unknown, { ok: boolean }>("overrideReachedPickup", { bookingId, reason });
+
+/** Finance moves a partner settlement through Processing / Paid / Failed / On Hold. */
+export const updateSettlement = (i: { bookingId: string; action: "processing" | "paid" | "failed" | "hold" | "release"; reference?: string; method?: "UPI" | "Bank Transfer"; reason?: string; holdOwner?: string; holdDeadline?: string }) =>
+  callFunction<typeof i, { ok: boolean }>("updateSettlement", i);
+
+/** Saves the confirmed customer / partner tariff (business_config/tariff_v2). */
+export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; enabled: boolean; reason: string; expectedVersion?: number; cityDrop?: { zones: { id: string; name: string; lat: number; lng: number; radiusKm: number }[] } }) =>
+  callFunction<typeof i, { version: number; enabled: boolean }>("saveTariffConfig", i);
+
+/** Fulfilment route 2: reserve an approved booking to a Vendor, which then assigns its own driver and vehicle. */
+export const assignVendor = (i: { bookingId: string; vendorId: string; payout?: number; reason?: string }) =>
+  callFunction<typeof i, { ok: boolean; vendorName: string; payout: number }>("assignVendor", i);
 
 export const rejectBooking = (bookingId: string, reason: string) => callFunction<unknown, { ok: boolean }>("rejectBooking", { bookingId, reason });
 

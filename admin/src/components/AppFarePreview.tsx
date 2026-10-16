@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import type { VehicleCategory } from "../types";
 import { calculateBookingFare, isOutstation, OUTSTATION_THRESHOLD_KM, toEngineCategory } from "../services/bookingFareEngine";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 /** Local "YYYY-MM-DDTHH:mm" for a datetime-local input. */
 const nowLocal = () => {

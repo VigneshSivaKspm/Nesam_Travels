@@ -7,8 +7,9 @@ import { db } from './admin';
 import { deliveryRow } from './notify';
 import { Channel, SendResult, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
 import { formatDateTime12, formatTime12, pickupInstant } from './domain/time';
+import { loadContact } from './contacts';
 
-export type CustomerMessageKind = 'booking_approved' | 'driver_assigned' | 'booking_cancelled' | 'trip_completed' | 'refund_update';
+export type CustomerMessageKind = 'booking_approved' | 'vendor_assigned' | 'driver_assigned' | 'booking_cancelled' | 'trip_completed' | 'refund_update';
 
 export interface CustomerContact {
   name: string;
@@ -51,9 +52,20 @@ export function composeCustomerMessage(kind: CustomerMessageKind, b: DocumentDat
   const route = `${b.pickup ?? ''} to ${b.drop ?? ''}`;
   switch (kind) {
     case 'booking_approved': {
+      // Approval is not an assignment: no driver or vehicle is promised yet.
       const otpLine = extra.otp ? ` Your boarding OTP is ${extra.otp}. Share it only with your driver at pickup.` : '';
-      const line = `Your NESAM booking ${code} is confirmed for ${when}, ${route}. Fare ${rupees(b.fare)}.${otpLine}`;
-      return { subject: `Booking ${code} confirmed`, line, body: `Hello ${b.customer ?? ''},\n\n${line}\n\nThank you for choosing NESAM Tours & Travels.` };
+      const line = `Your NESAM booking ${code} for ${when} (${route}) is approved. We are arranging your vehicle and will send driver details before pickup. Fare ${rupees(b.fare)}.${otpLine}`;
+      return { subject: `Booking ${code} approved`, line, body: `Hello ${b.customer ?? ''},
+
+${line}
+
+Thank you for choosing NESAM Tours & Travels.` };
+    }
+    case 'vendor_assigned': {
+      const line = `Booking ${code} is confirmed with a NESAM partner for ${when}. Driver and vehicle details will follow before pickup.`;
+      return { subject: `Booking ${code} — partner confirmed`, line, body: `Hello ${b.customer ?? ''},
+
+${line}` };
     }
     case 'driver_assigned': {
       const line = `Driver assigned for booking ${code}: ${b.assignedDriverName ?? b.driver ?? ''}${b.assignedVehicleNumber ? `, vehicle ${b.assignedVehicleNumber}` : ''}. Pickup ${when}.`;
@@ -87,7 +99,9 @@ export async function sendCustomerMessage(
   kind: CustomerMessageKind,
   extra: { otp?: string; reason?: string } = {},
 ): Promise<SendResult[]> {
-  const c = contactOf(b);
+  // Raw contact details are held apart from the booking (partners can read the booking).
+  const stored = await loadContact(bookingId, b);
+  const c: CustomerContact = { name: stored.name || contactOf(b).name, phone: stored.phone, whatsapp: stored.whatsapp, email: stored.email };
   const m = composeCustomerMessage(kind, b, extra);
   const jobs: Promise<SendResult>[] = [];
   const template = templateFor(kind);

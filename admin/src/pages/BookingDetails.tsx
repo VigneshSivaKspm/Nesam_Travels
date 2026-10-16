@@ -9,13 +9,14 @@ import FareBreakupView from "../components/FareBreakupView";
 import { Notice, primaryBtn, secondaryBtn } from "../components/FormKit";
 import { Toast, useToast } from "../components/Feedback";
 import { AlertBadge, StatusBadge } from "../components/booking/BookingBadges";
-import { ApproveDialog, AssignDriverModal, CancelBookingModal, RecordPaymentModal, RefundModal, RejectDialog, VoidPaymentDialog } from "../components/booking/BookingActions";
+import { ApproveDialog, AssignDriverModal, AssignVendorModal, CancelBookingModal, PublishDialog, RecordPaymentModal, RefundModal, RejectDialog, VoidPaymentDialog } from "../components/booking/BookingActions";
 import { AssignmentHistory, PaymentsPanel, VehicleVerificationPanel, VerifyCustomerModal, type AssignmentRow, type PaymentRow, type VerificationDoc } from "../components/booking/BookingPanels";
 import { useCan } from "../components/AccessContext";
 import { parseAmount } from "../utils/analytics";
 import { describeDataError, subscribeDrivers, subscribeToCollection, subscribeToDocument, subscribeVehicles, subscribeVendors } from "../services/adminFirestoreService";
 import { acknowledgeUnassignedAlert } from "../services/bookingOpsService";
-import { tripSubStatusOf, unassignedSeverity } from "../domain/bookingFlow";
+import { FULFILMENT_LABEL, fulfilmentOf, tripSubStatusOf, unassignedSeverity } from "../domain/bookingFlow";
+import { PricingPanel, ReachedOverrideDialog, SettlementPanel } from "../components/booking/TripMoneyPanels";
 import { useNow } from "../hooks/useNow";
 import { useOperationsSettings } from "../hooks/useOperationsSettings";
 import { bookingPickupDate, formatDate, formatDateTime12, formatTime12, relativeFromNow, toDate } from "../utils/time";
@@ -49,7 +50,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-type Dialog = "approve" | "reject" | "assign" | "cancel" | "pay" | "refund" | "fare" | "verify" | null;
+type Dialog = "approve" | "reject" | "assign" | "vendor" | "publish" | "reached" | "cancel" | "pay" | "refund" | "fare" | "verify" | null;
 
 export default function BookingDetails({ bookingId, onBack }: { bookingId: string; onBack: () => void }) {
   const [booking, setBooking] = useState<Booking | null | undefined>(undefined);
@@ -63,6 +64,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
   const [events, setEvents] = useState<{ id: string; type: string; actorRole?: string; at?: unknown; reason?: string; note?: string }[] | null>(null);
   const [verification, setVerification] = useState<VerificationDoc | null | undefined>(undefined);
   const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [marketStatus, setMarketStatus] = useState<string | null | undefined>(undefined);
   const [dialog, setDialog] = useState<Dialog>(null);
   const [voiding, setVoiding] = useState<PaymentRow | null>(null);
   const [invoiceBusy, setInvoiceBusy] = useState(false);
@@ -80,6 +82,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
     setAssignments(null);
     setEvents(null);
     setVerification(undefined);
+    setMarketStatus(undefined);
     const unsubs = [
       subscribeBookingById(bookingId, setBooking, setLoadError),
       subscribeDrivers(setDrivers),
@@ -89,6 +92,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
       subscribeToCollection<AssignmentRow>(`bookings/${bookingId}/assignments`, setAssignments, () => setAssignments([])),
       subscribeToCollection<{ id: string; type: string; at?: unknown }>(`bookings/${bookingId}/events`, setEvents, () => setEvents([])),
       subscribeToDocument<VerificationDoc>(`vehicle_verifications/${bookingId}`, setVerification, (m) => { setVerificationError(m); setVerification(null); }),
+      subscribeToDocument<{ status?: string }>(`marketplace_trips/${bookingId}`, (d) => setMarketStatus(d?.status ?? null), () => setMarketStatus(null)),
     ];
     return () => unsubs.forEach((u) => u());
   }, [bookingId, retry]);
@@ -139,6 +143,8 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
   const driverName = booking.assignedDriverName || booking.driver || assignedDriver?.name || "";
   const done = (text: string) => { setDialog(null); setVoiding(null); show(text); };
   const open = ["Approved", "Confirmed", "Assigned"].includes(booking.status);
+  const awaitingFulfilment = booking.status === "Approved" && !booking.assignedVendorId && !booking.assignedDriverId;
+  const fulfilment = fulfilmentOf(booking, marketStatus === undefined ? undefined : marketStatus ?? "");
   const cancellable = ["Approved", "Confirmed", "Assigned", "Ongoing"].includes(booking.status);
   const isCompleted = booking.status === "Completed";
   const toll = (booking.tolls ?? []) as { id: string; name: string; amount: number; receiptPhotoUrl?: string }[];
@@ -186,7 +192,10 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
         <div className="ml-auto flex flex-wrap gap-2">
           {canOps && booking.status === "Pending" && <button onClick={() => setDialog("approve")} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-green-600 hover:bg-green-700">Approve booking</button>}
           {canOps && booking.status === "Pending" && <button onClick={() => setDialog("reject")} className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-red-300 text-red-700 hover:bg-red-50">Reject</button>}
-          {canOps && open && <button onClick={() => setDialog("assign")} className={primaryBtn}>{booking.assignedDriverId ? "Change / reassign driver" : "Assign driver"}</button>}
+          {canOps && booking.status === "Assigned" && booking.assignedDriverId && tripSubStatusOf(booking) === "Not Started" && <button onClick={() => setDialog("reached")} className={secondaryBtn}>Mark pickup reached…</button>}
+          {canOps && awaitingFulfilment && <button onClick={() => setDialog("publish")} className={primaryBtn}>Publish to marketplace</button>}
+          {canOps && awaitingFulfilment && <button onClick={() => setDialog("vendor")} className={secondaryBtn}>Assign vendor</button>}
+          {canOps && open && <button onClick={() => setDialog("assign")} className={awaitingFulfilment ? secondaryBtn : primaryBtn}>{booking.assignedDriverId ? "Change / reassign driver" : awaitingFulfilment ? "Assign owner driver" : "Assign driver"}</button>}
           {canOps && <button onClick={() => setDialog("verify")} className={secondaryBtn}>Verify customer</button>}
           {canOps && cancellable && <button onClick={() => setDialog("cancel")} className="px-4 py-2.5 rounded-lg text-sm font-semibold border border-red-300 text-red-700 hover:bg-red-50">Cancel booking</button>}
           {canFinance && isCompleted && <button onClick={issueInvoice} disabled={invoiceBusy} className="px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-[#111] disabled:opacity-60">{invoiceBusy ? "Issuing…" : "Generate tax invoice"}</button>}
@@ -204,6 +213,36 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">
+          {["Pending", "Approved", "Confirmed", "Assigned"].includes(booking.status) && (
+            <Card title="Fulfilment" right={<span className="text-xs font-bold text-[#111] bg-gray-100 border border-gray-300 rounded px-2 py-0.5">{FULFILMENT_LABEL[fulfilment]}</span>}>
+              {booking.status === "Pending" ? (
+                <p className="text-sm text-[#333]">Review this request first. Approving it does not publish it — you then choose how it is fulfilled.</p>
+              ) : awaitingFulfilment ? (
+                <div className="space-y-3 text-sm text-[#333]">
+                  <p>This booking is <strong>approved but not visible to any partner</strong>. Choose one route:</p>
+                  <ul className="list-disc ml-5 space-y-1">
+                    <li><strong>Publish to marketplace</strong> — eligible owner drivers and vendors see it in Open Duties and the first valid claim wins.</li>
+                    <li><strong>Assign vendor</strong> — reserve it to an approved vendor, which then assigns its own driver and vehicle.</li>
+                    <li><strong>Assign owner driver</strong> — give it directly to an approved independent driver and their vehicle.</li>
+                  </ul>
+                  {canOps && (
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <button onClick={() => setDialog("publish")} className={primaryBtn}>Publish to marketplace</button>
+                      <button onClick={() => setDialog("vendor")} className={secondaryBtn}>Assign vendor</button>
+                      <button onClick={() => setDialog("assign")} className={secondaryBtn}>Assign owner driver</button>
+                    </div>
+                  )}
+                </div>
+              ) : fulfilment === "published" ? (
+                <p className="text-sm text-[#333]">Published to Open Duties{booking.marketplacePublishedAt ? ` on ${stamp(booking.marketplacePublishedAt)}` : ""}. It leaves the list as soon as a partner claims it or you assign it directly. Assigning a vendor or driver closes the offer.</p>
+              ) : fulfilment === "vendor_assigned" ? (
+                <p className="text-sm text-[#333]">Reserved to <strong>{booking.assignedVendorName || "a vendor"}</strong>. The vendor still has to assign a driver and vehicle. The customer sees “Vendor assigned — driver details pending”.</p>
+              ) : (
+                <p className="text-sm text-[#333]">Assigned to <strong>{driverName || "a driver"}</strong>{booking.assignedVehicleNumber ? ` in ${booking.assignedVehicleNumber}` : ""}{booking.assignedVendorName ? ` (fleet: ${booking.assignedVendorName})` : " (independent driver)"}.</p>
+              )}
+            </Card>
+          )}
+
           <Card title="Customer" right={booking.customerVerified ? <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-300 rounded px-2 py-0.5">✓ Verified</span> : <span className="text-xs text-[#555]">Not verified</span>}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <Fact label="Name">{booking.customer}</Fact>
@@ -234,7 +273,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
             {booking.notes && <p className="mt-3 text-sm text-[#333]"><strong>Notes:</strong> {booking.notes}</p>}
           </Card>
 
-          <Card title="Driver & assignment" right={canOps && open ? <button onClick={() => setDialog("assign")} className="text-sm font-semibold text-[#E21B23] hover:underline">{booking.assignedDriverId ? "Change" : "Assign"}</button> : undefined}>
+          <Card title="Driver & assignment" right={canOps && open ? <button onClick={() => setDialog("assign")} className="text-sm font-semibold text-[#E21B23] hover:underline">{booking.assignedDriverId ? "Change" : "Assign owner driver"}</button> : undefined}>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <Fact label="Driver">{driverName || "Not assigned"}</Fact>
               <Fact label="Phone">{driverName ? booking.driverPhone || assignedDriver?.phone : ""}</Fact>
@@ -300,6 +339,9 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
             )}
           </Card>
 
+          <PricingPanel booking={booking} />
+          <SettlementPanel booking={booking} canFinance={canFinance} />
+
           <PaymentsPanel
             booking={booking} rows={payments} error={paymentsError} canRecord={canFinance} canVoid={canFinance}
             onRecord={() => setDialog("pay")} onVoid={setVoiding} onRefund={() => setDialog("refund")}
@@ -309,6 +351,9 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
 
       {dialog === "approve" && <ApproveDialog booking={booking} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === "reject" && <RejectDialog booking={booking} onClose={() => setDialog(null)} onDone={done} />}
+      {dialog === "reached" && <ReachedOverrideDialog booking={booking} onClose={() => setDialog(null)} onDone={done} />}
+      {dialog === "publish" && <PublishDialog booking={booking} canSetPayout={canFinance} onClose={() => setDialog(null)} onDone={done} />}
+      {dialog === "vendor" && <AssignVendorModal booking={booking} vendors={vendors} canSetPayout={canFinance} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === "assign" && <AssignDriverModal booking={booking} drivers={drivers} vehicles={vehicles} vendors={vendors} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === "cancel" && <CancelBookingModal booking={booking} canCharge={canFinance} onClose={() => setDialog(null)} onDone={done} />}
       {dialog === "pay" && <RecordPaymentModal booking={booking} onClose={() => setDialog(null)} onDone={done} />}

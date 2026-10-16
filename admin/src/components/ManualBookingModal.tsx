@@ -29,7 +29,7 @@ import {
 import { calculateCentralFare } from "../services/fareEngine";
 import { useCan } from "./AccessContext";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 interface Props {
   customers: Customer[];
@@ -227,12 +227,14 @@ export default function ManualBookingModal({ customers, services, locations, cat
                 <option>Round Trip</option>
               </select>
             </Field>
-            <Field label="Pickup date & time" hint={form.pickupAt ? undefined : "Leave blank for pickup now."} error={errors.pickupAt}>
+            <Field label="Pickup date & time" required hint="Advance bookings only — the pickup must be in the future." error={errors.pickupAt}>
               <DateTime12Input value={form.pickupAt} onChange={(v) => set("pickupAt", v)} hasError={!!errors.pickupAt} min={new Date().toISOString().slice(0, 10)} />
-              {form.pickupAt && (
-                <button type="button" onClick={() => set("pickupAt", "")} className="mt-1 text-xs font-semibold text-[#E21B23] hover:underline">Clear — pick up now</button>
-              )}
             </Field>
+            {form.tripType === "Round Trip" && (
+              <Field label="Return date & time" required hint="Billed by Indian calendar date from pickup to return, with a daily minimum km and bata." error={errors.tripEndAt}>
+                <DateTime12Input value={form.tripEndAt} onChange={(v) => set("tripEndAt", v)} hasError={!!errors.tripEndAt} min={(form.pickupAt || new Date().toISOString()).slice(0, 10)} />
+              </Field>
+            )}
           </div>
         </Section>
 

@@ -10,7 +10,7 @@ import {
 import { buildCustomerStats, EMPTY_STATS } from "../services/customerStats";
 import { ErrorBanner } from "../components/Feedback";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 const dateLabel = (d: Date | null) => (d ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
 /** Older records stored N/A as the email when none was given. */
 const emailOf = (c: Customer) => (c.email && c.email !== "N/A" ? c.email : "");

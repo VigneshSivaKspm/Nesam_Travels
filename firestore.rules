@@ -36,10 +36,13 @@ rules_version = '2';
 // explicit allow-list of fields (affectedKeys().hasOnly) and, where it
 // matters, to a legal state transition.
 //
-// Booking lifecycle (shared by all four panels):
-//   status:    Pending → Approved (admin) → Confirmed (vendor accepted) →
-//              Assigned (driver set) → Ongoing (trip started at the pickup) → Completed
-//              | Cancelled | Rejected.  Partners see and claim only Approved trips.
+// Booking lifecycle (shared by all four panels). NESAM takes advance bookings only:
+//   status:    Pending (admin review queue) → Approved (reviewed; NOT visible to
+//              partners) → Confirmed (vendor reserved) → Assigned (driver set) →
+//              Ongoing (trip started at the pickup) → Completed | Cancelled | Rejected.
+//   fulfil:    after approval an admin chooses ONE route: publish to the marketplace
+//              (marketplace_trips status Open — the only thing partners can read and
+//              claim), assign a Vendor, or assign an Owner Driver.
 //   trip:      tripSubStatus Not Started → Reached Pickup → Trip Started (boarding
 //              OTP + vehicle photos verified) → Trip Ended,
 //              advanced ONLY by the advanceTrip function (clients cannot write
@@ -452,22 +455,6 @@ service cloud.firestore {
              );
     }
 
-    // Vendor claims an open marketplace booking at the offered rate.
-    function vendorClaimOk(id) {
-      let d = request.resource.data;
-      return isApprovedVendor()
-             && isBlank('assignedVendorId') && isBlank('assignedDriverId')
-             && resource.data.status == 'Approved'
-             && marketplaceStatus(id) in ['Open', 'Bidding']
-             && d.assignedVendorId == uid()
-             && d.status == 'Confirmed'
-             && resource.data.get('fareVerified', false) == true
-             && d.vendorPayout == get(docPath('marketplace_trips', id)).data.offeredPayout
-             && getAfter(docPath('marketplace_trips', id)).data.assignedVendorId == uid()
-             && onlyChanges(['status', 'assignedVendorId', 'assignedVendorName',
-                             'vendorPayout', 'confirmedAt', 'updatedAt']);
-    }
-
     // A vehicle a trip may be assigned to, referenced by its stable id: owned
     // by `owner` ('' = NESAM-owned / independent), documents approved, in
     // service, and the booking's copied number matches the record.
@@ -479,57 +466,9 @@ service cloud.firestore {
              && number == v.get('vehicleNumber', '');
     }
 
-    // Vendor dispatches one of its own drivers in one of its own approved
-    // vehicles (by vehicle id) to a booking it holds.
-    function vendorDispatchOk() {
-      let d = request.resource.data;
-      return isApprovedVendor()
-             && resource.data.get('assignedVendorId', '') == uid()
-             && resource.data.status in ['Confirmed', 'Assigned']
-             && d.status == 'Assigned'
-             && get(docPath('drivers', d.assignedDriverId)).data.get('vendorId', '') == uid()
-             && get(docPath('drivers', d.assignedDriverId)).data.status == 'Approved'
-             && get(docPath('drivers', d.assignedDriverId)).data.get('fleetStatus', 'Active') != 'Suspended'
-             && d.get('assignedVehicleId', '') is string && d.get('assignedVehicleId', '') != ''
-             && assignableVehicle(d.assignedVehicleId, uid(), d.get('assignedVehicleNumber', ''))
-             && onlyChanges(['status', 'tripStage', 'assignedDriverId', 'assignedDriverName',
-                             'driver', 'driverPhone', 'assignedVehicleId', 'assignedVehicleNumber',
-                             'assignedAt', 'updatedAt']);
-    }
-
-    // A trip published with eligibleVehicleTypes can be claimed only by a driver
-    // whose vehicle type is in the list (trips published before it have no list).
-    function vehicleTypeEligible(id) {
-      let types = get(docPath('marketplace_trips', id)).data.get('eligibleVehicleTypes', []);
-      return types.size() == 0
-             || get(docPath('drivers', uid())).data.get('vehicleType', '').lower() in types;
-    }
-
-    // Independent driver claims an open marketplace booking. The vehicle is
-    // the one on the driver's own record: its id when it has a vehicle record
-    // (then approved, paired with this driver, number matching), otherwise
-    // none (legacy self-registered vehicle; Phase D requires a record).
-    function driverClaimOk(id) {
-      let d = request.resource.data;
-      let paired = get(docPath('drivers', uid())).data.get('assignedVehicleId', '');
-      return isApprovedIndependentDriver()
-             && isBlank('assignedVendorId') && isBlank('assignedDriverId')
-             && resource.data.status == 'Approved'
-             && marketplaceStatus(id) == 'Open'
-             && vehicleTypeEligible(id)
-             && d.assignedDriverId == uid()
-             && d.status == 'Assigned'
-             && resource.data.get('fareVerified', false) == true
-             && d.driverPayout == get(docPath('marketplace_trips', id)).data.offeredPayout
-             && getAfter(docPath('marketplace_trips', id)).data.assignedDriverId == uid()
-             && d.get('assignedVehicleId', '') == paired
-             && (paired == ''
-                 || (assignableVehicle(paired, '', d.get('assignedVehicleNumber', ''))
-                     && get(docPath('vehicles', paired)).data.get('assignedDriverId', '') == uid()))
-             && onlyChanges(['status', 'tripStage', 'assignedDriverId', 'assignedDriverName',
-                             'driver', 'driverPhone', 'assignedVehicleId', 'assignedVehicleNumber',
-                             'driverPayout', 'assignedAt', 'updatedAt']);
-    }
+    // A vendor assigns its driver and vehicle through the vendorAssignDriver function
+    // (functions/src/vendorDispatch.ts), which also checks seats, documents through
+    // the pickup and schedule overlap. There is deliberately no direct client write.
 
     // The assigned driver may keep toll receipts and the live position on a trip.
     // Status, trip stage, OTP, odometer and verification are written only by the
@@ -578,13 +517,12 @@ service cloud.firestore {
       // Operations staff correct contact details here. Approval, rejection,
       // cancellation, assignment, payments, refunds and trip stages each have
       // their own validated function.
-      allow update: if (can('operations')
-                        && onlyChanges(['customer', 'phone', 'customerEmail', 'customerWhatsapp', 'notes', 'updatedAt']))
+      // Customer contact details are not on this document (booking_contacts holds them; staff change
+      // them with updateBookingContact). A marketplace claim is the claimMarketplaceDuty function:
+      // no client write can assign a duty or set a payout.
+      allow update: if (can('operations') && onlyChanges(['notes', 'updatedAt']))
                     || (can('finance') && onlyChanges(financeBookingKeys().concat(['updatedAt'])))
                     || (isSignedIn() && resource.data.customerId == uid() && customerUpdateOk())
-                    || vendorClaimOk(bookingId)
-                    || vendorDispatchOk()
-                    || driverClaimOk(bookingId)
                     || driverProgressOk(bookingId);
       allow delete: if isSuperAdmin();
     }
@@ -643,56 +581,51 @@ service cloud.firestore {
                   || (isApprovedIndependentDriver()
                       && (resource.data.status == 'Open'
                           || resource.data.get('assignedDriverId', '') == uid()));
-      // Created and priced only by the booking / marketplace functions.
+      // Created, priced, claimed and escalated only by the marketplace functions. The one client
+      // write left is the customer withdrawing the offer when cancelling their own booking.
       allow create: if false;
-      allow update: if (can('operations') && !changedKeys().hasAny(['offeredPayout']))
-                    // vendor counter-bid bookkeeping
-                    || (isApprovedVendor()
-                        && resource.data.status in ['Open', 'Bidding']
-                        && request.resource.data.status == 'Bidding'
-                        && onlyChanges(['status', 'bidCount', 'lastCounterRate',
-                                        'lastBidAt', 'updatedAt']))
-                    // vendor accepts offered rate (booking claimed in same batch)
-                    || (isApprovedVendor()
-                        && resource.data.status in ['Open', 'Bidding']
-                        && request.resource.data.status == 'Assigned'
-                        && request.resource.data.assignedVendorId == uid()
-                        && bookingAfter(tripId).assignedVendorId == uid()
-                        && onlyChanges(['status', 'assignedVendorId', 'assignedVendorName', 'updatedAt']))
-                    // independent driver accepts
-                    || (isApprovedIndependentDriver()
-                        && resource.data.status == 'Open'
-                        && request.resource.data.status == 'Assigned'
-                        && request.resource.data.assignedDriverId == uid()
-                        && bookingAfter(tripId).assignedDriverId == uid()
-                        && onlyChanges(['status', 'assignedDriverId', 'assignedDriverName', 'updatedAt']))
-                    // customer withdraws it when cancelling
+      allow update: if (can('operations') && !changedKeys().hasAny(['offeredPayout', 'escalation', 'mode', 'status', 'assignedVendorId', 'assignedDriverId']))
                     || (isSignedIn()
                         && booking(tripId).customerId == uid()
                         && request.resource.data.status == 'Closed'
                         && onlyChanges(['status', 'updatedAt']));
       allow delete: if can('operations');
 
+      // Bids are submitted, withdrawn and awarded by submitMarketplaceBid / withdrawMarketplaceBid /
+      // awardMarketplaceBid, which apply the same eligibility as a claim. Partners read their own.
       match /bids/{bidId} {
-        allow create: if isApprovedVendor()
-                       && request.resource.data.vendorId == uid()
-                       && request.resource.data.tripId == tripId
-                       && request.resource.data.status == 'Pending Review'
-                       && get(docPath('marketplace_trips', tripId)).data.status in ['Open', 'Bidding']
-                       && request.resource.data.vendorCounterRate is number
-                       && request.resource.data.vendorCounterRate > 0
-                       && request.resource.data.vendorCounterRate <= 1000000;
-        allow read: if isAdmin() || (isVendor() && resource.data.vendorId == uid());
-        allow update: if can('operations');
-        allow delete: if can('operations')
-                       || (isApprovedVendor() && resource.data.vendorId == uid()
-                           && resource.data.status == 'Pending Review');
+        allow create, update, delete: if false;
+        allow read: if isAdmin()
+                    || (isVendor() && resource.data.get('vendorId', '') == uid())
+                    || (isDriver() && resource.data.get('driverId', '') == uid());
       }
     }
 
     // Collection-group reads of bids (admin review queue, vendor "my bids").
     match /{path=**}/bids/{bidId} {
-      allow read: if isAdmin() || (isVendor() && resource.data.vendorId == uid());
+      allow read: if isAdmin()
+                  || (isVendor() && resource.data.get('vendorId', '') == uid())
+                  || (isDriver() && resource.data.get('driverId', '') == uid());
+    }
+
+    // ── Customer contact privacy ───────────────────────────────────────────
+    // Raw phone / WhatsApp / email: staff and the booking's own customer only. Partners never read
+    // this collection; the assigned driver's number comes from getCustomerContact (T-8h, logged).
+    match /booking_contacts/{bookingId} {
+      allow read: if isAdmin() || (isSignedIn() && resource.data.get('customerId', '') == uid());
+      allow write: if false;
+    }
+    match /contact_access_logs/{logId} {
+      allow read: if can('operations');
+      allow write: if false;
+    }
+
+    // ── Partner settlement due-tracking (written by the settlement functions) ──
+    match /settlement_dues/{bookingId} {
+      allow read: if canReadFinance()
+                  || (isVendor() && resource.data.get('partnerId', '') == uid())
+                  || (isDriver() && resource.data.get('partnerId', '') == uid());
+      allow write: if false;
     }
 
     // ── Payouts ─────────────────────────────────────────────────────────────

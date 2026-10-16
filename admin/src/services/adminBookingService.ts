@@ -33,8 +33,10 @@ export interface ManualBookingForm {
   dropAddress: string;
   categoryId: string;
   tripType: "One Way" | "Round Trip";
-  /** "" = pickup now; otherwise a local "YYYY-MM-DDTHH:mm" value. */
+  /** Required: NESAM takes advance bookings only. A local "YYYY-MM-DDTHH:mm" value. */
   pickupAt: string;
+  /** Round trips: when the trip ends. Billing counts Indian calendar dates from pickup to here. */
+  tripEndAt: string;
   paymentMethod: string;
   advanceEnabled: boolean;
   advanceAmount: string;
@@ -66,6 +68,7 @@ export const emptyManualBooking = (): ManualBookingForm => ({
   categoryId: "",
   tripType: "One Way",
   pickupAt: "",
+  tripEndAt: "",
   paymentMethod: "Cash",
   advanceEnabled: false,
   advanceAmount: "",
@@ -128,7 +131,7 @@ const round5 = (n: number) => n.toFixed(5);
 export const quoteKey = (f: ManualBookingForm) =>
   JSON.stringify([
     f.serviceId, f.pickup && [round5(f.pickup.lat), round5(f.pickup.lng)], f.drop && [round5(f.drop.lat), round5(f.drop.lng)],
-    f.categoryId, f.tripType, f.pickupAt, f.discountType, f.discountType === "none" ? "" : f.discountValue.trim(),
+    f.categoryId, f.tripType, f.pickupAt, f.tripType === "Round Trip" ? f.tripEndAt : "", f.discountType, f.discountType === "none" ? "" : f.discountValue.trim(),
   ]);
 
 /** The discount as a number, or an error message. null value = no discount. */
@@ -144,14 +147,17 @@ export function discountOf(f: Pick<ManualBookingForm, "discountType" | "discount
 
 /** Is there enough to ask the server for a price? */
 export function readyToQuote(f: ManualBookingForm): boolean {
-  return !!(f.pickup?.confirmed && f.drop?.confirmed && f.categoryId && !discountOf(f).error && !pickupTimeError(f.pickupAt));
+  return !!(f.pickup?.confirmed && f.drop?.confirmed && f.categoryId && !discountOf(f).error && !pickupTimeError(f.pickupAt) && (f.tripType !== "Round Trip" || !!f.tripEndAt));
 }
 
+/** Mirrors the server's default window (settings/operations can change it; the server is authoritative). */
+export const ADMIN_MIN_LEAD_MINUTES = 30;
+
 export function pickupTimeError(pickupAt: string, now = Date.now()): string | null {
-  if (!pickupAt) return null;
+  if (!pickupAt) return "Choose the pickup date and time. NESAM takes advance bookings only.";
   const t = new Date(pickupAt).getTime();
   if (!Number.isFinite(t)) return "Enter a valid pickup date and time.";
-  if (t < now - 5 * 60000) return "Pickup time is in the past.";
+  if (t < now + ADMIN_MIN_LEAD_MINUTES * 60000) return `Pickup must be at least ${ADMIN_MIN_LEAD_MINUTES} minutes from now.`;
   if (t > now + 180 * 86400000) return "Pickups can be booked up to 180 days ahead.";
   return null;
 }
@@ -172,6 +178,10 @@ export function validateManualBooking(f: ManualBookingForm, now = Date.now()): P
   if (!f.categoryId) e.categoryId = "Choose a vehicle category.";
   const t = pickupTimeError(f.pickupAt, now);
   if (t) e.pickupAt = t;
+  if (f.tripType === "Round Trip") {
+    if (!f.tripEndAt) e.tripEndAt = "Choose when the round trip ends. It decides the chargeable days.";
+    else if (f.pickupAt && new Date(f.tripEndAt).getTime() < new Date(f.pickupAt).getTime()) e.tripEndAt = "The trip cannot end before it starts.";
+  }
   const d = discountOf(f);
   if (d.error) e.discountValue = d.error;
   if (f.discountType !== "none" && f.discountReason.trim().length > 0 && f.discountReason.trim().length < 3) e.discountReason = "Give a short reason or leave it blank.";
@@ -210,7 +220,8 @@ const bookingRequest = (f: ManualBookingForm, requestId: string) => ({
   dropAddress: f.dropAddress.trim(),
   categoryId: f.categoryId,
   tripType: f.tripType,
-  scheduledAt: f.pickupAt ? new Date(f.pickupAt).toISOString() : null,
+  scheduledAt: f.pickupAt && Number.isFinite(new Date(f.pickupAt).getTime()) ? new Date(f.pickupAt).toISOString() : null,
+  tripEndAt: f.tripType === "Round Trip" && f.tripEndAt && Number.isFinite(new Date(f.tripEndAt).getTime()) ? new Date(f.tripEndAt).toISOString() : null,
   paymentMethod: f.paymentMethod,
   notes: f.notes.trim(),
   discount: (() => {
@@ -269,16 +280,8 @@ export async function updateBookingContact(
   bookingId: string,
   c: { customer: string; phone: string; notes: string; email?: string; whatsapp?: { countryCode: string; number: string; e164: string; sameAsMobile: boolean } },
 ) {
-  try {
-    await updateDoc(doc(db, COLLECTIONS.BOOKINGS, bookingId), {
-      customer: c.customer, phone: c.phone, notes: c.notes,
-      ...(c.email !== undefined ? { customerEmail: c.email } : {}),
-      ...(c.whatsapp ? { customerWhatsapp: c.whatsapp } : {}),
-      updatedAt: serverTimestamp(),
-    });
-  } catch (err) {
-    throw new ActionError(describeDataError(err));
-  }
+  // The raw number is held in booking_contacts, written only by the server; partners never read it.
+  await callFunction("updateBookingContact", { bookingId, customer: c.customer, phone: c.phone, notes: c.notes, email: c.email ?? "" });
 }
 
 export const newRequestId = () => `adm_${crypto.randomUUID().replace(/-/g, "")}`;

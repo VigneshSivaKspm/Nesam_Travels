@@ -97,7 +97,7 @@ async function loadSession(sessionId: string, uid: string) {
 export const getSlotChallenge = onCall(async (request) => {
   const driver = await activeDriver(request.auth?.uid);
   const sessionId = docId(request.data?.sessionId, 'session');
-  if (!isVehicleSlot(request.data?.slot)) throw new HttpsError('invalid-argument', 'Choose front, rear or interior.');
+  if (!isVehicleSlot(request.data?.slot)) throw new HttpsError('invalid-argument', 'Choose selfie, front, rear or interior.');
   const slot: VehicleSlot = request.data.slot;
   const { ref, s } = await loadSession(sessionId, driver.uid);
   const now = Date.now();
@@ -115,7 +115,7 @@ export const submitCapturePhoto = onCall({ timeoutSeconds: 120, memory: '1GiB' }
   const driver = await activeDriver(request.auth?.uid);
   const input = request.data ?? {};
   const sessionId = docId(input.sessionId, 'session');
-  if (!isVehicleSlot(input.slot)) throw new HttpsError('invalid-argument', 'Choose front, rear or interior.');
+  if (!isVehicleSlot(input.slot)) throw new HttpsError('invalid-argument', 'Choose selfie, front, rear or interior.');
   const slot: VehicleSlot = input.slot;
   const { ref: sessionRef, s } = await loadSession(sessionId, driver.uid);
   const bookingId: string = s.bookingId;
@@ -256,8 +256,8 @@ export const finalizeVehicleVerification = onCall(async (request) => {
     tx.update(verRef, { status: 'Submitted', odometerReading: reading, riskScore: score, riskLevel: level, flagged, submittedAt: stamp, updatedAt: stamp });
     tx.update(sessionRef, { status: 'completed', completedAt: stamp });
     tx.update(bookingRef, {
-      vehicleFrontPhoto: v.vehicleFrontPhoto, vehicleRearPhoto: v.vehicleRearPhoto, vehicleInteriorPhoto: v.vehicleInteriorPhoto,
-      preTrip: { vehicleFront: v.vehicleFrontPhoto, vehicleRear: v.vehicleRearPhoto, vehicleInterior: v.vehicleInteriorPhoto, odometerReading: reading, capturedAt: new Date().toISOString(), sessionId },
+      driverSelfiePhoto: v.driverSelfiePhoto, vehicleFrontPhoto: v.vehicleFrontPhoto, vehicleRearPhoto: v.vehicleRearPhoto, vehicleInteriorPhoto: v.vehicleInteriorPhoto,
+      preTrip: { driverSelfie: v.driverSelfiePhoto, vehicleFront: v.vehicleFrontPhoto, vehicleRear: v.vehicleRearPhoto, vehicleInterior: v.vehicleInteriorPhoto, odometerReading: reading, capturedAt: new Date().toISOString(), sessionId },
       vehicleVerification: { status: 'Submitted', riskLevel: level, flagged, submittedAt: Timestamp.now() }, startOdometer: reading, updatedAt: stamp,
     });
     return { level, score, flagged, code: text(b.data()!.bookingId) || bookingId };

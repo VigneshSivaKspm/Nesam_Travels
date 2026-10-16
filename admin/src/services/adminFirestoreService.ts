@@ -118,8 +118,22 @@ export function subscribeToCollection<T>(
 /**
  * Specific Subscribers
  */
-export const subscribeBookings = (cb: (data: Booking[]) => void, onError?: (message: string) => void) =>
-  subscribeToCollection<Booking>(COLLECTIONS.BOOKINGS, cb, onError);
+/**
+ * Bookings with the customer's contact details joined in. The raw phone / WhatsApp / email are not on
+ * the booking document (partners can read it); staff read them from booking_contacts.
+ */
+export const subscribeBookings = (cb: (data: Booking[]) => void, onError?: (message: string) => void) => {
+  let bookings: Booking[] = [];
+  let contacts = new Map<string, { phone?: string; email?: string; whatsapp?: string }>();
+  const emit = () =>
+    cb(bookings.map((b) => {
+      const c = contacts.get(b.id);
+      return c ? { ...b, phone: c.phone || b.phone, customerEmail: c.email || b.customerEmail, customerWhatsapp: b.customerWhatsapp ?? (c.whatsapp ? { e164: c.whatsapp, sameAsMobile: c.whatsapp === c.phone } : undefined) } : b;
+    }) as Booking[]);
+  const a = subscribeToCollection<Booking>(COLLECTIONS.BOOKINGS, (d) => { bookings = d; emit(); }, onError);
+  const b = subscribeToCollection<{ id: string; phone?: string; email?: string; whatsapp?: string }>("booking_contacts", (d) => { contacts = new Map(d.map((x) => [x.id, x])); emit(); }, () => undefined);
+  return () => { a(); b(); };
+};
 
 export const subscribeDrivers = (cb: (data: Driver[]) => void, onError?: (message: string) => void) =>
   subscribeToCollection<Driver>(COLLECTIONS.DRIVERS, cb, onError);

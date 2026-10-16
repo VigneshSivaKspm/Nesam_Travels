@@ -15,6 +15,24 @@ export interface Booking {
   tollCharges?: number;
   tollsApproved?: boolean;
   fareVerified?: boolean;
+  /** Locked quote snapshot (server-written): which tariff priced the booking and with what. */
+  pricing?: {
+    schema: number; source: string; model: string; tariffVersion: number; tariffClass: string | null; gstRate: number;
+    quotedKm: number; includedKm: number; extraKmRatePaise: number; customerRatePaise: number; customerBataPaise: number;
+    days: number; minKmPerDay: number; packagePaise: number; pickupDate: string; endDate: string | null; gates: string[];
+    partner: { mode: string; ratePaise: number; bataPaise: number; minKm: number; days: number; basePaise: number } | null;
+  };
+  /** Written when the driver ends the trip: the invoice derived from the verified total kilometres. */
+  finalFare?: { totalKm: number; quotedKm: number; includedKm: number; extraKm: number; days: number; extraDays: number; quotedFare: number; finalFare: number };
+  totalKm?: number;
+  distanceDiscrepancy?: { odometerKm: number; enteredKm: number };
+  reachedPickupOverride?: { by: string; byName?: string; reason: string };
+  tripEndAt?: any;
+  billableDays?: number;
+  dutyClass?: string;
+  phoneMasked?: string;
+  contactViews?: number;
+  contactDenials?: number;
   couponCode?: string;
   discount?: number;
   /** Written only by the booking server (createBooking / createAdminBooking / overrideBookingFare). */
@@ -134,6 +152,9 @@ export interface Booking {
   vehicleRearPhoto?: string;
   vehicleInteriorPhoto?: string;
   vehicleVerification?: { status: string; riskLevel: string; flagged: boolean; submittedAt?: any } | null;
+  /** Which route an admin chose after approval; set by the server. */
+  fulfilmentRoute?: "marketplace" | "vendor" | "driver";
+  marketplacePublishedAt?: any;
   unassignedAlert?: { severity: string; since?: any; acknowledgedBy?: string; acknowledgedByName?: string; acknowledgedAt?: any; acknowledgedSeverity?: string } | null;
   lastAssignment?: { action: string; byName?: string; reason?: string } | null;
   /** Stable reference to vehicles/{id}; assignedVehicleNumber is a display copy. */
@@ -209,10 +230,11 @@ export interface Driver {
     permit?: string;
   };
   preTrip?: {
-    selfie?: boolean;
-    vehicleFront?: boolean;
-    odometer?: boolean;
-    rearSeat?: boolean;
+    driverSelfie?: string;
+    vehicleFront?: string;
+    vehicleRear?: string;
+    vehicleInterior?: string;
+    odometerReading?: number;
   };
   createdAt?: any;
 }
@@ -354,6 +376,12 @@ export interface MarketplaceTrip {
   distance?: string;
   distanceKm?: number;
   offeredPayout: string | number;
+  /** One explicit mode per post: accept the current offer, or bids reviewed by NESAM. */
+  mode?: "accept_offer" | "bid_review";
+  startOffer?: number;
+  ceiling?: number;
+  escalation?: { enabled?: boolean; step?: number; stepPercent?: number; intervalMinutes?: number; ceilingPaise?: number };
+  cutoffAt?: any;
   status: string;
   postedAt?: string;
   lastCounterRate?: number;

@@ -21,7 +21,7 @@ const STATUS_CLS: Record<string, string> = {
 };
 const PARTY_CLS: Record<PenaltyParty, string> = { Driver: "bg-blue-50 text-blue-800 border-blue-300", Vendor: "bg-purple-50 text-purple-800 border-purple-300" };
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 const today = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;

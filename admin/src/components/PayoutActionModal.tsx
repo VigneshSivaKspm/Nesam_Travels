@@ -4,7 +4,7 @@ import { auth } from "../services/firebase";
 import { parseAmount } from "../utils/analytics";
 import { Modal } from "./Feedback";
 
-const rupees = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
+const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
 
 /** Mark paid (with UTR), defer or reject a driver / vendor payout request. */export default function PayoutActionModal({
   kind,

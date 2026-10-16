@@ -175,6 +175,8 @@ export const requestPartnerPayout = onCall(async (request) => {
       tx.get(db.doc(`${role === 'driver' ? 'driver_private' : 'vendor_kyc'}/${uid}`)),
     ]);
     if (!profile.exists || !approved(profile.data()!.status)) throw new HttpsError('permission-denied', 'Partner account is not approved.');
+    // A vendor's employee driver has no wallet or payout rights: the trip settles to the vendor only.
+    if (role === 'driver' && profile.data()!.vendorId) throw new HttpsError('permission-denied', 'Fleet drivers do not manage wallet payouts. Your vendor receives the settlement.', { code: 'employee-denied' });
     if (existing.exists) {
       if (existing.data()![key] !== uid) throw new HttpsError('permission-denied', 'Request already used.');
       return { id: ref.id };

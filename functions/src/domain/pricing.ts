@@ -70,8 +70,9 @@ export function isOutstation(oneWayKm: number): boolean {
   return oneWayKm > OUTSTATION_THRESHOLD_KM;
 }
 
-export function serviceName(pickup: GeoPlace, drop: GeoPlace, oneWayKm: number): string {
-  if (pickup.type === 'airport' || drop.type === 'airport') return 'Airport';
+export function serviceName(pickup: GeoPlace, drop: GeoPlace, oneWayKm: number, tripType?: TripType): string {
+  if (tripType === 'Airport Taxi' || pickup.type === 'airport' || drop.type === 'airport') return 'Airport';
+  if (tripType === 'Local Rental') return 'Rental';
   return isOutstation(oneWayKm) ? 'Outstation' : 'Local';
 }
 

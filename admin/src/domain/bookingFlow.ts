@@ -181,3 +181,52 @@ export function refundNext(from: unknown): string[] {
     default: return [];
   }
 }
+
+// ── Advance-booking fulfilment (mirrors functions/src/domain/advanceBooking.ts) ──
+
+export type Fulfilment =
+  | "awaiting_review"
+  | "awaiting_fulfilment"
+  | "published"
+  | "vendor_assigned"
+  | "driver_assigned"
+  | "in_progress"
+  | "completed"
+  | "rejected"
+  | "cancelled";
+
+/**
+ * Where an approved booking is in fulfilment. An approved booking is invisible to
+ * partners until an admin publishes it; `fulfilmentRoute === "marketplace"` is the
+ * server's record of that. Bookings opened under the older flow carry no route, so
+ * pass the marketplace record's status when it is known.
+ */
+export function fulfilmentOf(
+  b: { status?: unknown; assignedVendorId?: unknown; assignedDriverId?: unknown; fulfilmentRoute?: unknown },
+  marketStatus?: string,
+): Fulfilment {
+  switch (b.status) {
+    case "Pending": return "awaiting_review";
+    case "Rejected": return "rejected";
+    case "Cancelled": return "cancelled";
+    case "Completed": return "completed";
+    case "Ongoing": return "in_progress";
+    default: break;
+  }
+  if (b.assignedDriverId) return "driver_assigned";
+  if (b.assignedVendorId) return "vendor_assigned";
+  const open = marketStatus ? ["Open", "Bidding"].includes(marketStatus) : b.fulfilmentRoute === "marketplace";
+  return open ? "published" : "awaiting_fulfilment";
+}
+
+export const FULFILMENT_LABEL: Record<Fulfilment, string> = {
+  awaiting_review: "Pending review",
+  awaiting_fulfilment: "Approved · awaiting fulfilment",
+  published: "Published to marketplace",
+  vendor_assigned: "Vendor assigned · driver pending",
+  driver_assigned: "Driver & vehicle assigned",
+  in_progress: "Trip in progress",
+  completed: "Completed",
+  rejected: "Rejected",
+  cancelled: "Cancelled",
+};

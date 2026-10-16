@@ -4,6 +4,7 @@
 // never recomputes them. Each line says whether it is already in the price
 // ("included") or payable separately ("extra").
 import { FareBreakdown, RideCategory } from './types';
+import type { PricingSnapshot } from './tariff';
 
 export type FareLineTreatment = 'included' | 'extra' | 'not_applicable';
 
@@ -93,4 +94,33 @@ export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, ou
     knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0),
     hasActualsExtras: extras.some((l) => l.amount === null),
   };
+}
+
+const num2 = (p: number) => `₹${(p / 100).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+
+/**
+ * Fare lines for a booking priced by the confirmed tariff: dates / billable days, the
+ * included kilometres, the daily or per-trip bata and what is billed beyond the package.
+ * The extras block is shared with the category breakup so the wording stays identical.
+ */
+export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdown, outstation: boolean, pricing: PricingSnapshot): FareBreakup {
+  const base = buildFareBreakup(category, fare, outstation);
+  const rate = num2(pricing.customerRatePaise);
+  const roundTrip = pricing.model === 'round_trip_calendar';
+  const head: FareLine[] = [
+    {
+      key: 'distance', label: roundTrip ? 'Distance (billable KM)' : 'Distance charge', amount: fare.distanceFare + fare.minimumFareAdjustment, treatment: 'included',
+      detail: roundTrip
+        ? `${pricing.includedKm} KM billable (minimum ${pricing.minKmPerDay} KM/day × ${pricing.days} day${pricing.days === 1 ? '' : 's'}) at ${rate}/KM`
+        : `${pricing.includedKm} KM included (minimum 130 KM) at ${rate}/KM`,
+    },
+    {
+      key: 'driverAllowance', label: roundTrip ? 'Driver bata (per day)' : 'Driver bata', amount: fare.driverAllowance, treatment: 'included',
+      detail: roundTrip ? `${num2(pricing.customerBataPaise)} × ${pricing.days} day${pricing.days === 1 ? '' : 's'} (${pricing.pickupDate}${pricing.endDate ? ` → ${pricing.endDate}` : ''})` : 'Included in the fare',
+    },
+  ];
+  const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum'].includes(l.key));
+  const lines = [...head, ...rest.map((l) => (l.key === 'extraKm' ? { ...l, detail: `${rate} per KM beyond the ${pricing.includedKm} KM included` } : l))];
+  const extras = lines.filter((l) => l.treatment === 'extra');
+  return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
 }

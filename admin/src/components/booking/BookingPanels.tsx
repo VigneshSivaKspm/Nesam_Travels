@@ -52,7 +52,7 @@ export function PaymentsPanel({
         <div><dt className="text-xs font-semibold text-[#555] uppercase">Total paid</dt><dd className="font-bold text-green-700">{rupees(pay.totalPaid)}</dd></div>
         <div><dt className="text-xs font-semibold text-[#555] uppercase">Balance due</dt><dd className={`font-bold ${pay.balanceDue > 0 ? "text-[#E21B23]" : "text-[#111]"}`}>{rupees(pay.balanceDue)}</dd></div>
         <div><dt className="text-xs font-semibold text-[#555] uppercase">Advance</dt><dd className="font-bold text-[#111]">{rupees(pay.advancePaid)}</dd></div>
-        {pay.partnerCashHeld > 0 && <div className="col-span-2"><dt className="text-xs font-semibold text-[#555] uppercase">Cash held by driver / vendor</dt><dd className="font-bold text-[#111]">{rupees(pay.partnerCashHeld)}</dd></div>}
+        {pay.partnerCashHeld > 0 && <div className="col-span-2"><dt className="text-xs font-semibold text-[#555] uppercase">Collected directly by driver / vendor</dt><dd className="font-bold text-[#111]">{rupees(pay.partnerCashHeld)}</dd></div>}
       </dl>
       {error && <Notice tone="error">{error}</Notice>}
       {rows === null && !error && <p className="text-sm text-[#555]" role="status">Loading payment history…</p>}

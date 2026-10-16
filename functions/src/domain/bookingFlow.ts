@@ -123,8 +123,10 @@ export const LEGACY_STAGE_FOR: Record<TripSubStatus, string> = {
 
 // ── Payments ──────────────────────────────────────────────────────────────
 
-export const PAYMENT_METHODS = ['Cash', 'UPI', 'Bank Transfer'] as const;
+export const PAYMENT_METHODS = ['Cash', 'UPI', 'Bank Transfer', 'Gateway'] as const;
 export type PaymentMethodName = (typeof PAYMENT_METHODS)[number];
+/** Methods staff or partners may record by hand. 'Gateway' receipts are written only by the verified provider flow. */
+export const MANUAL_PAYMENT_METHODS = ['Cash', 'UPI', 'Bank Transfer'] as const;
 export const isPaymentMethod = (v: unknown): v is PaymentMethodName => (PAYMENT_METHODS as readonly string[]).includes(String(v));
 
 export const COLLECTOR_TYPES = ['admin', 'driver', 'vendor', 'staff', 'system'] as const;
@@ -140,7 +142,7 @@ export interface PaymentTxn {
   method: string;
   kind?: string;
   collectorType?: string;
-  /** Voided transactions stay in the history but no longer count. */
+  /** Only 'Success' (or an older record without a status) counts. Voided, Pending and Failed stay in the history. */
   status?: string;
   paymentDate?: number | null;
 }
@@ -155,8 +157,14 @@ export interface PaymentSummary {
   amountDue: number;
   totalPaid: number;
   balanceDue: number;
-  /** Cash currently held by drivers/vendors, owed to the platform. */
+  /**
+   * Everything a driver or vendor received directly, whatever the method (cash, UPI to the partner,
+   * transfer). Owed to the platform and deducted from the partner's entitlement at settlement.
+   * (The field keeps its original name for existing readers.)
+   */
   partnerCashHeld: number;
+  /** Received by NESAM itself (office advance, company UPI, gateway). */
+  companyCollected: number;
   advancePaid: number;
   paidByMethod: Record<string, number>;
   refunded: number;
@@ -166,7 +174,9 @@ export interface PaymentSummary {
 }
 
 const r2 = (n: number) => Math.round(n * 100) / 100;
-export const countsAsPaid = (t: PaymentTxn) => t.status !== 'Voided' && Number.isFinite(t.amount) && t.amount > 0;
+export const countsAsPaid = (t: PaymentTxn) => (t.status === undefined || t.status === 'Success') && Number.isFinite(t.amount) && t.amount > 0;
+/** A receipt belongs to the partner when a driver or vendor collected it, otherwise to the company. */
+export const receivedByPartner = (t: Pick<PaymentTxn, 'collectorType'>) => t.collectorType === 'driver' || t.collectorType === 'vendor';
 
 /** The payable amount of a booking. Tolls are added once the trip has ended. */
 export function amountDueFor(b: { fare?: unknown; tollCharges?: unknown; status?: unknown }): number {
@@ -181,11 +191,12 @@ export function amountDueFor(b: { fare?: unknown; tollCharges?: unknown; status?
 export function summarizePayments(amountDue: number, txns: PaymentTxn[], refund?: RefundState | null): PaymentSummary {
   const live = txns.filter(countsAsPaid);
   const paidByMethod: Record<string, number> = {};
-  let totalPaid = 0, partnerCashHeld = 0, advancePaid = 0;
+  let totalPaid = 0, partnerCashHeld = 0, companyCollected = 0, advancePaid = 0;
   for (const t of live) {
     totalPaid += t.amount;
     paidByMethod[t.method] = r2((paidByMethod[t.method] ?? 0) + t.amount);
-    if (t.method === 'Cash' && (t.collectorType === 'driver' || t.collectorType === 'vendor')) partnerCashHeld += t.amount;
+    if (receivedByPartner(t)) partnerCashHeld += t.amount;
+    else companyCollected += t.amount;
     if (t.kind === 'advance') advancePaid += t.amount;
   }
   totalPaid = r2(totalPaid);
@@ -200,7 +211,7 @@ export function summarizePayments(amountDue: number, txns: PaymentTxn[], refund?
   else if (balanceDue > 0) status = 'Partially Paid';
   else status = 'Paid';
   return {
-    amountDue: due, totalPaid, balanceDue, partnerCashHeld: r2(partnerCashHeld), advancePaid: r2(advancePaid), paidByMethod,
+    amountDue: due, totalPaid, balanceDue, partnerCashHeld: r2(partnerCashHeld), companyCollected: r2(companyCollected), advancePaid: r2(advancePaid), paidByMethod,
     refunded: r2(refunded), status, overpaid: r2(Math.max(0, net - due)), transactions: live.length,
   };
 }

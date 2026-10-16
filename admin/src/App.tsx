@@ -206,7 +206,7 @@ function AdminShell({ session }: { session: AdminSession }) {
 
       // Finance
       case "payments":
-        return <Payments />;
+        return <Payments onSelectBooking={(id) => setSelectedBookingId(id)} />;
       case "invoices":
         return <Invoices />;
       case "earnings":

@@ -8,21 +8,25 @@ import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { randomInt } from 'crypto';
 import { db } from './admin';
 import { auditInTx } from './audit';
-import { adminDiscountOf, marketplaceOffer, optionalEmail, pinPlace, indianPhone, whatsappContact, AWAITING_APPROVAL } from './bookingBuild';
-import { PAYMENT_METHODS, summarizePayments } from './domain/bookingFlow';
-import { buildFareBreakup } from './domain/fareBreakup';
-import { applyFareOverride, calculateFare, isOutstation, mapCategory, serviceName } from './domain/pricing';
+import { adminDiscountOf, optionalEmail, pinPlace, indianPhone, whatsappContact } from './bookingBuild';
+import { DEFAULT_ADMIN_MAX_ADVANCE_DAYS, bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
+import { AWAITING_APPROVAL } from './bookingBuild';
+import { MANUAL_PAYMENT_METHODS as PAYMENT_METHODS, summarizePayments } from './domain/bookingFlow';
+import { dutyClassOf } from './domain/eligibility';
+import { applyFareOverride, mapCategory, serviceName } from './domain/pricing';
 import { COMMISSION_NOT_CONFIGURED, buildFinanceSnapshot, partnerPayoutFor, resolveCommission } from './domain/finance';
 import { distanceKm } from './domain/verification';
 import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
-import { FareBreakdown, GeoPlace } from './domain/types';
+import { FareBreakdown, GeoPlace, TripType } from './domain/types';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { loadCommissionPolicy } from './commission';
+import { createContactInTx, maskPhone } from './contacts';
+import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
+import { nextBookingCode } from './bookingSequence';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text } from './shared';
 
 const MAX_FARE = 1000000;
-const ADMIN_SCHEDULE_MAX_DAYS = 180;
 
 function overrideOf(v: any, calculatedTotal: number | null): { fare: number; reason: string } | null {
   if (v == null) return null;
@@ -80,15 +84,32 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   const email = optionalEmail(input.customerEmail);
   const paymentMethod = PAYMENT_METHODS.includes(input.paymentMethod) ? input.paymentMethod : null;
   if (!paymentMethod) throw new HttpsError('invalid-argument', `Choose how the customer will pay: ${PAYMENT_METHODS.join(', ')}.`);
-  const tripType = input.tripType === 'Round Trip' ? 'Round Trip' : 'One Way';
+  const tripType: TripType =
+    input.tripType === 'Round Trip'
+      ? 'Round Trip'
+      : input.tripType === 'Local Rental'
+      ? 'Local Rental'
+      : input.tripType === 'Airport Taxi'
+      ? 'Airport Taxi'
+      : 'One Way';
   if (typeof input.categoryId !== 'string' || !input.categoryId) throw new HttpsError('invalid-argument', 'Choose a vehicle category.');
   const discountIn = adminDiscountOf(input.discount);
+  // Advance bookings only, for phone and walk-in requests too. The pickup is an
+  // unambiguous instant; the horizon is the longer of the customer window and the
+  // admin default so call-centre staff can book further ahead.
   const now = new Date();
-  const scheduled = input.scheduledAt ? new Date(input.scheduledAt) : null;
-  if (scheduled && (!Number.isFinite(scheduled.getTime()) || scheduled.getTime() < now.getTime() - 5 * 60000 || scheduled.getTime() > now.getTime() + ADMIN_SCHEDULE_MAX_DAYS * 86400000)) {
-    throw new HttpsError('invalid-argument', `Choose a pickup time from now up to ${ADMIN_SCHEDULE_MAX_DAYS} days ahead.`);
+  const scheduled = parsePickupInstant(input.scheduledAt);
+  const customerWindow = bookingWindowFrom((await db.doc('settings/operations').get()).data());
+  const adminWindow = { minLeadMinutes: customerWindow.minLeadMinutes, maxAdvanceDays: Math.max(customerWindow.maxAdvanceDays, DEFAULT_ADMIN_MAX_ADVANCE_DAYS) };
+  const scheduleProblem = pickupWindowProblem(scheduled, now, adminWindow);
+  if (scheduleProblem || !scheduled) throw new HttpsError('invalid-argument', scheduleProblem || 'Choose the pickup date and time.');
+  const when = scheduled;
+  let tripEndAt: Date | null = null;
+  if (tripType === 'Round Trip') {
+    tripEndAt = parsePickupInstant(input.tripEndAt);
+    if (!tripEndAt) throw new HttpsError('invalid-argument', 'Choose the date and time the round trip ends.');
+    if (tripEndAt.getTime() < when.getTime()) throw new HttpsError('invalid-argument', 'The trip cannot end before it starts.');
   }
-  const when = scheduled ?? now;
   const [pickupR, dropR] = await Promise.all([resolvePlace(input, 'pickup'), resolvePlace(input, 'drop')]);
   const pickup = pickupR.place, drop = dropR.place;
   if (distanceKm(pickup, drop) < 0.1) throw new HttpsError('invalid-argument', 'Pickup and drop must be different locations.');
@@ -108,24 +129,28 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
     const customerId = typeof input.customerId === 'string' ? input.customerId : '';
-    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc] = await Promise.all([
+    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff] = await Promise.all([
       tx.get(ref),
       tx.get(db.collection('vehicle_categories').where('status', '==', 'Active')),
       typeof input.serviceId === 'string' && input.serviceId ? tx.get(db.doc(`services/${input.serviceId}`)) : Promise.resolve(null),
       customerId ? tx.get(db.doc(`customers/${customerId}`)) : Promise.resolve(null),
       loadCommissionPolicy(tx),
       loadFareAdjustment(tx),
+      loadTariffConfig(tx),
     ]);
     if (previous.exists) {
       if (previous.data()!.createdBy !== admin.uid) throw new HttpsError('permission-denied', 'Request already used.');
       return { id: requestId, bookingId: previous.data()!.bookingId, fare: previous.data()!.fare };
     }
     if (customer && (!customer.exists || !approved(customer.data()!.status))) throw new HttpsError('failed-precondition', 'The selected customer account is not active.');
-    const configured = categories.docs.map((d) => mapCategory(d.id, d.data())).filter((c) => c !== null);
+    const configured = categories.docs.map((d) => {
+      const c = mapCategory(d.id, d.data());
+      return c ? { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass } : null;
+    }).filter((c): c is NonNullable<typeof c> => c !== null);
     if (!configured.length) throw new HttpsError('failed-precondition', NO_BOOKABLE_CATEGORIES);
     const category = configured.find((c) => c.id === input.categoryId);
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is not bookable (inactive or no per-km rate).');
-    let service = serviceName(pickup, drop, route.distanceKm), serviceId = '';
+    let service = serviceName(pickup, drop, route.distanceKm, tripType), serviceId = '';
     if (serviceSnap) {
       if (!serviceSnap.exists || serviceSnap.data()!.status !== 'Active') throw new HttpsError('failed-precondition', 'The selected service is not active.');
       if (serviceSnap.data()!.adminBookingEnabled === false) throw new HttpsError('failed-precondition', 'The selected service is not enabled for admin bookings.');
@@ -134,24 +159,29 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     }
 
     const adjustment = effectiveAdjustment(adjustmentDoc, now);
-    const calculated = calculateFare({ category, route, tripType, pickupTime: when, adjustment, adminDiscount: discountIn });
-    const breakup = buildFareBreakup(category, calculated, isOutstation(route.distanceKm));
-    const commission = resolveCommission(policy, { serviceId, categoryId: category.id });
+    const priced = priceBooking({
+      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn,
+    });
+    const calculated = priced.fare;
+    const breakup = priced.breakup;
+    const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId, categoryId: category.id }) : null;
     // The admin form asks for this quote first and books against it; nothing is written.
     if (input.quoteOnly === true) {
-      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !!commission, adjustmentApplied: calculated.globalAdjustment };
+      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !priced.usesCommissionPolicy || !!commission, adjustmentApplied: calculated.globalAdjustment, pricing: priced.pricing };
     }
-    if (!commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
+    if (priced.usesCommissionPolicy && !commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
     if (!Number.isFinite(input.expectedFare) || input.expectedFare !== calculated.total) {
       throw new HttpsError('failed-precondition', `The calculated fare is ₹${calculated.total}. Review it and submit again.`, { fare: calculated });
     }
     const override = overrideOf(input.override, calculated.total);
     const fare = override ? applyFareOverride(calculated, override.fare) : calculated;
+    // An override is carried into the final fare as a fixed pre-GST adjustment.
+    const pricing = override ? { ...priced.pricing, adminAdjustment: fare.adminAdjustment ?? 0, discount: fare.discount } : priced.pricing;
     if (advanceIn && advanceIn.amount > fare.total) throw new HttpsError('invalid-argument', `The advance cannot be more than the fare (₹${fare.total}).`);
 
     const date = formatDate(when);
-    const time = scheduled ? formatTime12(when) : 'Now';
-    const bookingCode = `NT${now.getTime()}-${requestId.slice(0, 5)}`;
+    const time = formatTime12(when);
+    const bookingCode = await nextBookingCode(tx, now);
     const stamp = FieldValue.serverTimestamp();
     const fareOverride = override
       ? { calculatedFare: calculated.total, overriddenFare: override.fare, reason: override.reason, byUid: admin.uid, byName: admin.name, at: Timestamp.now() }
@@ -163,27 +193,25 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     } : null;
     const summary = summarizePayments(fare.total, advanceTxn ? [{ amount: advanceTxn.amount, method: advanceTxn.method, kind: 'advance', collectorType: 'admin', status: 'Success' }] : []);
     tx.create(ref, {
-      id: requestId, bookingId: bookingCode, customerId, customer: name, phone, customerWhatsapp: whatsapp,
-      customerEmail: email || (customer ? text(customer.data()!.email) : ''),
+      id: requestId, bookingId: bookingCode, customerId, customer: name, phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng,
       pickupType: pickup.type, pickupLocationId: pickupR.source === 'master' ? pickup.id : '', pickupSource: pickupR.source,
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type, dropLocationId: dropR.source === 'master' ? drop.id : '', dropSource: dropR.source,
       service, serviceId, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
-      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, fareVerified: true, fareOverride, commission, distanceKm: fare.distanceKm, durationMin: fare.durationMin,
+      passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
+      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing, fareVerified: true, fareOverride, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
+      ...(tripEndAt ? { tripEndAt: Timestamp.fromDate(tripEndAt), endDate: pricing.endDate, billableDays: pricing.days } : {}),
       discountDetails: fare.discountDetail ? { ...fare.discountDetail, byUid: admin.uid, byName: admin.name } : null,
       globalAdjustmentApplied: fare.globalAdjustment ?? null,
       routeEstimated: false, couponCode: '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
       paymentSummary: { ...summary, updatedAt: Timestamp.now() }, paymentMethod,
-      rideTiming: scheduled ? 'scheduled' : 'now', scheduledAt: scheduled ? Timestamp.fromDate(scheduled) : null, pickupAt: Timestamp.fromDate(when),
+      rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
       date, time, status: 'Pending', tripSubStatus: 'Not Started', source: 'admin', createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
     });
     const otp = String(randomInt(1000, 10000));
     tx.create(db.doc(`booking_secrets/${requestId}`), { customerId, otp, createdAt: stamp });
-    // Hidden from drivers and vendors until an admin approves the booking.
-    tx.create(db.doc(`marketplace_trips/${requestId}`), marketplaceOffer({
-      id: requestId, bookingCode, pickup, drop, time, date, service, tripType, category, distanceKm: fare.distanceKm,
-      offeredPayout: partnerPayoutFor(fare, commission), pickupAt: when, status: AWAITING_APPROVAL,
-    }));
+    createContactInTx(tx, requestId, { customerId, name, phone, whatsapp, email: email || (customer ? text(customer.data()!.email) : '') });
+    // No marketplace record: partners see a booking only after an admin approves and publishes it.
     if (advanceTxn) {
       tx.create(db.doc(`bookings/${requestId}/payment_transactions/${advanceTxn.id}`), advanceTxn);
       tx.set(db.doc(`payments/${requestId}_${advanceTxn.id}`), {
@@ -210,7 +238,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     }
     const n: NotifyInput = {
       recipientType: 'admin', recipientId: 'admin', category: 'bookings', severity: 'info', sound: 'new_booking',
-      title: 'New booking awaiting approval',
+      title: 'New booking request to review',
       message: `${bookingCode} · ${name} · ${pickup.name} → ${drop.name} · ${formatDateTime12(when)} · ₹${fare.total.toLocaleString('en-IN')}`,
       bookingId: requestId, bookingCode, cta: { label: 'Review booking', page: 'booking-detail', bookingId: requestId }, push: true, sentBy: admin.uid,
     };
@@ -263,6 +291,7 @@ export const overrideBookingFare = onCall(async (request) => {
     const revised = b.finance && b.finance.schema === 1 ? buildFinanceSnapshot({ ...b, fare: fare.total, fareBreakdown: fare }) : null;
     tx.update(ref, {
       fare: fare.total, fareBreakdown: fare, fareVerified: true,
+      ...(b.pricing && typeof b.pricing === 'object' ? { pricing: { ...b.pricing, adminAdjustment: fare.adminAdjustment ?? 0, discount: fare.discount } } : {}),
       fareOverride: { calculatedFare, overriddenFare: override.fare, previousFare, reason: override.reason, byUid: admin.uid, byName: admin.name, at: Timestamp.now() },
       ...(revised ? { finance: { ...revised, finalizedAt: b.finance.finalizedAt ?? stamp, revisedAt: stamp } } : {}),
       updatedAt: stamp,
@@ -273,7 +302,7 @@ export const overrideBookingFare = onCall(async (request) => {
     // An unclaimed marketplace offer follows the new fare at the commission the
     // booking was published under; bookings from before the policy keep their offer.
     const c = b.commission;
-    if (trip.exists && ['Open', 'Bidding', AWAITING_APPROVAL].includes(trip.data()!.status) && c && typeof c.rate === 'number' && (c.base === 'taxable' || c.base === 'total')) {
+    if (trip.exists && ['Open', 'Bidding', AWAITING_APPROVAL, 'Unpublished'].includes(trip.data()!.status) && c && typeof c.rate === 'number' && (c.base === 'taxable' || c.base === 'total')) {
       tx.update(market, { offeredPayout: partnerPayoutFor(fare, c), updatedAt: stamp });
     }
     tx.create(ref.collection('events').doc(), {
