@@ -23,3 +23,5 @@ firebase-debug.*.log
 *.tsbuildinfo
 coverage/
 .eslintcache
+.vercel
+.env*

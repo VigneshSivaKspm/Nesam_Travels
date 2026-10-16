@@ -1,0 +1,127 @@
+import type { ExpoConfig } from "expo/config";
+
+// Google Maps is optional: without a key the app shows route cards with an
+// "Open in Google Maps" link instead of an embedded map (never a crash).
+// Provide it at build time: GOOGLE_MAPS_ANDROID_API_KEY=... npx expo prebuild
+const mapsKey = process.env.GOOGLE_MAPS_ANDROID_API_KEY?.trim() ?? "";
+
+// Firebase Cloud Messaging needs the app's google-services.json (download it from the Firebase console).
+// Set GOOGLE_SERVICES_JSON to its path (an EAS file secret works); builds without it have no push.
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+
+const config: ExpoConfig = {
+  name: 'one_way_car_rental',
+  slug: 'one-way-car-rental',
+  scheme: 'onewaycarrental',
+  version: '1.0.0',
+  platforms: ['android', 'ios', 'web'],
+  // Phones stay comfortable in portrait; tablets, foldables and landscape use the responsive layout (theme/responsive.ts).
+  orientation: 'default',
+  icon: './assets/icon.png',
+  userInterfaceStyle: 'light',
+  backgroundColor: '#F7F7F7',
+  ios: {
+    supportsTablet: true,
+    bundleIdentifier: "com.onewaycarrental.app",
+  },
+  android: {
+    package: "com.onewaycarrental.app",
+    versionCode: 1,
+    ...(googleServicesFile ? { googleServicesFile } : {}),
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#FFFFFF",
+    },
+    softwareKeyboardLayoutMode: "resize",
+    predictiveBackGestureEnabled: false,
+    permissions: [
+      "android.permission.ACCESS_FINE_LOCATION",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.CAMERA",
+    ],
+    blockedPermissions: [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+      "android.permission.SYSTEM_ALERT_WINDOW",
+      "android.permission.ACCESS_BACKGROUND_LOCATION",
+    ],
+  },
+  web: {
+    // Metro bundler, one HTML shell for the whole app (client-side navigation).
+    bundler: 'metro',
+    output: 'single',
+    name: 'one_way_car_rental',
+    shortName: 'one_way_car_rental',
+    description: 'Book safe, reliable cabs with one_way_car_rental.',
+    lang: 'en-IN',
+    favicon: './assets/favicon.png',
+    themeColor: '#E31E24',
+    backgroundColor: '#F7F7F7',
+  },
+  plugins: [
+    [
+      "expo-splash-screen",
+      {
+        image: "./assets/splash-icon.png",
+        imageWidth: 180,
+        resizeMode: "contain",
+        backgroundColor: "#FFFFFF",
+      },
+    ],
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "one_way_car_rental uses your location to set your pickup point and share it in an emergency.",
+        isAndroidBackgroundLocationEnabled: false,
+      },
+    ],
+    [
+      "expo-image-picker",
+      {
+        photosPermission:
+          "one_way_car_rental needs access to your photos to set your profile picture.",
+        cameraPermission:
+          "one_way_car_rental needs camera access to take your profile picture.",
+        microphonePermission: false,
+      },
+    ],
+    [
+      "expo-notifications",
+      {
+        color: "#E31E24",
+        defaultChannel: "nesam_general",
+        sounds: ["./assets/sounds/new_booking.wav", "./assets/sounds/approval.wav", "./assets/sounds/general.wav"],
+      },
+    ],
+    ["expo-audio", { microphonePermission: false }],
+    "@react-native-community/datetimepicker",
+    "expo-sharing",
+    "./plugins/withReleaseSigning",
+    ...(mapsKey
+      ? [
+          ["react-native-maps", { androidGoogleMapsApiKey: mapsKey }] as [
+            string,
+            Record<string, string>,
+          ],
+        ]
+      : []),
+    [
+      "expo-build-properties",
+      {
+        android: {
+          minSdkVersion: 24,
+          usesCleartextTraffic: false,
+          enableProguardInReleaseBuilds: true,
+          enableShrinkResourcesInReleaseBuilds: true,
+        },
+      },
+    ],
+  ],
+  extra: {
+    mapsEnabled: !!mapsKey,
+  },
+};
+
+export default config;

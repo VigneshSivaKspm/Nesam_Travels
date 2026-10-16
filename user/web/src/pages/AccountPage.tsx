@@ -8,7 +8,7 @@ import { describeError } from '@core/utils/retry';
 import { Avatar, Button, Dialog, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { PhotoError, uploadProfilePhoto } from '@/lib/avatarUpload';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useAuth } from '@/state/Auth';
 
 function Row({ icon, label, value, to, href }: { icon: string; label: string; value?: ReactNode; to?: string; href?: string }) {
@@ -38,7 +38,7 @@ function Row({ icon, label, value, to, href }: { icon: string; label: string; va
 }
 
 export function AccountPage() {
-  usePageTitle('Account');
+  useSeo({ title: 'My Account', noindex: true });
   const { profile } = useCustomerData();
   const { signOut } = useAuth();
   const file = useRef<HTMLInputElement>(null);

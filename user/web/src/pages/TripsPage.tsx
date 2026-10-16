@@ -10,7 +10,7 @@ import { Button, EmptyState, LinkButton, Notice, PageHead } from '@/components/u
 import { Icon } from '@/components/Icon';
 import { RoutePoints } from '@/components/RoutePoints';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useBooking } from '@/state/Booking';
 import { CancelDialog } from './ride/dialogs';
 
@@ -87,7 +87,7 @@ function TripCard({ trip, onCancel }: { trip: TripRecord; onCancel: (t: TripReco
 }
 
 export function TripsPage() {
-  usePageTitle('My trips');
+  useSeo({ title: 'My Trips', noindex: true });
   const { trips, tripsLoading, tripsError, retryTrips } = useCustomerData();
   const [tab, setTab] = useState<TripTab>('Upcoming');
   const [query, setQuery] = useState('');

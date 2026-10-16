@@ -27,7 +27,7 @@ export function TrustStrip() {
       <ul className="wrap strip">
         {FEATURES.map((f) => (
           <li key={f.title} className="strip__item">
-            <img src={IMG(f.image)} alt="" width={84} height={84} loading="lazy" />
+            <img src={IMG(f.image)} alt={f.title} width={84} height={84} loading="lazy" />
             <div>
               <h3>{f.title}</h3>
               <p>{f.text}</p>
@@ -41,7 +41,7 @@ export function TrustStrip() {
 
 export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
   return (
-    <section className="band" aria-labelledby="sec-services">
+    <section className="band" aria-labelledby="sec-services" id="sec-services-band">
       <div className="wrap">
         <header className="sec-head">
           <div>
@@ -50,12 +50,12 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
             <p className="sec-head__text">Choose a starting point and we’ll set up your trip. You’ll see the fare for every vehicle before you book.</p>
           </div>
         </header>
-        <ul className="services">
+        <ul className="services" id="services">
           {SERVICES.map((s) => (
-            <li key={s.id}>
+            <li key={s.id} id={s.id}>
               <button type="button" className="service" onClick={() => onPick(s)}>
                 <span className="service__media">
-                  <img src={IMG(s.image)} alt="" width={724} height={543} loading="lazy" />
+                  <img src={IMG(s.image)} alt={`NESAM Cabs - ${s.title}`} width={724} height={543} loading="lazy" />
                 </span>
                 <span className="service__body">
                   <strong>{s.title}</strong>
@@ -97,11 +97,11 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
             <p className="sec-head__text">Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book.</p>
           </div>
         </header>
-        <ul className="routes">
+        <ul className="routes" id="routes">
           {CORRIDORS.map((c) => (
-            <li key={c.id}>
+            <li key={c.id} id={c.id}>
               <button type="button" className="route-card" onClick={() => onRoute(c)} aria-label={`Plan ${c.origin} to ${c.destination}, about ${c.km}`}>
-                {c.image ? <img src={IMG(c.image)} alt="" width={768} height={512} loading="lazy" /> : null}
+                {c.image ? <img src={IMG(c.image)} alt={`${c.origin} to ${c.destination} outstation drop taxi route`} width={768} height={512} loading="lazy" /> : null}
                 <span className="route-card__shade" aria-hidden="true" />
                 <span className="route-card__body">
                   <span className="route-card__title">
@@ -141,14 +141,14 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
 
 export function DestinationsSection({ onPick }: { onPick: (d: Destination) => void }) {
   return (
-    <section className="band" aria-labelledby="sec-destinations">
+    <section className="band" aria-labelledby="sec-destinations" id="sec-destinations-band">
       <div className="wrap">
         <SectionHead eyebrow="Destinations" title="Where will you go next?" text="Tap a destination to set it as your drop and pick up from there." />
-        <ul className="destinations">
+        <ul className="destinations" id="destinations">
           {DESTINATIONS.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} id={`destination-${d.id}`}>
               <button type="button" className="destination" onClick={() => onPick(d)}>
-                <img src={IMG(d.image)} alt="" width={768} height={512} loading="lazy" />
+                <img src={IMG(d.image)} alt={`${d.name} outstation taxi destination - ${d.tagline}`} width={768} height={512} loading="lazy" />
                 <span className="destination__shade" aria-hidden="true" />
                 <span className="destination__body">
                   <strong>{d.name}</strong>
@@ -193,8 +193,8 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
         <ul className="fleet" id="sec-fleet">
           {live.length
             ? live.map((c) => (
-                <li key={c.id} className="vehicle">
-                  <img src={vehicleArtUrl(c)} alt="" width={320} height={210} loading="lazy" />
+                <li key={c.id} id={`vehicle-${c.id}`} className="vehicle">
+                  <img src={vehicleArtUrl(c)} alt={`NESAM ${c.name} - ${c.seats} seater cab`} width={320} height={210} loading="lazy" />
                   <div className="vehicle__body">
                     <strong>{c.name}</strong>
                     <span className="vehicle__seats">
@@ -205,8 +205,8 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                 </li>
               ))
             : FALLBACK_FLEET.map((v) => (
-                <li key={v.art} className="vehicle">
-                  <img src={`/vehicles/${v.art}.webp`} alt="" width={320} height={210} loading="lazy" />
+                <li key={v.art} id={`vehicle-${v.art}`} className="vehicle">
+                  <img src={`/vehicles/${v.art}.webp`} alt={`NESAM Cabs ${v.name} rental`} width={320} height={210} loading="lazy" />
                   <div className="vehicle__body">
                     <strong>{v.name}</strong>
                     <p>{v.text}</p>
@@ -221,10 +221,10 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
 
 export function HowSection() {
   return (
-    <section className="band band--dark" aria-labelledby="sec-how">
+    <section className="band band--dark" aria-labelledby="sec-how" id="sec-how-band">
       <div className="wrap how">
         <div className="how__photo">
-          <img src={IMG('photography/about-fleet')} alt="" width={1448} height={1086} loading="lazy" />
+          <img src={IMG('photography/about-fleet')} alt="NESAM Cabs verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
         <div className="how__body">
           <p className="eyebrow eyebrow--gold">How it works</p>
@@ -233,7 +233,7 @@ export function HowSection() {
             {STEPS.map((s, i) => (
               <li key={s.title}>
                 <span className="how__num">{i + 1}</span>
-                <img src={IMG(s.image)} alt="" width={96} height={96} loading="lazy" />
+                <img src={IMG(s.image)} alt={s.title} width={96} height={96} loading="lazy" />
                 <div>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
@@ -249,7 +249,7 @@ export function HowSection() {
 
 export function AssuranceSection() {
   return (
-    <section className="band" aria-labelledby="sec-safe">
+    <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
         <div className="assure__body">
           <p className="eyebrow eyebrow--red">Travel with confidence</p>
@@ -270,9 +270,9 @@ export function AssuranceSection() {
           </ul>
         </div>
         <div className="assure__collage" aria-hidden="true">
-          <img className="assure__a" src={IMG('photography/trust-driver')} alt="" width={724} height={543} loading="lazy" />
-          <img className="assure__b" src={IMG('photography/trust-interior')} alt="" width={724} height={543} loading="lazy" />
-          <img className="assure__c" src={IMG('photography/trust-support')} alt="" width={724} height={543} loading="lazy" />
+          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with NESAM Cabs" width={724} height={543} loading="lazy" />
+          <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
+          <img className="assure__c" src={IMG('photography/trust-support')} alt="NESAM 24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>
       </div>
     </section>
@@ -309,7 +309,7 @@ export function Banners() {
 
 export function FaqSection() {
   return (
-    <section className="band" aria-labelledby="sec-faq">
+    <section className="band" aria-labelledby="sec-faq" id="sec-faq-band">
       <div className="wrap faq-band">
         <div className="faq-band__intro">
           <p className="eyebrow eyebrow--red">Good to know</p>
@@ -319,7 +319,7 @@ export function FaqSection() {
             <Icon name="support" size={18} /> Help &amp; support
           </Link>
         </div>
-        <div className="faq">
+        <div className="faq" id="faq">
           {FAQS.map((f) => (
             <details key={f.q} className="faq__item">
               <summary>

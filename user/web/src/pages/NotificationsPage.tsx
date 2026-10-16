@@ -8,7 +8,7 @@ import { describeError } from '@core/utils/retry';
 import { Button, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { pathForPage, useInbox } from '@/state/Inbox';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 type Filter = 'all' | 'unread' | NotificationCategory;
 
@@ -22,7 +22,7 @@ const ICON: Record<NotificationCategory, string> = {
 };
 
 export function NotificationsPage() {
-  usePageTitle('Notifications');
+  useSeo({ title: 'Notifications', noindex: true });
   const navigate = useNavigate();
   const { notifications, loaded } = useInbox();
   const [filter, setFilter] = useState<Filter>('all');

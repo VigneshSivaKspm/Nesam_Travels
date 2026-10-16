@@ -4,10 +4,10 @@ import { formatDate, formatINR } from '@core/utils/format';
 import { paymentRows } from '@core/utils/tripView';
 import { EmptyState, LinkButton, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 export function PaymentsPage() {
-  usePageTitle('Payments');
+  useSeo({ title: 'Payments & Refunds', noindex: true });
   const { trips, profile } = useCustomerData();
   const rows = paymentRows(trips);
   const refunds = trips.filter((t) => t.refund && t.refund.amount > 0);

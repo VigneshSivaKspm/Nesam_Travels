@@ -7,7 +7,8 @@ import { describeError } from '@core/utils/retry';
 import { Button, Dialog, EmptyState, Notice, PageHead, Segmented, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { PlaceSuggestions } from '@/components/PlaceSuggestions';
-import { useDeviceLocation, usePageTitle } from '@/lib/hooks';
+import { useDeviceLocation } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 type Kind = 'home' | 'work' | 'favorite';
 const ICON: Record<string, string> = { home: 'home', work: 'briefcase', favorite: 'favourite' };
@@ -96,7 +97,7 @@ function AddPlaceDialog({ onClose }: { onClose: () => void }) {
 }
 
 export function SavedPlacesPage() {
-  usePageTitle('Saved places');
+  useSeo({ title: 'Saved Places', noindex: true });
   const { savedPlaces } = useCustomerData();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<LocationItem | null>(null);

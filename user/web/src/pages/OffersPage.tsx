@@ -5,12 +5,16 @@ import { formatINR } from '@core/utils/format';
 import { Button, EmptyState, LinkButton, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { copyToClipboard } from '@/lib/share';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useBooking } from '@/state/Booking';
 import { useNavigate } from 'react-router-dom';
 
 export function OffersPage() {
-  usePageTitle('Offers');
+  useSeo({
+    title: 'Offers, Coupons & Promo Codes',
+    description: 'Save on your next outstation cab or drop taxi booking with NESAM Cabs promo codes, festive discounts and new user coupons.',
+    canonical: '/offers',
+  });
   const navigate = useNavigate();
   const { update } = useBooking();
   const [coupons, setCoupons] = useState<Coupon[] | null>(null);

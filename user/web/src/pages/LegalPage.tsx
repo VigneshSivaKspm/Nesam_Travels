@@ -9,7 +9,7 @@ import { callFunction } from '@core/services/callables';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Badge, Button, EmptyState, Notice, PageHead, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 interface DocRow {
   key: string;
@@ -20,7 +20,11 @@ interface DocRow {
 }
 
 export function LegalPage() {
-  usePageTitle('Terms and privacy');
+  useSeo({
+    title: 'Terms of Service & Customer Privacy Policy',
+    description: 'Read the official terms and conditions, customer privacy policy, fare transparency rules and cancellation guidelines for NESAM Cabs.',
+    canonical: '/legal',
+  });
   const [rows, setRows] = useState<DocRow[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState('');

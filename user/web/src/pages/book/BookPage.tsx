@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useCustomerData } from '@core/context/CustomerData';
 import { useBooking } from '@/state/Booking';
 import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { Icon } from '@/components/Icon';
 import { PlanStep, type PlanIntent, type PlanUi } from './PlanStep';
 import { ChooseStep } from './ChooseStep';
@@ -78,10 +79,10 @@ function Home() {
     <>
       <RideBanner />
       <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__media" aria-hidden="true">
+        <div className="hero__media">
           <picture>
             <source media="(max-width: 720px)" srcSet={IMG('heroes/hero-mobile')} />
-            <img src={IMG('heroes/hero-desktop')} alt="" width={1774} height={887} fetchPriority="high" />
+            <img src={IMG('heroes/hero-desktop')} alt="NESAM Cabs outstation and intercity cab service across Tamil Nadu" width={1774} height={887} fetchPriority="high" />
           </picture>
           <span className="hero__shade" />
         </div>
@@ -126,7 +127,28 @@ function Home() {
 }
 
 export function BookPage({ step }: { step: BookStep }) {
-  usePageTitle(step === 'plan' ? 'Book a ride' : step === 'choose' ? 'Choose a ride' : 'Review and confirm');
+  useSeo(
+    step === 'plan'
+      ? {
+          title: 'NESAM Cabs — Outstation Cabs & One Way Drop Taxi in Tamil Nadu | Upfront Fares',
+          description:
+            'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 support.',
+          canonical: '/book',
+        }
+      : step === 'choose'
+        ? {
+            title: 'Choose Vehicle & Upfront Fares · NESAM Cabs',
+            description: 'Select your vehicle category and check exact upfront fare with verified chauffeurs.',
+            canonical: '/book/ride',
+            noindex: true,
+          }
+        : {
+            title: 'Review and Confirm Booking · NESAM Cabs',
+            description: 'Review ride details and scheduled pickup. Pay your driver directly in Cash or via UPI.',
+            canonical: '/book/confirm',
+            noindex: true,
+          },
+  );
   const { draft } = useBooking();
   const { pickup, drop } = draft;
 

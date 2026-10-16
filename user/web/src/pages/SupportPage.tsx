@@ -8,12 +8,16 @@ import { describeError } from '@core/utils/retry';
 import { Badge, Button, EmptyState, FieldShell, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { FAQS } from '@/pages/book/content';
 import { Icon } from '@/components/Icon';
-import { usePageTitle } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 
 type Tab = 'help' | 'ticket' | 'mine';
 
 export function SupportPage() {
-  usePageTitle('Help and support');
+  useSeo({
+    title: 'Customer Support & 24/7 Helpline',
+    description: 'Need help with your outstation cab booking? Call NESAM Cabs at 85319 70197 or submit a ticket. Fast 24/7 assistance across Tamil Nadu.',
+    canonical: '/support',
+  });
   const [params] = useSearchParams();
   const initialBooking = params.get('booking') ?? '';
   const { profile } = useCustomerData();

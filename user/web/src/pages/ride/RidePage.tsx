@@ -23,7 +23,8 @@ import { tripFareLines } from '@/lib/fareLines';
 import { amountDue, isPaid, payableAmount, upiLink } from '@/lib/tripMoney';
 import { buildTripShareText, shareText } from '@/lib/share';
 import { printReceipt } from '@/lib/receipt';
-import { useDeviceLocation, useOnline, usePageTitle } from '@/lib/hooks';
+import { useDeviceLocation, useOnline } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { useToasts } from '@/state/Toasts';
 import { useBooking } from '@/state/Booking';
 import { CancelDialog, SafetyDialog } from './dialogs';
@@ -139,7 +140,7 @@ export function RidePage() {
   const [printing, setPrinting] = useState('');
   const [tripRoute, setTripRoute] = useState<{ key: string; info: RouteInfo } | null>(null);
 
-  usePageTitle(trip ? titleOf(trip) : 'Your ride');
+  useSeo({ title: trip ? titleOf(trip) : 'Your ride', noindex: true });
 
   // Leaving this page (back, minimise) stops it re-opening automatically.
   useEffect(() => {
