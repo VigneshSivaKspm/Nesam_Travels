@@ -18,14 +18,17 @@ export const inIndia = (lat: unknown, lng: unknown): boolean =>
 
 export async function routeFor(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   // Never accept distance or duration from the caller.
+  if (Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001) {
+    return { distanceKm: 1, durationMin: 15, estimated: true, path: [] };
+  }
   const base = (process.env.ROUTING_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
   try {
     const response = await fetch(`${base}/route/v1/driving/${a.lng},${a.lat};${b.lng},${b.lat}?overview=false`, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error('routing unavailable');
     const result = await response.json() as any;
     const r = result.code === 'Ok' && result.routes?.[0];
-    if (!r || !Number.isFinite(r.distance) || r.distance <= 0 || !Number.isFinite(r.duration) || r.duration <= 0) throw new Error('invalid route');
-    return { distanceKm: r.distance / 1000, durationMin: r.duration / 60, estimated: false, path: [] };
+    if (!r || !Number.isFinite(r.distance) || !Number.isFinite(r.duration)) throw new Error('invalid route');
+    return { distanceKm: Math.max(0.1, r.distance / 1000), durationMin: Math.max(1, r.duration / 60), estimated: false, path: [] };
   } catch {
     throw new HttpsError('unavailable', 'Route pricing is temporarily unavailable. Please try again.');
   }

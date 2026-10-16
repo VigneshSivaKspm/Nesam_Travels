@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Homepage: One Way Car Rental & Outstation Drop Taxi -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/heroes/hero-desktop.webp</image:loc>
+      <image:title>One Way Car Rental Tamil Nadu with Driver</image:title>
+      <image:caption>Outstation and intercity one way drop taxi across Tamil Nadu, Bangalore and Pondicherry with upfront pricing</image:caption>
+    </image:image>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/brand/logo.png</image:loc>
+      <image:title>One Way Car Rental Logo</image:title>
+    </image:image>
+  </url>
+
+  <!-- Booking Engine Entrypoint -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/book</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/heroes/hero-family.webp</image:loc>
+      <image:title>Book One Way Car Rental Online</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/vehicles/sedan.webp</image:loc>
+      <image:title>One Way Sedan Taxi</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/vehicles/suv.webp</image:loc>
+      <image:title>One Way SUV Car Rental</image:title>
+    </image:image>
+  </url>
+
+  <!-- Offers & Promo Codes -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/offers</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/backgrounds/offer-background.webp</image:loc>
+      <image:title>One Way Car Rental Coupons and Offers</image:title>
+    </image:image>
+  </url>
+
+  <!-- Customer Support & Help Desk -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/support</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/trust-support.webp</image:loc>
+      <image:title>Customer Care 24/7 Helpline</image:title>
+    </image:image>
+  </url>
+
+  <!-- Legal & Terms -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/legal</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.50</priority>
+  </url>
+
+  <!-- Popular Route Corridor: Chennai to Pondicherry One Way Drop Taxi -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#chennai-pondicherry</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/destinations/route-chennai-pondicherry.webp</image:loc>
+      <image:title>Chennai to Pondicherry One Way Car Rental</image:title>
+      <image:caption>150 km road journey, approx 3 hr 10 min. Zero return fare.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Popular Route Corridor: Chennai to Bangalore One Way Cab -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#chennai-bangalore</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/destinations/route-chennai-bangalore.webp</image:loc>
+      <image:title>Chennai to Bangalore One Way Car Rental</image:title>
+      <image:caption>345 km highway trip, approx 6 hr with commercial chauffeur.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Popular Route Corridor: Coimbatore to Ooty Hill Station Taxi -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#coimbatore-ooty</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/destinations/route-coimbatore-ooty.webp</image:loc>
+      <image:title>Coimbatore to Ooty One Way Taxi</image:title>
+      <image:caption>88 km scenic ghat road journey, approx 2 hr 50 min.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Popular Route Corridor: Madurai to Rameshwaram Temple Taxi -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#madurai-rameshwaram</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/destinations/route-madurai-rameshwaram.webp</image:loc>
+      <image:title>Madurai to Rameshwaram One Way Cab</image:title>
+      <image:caption>172 km road trip, approx 3 hr 30 min. Temple darshan and tour.</image:caption>
+    </image:image>
+  </url>
+
+  <!-- Additional Intercity Corridors -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#trichy-thanjavur</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#bangalore-mysore</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#salem-yercaud</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#chennai-tirupati</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+  </url>
+
+  <!-- Services: One-Way Drop Taxi -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#one-way</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/service-one-way.webp</image:loc>
+      <image:title>One-Way Outstation Drop Taxi Service</image:title>
+    </image:image>
+  </url>
+
+  <!-- Services: Outstation Round Trips -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#round-trip</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/service-round-trip.webp</image:loc>
+      <image:title>Outstation Round Trip Car Rental with Chauffeur</image:title>
+    </image:image>
+  </url>
+
+  <!-- Services: Airport Transfers -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#airport</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/service-airport.webp</image:loc>
+      <image:title>Airport Taxi Transfers Chennai Bangalore Coimbatore</image:title>
+    </image:image>
+  </url>
+
+  <!-- Services: Temple & Pilgrimage Tours -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#pilgrimage</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/service-pilgrimage.webp</image:loc>
+      <image:title>Temple and Pilgrimage Car Rental Tours</image:title>
+    </image:image>
+  </url>
+
+  <!-- Fleet Guide -->
+  <url>
+    <loc>https://onewaycarrental.nesamcabs.com/#sec-fleet</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+    <image:image>
+      <image:loc>https://onewaycarrental.nesamcabs.com/website-images/web/photography/about-fleet.webp</image:loc>
+      <image:title>One Way Car Rental Fleet Selection</image:title>
+    </image:image>
+  </url>
+</urlset>

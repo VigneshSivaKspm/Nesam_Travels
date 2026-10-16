@@ -27,12 +27,12 @@ function AuthLayout({ art, title, subtitle, children }: { art: string; title: st
       <aside className="auth__hero">
         <picture>
           <source media="(max-width: 720px)" srcSet="/website-images/web/heroes/hero-mobile.webp" />
-          <img className="auth__bg" src="/website-images/web/heroes/hero-family.webp" alt="" width={1774} height={887} />
+          <img className="auth__bg" src="/website-images/web/heroes/hero-family.webp" alt="Family traveling comfortably with NESAM Cabs outstation taxi" width={1774} height={887} />
         </picture>
         <span className="auth__shade" aria-hidden="true" />
         <div className="auth__top">
           <span className="brand brand--light">
-            <img src="/brand/logo.png" alt="" width={44} height={44} />
+            <img src="/brand/logo.png" alt="NESAM Cabs Logo" width={44} height={44} />
             <span className="brand__word">
               <b>NESAM</b>
               <small>Cabs</small>

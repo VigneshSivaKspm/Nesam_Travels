@@ -27,7 +27,7 @@ export function TrustStrip() {
       <ul className="wrap strip">
         {FEATURES.map((f) => (
           <li key={f.title} className="strip__item">
-            <img src={IMG(f.image)} alt="" width={84} height={84} loading="lazy" />
+            <img src={IMG(f.image)} alt={f.title} width={84} height={84} loading="lazy" />
             <div>
               <h3>{f.title}</h3>
               <p>{f.text}</p>
@@ -41,7 +41,7 @@ export function TrustStrip() {
 
 export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
   return (
-    <section className="band" aria-labelledby="sec-services">
+    <section className="band" aria-labelledby="sec-services" id="sec-services-band">
       <div className="wrap">
         <header className="sec-head">
           <div>
@@ -50,12 +50,12 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
             <p className="sec-head__text">Choose a starting point and we’ll set up your trip. You’ll see the fare for every vehicle before you book.</p>
           </div>
         </header>
-        <ul className="services">
+        <ul className="services" id="services">
           {SERVICES.map((s) => (
-            <li key={s.id}>
+            <li key={s.id} id={s.id}>
               <button type="button" className="service" onClick={() => onPick(s)}>
                 <span className="service__media">
-                  <img src={IMG(s.image)} alt="" width={724} height={543} loading="lazy" />
+                  <img src={IMG(s.image)} alt={`One Way Car Rental - ${s.title}`} width={724} height={543} loading="lazy" />
                 </span>
                 <span className="service__body">
                   <strong>{s.title}</strong>
@@ -97,11 +97,11 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
             <p className="sec-head__text">Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book.</p>
           </div>
         </header>
-        <ul className="routes">
+        <ul className="routes" id="routes">
           {CORRIDORS.map((c) => (
-            <li key={c.id}>
+            <li key={c.id} id={c.id}>
               <button type="button" className="route-card" onClick={() => onRoute(c)} aria-label={`Plan ${c.origin} to ${c.destination}, about ${c.km}`}>
-                {c.image ? <img src={IMG(c.image)} alt="" width={768} height={512} loading="lazy" /> : null}
+                {c.image ? <img src={IMG(c.image)} alt={`${c.origin} to ${c.destination} one way car rental route`} width={768} height={512} loading="lazy" /> : null}
                 <span className="route-card__shade" aria-hidden="true" />
                 <span className="route-card__body">
                   <span className="route-card__title">
@@ -141,14 +141,14 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
 
 export function DestinationsSection({ onPick }: { onPick: (d: Destination) => void }) {
   return (
-    <section className="band" aria-labelledby="sec-destinations">
+    <section className="band" aria-labelledby="sec-destinations" id="sec-destinations-band">
       <div className="wrap">
         <SectionHead eyebrow="Destinations" title="Where will you go next?" text="Tap a destination to set it as your drop and pick up from there." />
-        <ul className="destinations">
+        <ul className="destinations" id="destinations">
           {DESTINATIONS.map((d) => (
-            <li key={d.id}>
+            <li key={d.id} id={`destination-${d.id}`}>
               <button type="button" className="destination" onClick={() => onPick(d)}>
-                <img src={IMG(d.image)} alt="" width={768} height={512} loading="lazy" />
+                <img src={IMG(d.image)} alt={`${d.name} outstation taxi destination - ${d.tagline}`} width={768} height={512} loading="lazy" />
                 <span className="destination__shade" aria-hidden="true" />
                 <span className="destination__body">
                   <strong>{d.name}</strong>
