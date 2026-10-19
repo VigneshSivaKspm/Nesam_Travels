@@ -167,6 +167,9 @@
     var(--ink);
   color: var(--on-dark-muted);
 }
+.profile-card .muted {
+  color: var(--on-dark-muted);
+}
 .profile-card h2 {
   margin-top: 6px;
   color: #fff;

@@ -456,6 +456,10 @@
 .pay__text small {
   color: var(--muted);
 }
+.pay__tick:empty {
+  background: transparent;
+  border: 1.5px solid var(--ink);
+}
 .pay__tick {
   display: grid;
   place-items: center;
@@ -1235,6 +1239,13 @@
   }
 }
 @media (max-width: 599.98px) {
+  .work__foot > * {
+    min-width: 0;
+  }
+  .work__foot .btn--lg {
+    padding-inline: 16px;
+    font-size: 1rem;
+  }
   .ride {
     grid-template-columns: 96px minmax(0, 1fr);
     padding-right: 14px;

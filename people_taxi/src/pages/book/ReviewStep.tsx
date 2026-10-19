@@ -33,6 +33,33 @@ interface ConfirmedBooking {
   payment: string;
 }
 
+/**
+ * If the visitor signed in through the login popup while trying to book, submit once their profile is ready.
+ * It lives in its own component so the effect is never skipped by ReviewStep's early return
+ * (a hook after a conditional return crashes React when the route or quote arrives late).
+ */
+function PendingSubmit({
+  profileReady,
+  blocker,
+  pending,
+  submitting,
+  run,
+}: {
+  profileReady: boolean;
+  blocker: string;
+  pending: { current: boolean };
+  submitting: { current: boolean };
+  run: () => void;
+}) {
+  useEffect(() => {
+    if (profileReady && pending.current && !blocker && !submitting.current) {
+      pending.current = false;
+      run();
+    }
+  }, [profileReady, blocker]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to sign-in and to the blocker clearing only
+  return null;
+}
+
 export function ReviewStep() {
   const navigate = useNavigate();
   const { profile } = useCustomerData();
@@ -161,14 +188,6 @@ export function ReviewStep() {
     }
   };
 
-  // If user signed in via login popup while trying to book, auto-submit once profile is ready
-  useEffect(() => {
-    if (profile && pendingSubmitRef.current && !blocker && !submittingRef.current) {
-      pendingSubmitRef.current = false;
-      void submit();
-    }
-  }, [profile, blocker]);
-
   const freeHours = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000);
   const when = scheduledAt ? `${formatDate(scheduledAt)}, ${formatTime(scheduledAt)}` : 'Not chosen';
 
@@ -177,6 +196,7 @@ export function ReviewStep() {
   return (
     <div className="review-page">
       <div className="review-page__inner">
+        <PendingSubmit profileReady={!!profile} blocker={blocker} pending={pendingSubmitRef} submitting={submittingRef} run={() => void submit()} />
         <div className="review-page__head">
           <StepHead title="Review and confirm" step={3} onBack={() => navigate('/book/ride')} />
           <p className="review-page__subhead">Review your route, vehicle, fare breakup, and contact details before confirming.</p>

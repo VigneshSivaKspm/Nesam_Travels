@@ -149,6 +149,12 @@
   font-size: var(--fs-xs);
   font-weight: 900;
 }
+.stepper__step:not(.is-current) .stepper__label {
+  display: none;
+}
+.review-page__head .stepper__step .stepper__label {
+  display: inline !important;
+}
 .stepper__step.is-current {
   color: var(--ink);
 }
@@ -458,6 +464,10 @@
 }
 .pay__text small {
   color: var(--muted);
+}
+.pay__tick:empty {
+  background: transparent;
+  border: 2px solid var(--line-strong);
 }
 .pay__tick {
   display: grid;
@@ -1607,11 +1617,13 @@
 /* ── Phones and tablets: a rounded map on top, the panel flows below ─────── */
 @media (max-width: 1023.98px) {
   .work {
-    display: block;
+    display: flex;
+    flex-direction: column;
     height: auto;
     padding: 0 12px 12px;
   }
   .work__map {
+    order: -1;
     height: clamp(220px, 34vh, 360px);
     margin-bottom: 12px;
     border-width: 4px;
@@ -1640,6 +1652,13 @@
   }
 }
 @media (max-width: 599.98px) {
+  .work__foot > * {
+    min-width: 0;
+  }
+  .work__foot .btn--lg {
+    padding-inline: 16px;
+    font-size: 1rem;
+  }
   .ride {
     grid-template-columns: 92px minmax(0, 1fr);
   }

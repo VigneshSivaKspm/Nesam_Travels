@@ -169,6 +169,9 @@
   color: var(--on-dark-muted);
   box-shadow: var(--shadow-3);
 }
+.profile-card .muted {
+  color: var(--on-dark-muted);
+}
 .profile-card h2 {
   margin-top: 6px;
   color: #fff;
