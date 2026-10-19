@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563EB" />
+      <stop offset="100%" stop-color="#1D4ED8" />
+    </linearGradient>
+    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#0284C7" />
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="120" height="120" rx="30" fill="url(#bg)" />
+  
+  <!-- Car Roof -->
+  <path d="M30 70 L40 45 C43 38 50 35 60 35 C70 35 77 38 80 45 L90 70 Z" fill="white" opacity="0.95" />
+  <!-- Car Body -->
+  <rect x="22" y="70" width="76" height="22" rx="7" fill="white" />
+  <!-- Roof Light -->
+  <rect x="52" y="24" width="16" height="9" rx="3" fill="url(#cyan)" />
+  <!-- Wheels -->
+  <circle cx="38" cy="92" r="9" fill="#0F172A" />
+  <circle cx="38" cy="92" r="4.5" fill="white" />
+  <circle cx="82" cy="92" r="9" fill="#0F172A" />
+  <circle cx="82" cy="92" r="4.5" fill="white" />
+  <!-- Passengers -->
+  <circle cx="51" cy="51" r="6" fill="#1D4ED8" />
+  <circle cx="69" cy="51" r="6" fill="url(#cyan)" />
+</svg>

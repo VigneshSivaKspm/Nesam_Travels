@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- Homepage: People Taxi Online Outstation & Drop Taxi -->
+  <url>
+    <loc>https://peopletaxi.in/</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Booking Engine Entrypoint -->
+  <url>
+    <loc>https://peopletaxi.in/book</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/book" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/book" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/book" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Special Offers & Promo Codes -->
+  <url>
+    <loc>https://peopletaxi.in/offers</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.80</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/offers" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/offers" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/offers" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- 24/7 Customer Support & Help Desk -->
+  <url>
+    <loc>https://peopletaxi.in/support</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/support" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/support" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/support" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Legal, Terms of Service & Privacy Policy -->
+  <url>
+    <loc>https://peopletaxi.in/legal</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.50</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/legal" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/legal" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/legal" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Travel Service: One-Way Drop Taxi -->
+  <url>
+    <loc>https://peopletaxi.in/services/one-way-drop-taxi</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/services/one-way-drop-taxi" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/services/one-way-drop-taxi" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/services/one-way-drop-taxi" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Travel Service: Outstation Round Trips -->
+  <url>
+    <loc>https://peopletaxi.in/services/outstation-round-trip</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/services/outstation-round-trip" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/services/outstation-round-trip" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/services/outstation-round-trip" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Travel Service: Airport Transfers -->
+  <url>
+    <loc>https://peopletaxi.in/services/airport-taxi</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.90</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/services/airport-taxi" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/services/airport-taxi" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/services/airport-taxi" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Travel Service: Local Hourly Rental -->
+  <url>
+    <loc>https://peopletaxi.in/services/local-rental</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/services/local-rental" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/services/local-rental" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/services/local-rental" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Travel Service: Pilgrimage Tours -->
+  <url>
+    <loc>https://peopletaxi.in/services/pilgrimage-tours</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/services/pilgrimage-tours" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/services/pilgrimage-tours" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/services/pilgrimage-tours" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Chennai to Pondicherry -->
+  <url>
+    <loc>https://peopletaxi.in/routes/chennai-to-pondicherry</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/chennai-to-pondicherry" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/chennai-to-pondicherry" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/chennai-to-pondicherry" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Chennai to Bangalore -->
+  <url>
+    <loc>https://peopletaxi.in/routes/chennai-to-bangalore</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/chennai-to-bangalore" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/chennai-to-bangalore" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/chennai-to-bangalore" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Coimbatore to Ooty -->
+  <url>
+    <loc>https://peopletaxi.in/routes/coimbatore-to-ooty</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/coimbatore-to-ooty" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/coimbatore-to-ooty" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/coimbatore-to-ooty" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Madurai to Rameshwaram -->
+  <url>
+    <loc>https://peopletaxi.in/routes/madurai-to-rameshwaram</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/madurai-to-rameshwaram" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/madurai-to-rameshwaram" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/madurai-to-rameshwaram" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Bangalore to Mysore -->
+  <url>
+    <loc>https://peopletaxi.in/routes/bangalore-to-mysore</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/bangalore-to-mysore" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/bangalore-to-mysore" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/bangalore-to-mysore" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Trichy to Thanjavur -->
+  <url>
+    <loc>https://peopletaxi.in/routes/trichy-to-thanjavur</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.82</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/trichy-to-thanjavur" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/trichy-to-thanjavur" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/trichy-to-thanjavur" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Salem to Yercaud -->
+  <url>
+    <loc>https://peopletaxi.in/routes/salem-to-yercaud</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.82</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/salem-to-yercaud" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/salem-to-yercaud" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/salem-to-yercaud" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+  <!-- Popular Corridor: Chennai to Tirupati -->
+  <url>
+    <loc>https://peopletaxi.in/routes/chennai-to-tirupati</loc>
+    <lastmod>2026-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.85</priority>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://peopletaxi.in/routes/chennai-to-tirupati" />
+    <xhtml:link rel="alternate" hreflang="en-IN" href="https://peopletaxi.in/routes/chennai-to-tirupati" />
+    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://peopletaxi.in/routes/chennai-to-tirupati" />
+    <image:image>
+      <image:loc>https://peopletaxi.in/brand/logo.png</image:loc>
+      <image:title>People Taxi Outstation Cabs</image:title>
+    </image:image>
+  </url>
+
+</urlset>
