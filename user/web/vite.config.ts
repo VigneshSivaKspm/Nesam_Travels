@@ -32,6 +32,9 @@ function sharedAppSource(): Plugin {
 export default defineConfig(({ mode }) => {
   // The shared code reads EXPO_PUBLIC_* (same names as the app); VITE_API_URL is accepted too.
   const env = loadEnv(mode, here, ['VITE_', 'EXPO_PUBLIC_']);
+  if (!env.VITE_GOOGLE_SITE_VERIFICATION) {
+    env.VITE_GOOGLE_SITE_VERIFICATION = 'GOOGLE_SEARCH_CONSOLE_VERIFICATION_TOKEN_REPLACE_ME';
+  }
   const processEnv: Record<string, string> = { NODE_ENV: mode === 'production' ? 'production' : 'development' };
   for (const [k, v] of Object.entries(env)) if (k.startsWith('EXPO_PUBLIC_')) processEnv[k] = v;
   if (env.VITE_API_URL && !processEnv.EXPO_PUBLIC_API_URL) processEnv.EXPO_PUBLIC_API_URL = env.VITE_API_URL;
@@ -40,7 +43,22 @@ export default defineConfig(({ mode }) => {
     // Files from ../app would otherwise resolve ../app/tsconfig.json, which extends
     // `expo/tsconfig.base` (not installed in the web build). Use this project's config for all files.
     tsconfig: path.resolve(here, 'tsconfig.json'),
-    plugins: [sharedAppSource(), react()],
+    plugins: [
+      sharedAppSource(),
+      react(),
+      {
+        name: 'html-gsc-transform',
+        transformIndexHtml(html) {
+          if (env.VITE_GOOGLE_SITE_VERIFICATION) {
+            return html.replace(
+              'GOOGLE_SEARCH_CONSOLE_VERIFICATION_TOKEN_PLACEHOLDER',
+              env.VITE_GOOGLE_SITE_VERIFICATION,
+            );
+          }
+          return html;
+        },
+      },
+    ],
     envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
     resolve: {
       alias: {

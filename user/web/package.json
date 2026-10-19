@@ -6,7 +6,8 @@
   "description": "NESAM Travels customer booking website. Shares pricing, booking and Firebase logic with ../app.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build": "tsc --noEmit && vite build",
+    "build:seo": "node scripts/generate-multi-domain-seo.js",
+    "build": "node scripts/generate-multi-domain-seo.js && tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

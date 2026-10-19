@@ -24,12 +24,41 @@ export interface SeoProps {
   schema?: object | object[];
 }
 
-export const BASE_URL = 'https://nesamcabs.com';
+export const PRIMARY_DOMAIN = 'nesamcabs.com';
+export const PRIMARY_BASE_URL = 'https://nesamcabs.com';
+export const BASE_URL = PRIMARY_BASE_URL;
+
+export const SUPPORTED_DOMAINS = [
+  'nesamcabs.com',
+  'nesamcabs.in',
+  'nesamtravels.com',
+  'nesamtravels.in',
+  'nesamtoursandtravels.com',
+  'nesamtoursandtravels.in',
+] as const;
+
+export type SupportedDomain = (typeof SUPPORTED_DOMAINS)[number];
+
+export const ALL_BRAND_URLS: string[] = SUPPORTED_DOMAINS.map((d) => `https://${d}/`);
+
+export function getActiveDomain(): SupportedDomain {
+  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+    const host = window.location.hostname.toLowerCase().replace(/^www\./, '');
+    const matched = SUPPORTED_DOMAINS.find((d) => d === host);
+    if (matched) return matched;
+  }
+  return PRIMARY_DOMAIN;
+}
+
+export function getActiveBaseUrl(): string {
+  return `https://${getActiveDomain()}`;
+}
+
 export const DEFAULT_DESCRIPTION =
   'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 customer support.';
 export const DEFAULT_KEYWORDS =
   'one way drop taxi, outstation cabs tamil nadu, drop taxi chennai, chennai to pondicherry cab, chennai to bangalore taxi, coimbatore to ooty cab, madurai outstation cabs, trichy drop taxi, intercity cab booking, airport taxi chennai, drop taxi online booking, nesam cabs, nesam travels';
-export const DEFAULT_OG_IMAGE = `${BASE_URL}/website-images/web/heroes/hero-desktop.webp`;
+export const DEFAULT_OG_IMAGE = `${PRIMARY_BASE_URL}/website-images/web/heroes/hero-desktop.webp`;
 
 function setMetaTag(attrName: 'name' | 'property', attrValue: string, content: string) {
   let element = document.querySelector(`meta[${attrName}="${attrValue}"]`) as HTMLMetaElement | null;
@@ -51,6 +80,24 @@ function setCanonical(href: string) {
   element.setAttribute('href', href);
 }
 
+function setAlternateTag(hreflang: string | null, href: string) {
+  const selector = hreflang
+    ? `link[rel="alternate"][hreflang="${hreflang}"]`
+    : `link[rel="alternate"][data-multi-domain="true"][href="${href}"]`;
+  let element = document.querySelector(selector) as HTMLLinkElement | null;
+  if (!element) {
+    element = document.createElement('link');
+    element.setAttribute('rel', 'alternate');
+    if (hreflang) {
+      element.setAttribute('hreflang', hreflang);
+    } else {
+      element.setAttribute('data-multi-domain', 'true');
+    }
+    document.head.appendChild(element);
+  }
+  element.setAttribute('href', href);
+}
+
 function setDynamicSchema(schemaData: object | null) {
   const SCRIPT_ID = 'dynamic-page-schema';
   let element = document.getElementById(SCRIPT_ID) as HTMLScriptElement | null;
@@ -67,7 +114,8 @@ function setDynamicSchema(schemaData: object | null) {
   element.textContent = JSON.stringify(schemaData, null, 2);
 }
 
-export function buildBreadcrumbSchema(breadcrumbs: BreadcrumbItem[], baseUrl = BASE_URL): object {
+export function buildBreadcrumbSchema(breadcrumbs: BreadcrumbItem[], baseUrl?: string): object {
+  const base = baseUrl || getActiveBaseUrl();
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
@@ -75,7 +123,7 @@ export function buildBreadcrumbSchema(breadcrumbs: BreadcrumbItem[], baseUrl = B
       '@type': 'ListItem',
       position: index + 1,
       name: b.name,
-      item: b.path.startsWith('http') ? b.path : `${baseUrl}${b.path.startsWith('/') ? b.path : `/${b.path}`}`,
+      item: b.path.startsWith('http') ? b.path : `${base}${b.path.startsWith('/') ? b.path : `/${b.path}`}`,
     })),
   };
 }
@@ -90,14 +138,26 @@ export function updateSeo({
   breadcrumbs,
   schema,
 }: SeoProps): void {
+  const activeBaseUrl = getActiveBaseUrl();
   const fullTitle = title.includes('NESAM') ? title : `${title} · NESAM Cabs`;
   const fullDescription = description || DEFAULT_DESCRIPTION;
   const fullKeywords = keywords || DEFAULT_KEYWORDS;
-  const canonicalUrl = canonical
+
+  // Normalize path from canonical
+  const relativePath = canonical
     ? canonical.startsWith('http')
+      ? canonical.replace(/^https?:\/\/[^/]+/, '')
+      : canonical.startsWith('/')
       ? canonical
-      : `${BASE_URL}${canonical.startsWith('/') ? canonical : `/${canonical}`}`
-    : `${BASE_URL}/`;
+      : `/${canonical}`
+    : '/';
+
+  // Canonical URL matches active domain or explicitly passed absolute URL
+  const canonicalUrl =
+    canonical && canonical.startsWith('http')
+      ? canonical
+      : `${activeBaseUrl}${relativePath}`;
+
   const image = ogImage || DEFAULT_OG_IMAGE;
 
   // Title
@@ -118,6 +178,17 @@ export function updateSeo({
   // Canonical Link
   setCanonical(canonicalUrl);
 
+  // Multi-Domain Alternates & Hreflang
+  const cleanPath = relativePath === '/' ? '' : relativePath;
+  setAlternateTag('x-default', `https://nesamcabs.com${cleanPath || '/'}`);
+  setAlternateTag('en-IN', `https://nesamcabs.in${cleanPath || '/'}`);
+  setAlternateTag('ta-IN', `https://nesamcabs.in${cleanPath || '/'}`);
+
+  // Cross-domain alternate links for all 6 supported domains
+  for (const domain of SUPPORTED_DOMAINS) {
+    setAlternateTag(null, `https://${domain}${cleanPath || '/'}`);
+  }
+
   // Open Graph
   setMetaTag('property', 'og:title', fullTitle);
   setMetaTag('property', 'og:description', fullDescription);
@@ -132,7 +203,7 @@ export function updateSeo({
   // Dynamic Schema.org injection
   const schemaList: object[] = [];
   if (breadcrumbs && breadcrumbs.length > 0) {
-    schemaList.push(buildBreadcrumbSchema(breadcrumbs, BASE_URL));
+    schemaList.push(buildBreadcrumbSchema(breadcrumbs, activeBaseUrl));
   }
   if (schema) {
     if (Array.isArray(schema)) {
