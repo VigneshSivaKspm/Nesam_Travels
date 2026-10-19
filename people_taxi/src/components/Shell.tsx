@@ -15,8 +15,8 @@ export function Brand({ compact = false, light = false }: { compact?: boolean; l
       <img
         src={light ? '/brand/logo-white.png' : compact ? '/brand/icon.png' : '/brand/logo.png'}
         alt="People Taxi Logo"
-        width={compact ? 40 : 160}
-        height={compact ? 40 : 42}
+        width={compact ? 44 : 200}
+        height={compact ? 44 : 64}
         style={{ objectFit: 'contain' }}
       />
     </Link>
@@ -137,9 +137,23 @@ function Footer() {
   return (
     <footer className="footer">
       <div className="footer__inner">
+        <div className="footer__cta">
+          <div>
+            <h2>Need a cab today?</h2>
+            <p>Book in a minute — or talk to a real person any time.</p>
+          </div>
+          <div className="footer__cta-actions">
+            <Link className="btn btn--sun" to="/book">
+              Book a ride <Icon name="arrow-right" size={18} />
+            </Link>
+            <a className="btn btn--ghost-light" href={`tel:${SUPPORT_PHONE}`}>
+              <Icon name="phone" size={18} /> {SUPPORT_PHONE_DISPLAY}
+            </a>
+          </div>
+        </div>
         <div className="footer__grid">
           <div className="footer__about">
-            <Brand light />
+            <Brand />
             <p>Outstation and intercity cabs across Tamil Nadu and beyond — fares shown before you book, verified chauffeurs and a team you can call.</p>
             <a className="footer__call" href={`tel:${SUPPORT_PHONE}`}>
               <Icon name="phone" size={22} />

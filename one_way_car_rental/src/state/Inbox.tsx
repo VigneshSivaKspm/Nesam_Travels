@@ -35,7 +35,7 @@ export function pathForPage(page: string): string {
   }
 }
 
-export function InboxProvider({ userId, children }: { userId: string; children: ReactNode }) {
+export function InboxProvider({ userId, children }: { userId?: string | null; children: ReactNode }) {
   const [notifications, setNotifications] = useState<PartnerNotification[]>([]);
   const [loaded, setLoaded] = useState(false);
   const seen = useRef<Set<string> | null>(null);
@@ -44,6 +44,11 @@ export function InboxProvider({ userId, children }: { userId: string; children: 
 
   useEffect(() => {
     seen.current = null;
+    if (!userId) {
+      setNotifications([]);
+      setLoaded(true);
+      return undefined;
+    }
     return subscribeToNotifications(userId, (list) => {
       setNotifications(list);
       setLoaded(true);

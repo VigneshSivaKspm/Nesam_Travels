@@ -1,5 +1,6 @@
 // The sections under the booking console: what the site offers and why to trust it.
 // Every card either fills the console (so a visitor is one tap from fares) or links somewhere real.
+// Layout language: numbered sections, ledger rows and spec cards — a fleet-desk catalogue.
 import { Link } from 'react-router-dom';
 import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR } from '@core/utils/format';
@@ -8,15 +9,18 @@ import { useBooking } from '@/state/Booking';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { ASSURANCE, CORRIDORS, DESTINATIONS, FAQS, FEATURES, IMG, MORE_CORRIDORS, SERVICES, STEPS, type Corridor, type Destination, type Service } from './content';
 
-function SectionHead({ eyebrow, title, text, action }: { eyebrow: string; title: string; text?: string; action?: React.ReactNode }) {
+function SectionHead({ no, eyebrow, title, text, action, id }: { no: string; eyebrow: string; title: string; text?: string; action?: React.ReactNode; id?: string }) {
   return (
     <header className="sec-head">
-      <div>
-        <p className="eyebrow eyebrow--brand">{eyebrow}</p>
-        <h2>{title}</h2>
+      <span className="sec-head__no num" aria-hidden="true">
+        {no}
+      </span>
+      <div className="sec-head__text-wrap">
+        <p className="eyebrow">{eyebrow}</p>
+        <h2 id={id}>{title}</h2>
         {text ? <p className="sec-head__text">{text}</p> : null}
       </div>
-      {action}
+      {action ? <div className="sec-head__action">{action}</div> : null}
     </header>
   );
 }
@@ -43,13 +47,13 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
   return (
     <section className="band" aria-labelledby="sec-services" id="sec-services-band">
       <div className="wrap">
-        <header className="sec-head">
-          <div>
-            <p className="eyebrow eyebrow--brand">Ways to travel</p>
-            <h2 id="sec-services">A ride for every kind of journey</h2>
-            <p className="sec-head__text">Choose a starting point and we’ll set up your trip. You’ll see the fare for every vehicle before you book.</p>
-          </div>
-        </header>
+        <SectionHead
+          no="01"
+          eyebrow="Ways to travel"
+          id="sec-services"
+          title="A ride for every kind of journey"
+          text="Choose a starting point and we’ll set up your trip. You’ll see the fare for every vehicle before you book."
+        />
         <ul className="services" id="services">
           {SERVICES.map((s) => (
             <li key={s.id} id={s.id}>
@@ -67,7 +71,7 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
               </button>
             </li>
           ))}
-          <li>
+          <li className="services__call">
             <a className="service service--call" href={`tel:${SUPPORT_PHONE}`}>
               <span className="service__body">
                 <span className="eyebrow">Something custom?</span>
@@ -90,13 +94,13 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
   return (
     <section className="band band--paper" aria-labelledby="sec-routes">
       <div className="wrap">
-        <header className="sec-head">
-          <div>
-            <p className="eyebrow eyebrow--brand">Popular routes</p>
-            <h2 id="sec-routes">Favourite drives across the south</h2>
-            <p className="sec-head__text">Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book.</p>
-          </div>
-        </header>
+        <SectionHead
+          no="02"
+          eyebrow="Popular routes"
+          id="sec-routes"
+          title="Favourite drives across the south"
+          text="Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book."
+        />
         <ul className="routes" id="routes">
           {CORRIDORS.map((c) => (
             <li key={c.id} id={c.id}>
@@ -106,7 +110,7 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
                 <span className="route-card__body">
                   <span className="route-card__title">
                     {c.origin}
-                    <Icon name="arrow-right" size={22} />
+                    <Icon name="arrow-right" size={26} />
                     {c.destination}
                   </span>
                   <span className="route-card__meta">
@@ -141,24 +145,24 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
 
 export function DestinationsSection({ onPick }: { onPick: (d: Destination) => void }) {
   return (
-    <section className="band" aria-labelledby="sec-destinations" id="sec-destinations-band">
+    <section className="band band--dest" aria-labelledby="sec-destinations" id="sec-destinations-band">
       <div className="wrap">
-        <SectionHead eyebrow="Destinations" title="Where will you go next?" text="Tap a destination to set it as your drop and pick up from there." />
-        <ul className="destinations" id="destinations">
-          {DESTINATIONS.map((d) => (
-            <li key={d.id} id={`destination-${d.id}`}>
-              <button type="button" className="destination" onClick={() => onPick(d)}>
-                <img src={IMG(d.image)} alt={`${d.name} outstation taxi destination - ${d.tagline}`} width={768} height={512} loading="lazy" />
-                <span className="destination__shade" aria-hidden="true" />
-                <span className="destination__body">
-                  <strong>{d.name}</strong>
-                  <small>{d.tagline}</small>
-                </span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <SectionHead no="03" eyebrow="Destinations" id="sec-destinations" title="Where will you go next?" text="Tap a destination to set it as your drop and pick up from there." />
       </div>
+      <ul className="destinations" id="destinations">
+        {DESTINATIONS.map((d) => (
+          <li key={d.id} id={`destination-${d.id}`}>
+            <button type="button" className="destination" onClick={() => onPick(d)}>
+              <img src={IMG(d.image)} alt={`${d.name} outstation taxi destination - ${d.tagline}`} width={768} height={512} loading="lazy" />
+              <span className="destination__shade" aria-hidden="true" />
+              <span className="destination__body">
+                <strong>{d.name}</strong>
+                <small>{d.tagline}</small>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -178,14 +182,16 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
   const { categories } = useBooking();
   const live = categories.slice(0, 8);
   return (
-    <section className="band band--paper" aria-labelledby="sec-fleet">
+    <section className="band band--fleet" aria-labelledby="sec-fleet">
       <div className="wrap">
         <SectionHead
+          no="04"
           eyebrow="Our fleet"
+          id="sec-fleet-title"
           title="The right vehicle for your group"
           text="From a quick drop to a full-group tour. Fares for each vehicle are shown once you enter your trip."
           action={
-            <button type="button" className="btn btn--dark" onClick={onPick}>
+            <button type="button" className="btn btn--primary" onClick={onPick}>
               Get fares <Icon name="arrow-right" size={18} />
             </button>
           }
@@ -223,24 +229,24 @@ export function HowSection() {
   return (
     <section className="band band--dark" aria-labelledby="sec-how" id="sec-how-band">
       <div className="wrap how">
-        <div className="how__photo">
-          <img src={IMG('photography/about-fleet')} alt="One Way Car Rental verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
-        </div>
         <div className="how__body">
           <p className="eyebrow eyebrow--gold">How it works</p>
           <h2 id="sec-how">Booked in minutes. Handled with care.</h2>
           <ol className="how__steps">
             {STEPS.map((s, i) => (
               <li key={s.title}>
-                <span className="how__num">{i + 1}</span>
-                <img src={IMG(s.image)} alt={s.title} width={96} height={96} loading="lazy" />
+                <span className="how__num num">{String(i + 1).padStart(2, '0')}</span>
                 <div>
                   <h3>{s.title}</h3>
                   <p>{s.text}</p>
                 </div>
+                <img src={IMG(s.image)} alt={s.title} width={96} height={96} loading="lazy" />
               </li>
             ))}
           </ol>
+        </div>
+        <div className="how__photo">
+          <img src={IMG('photography/about-fleet')} alt="One Way Car Rental verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
       </div>
     </section>
@@ -251,15 +257,22 @@ export function AssuranceSection() {
   return (
     <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
+        <div className="assure__collage" aria-hidden="true">
+          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with One Way Car Rental" width={724} height={543} loading="lazy" />
+          <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
+          <img className="assure__c" src={IMG('photography/trust-support')} alt="24/7 customer care team support" width={724} height={543} loading="lazy" />
+        </div>
         <div className="assure__body">
-          <p className="eyebrow eyebrow--brand">Travel with confidence</p>
-          <h2 id="sec-safe">Built for long journeys and peace of mind</h2>
-          <p className="sec-head__text">From the moment your driver is assigned to the receipt in your inbox, every step is visible to you.</p>
+          <div className="assure__intro">
+            <p className="eyebrow">Travel with confidence</p>
+            <h2 id="sec-safe">Built for long journeys and peace of mind</h2>
+            <p className="sec-head__text">From the moment your driver is assigned to the receipt in your inbox, every step is visible to you.</p>
+          </div>
           <ul className="assure__list">
             {ASSURANCE.map((a) => (
               <li key={a.title}>
                 <span className="assure__icon">
-                  <Icon name={a.icon} size={22} />
+                  <Icon name={a.icon} size={24} />
                 </span>
                 <div>
                   <h3>{a.title}</h3>
@@ -268,11 +281,6 @@ export function AssuranceSection() {
               </li>
             ))}
           </ul>
-        </div>
-        <div className="assure__collage" aria-hidden="true">
-          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with One Way Car Rental" width={724} height={543} loading="lazy" />
-          <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
-          <img className="assure__c" src={IMG('photography/trust-support')} alt="24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>
       </div>
     </section>
@@ -312,7 +320,7 @@ export function FaqSection() {
     <section className="band" aria-labelledby="sec-faq" id="sec-faq-band">
       <div className="wrap faq-band">
         <div className="faq-band__intro">
-          <p className="eyebrow eyebrow--brand">Good to know</p>
+          <p className="eyebrow">Good to know</p>
           <h2 id="sec-faq">Questions, answered</h2>
           <p className="sec-head__text">Still unsure about something? Our team is a call away.</p>
           <Link className="btn btn--secondary" to="/support">
@@ -320,11 +328,14 @@ export function FaqSection() {
           </Link>
         </div>
         <div className="faq" id="faq">
-          {FAQS.map((f) => (
+          {FAQS.map((f, i) => (
             <details key={f.q} className="faq__item">
               <summary>
-                <span>{f.q}</span>
-                <Icon name="chevron-down" size={20} />
+                <span className="faq__no num" aria-hidden="true">
+                  {String(i + 1).padStart(2, '0')}
+                </span>
+                <span className="faq__q">{f.q}</span>
+                <Icon name="add" size={22} />
               </summary>
               <p>{f.a}</p>
             </details>

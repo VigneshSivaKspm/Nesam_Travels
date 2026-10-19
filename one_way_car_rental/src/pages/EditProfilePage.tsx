@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { updateCustomerProfile } from '@core/services/userService';
 import { formatPhone, isValidEmail, isValidIndianMobile, isValidName, localMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { Button, Dialog, Notice, PageHead, TextField } from '@/components/ui';
+import { Button, Dialog, EmptyState, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 import { useToasts } from '@/state/Toasts';
 
@@ -15,15 +16,36 @@ export function EditProfilePage() {
   useSeo({ title: 'Edit Profile', noindex: true });
   const navigate = useNavigate();
   const { profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const { push } = useToasts();
-  const [name, setName] = useState(profile.name);
-  const [email, setEmail] = useState(profile.email);
-  const [emergency, setEmergency] = useState(localMobile(profile.emergencyContact));
-  const [language, setLanguage] = useState(profile.language || 'English');
+  const [name, setName] = useState(profile?.name || '');
+  const [email, setEmail] = useState(profile?.email || '');
+  const [emergency, setEmergency] = useState(profile?.emergencyContact ? localMobile(profile.emergencyContact) : '');
+  const [language, setLanguage] = useState(profile?.language || 'English');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [touched, setTouched] = useState(false);
   const [confirmLeave, setConfirmLeave] = useState(false);
+
+  if (!profile) {
+    return (
+      <div className="page">
+        <div className="card card--center">
+          <EmptyState
+            art="welcome"
+            title="Sign in to edit your profile"
+            action={
+              <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to edit profile' })}>
+                Sign in
+              </Button>
+            }
+          >
+            Sign in with your mobile number to update your personal details and emergency contact.
+          </EmptyState>
+        </div>
+      </div>
+    );
+  }
 
   const dirty =
     name.trim() !== profile.name ||

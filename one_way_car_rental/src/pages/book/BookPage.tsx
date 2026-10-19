@@ -79,19 +79,14 @@ function Home() {
     <>
       <RideBanner />
       <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__media">
-          <picture>
-            <source media="(max-width: 720px)" srcSet={IMG('heroes/hero-mobile')} />
-            <img src={IMG('heroes/hero-desktop')} alt="One Way Car Rental outstation and intercity cab service across Tamil Nadu" width={1774} height={887} fetchPriority="high" />
-          </picture>
-          <span className="hero__shade" />
-        </div>
-        <div className="hero__inner">
+        <div className="hero__stage">
           <div className="hero__copy">
             <p className="hero__eyebrow">
               <Icon name="route" size={16} /> Outstation &amp; intercity cabs
             </p>
-            <h1 id="hero-title">Outstation rides, priced before you book.</h1>
+            <h1 id="hero-title">
+              Outstation rides, <em>priced before you book.</em>
+            </h1>
             <p className="hero__lead">Verified chauffeurs, clean air-conditioned cars and the fare for every vehicle upfront — across Tamil Nadu and beyond.</p>
             <ul className="hero__points">
               <li>
@@ -104,6 +99,12 @@ function Home() {
                 <Icon name="check" size={18} /> Pay your driver in cash or UPI
               </li>
             </ul>
+          </div>
+          <div className="hero__media">
+            <picture>
+              <source media="(max-width: 720px)" srcSet={IMG('heroes/hero-mobile')} />
+              <img src={IMG('heroes/hero-desktop')} alt="One Way Car Rental outstation and intercity cab service across Tamil Nadu" width={1774} height={887} fetchPriority="high" />
+            </picture>
           </div>
         </div>
         <div className="hero__console">

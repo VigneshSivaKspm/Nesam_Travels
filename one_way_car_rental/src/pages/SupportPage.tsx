@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { SupportTicket } from '@core/types';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { SUPPORT_CATEGORIES, submitSupportTicket, subscribeToSupportTickets } from '@core/services/userService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { describeError } from '@core/utils/retry';
 import { Badge, Button, EmptyState, FieldShell, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { FAQS } from '@/pages/book/content';
 import { Icon } from '@/components/Icon';
+import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 
 type Tab = 'help' | 'ticket' | 'mine';
@@ -21,6 +22,7 @@ export function SupportPage() {
   const [params] = useSearchParams();
   const initialBooking = params.get('booking') ?? '';
   const { profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const [tab, setTab] = useState<Tab>(initialBooking ? 'ticket' : 'help');
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
   const [category, setCategory] = useState(SUPPORT_CATEGORIES[0]!);
@@ -31,12 +33,16 @@ export function SupportPage() {
   const [submitted, setSubmitted] = useState(false);
   const [listError, setListError] = useState('');
 
-  useEffect(
-    () => subscribeToSupportTickets(profile.uid, setTickets, (e) => setListError(describeError(e, 'We couldn’t load your tickets.'))),
-    [profile.uid],
-  );
+  useEffect(() => {
+    if (!profile?.uid) return undefined;
+    return subscribeToSupportTickets(profile.uid, setTickets, (e) => setListError(describeError(e, 'We couldn’t load your tickets.')));
+  }, [profile?.uid]);
 
   const submit = async () => {
+    if (!profile) {
+      openLoginModal({ title: 'Sign in to raise ticket' });
+      return;
+    }
     if (description.trim().length < 10) return setError('Please describe the issue in at least 10 characters.');
     if (sending) return;
     setSending(true);
@@ -134,7 +140,21 @@ export function SupportPage() {
               <div className="stack">
                 {submitted ? <Notice tone="success">Your ticket was submitted. Our team will get back to you.</Notice> : null}
                 {listError ? <Notice tone="error">{listError}</Notice> : null}
-                {tickets.length === 0 ? (
+                {!profile ? (
+                  <div className="card card--center">
+                    <EmptyState
+                      art="support"
+                      title="Sign in to view tickets"
+                      action={
+                        <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to view tickets' })}>
+                          Sign in
+                        </Button>
+                      }
+                    >
+                      Sign in with your mobile number to view tickets you’ve raised.
+                    </EmptyState>
+                  </div>
+                ) : tickets.length === 0 ? (
                   <div className="card card--center">
                     <EmptyState
                       art="support"

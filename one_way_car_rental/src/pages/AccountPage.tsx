@@ -1,11 +1,11 @@
 import { useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { updateCustomerProfile } from '@core/services/userService';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR, formatPhone } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { Avatar, Button, Dialog, LinkButton, Notice, PageHead } from '@/components/ui';
+import { Avatar, Button, Dialog, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { PhotoError, uploadProfilePhoto } from '@/lib/avatarUpload';
 import { useSeo } from '@/lib/seo';
@@ -40,11 +40,36 @@ function Row({ icon, label, value, to, href }: { icon: string; label: string; va
 export function AccountPage() {
   useSeo({ title: 'My Account', noindex: true });
   const { profile } = useCustomerData();
-  const { signOut } = useAuth();
+  const { signOut, openLoginModal } = useAuth();
   const file = useRef<HTMLInputElement>(null);
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
+
+  if (!profile) {
+    return (
+      <>
+        <PageHead eyebrow="Your One Way Car Rental account" title="Account">
+          Your details, saved places, payments and help.
+        </PageHead>
+        <div className="page">
+          <div className="card card--center">
+            <EmptyState
+              art="welcome"
+              title="Sign in to your account"
+              action={
+                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to account' })}>
+                  Sign in
+                </Button>
+              }
+            >
+              Sign in to manage your profile, saved addresses and payment options.
+            </EmptyState>
+          </div>
+        </div>
+      </>
+    );
+  }
 
   const onFile = async (f: File | undefined) => {
     if (!f) return;

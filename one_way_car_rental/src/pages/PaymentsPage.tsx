@@ -1,14 +1,50 @@
 import { Link } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { formatDate, formatINR } from '@core/utils/format';
 import { paymentRows } from '@core/utils/tripView';
-import { EmptyState, LinkButton, PageHead } from '@/components/ui';
+import { EmptyState, LinkButton, PageHead, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 
 export function PaymentsPage() {
   useSeo({ title: 'Payments & Refunds', noindex: true });
   const { trips, profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
+
+  if (!profile) {
+    return (
+      <>
+        <PageHead
+          eyebrow="Account"
+          title="Payments"
+          back={
+            <Link to="/account" className="back-link">
+              <Icon name="arrow-left" size={18} /> Account
+            </Link>
+          }
+        >
+          What each trip cost, what you’ve paid and any refunds.
+        </PageHead>
+        <div className="page">
+          <div className="card card--center">
+            <EmptyState
+              art="welcome"
+              title="Sign in to view payments"
+              action={
+                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to view payments' })}>
+                  Sign in
+                </Button>
+              }
+            >
+              Sign in with your mobile number to view payment history, receipts and refund balances.
+            </EmptyState>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const rows = paymentRows(trips);
   const refunds = trips.filter((t) => t.refund && t.refund.amount > 0);
 

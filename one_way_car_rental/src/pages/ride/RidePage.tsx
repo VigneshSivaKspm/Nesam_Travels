@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import type { LatLng, RouteInfo, TripRecord } from '@core/types';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { cancellationQuote, subscribeToBoardingOtp, subscribeToBooking } from '@core/services/rideService';
 import { getRoute } from '@core/services/geoService';
 import { PRESENCE_STALE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
@@ -284,7 +284,7 @@ export function RidePage() {
   };
   const doPrint = () => {
     try {
-      printReceipt(trip, profile.name);
+      printReceipt(trip, profile?.name || 'Customer');
     } catch {
       setPrinting('We couldn’t open the print dialog. Please try again.');
     }
@@ -530,7 +530,7 @@ export function RidePage() {
               </p>
             ) : null}
           </section>
-          <RatingCard trip={trip} profile={profile} />
+          {profile ? <RatingCard trip={trip} profile={profile} /> : null}
           {tripCard}
           <details className="rcard rcard--fold">
             <summary>
@@ -574,7 +574,7 @@ export function RidePage() {
       </section>
 
       {showCancel ? <CancelDialog trip={trip} onClose={() => setShowCancel(false)} /> : null}
-      {showSafety ? <SafetyDialog trip={trip} profile={profile} location={sharePoint} onClose={() => setShowSafety(false)} /> : null}
+      {showSafety && profile ? <SafetyDialog trip={trip} profile={profile} location={sharePoint} onClose={() => setShowSafety(false)} /> : null}
     </Workspace>
   );
 }

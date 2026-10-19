@@ -24,7 +24,6 @@ body {
   font-family: var(--font);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  word-spacing: 0.04em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -49,22 +48,21 @@ h4 {
   color: var(--ink);
   line-height: var(--lh-tight);
   letter-spacing: -0.015em;
-  word-spacing: 0.08em;
   text-wrap: balance;
 }
 
 h1 {
   font-size: var(--fs-h1);
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: -0.025em;
 }
 h2 {
   font-size: var(--fs-xl);
-  font-weight: 750;
+  font-weight: 800;
 }
 h3 {
   font-size: var(--fs-md);
-  font-weight: 700;
+  font-weight: 800;
 }
 
 p {
@@ -72,7 +70,7 @@ p {
 }
 
 a {
-  color: var(--red-ink);
+  color: var(--brand);
   text-decoration: none;
   text-underline-offset: 3px;
 }
@@ -113,13 +111,14 @@ fieldset {
 }
 
 :focus-visible {
-  outline: 2px solid var(--red);
+  outline: 3px solid var(--brand-bright);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 10px;
 }
 
 ::selection {
-  background: var(--red-tint);
+  background: var(--sun);
+  color: var(--ink);
 }
 
 .icon {
@@ -168,13 +167,21 @@ fieldset {
   gap: var(--s-4);
 }
 
+/* Section label: a soft pill */
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
   margin: 0;
+  padding: 5px 14px;
+  border-radius: var(--r-pill);
+  background: var(--brand-soft);
   font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-weight: 800;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--brand-ink);
 }
 
 .skip-link {
@@ -184,16 +191,16 @@ fieldset {
   z-index: 1000;
   background: var(--ink);
   color: #fff;
-  padding: 10px 16px;
-  border-radius: var(--r-sm);
-  transition: top var(--dur) var(--ease);
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  transition: top var(--dur) var(--ease-out);
 }
 .skip-link:focus {
   top: 12px;
   text-decoration: none;
 }
 
-/* Edge-to-edge content: a fluid gutter, no fixed narrow column. */
+/* Content width: a fluid gutter, capped on very large screens. */
 .wrap {
   width: 100%;
   max-width: var(--max);

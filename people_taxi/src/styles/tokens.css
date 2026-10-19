@@ -1,24 +1,36 @@
 /*
-  People Taxi — Design Tokens.
-  Signature Blue & Crisp White Transit System.
-  Modern, high-trust intercity cab booking experience with vivid cobalt blue actions,
-  pure white surfaces, and cool ice-blue accents.
+  People Taxi — design tokens.
+  Identity: a friendly city-cab app. Cobalt blue for actions, taxi-yellow for warmth and highlights,
+  soft sky surfaces, very round shapes and blue-tinted shadows. Nunito throughout.
+  Every colour, size and radius comes from here; screens never hard-code them.
 */
 :root {
   color-scheme: light;
 
-  /* People Taxi Signature Blue Brand Palette */
-  --brand: #1e6ce3;
-  --brand-hover: #1558c0;
-  --brand-press: #0d47a1;
-  --brand-soft: #f0f6ff;
-  --brand-tint: #d9e8ff;
-  --brand-line: #a8c7fa;
-  --brand-ink: #0d47a1;
-  --brand-bright: #388bfd;
-  --brand-gradient: linear-gradient(135deg, #1e6ce3 0%, #0d47a1 100%);
+  /* Brand — cobalt blue */
+  --brand: #1665e8;
+  --brand-hover: #0f52c4;
+  --brand-press: #0b3f9c;
+  --brand-soft: #edf4ff;
+  --brand-tint: #d6e6ff;
+  --brand-line: #a9c8fb;
+  --brand-ink: #0b3a94;
+  --brand-bright: #4c9bff;
+  --brand-gradient: linear-gradient(135deg, #2a7bff 0%, #1451d6 55%, #0d3aa8 100%);
 
-  /* Backward-compatible brand aliases for UI elements */
+  /* Taxi yellow — highlights, the main call to action, ratings */
+  --sun: #ffc53d;
+  --sun-hover: #f5b514;
+  --sun-soft: #fff6d9;
+  --sun-line: #ffe08a;
+  --sun-ink: #6b4a00;
+
+  /* Pastel card washes */
+  --mint-soft: #e4f8ee;
+  --rose-soft: #ffeaf0;
+  --lilac-soft: #eee9ff;
+
+  /* Backward-compatible aliases (older markup may still reference these) */
   --red: var(--brand);
   --red-hover: var(--brand-hover);
   --red-press: var(--brand-press);
@@ -27,64 +39,64 @@
   --red-line: var(--brand-line);
   --red-ink: var(--brand-ink);
 
-  /* Danger & Warnings (cancellations and errors only) */
-  --danger: #d92d20;
-  --danger-soft: #fef3f2;
-  --danger-tint: #fee4e2;
-  --danger-line: #fda29b;
+  /* Danger (cancellations and errors only) */
+  --danger: #e03a2e;
+  --danger-soft: #fff1ef;
+  --danger-tint: #ffe0dc;
+  --danger-line: #f6a49b;
   --danger-ink: #b42318;
 
-  /* Ink + Deep Navy Neutrals */
-  --ink: #0a1128;
-  --ink-2: #101c3d;
-  --ink-3: #1c2b52;
-  --text: #1e293b;
-  --muted: #475569;
-  --faint: #94a3b8;
-  --on-dark: #f8faff;
-  --on-dark-muted: #cbd5e1;
+  /* Ink + navy neutrals */
+  --ink: #0c1b3d;
+  --ink-2: #13265a;
+  --ink-3: #1d3475;
+  --text: #1e2a47;
+  --muted: #55627f;
+  --faint: #98a3bd;
+  --on-dark: #f5f8ff;
+  --on-dark-muted: #c6d3f0;
 
-  /* Surfaces - Pure White & Crisp Ice-Blue Tint */
-  --paper: #f8faff;
+  /* Surfaces */
+  --paper: #f2f6ff;
   --surface: #ffffff;
-  --sunken: #edf3fc;
-  --line: #e1e8f5;
-  --line-strong: #c5d4ed;
+  --sunken: #e8effc;
+  --line: #dde6f6;
+  --line-strong: #c3d2ee;
 
-  /* Accent (stars, ratings, highlights) */
-  --gold: #b3802f;
-  --gold-soft: #fbf3e3;
+  --gold: #e8a800;
+  --gold-soft: #fff6d9;
 
-  /* Semantic Statuses */
-  --green: #107c41;
-  --green-soft: #e8f6ed;
-  --green-line: #b4e0c4;
-  --amber: #b45309;
-  --amber-soft: #fef3c7;
-  --amber-line: #fde68a;
-  --blue: #1e6ce3;
-  --blue-soft: #f0f6ff;
-  --blue-line: #a8c7fa;
+  /* Semantic */
+  --green: #0f8a4a;
+  --green-soft: #e4f8ee;
+  --green-line: #a9e2c3;
+  --amber: #a85a00;
+  --amber-soft: #fff3d6;
+  --amber-line: #ffdc8a;
+  --blue: #1665e8;
+  --blue-soft: #edf4ff;
+  --blue-line: #a9c8fb;
 
-  /* Typography */
-  --font: 'Poppins', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Tamil', sans-serif;
+  /* Type — Nunito: round, friendly, highly legible */
+  --font: 'Nunito', system-ui, -apple-system, 'Segoe UI', Roboto, 'Noto Sans', 'Noto Sans Tamil', sans-serif;
+  --font-display: var(--font);
   --fs-2xs: 0.6875rem;
-  --fs-xs: 0.75rem;
-  --fs-sm: 0.8125rem;
-  --fs-body: 0.9375rem;
-  --fs-md: 1rem;
-  --fs-lg: 1.125rem;
-  --fs-xl: 1.25rem;
-  --fs-2xl: 1.5rem;
-  --fs-3xl: clamp(1.625rem, 1.2rem + 1vw, 2rem);
-  --fs-h1: clamp(1.75rem, 1.3rem + 1.4vw, 2.5rem);
-  --fs-h2: clamp(1.625rem, 1.1rem + 1.5vw, 2.5rem);
-  --fs-display: clamp(2.5rem, 1.1rem + 3.9vw, 4.75rem);
-  --lh-tight: 1.12;
+  --fs-xs: 0.78125rem;
+  --fs-sm: 0.875rem;
+  --fs-body: 1rem;
+  --fs-md: 1.0625rem;
+  --fs-lg: 1.1875rem;
+  --fs-xl: 1.3125rem;
+  --fs-2xl: 1.625rem;
+  --fs-3xl: clamp(1.625rem, 1.2rem + 1.1vw, 2.125rem);
+  --fs-h1: clamp(1.875rem, 1.3rem + 1.6vw, 2.75rem);
+  --fs-h2: clamp(1.75rem, 1.2rem + 1.7vw, 2.75rem);
+  --fs-display: clamp(2.5rem, 1.2rem + 3.6vw, 4.5rem);
+  --lh-tight: 1.1;
   --lh-snug: 1.3;
-  --lh-body: 1.55;
+  --lh-body: 1.6;
 
-  /* Space (4pt scale) */
+  /* Space (4pt) */
   --s-1: 4px;
   --s-2: 8px;
   --s-3: 12px;
@@ -96,37 +108,38 @@
   --s-12: 48px;
   --s-16: 64px;
   --s-20: 80px;
-  --section: clamp(56px, 3rem + 3.4vw, 112px);
+  --section: clamp(48px, 2.6rem + 3vw, 104px);
 
-  /* Shape & Radii */
-  --r-xs: 8px;
-  --r-sm: 12px;
-  --r-md: 16px;
-  --r-lg: 22px;
-  --r-xl: 30px;
+  /* Shape — generous and round */
+  --r-xs: 10px;
+  --r-sm: 14px;
+  --r-md: 20px;
+  --r-lg: 28px;
+  --r-xl: 38px;
   --r-pill: 999px;
 
-  /* Elevation */
-  --shadow-1: 0 1px 3px rgb(10 17 40 / 0.05);
-  --shadow-2: 0 4px 14px rgb(10 17 40 / 0.08), 0 1px 3px rgb(10 17 40 / 0.04);
-  --shadow-3: 0 18px 44px rgb(10 17 40 / 0.12), 0 3px 10px rgb(10 17 40 / 0.06);
-  --shadow-4: 0 32px 80px rgb(10 17 40 / 0.22);
+  /* Elevation — soft, blue-tinted */
+  --shadow-1: 0 2px 8px rgb(22 70 160 / 0.06);
+  --shadow-2: 0 8px 24px rgb(22 70 160 / 0.1);
+  --shadow-3: 0 18px 48px rgb(22 70 160 / 0.16);
+  --shadow-4: 0 30px 80px rgb(12 27 61 / 0.28);
 
-  /* Layout */
-  --gutter: clamp(16px, 4.2vw, 88px);
-  --max: 2200px;
-  --nav-h: 72px;
-  --tabbar-h: 64px;
-  --panel-w: clamp(460px, 34vw, 640px);
+  /* Layout: a floating pill header; content sits in padded rounded sections */
+  --gutter: clamp(14px, 3.4vw, 72px);
+  --max: 1680px;
+  --nav-h: 84px;
+  --tabbar-h: 72px;
+  --panel-w: clamp(440px, 32vw, 560px);
   --tap: 48px;
 
-  --ring: 0 0 0 3px rgb(30 108 227 / 0.28);
-  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
-  --dur: 180ms;
+  --ring: 0 0 0 4px rgb(22 101 232 / 0.22);
+  --ease: cubic-bezier(0.34, 1.3, 0.5, 1);
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur: 200ms;
 }
 
 @media (max-width: 899.98px) {
   :root {
-    --nav-h: 60px;
+    --nav-h: 72px;
   }
 }

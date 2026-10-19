@@ -79,20 +79,21 @@ function Home() {
     <>
       <RideBanner />
       <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__media">
-          <picture>
-            <source media="(max-width: 720px)" srcSet={IMG('heroes/hero-mobile')} />
-            <img src={IMG('heroes/hero-desktop')} alt="People Taxi outstation and intercity cab service across Tamil Nadu" width={1774} height={887} fetchPriority="high" />
-          </picture>
-          <span className="hero__shade" />
-        </div>
-        <div className="hero__inner">
-          <div className="hero__copy">
+        <div className="hero__panel">
+          <div className="hero__left">
             <p className="hero__eyebrow">
               <Icon name="route" size={16} /> Outstation &amp; intercity cabs
             </p>
-            <h1 id="hero-title">Outstation rides, priced before you book.</h1>
+            <h1 id="hero-title">
+              Outstation rides, <mark>priced before you book.</mark>
+            </h1>
             <p className="hero__lead">Verified chauffeurs, clean air-conditioned cars and the fare for every vehicle upfront — across Tamil Nadu and beyond.</p>
+            <div className="hero__console">
+              <PlanStep ui={ui} setUi={setUi} intent={intent} />
+            </div>
+          </div>
+          <div className="hero__media">
+            <img src={IMG('heroes/hero-family')} alt="People Taxi outstation and intercity cab service across Tamil Nadu" width={1600} height={800} fetchPriority="high" />
             <ul className="hero__points">
               <li>
                 <Icon name="check" size={18} /> Fares shown upfront
@@ -105,9 +106,6 @@ function Home() {
               </li>
             </ul>
           </div>
-        </div>
-        <div className="hero__console">
-          <PlanStep ui={ui} setUi={setUi} intent={intent} />
         </div>
       </section>
 

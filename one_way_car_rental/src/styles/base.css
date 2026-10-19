@@ -24,7 +24,6 @@ body {
   font-family: var(--font);
   font-size: var(--fs-body);
   line-height: var(--lh-body);
-  word-spacing: 0.04em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -42,29 +41,32 @@ dd {
   margin: 0;
 }
 
+/* Signage type: condensed, uppercase, tight. */
 h1,
 h2,
 h3,
 h4 {
   color: var(--ink);
+  font-family: var(--font-display);
   line-height: var(--lh-tight);
-  letter-spacing: -0.015em;
-  word-spacing: 0.08em;
+  letter-spacing: 0.005em;
+  text-transform: uppercase;
   text-wrap: balance;
 }
 
 h1 {
   font-size: var(--fs-h1);
-  font-weight: 800;
-  letter-spacing: -0.025em;
+  font-weight: 700;
 }
 h2 {
   font-size: var(--fs-xl);
-  font-weight: 750;
+  font-weight: 700;
 }
 h3 {
-  font-size: var(--fs-md);
+  font-size: var(--fs-lg);
   font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
 }
 
 p {
@@ -115,11 +117,12 @@ fieldset {
 :focus-visible {
   outline: 2px solid var(--brand);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 2px;
 }
 
 ::selection {
-  background: var(--brand-tint);
+  background: var(--brand);
+  color: #fff;
 }
 
 .icon {
@@ -168,13 +171,25 @@ fieldset {
   gap: var(--s-4);
 }
 
+/* Section label: a green square marker + tracked condensed caps. */
 .eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
   margin: 0;
-  font-size: var(--fs-xs);
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-family: var(--font-display);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
   color: var(--muted);
+}
+.eyebrow::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  flex: none;
+  background: var(--brand);
 }
 
 .skip-link {
@@ -193,7 +208,7 @@ fieldset {
   text-decoration: none;
 }
 
-/* Edge-to-edge content: a fluid gutter, no fixed narrow column. */
+/* Content width: a fluid gutter, capped on very large screens. */
 .wrap {
   width: 100%;
   max-width: var(--max);

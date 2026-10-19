@@ -1,6 +1,6 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { formatPhone } from '@core/utils/format';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { useInbox } from '@/state/Inbox';
@@ -9,14 +9,13 @@ import { useOnline } from '@/lib/hooks';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 
-export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
+export function Brand({ light = false }: { compact?: boolean; light?: boolean }) {
   return (
     <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a ride">
-      <img src="/brand/ow-logo.png" alt="" width={40} height={40} />
+      <img src="/brand/ow-logo.png" alt="" width={44} height={44} />
       <span className="brand__word">
-        <b>
-          One Way <i>Car Rental</i>
-        </b>
+        <b>One Way</b>
+        <small>Car Rental</small>
       </span>
     </Link>
   );
@@ -29,15 +28,15 @@ const NAV = [
   { to: '/account', label: 'Account', short: 'Account', icon: 'profile' },
 ] as const;
 
-/** Desktop header links. Account lives in the profile menu there; the phone tab bar keeps all four. */
-const TOP_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
+/** Sidebar links. Account lives in the profile menu there; the phone tab bar keeps all four. */
+const SIDE_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
 
 /** Booking steps and the live ride are full-screen workspaces (panel + map), so the footer and tab bar step aside. */
 const IMMERSIVE = [/^\/book\/(ride|confirm)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
 
 function ProfileMenu() {
   const { profile } = useCustomerData();
-  const { signOut } = useAuth();
+  const { signOut, openLoginModal } = useAuth();
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
   const [error, setError] = useState('');
@@ -59,13 +58,25 @@ function ProfileMenu() {
     };
   }, [open]);
 
+  if (!profile) {
+    return (
+      <button type="button" className="side__signin" title="Sign in" onClick={() => openLoginModal({ title: 'Sign in to One Way Car Rental' })}>
+        <Icon name="profile" size={20} />
+        <span className="lbl-long">Sign in</span>
+      </button>
+    );
+  }
+
   const first = profile.name.split(' ')[0] || 'Account';
   return (
     <div className="menu" ref={root}>
-      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} title={profile.name}>
         <Avatar name={profile.name} photoUrl={profile.photoUrl} size={38} />
-        <span className="menu__name">{first}</span>
-        <Icon name="chevron-down" size={16} />
+        <span className="menu__who-mini">
+          <span className="menu__name">{first}</span>
+          <small>Your account</small>
+        </span>
+        <Icon name="chevron-up" size={16} />
       </button>
       {open ? (
         <div className="menu__panel" role="menu">
@@ -185,6 +196,9 @@ function Footer() {
             </ul>
           </nav>
         </div>
+        <p className="footer__mark" aria-hidden="true">
+          One Way
+        </p>
         <div className="footer__legal">
           <span>© {new Date().getFullYear()} {COMPANY_LEGAL_NAME}</span>
           <span>Cash or UPI to your driver · nothing is charged when you book</span>
@@ -196,6 +210,8 @@ function Footer() {
 
 export function Shell() {
   const { unreadCount } = useInbox();
+  const { profile } = useCustomerData();
+  const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
   const navigate = useNavigate();
@@ -219,58 +235,74 @@ export function Shell() {
       >
         Skip to content
       </a>
-      {!online ? (
-        <div className="net-banner" role="status">
-          You’re offline. Bookings and live updates resume when you reconnect.
-        </div>
-      ) : recovered ? (
-        <div className="net-banner net-banner--ok" role="status">
-          Back online.
-        </div>
-      ) : null}
 
-      <header className="topbar">
-        <div className="topbar__inner">
-          <Brand />
-          <nav className="topnav" aria-label="Main">
-            {TOP_NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => `topnav__link ${isActive ? 'is-active' : ''}`}>
-                <Icon name={n.icon} size={19} />
-                <span className="lbl-long">{n.label}</span>
-                {n.to === '/notifications' && unreadCount > 0 ? (
-                  <em className="count" aria-label={`${unreadCount} unread`}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </em>
-                ) : null}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="topbar__right">
-            <Link to="/support" className="help-link" aria-label="Help and support">
-              <Icon name="support" size={20} />
-              <span className="help-link__text">Help</span>
-            </Link>
-            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call One Way Car Rental support ${SUPPORT_PHONE_DISPLAY}`}>
-              <Icon name="phone" size={18} />
+      <aside className="side" aria-label="Site">
+        <Brand />
+        <nav className="side__nav" aria-label="Main">
+          <p className="side__label">Menu</p>
+          {SIDE_NAV.map((n) => (
+            <NavLink key={n.to} to={n.to} title={n.label} className={({ isActive }) => `side__link ${isActive ? 'is-active' : ''}`}>
+              <Icon name={n.icon} size={21} />
+              <span className="lbl-long">{n.label}</span>
+              {n.to === '/notifications' && unreadCount > 0 ? (
+                <em className="count" aria-label={`${unreadCount} unread`}>
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </em>
+              ) : null}
+            </NavLink>
+          ))}
+        </nav>
+        <div className="side__foot">
+          <Link to="/support" className="side__link" title="Help and support" aria-label="Help and support">
+            <Icon name="support" size={21} />
+            <span className="lbl-long">Help &amp; tickets</span>
+          </Link>
+          <a className="side__call" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call One Way Car Rental support ${SUPPORT_PHONE_DISPLAY}`}>
+            <Icon name="phone" size={20} />
+            <span className="lbl-long">
+              <small>Talk to us</small>
               <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-            </a>
-            <ProfileMenu />
-          </div>
-          <div className="topbar__mobile">
-            <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
-              <Icon name="support" size={22} />
-            </button>
-          </div>
+            </span>
+          </a>
+          <ProfileMenu />
         </div>
-      </header>
+      </aside>
 
-      <main id="main" tabIndex={-1} className="main">
-        <Suspense fallback={<PageLoader />}>
-          <Outlet />
-        </Suspense>
-      </main>
+      <div className="shell__body">
+        {!online ? (
+          <div className="net-banner" role="status">
+            You’re offline. Bookings and live updates resume when you reconnect.
+          </div>
+        ) : recovered ? (
+          <div className="net-banner net-banner--ok" role="status">
+            Back online.
+          </div>
+        ) : null}
 
-      {!immersive ? <Footer /> : null}
+        <header className="topbar">
+          <div className="topbar__inner">
+            <Brand />
+            <div className="topbar__mobile">
+              {!profile ? (
+                <Button variant="primary" size="sm" onClick={() => openLoginModal({ title: 'Sign in to One Way Car Rental' })}>
+                  Sign in
+                </Button>
+              ) : null}
+              <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
+                <Icon name="support" size={22} />
+              </button>
+            </div>
+          </div>
+        </header>
+
+        <main id="main" tabIndex={-1} className="main">
+          <Suspense fallback={<PageLoader />}>
+            <Outlet />
+          </Suspense>
+        </main>
+
+        {!immersive ? <Footer /> : null}
+      </div>
 
       {!immersive ? (
         <nav className="tabbar" aria-label="Main">
