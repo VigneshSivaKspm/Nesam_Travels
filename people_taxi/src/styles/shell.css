@@ -54,9 +54,14 @@
   text-decoration: none;
 }
 .brand img {
+  width: auto;
+  height: 40px;
+  max-width: 175px;
+  object-fit: contain;
+}
+.brand--compact img {
   width: 40px;
   height: 40px;
-  object-fit: contain;
 }
 .brand__word {
   display: grid;
@@ -73,21 +78,23 @@
   font-weight: 700;
   letter-spacing: 0.32em;
   text-transform: uppercase;
-  color: var(--red-ink);
+  color: var(--brand);
 }
 .brand--light {
   color: #fff;
 }
 .brand--light img {
-  width: 48px;
-  height: 48px;
-  padding: 5px;
-  border-radius: 12px;
-  background: #fff;
-  box-shadow: 0 2px 10px rgb(0 0 0 / 0.25);
+  width: auto;
+  height: 44px;
+  max-width: 185px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  object-fit: contain;
 }
 .brand--light .brand__word small {
-  color: var(--red-line);
+  color: var(--brand-line);
 }
 
 .topnav {

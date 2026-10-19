@@ -55,7 +55,7 @@ export const DEFAULT_DESCRIPTION =
   'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry with People Taxi. Verified chauffeurs, clean AC cars, upfront fares & 24/7 customer support.';
 export const DEFAULT_KEYWORDS =
   'people taxi, outstation cabs tamil nadu, drop taxi chennai, chennai to pondicherry cab, chennai to bangalore taxi, coimbatore to ooty cab, madurai outstation cabs, trichy drop taxi, intercity cab booking, airport taxi chennai, drop taxi online booking, people cabs, nesam travels';
-export const DEFAULT_OG_IMAGE = `${PRIMARY_BASE_URL}/brand/logo.png`;
+export const DEFAULT_OG_IMAGE = `${PRIMARY_BASE_URL}/brand/banner.png`;
 
 function setMetaTag(attrName: 'name' | 'property', attrValue: string, content: string) {
   let element = document.querySelector(`meta[${attrName}="${attrValue}"]`) as HTMLMetaElement | null;

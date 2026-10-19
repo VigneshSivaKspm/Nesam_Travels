@@ -11,9 +11,9 @@ import { Icon } from './Icon';
 
 export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
-    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="People Taxi — book a ride">
+    <Link to="/book" className={`brand ${compact ? 'brand--compact' : ''} ${light ? 'brand--light' : ''}`} aria-label="People Taxi — book a ride">
       <img
-        src={light ? '/brand/logo-white.svg' : '/brand/logo.svg'}
+        src={light ? '/brand/logo-white.png' : compact ? '/brand/icon.png' : '/brand/logo.png'}
         alt="People Taxi Logo"
         width={compact ? 40 : 160}
         height={compact ? 40 : 42}
