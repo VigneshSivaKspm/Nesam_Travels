@@ -11,6 +11,7 @@ export type TabParamList = {
 export type RootStackParamList = {
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   PreTrip: { bookingId: string };
+  TripFlow: { bookingId: string };
   Notifications: undefined;
   UpdateDocuments: undefined;
 };

@@ -1,7 +1,8 @@
 // Welcome → mobile number → OTP. Native port of
 // driver/web/src/screens/AuthScreen.tsx (same flow as the Customer app).
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BackHandler, Image, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '../../components/nx/Text';
 import type { ConfirmationResult } from 'firebase/auth';
 import { Button, Card, LinkText, Notice, Screen, TextField } from '../../components/ui';
 import { useRecaptchaVerifier } from '../../components/RecaptchaVerifier';

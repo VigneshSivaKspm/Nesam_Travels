@@ -1,6 +1,6 @@
-import { ageOn, isFutureDate, isPlate, isValidAadhaar, localDateISO, maskAadhaar, maskAccount, normalizePlate, validateStep } from '../src/validation/kyc';
+import { AUTO_VEHICLE_DETECTION, ageOn, isFutureDate, isPlate, isValidAadhaar, localDateISO, maskAadhaar, maskAccount, normalizePlate, validateStep } from '../src/validation/kyc';
 import { buildNewDriverDoc, emptyRegistration, fallbackName, registrationFields } from '../src/services/driverService';
-import { snapshotFrom, vehiclePatchFrom } from '../src/services/vehicleLookup';
+import { manualSnapshot, snapshotFrom, vehiclePatchFrom } from '../src/services/vehicleLookup';
 import type { DetectedVehicle, RegistrationData, VehicleLookupResult } from '../src/types/driver';
 
 const TODAY = '2026-10-13';
@@ -38,15 +38,15 @@ function filled(): RegistrationData {
 describe('onboarding validation (spec page 13)', () => {
   it('accepts a complete owner-driver application', () => {
     const d = filled();
-    expect(validateStep(1, d, { today: TODAY })).toEqual({});
-    expect(validateStep(2, d, { today: TODAY })).toEqual({});
+    expect(validateStep(1, d, { today: TODAY, autoDetect: true })).toEqual({});
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true })).toEqual({});
   });
 
   it('asks for nothing but the page-13 inputs', () => {
     const d = emptyRegistration('+91 98765 43210');
-    expect(Object.keys(validateStep(1, d, { today: TODAY })).sort()).toEqual(['dlBack', 'dlFront', 'licenseExpiry', 'licenseNumber', 'photoUrl']);
+    expect(Object.keys(validateStep(1, d, { today: TODAY, autoDetect: true })).sort()).toEqual(['dlBack', 'dlFront', 'licenseExpiry', 'licenseNumber', 'photoUrl']);
     // No name, date of birth, address, Aadhaar, PAN, emergency contact or bank is ever required.
-    const all = { ...validateStep(1, d, { today: TODAY }), ...validateStep(2, d, { today: TODAY }) };
+    const all = { ...validateStep(1, d, { today: TODAY, autoDetect: true }), ...validateStep(2, d, { today: TODAY, autoDetect: true }) };
     for (const k of ['name', 'dob', 'gender', 'address', 'city', 'pincode', 'emergencyContact', 'aadhaarNumber', 'panNumber', 'accountNumber', 'ifsc', 'make', 'model', 'color', 'year', 'insuranceNumber', 'statePermitNumber']) {
       expect(all).not.toHaveProperty(k);
     }
@@ -61,7 +61,7 @@ describe('onboarding validation (spec page 13)', () => {
     d.license.expiryDate = '2026-10-12';
     d.license.number = 'TN01';
     d.profile.photoUrl = '';
-    const e = validateStep(1, d, { today: TODAY });
+    const e = validateStep(1, d, { today: TODAY, autoDetect: true });
     expect(e.licenseExpiry).toMatch(/expired/i);
     expect(e.licenseNumber).toBeTruthy();
     expect(e.photoUrl).toBeTruthy();
@@ -74,7 +74,7 @@ describe('onboarding validation (spec page 13)', () => {
     d.vehicle.permitExpiry = '2026-01-01';
     d.vehicle.rcDocUrl = '';
     d.vehicle.frontPhotoUrl = '';
-    const e = validateStep(2, d, { today: TODAY });
+    const e = validateStep(2, d, { today: TODAY, autoDetect: true });
     expect(e.insuranceExpiry).toMatch(/expired/i);
     expect(e.fitnessExpiry).toBeTruthy();
     expect(e.permitExpiry).toMatch(/expired/i);
@@ -85,22 +85,37 @@ describe('onboarding validation (spec page 13)', () => {
   it('the vehicle must be detected before the application can continue', () => {
     const d = filled();
     d.vehicle.vahan = undefined;
-    expect(validateStep(2, d, { today: TODAY }).vehicleNumber).toMatch(/detect/i);
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true }).vehicleNumber).toMatch(/detect/i);
     // A detection for a different plate does not count.
     d.vehicle.vahan = snapshotFrom({ ...foundResult, registrationNumber: 'TN09ZZ0001' }, false);
-    expect(validateStep(2, d, { today: TODAY }).vehicleNumber).toMatch(/detect/i);
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true }).vehicleNumber).toMatch(/detect/i);
     d.vehicle.vahan = snapshotFrom({ status: 'not_found', registrationNumber: 'TN01AB1234' }, false);
-    expect(validateStep(2, d, { today: TODAY }).vehicleNumber).toMatch(/not found/i);
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true }).vehicleNumber).toMatch(/not found/i);
     d.vehicle.vahan = snapshotFrom({ ...foundResult, duplicate: true }, false);
-    expect(validateStep(2, d, { today: TODAY }).vehicleNumber).toMatch(/already registered/i);
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true }).vehicleNumber).toMatch(/already registered/i);
   });
 
   it('when the register is unreachable the partner picks the type; otherwise the application is held', () => {
     const d = filled();
     d.vehicle.vahan = snapshotFrom({ status: 'unavailable', registrationNumber: 'TN01AB1234' }, false);
-    expect(validateStep(2, d, { today: TODAY }).vehicleType).toBeTruthy();
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true }).vehicleType).toBeTruthy();
     d.vehicle.vahan = snapshotFrom({ status: 'not_configured', registrationNumber: 'TN01AB1234' }, true);
-    expect(validateStep(2, d, { today: TODAY })).toEqual({});
+    expect(validateStep(2, d, { today: TODAY, autoDetect: true })).toEqual({});
+  });
+
+  it('manual entry (detection off): a valid plate and a chosen vehicle type are enough, no register lookup', () => {
+    const d = filled();
+    d.vehicle.vahan = undefined;
+    expect(validateStep(2, d, { today: TODAY, autoDetect: false }).vehicleType).toMatch(/choose/i);
+    expect(validateStep(2, d, { today: TODAY, autoDetect: false }).vehicleNumber).toBeUndefined();
+    d.vehicle.vahan = manualSnapshot('TN01AB1234');
+    expect(validateStep(2, d, { today: TODAY, autoDetect: false })).toEqual({});
+    d.vehicle.vehicleNumber = 'NOTAPLATE';
+    expect(validateStep(2, d, { today: TODAY, autoDetect: false }).vehicleNumber).toMatch(/valid registration/i);
+  });
+
+  it('the shipped default is manual entry while the register key is unavailable', () => {
+    expect(AUTO_VEHICLE_DETECTION).toBe(false);
   });
 
   it('plates are compared without spaces or hyphens', () => {

@@ -1,15 +1,6 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from '../../components/nx/Text';
 import type { ConfirmationResult } from 'firebase/auth';
 import { sendOtpToPhone, confirmOtpCode, describePhoneAuthError } from '../../services/authService';
 import { isValidIndianMobile } from '../../utils/format';

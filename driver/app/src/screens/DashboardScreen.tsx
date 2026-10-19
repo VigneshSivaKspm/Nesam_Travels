@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Switch, TouchableOpacity, ScrollView } from 'react-native';
+import { View, StyleSheet, Switch, TouchableOpacity, ScrollView } from 'react-native';
+import { Text } from '../components/nx/Text';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../theme/colors';
 import { formatINR } from '../utils/format';

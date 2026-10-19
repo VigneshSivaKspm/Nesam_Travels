@@ -1,70 +1,84 @@
+// Notifications inbox (the reference shows these in a "Driver updates" dialog; the app keeps its full inbox with the
+// category filters and the same mark-as-read call).
 import React, { useState } from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/nx/Text';
+import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
-import { EmptyState } from '../components/ui';
+import { NxScreen } from '../components/nx/Shell';
+import { NxIcon, NxIconName } from '../components/nx/Icon';
+import { NxBadge, NxEmpty, NxPanel, NxPills, nxText } from '../components/nx/primitives';
 import { markNotificationRead } from '../services/driverService';
 import { CATEGORIES, CATEGORY_LABEL, TONE_COLORS, toneOf } from '../utils/notificationModel';
 import type { NotificationCategory } from '../types/driver';
-import { colors, radius, space, type } from '../theme';
+import { nx } from '../theme/nx';
+
+const CATEGORY_ICON: Record<NotificationCategory, NxIconName> = { bookings: 'trip', approvals: 'shield', trips: 'car', payments: 'wallet', penalties: 'alert', general: 'bell' };
 
 export function NotificationsScreen() {
+  const navigation = useNavigation();
   const { notifications } = useDriverData();
   const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
   const shown = filter === 'all' ? notifications : notifications.filter((n) => n.category === filter);
+  const unread = (c: NotificationCategory | 'all') => notifications.filter((n) => !n.read && (c === 'all' || n.category === c)).length;
+
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-          {(['all', ...CATEGORIES] as const).map((c) => {
-            const count = c === 'all' ? notifications.filter((n) => !n.read).length : notifications.filter((n) => n.category === c && !n.read).length;
-            const active = filter === c;
-            return (
-              <Pressable key={c} onPress={() => setFilter(c)} style={[styles.tab, active && styles.tabOn]} accessibilityRole="button" accessibilityState={{ selected: active }}>
-                <Text style={[styles.tabText, active && { color: colors.white }]}>
-                  {c === 'all' ? 'All' : CATEGORY_LABEL[c]}
-                  {count ? ` (${count})` : ''}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
-      <FlatList
-        data={shown}
-        keyExtractor={(n) => n.id}
-        contentContainerStyle={{ padding: space.lg }}
-        ListEmptyComponent={<EmptyState title="No notifications" message="Trip, payment, penalty and approval updates from NESAM appear here." />}
-        renderItem={({ item: n }) => {
-          const tone = TONE_COLORS[toneOf(n)];
-          return (
+    <NxScreen tabs={false}>
+      <Pressable style={styles.back} onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))} accessibilityRole="button" accessibilityLabel="Back">
+        <NxIcon name="back" size={16} color={nx.muted} />
+        <Text style={styles.backText}>Back</Text>
+      </Pressable>
+      <Text style={nxText.routeTitle}>Driver updates</Text>
+      <Text style={[nxText.copy, { marginTop: 6, marginBottom: 18 }]}>Trips, approvals, payments and penalties from NESAM.</Text>
+      <NxPills<NotificationCategory | 'all'>
+        label="Notification categories"
+        value={filter}
+        onChange={setFilter}
+        options={(['all', ...CATEGORIES] as const).map((c) => ({ value: c, label: `${c === 'all' ? 'All' : CATEGORY_LABEL[c]}${unread(c) ? ` (${unread(c)})` : ''}` }))}
+      />
+      {shown.length === 0 ? (
+        <NxEmpty icon="bell" title="No notifications" message="Trip, payment, penalty and approval updates from NESAM appear here." />
+      ) : (
+        <NxPanel style={{ paddingVertical: 6 }}>
+          {shown.map((n) => (
             <Pressable
+              key={n.id}
+              style={[styles.item, { opacity: n.read ? 0.72 : 1 }]}
               onPress={() => {
                 if (!n.read) markNotificationRead(n.id).catch(() => undefined);
               }}
-              style={[styles.item, { borderColor: n.read ? colors.border : tone.border, backgroundColor: n.read ? '#FAFAFA' : tone.bg }]}
               accessibilityRole="button"
+              accessibilityLabel={`${n.title}. ${n.message}${n.read ? '' : '. Unread, double tap to mark as read'}`}
             >
-              <View style={[styles.dot, { backgroundColor: n.read ? colors.border : tone.bar }]} />
+              <View style={styles.icon}>
+                <NxIcon name={CATEGORY_ICON[n.category]} size={18} color={nx.muted} />
+              </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.cat}>{CATEGORY_LABEL[n.category].toUpperCase()}</Text>
-                <Text style={type.h3}>{n.title}</Text>
-                <Text style={[type.small, { marginTop: 2 }]}>{n.message}</Text>
-                <Text style={[type.tiny, { marginTop: 4 }]}>{n.time}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title}>{n.title}</Text>
+                  {!n.read ? <View style={[styles.dot, { backgroundColor: TONE_COLORS[toneOf(n)].bar }]} /> : null}
+                  {n.severity === 'critical' || n.severity === 'warning' ? <NxBadge label={n.severity === 'critical' ? 'Urgent' : 'Warning'} tone={n.severity === 'critical' ? 'red' : 'amber'} /> : null}
+                </View>
+                {n.message ? <Text style={nxText.copy}>{n.message}</Text> : null}
+                <Text style={[nxText.small, { marginTop: 4 }]}>
+                  {CATEGORY_LABEL[n.category]} · {n.time}
+                  {n.bookingCode || n.bookingId ? ` · Ref ${n.bookingCode || n.bookingId}` : ''}
+                </Text>
               </View>
             </Pressable>
-          );
-        }}
-      />
-    </View>
+          ))}
+        </NxPanel>
+      )}
+    </NxScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  tabs: { paddingHorizontal: space.lg, paddingVertical: space.md, gap: space.sm },
-  tab: { paddingHorizontal: space.md, paddingVertical: space.sm, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
-  tabOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabText: { fontSize: 13, fontWeight: '700', color: colors.text },
-  item: { flexDirection: 'row', gap: space.md, borderRadius: radius.lg, borderWidth: 1, padding: space.md, marginBottom: space.sm },
-  dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  cat: { fontSize: 10, fontWeight: '800', color: colors.muted, marginBottom: 2 },
+  back: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44, alignSelf: 'flex-start' },
+  backText: { fontSize: 14, color: nx.muted },
+  item: { flexDirection: 'row', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: nx.line },
+  icon: { width: 36, height: 36, borderRadius: 10, backgroundColor: nx.page, alignItems: 'center', justifyContent: 'center' },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },
+  title: { flexShrink: 1, fontSize: 13, fontWeight: '700', color: nx.ink },
+  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: nx.red },
 });

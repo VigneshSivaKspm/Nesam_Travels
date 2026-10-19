@@ -1,9 +1,13 @@
 import React, { useState } from 'react';
-import { CreditCard, Car, FileText, Landmark, LogOut, Pencil, ShieldCheck, User, Loader2, CheckCircle2 } from 'lucide-react';
 import type { BankDetails, DriverAccount } from '../types';
 import { describeFirestoreError } from '../services/driverFirestoreService';
+import { setSoundEnabled, soundEnabled, soundState, unlockSound, playTone } from '../utils/notificationSound';
+import { Dialog } from '../components/nx/Dialog';
+import { Icon } from '../components/nx/Icon';
+import { InfoNote } from '../components/nx/parts';
+import { initials } from '../components/nx/format';
 
-type ContactFields = {
+export type ContactFields = {
   email: string;
   address: string;
   city: string;
@@ -19,69 +23,63 @@ interface ProfileScreenProps {
   onEditDocuments: () => void;
   onSaveContact: (fields: ContactFields) => Promise<void>;
   onSignOut: () => void;
+  onSupport: () => void;
 }
-
-const Row: React.FC<{ label: string; value?: string }> = ({ label, value }) => (
-  <div className="flex justify-between gap-3 py-2 border-b border-gray-100 last:border-0 text-xs">
-    <span className="text-gray-500">{label}</span>
-    <span className="font-semibold text-gray-900 text-right break-all">{value || '—'}</span>
-  </div>
-);
 
 const expiryBadge = (date: string) => {
   if (!date) return null;
   const days = Math.floor((new Date(date).getTime() - Date.now()) / 86400000);
   if (Number.isNaN(days)) return null;
-  if (days < 0) return <span className="text-[10px] font-bold bg-red-100 text-red-700 px-1.5 py-0.5 rounded">Expired</span>;
-  if (days <= 30) return <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Expires in {days}d</span>;
+  if (days < 0) return <span className="badge red">Expired</span>;
+  if (days <= 30) return <span className="badge amber">Expires in {days}d</span>;
   return null;
 };
 
-const DocThumb: React.FC<{ label: string; url: string; expiry?: string }> = ({ label, url, expiry }) => (
-  <a
-    href={url || undefined}
-    target="_blank"
-    rel="noreferrer"
-    className={`border border-gray-200 rounded-xl p-2 bg-gray-50 block ${url ? 'hover:border-[#E21E26]' : 'pointer-events-none opacity-60'}`}
-  >
+const DocRow: React.FC<{ label: string; url: string; expiry?: string }> = ({ label, url, expiry }) => (
+  <div className="document-row">
+    <Icon name="document" />
+    <span>
+      {url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>
+          {label}
+        </a>
+      ) : (
+        label
+      )}
+    </span>
+    {expiry ? expiryBadge(expiry) : null}
     {url ? (
-      <img src={url} alt={label} className="h-20 w-full object-cover rounded-lg" />
+      <span className="badge green">
+        <Icon name="check" />
+        Uploaded
+      </span>
     ) : (
-      <div className="h-20 w-full rounded-lg bg-gray-200 flex items-center justify-center text-[10px] text-gray-500">Not uploaded</div>
+      <span className="badge neutral">Not uploaded</span>
     )}
-    <div className="flex items-center justify-between gap-1 mt-1.5">
-      <span className="text-[11px] font-bold text-gray-700 truncate">{label}</span>
-      {expiry && expiryBadge(expiry)}
-    </div>
-  </a>
+  </div>
 );
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completedTrips, onEditDocuments, onSaveContact, onSignOut }) => {
+const blank = (driver: DriverAccount['driver'], bank: BankDetails): ContactFields => ({
+  email: driver.email,
+  address: driver.address,
+  city: driver.city,
+  pincode: driver.pincode,
+  emergencyContactName: driver.emergencyContactName,
+  emergencyContact: driver.emergencyContact,
+  bank,
+});
+
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completedTrips, onEditDocuments, onSaveContact, onSignOut, onSupport }) => {
   const { driver, identity, license, vehicle, bank } = account;
   const [editing, setEditing] = useState(false);
-  const [form, setForm] = useState<ContactFields>({
-    email: driver.email,
-    address: driver.address,
-    city: driver.city,
-    pincode: driver.pincode,
-    emergencyContactName: driver.emergencyContactName,
-    emergencyContact: driver.emergencyContact,
-    bank,
-  });
+  const [form, setForm] = useState<ContactFields>(() => blank(driver, bank));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
+  const [sound, setSound] = useState(soundEnabled);
 
   const startEdit = () => {
-    setForm({
-      email: driver.email,
-      address: driver.address,
-      city: driver.city,
-      pincode: driver.pincode,
-      emergencyContactName: driver.emergencyContactName,
-      emergencyContact: driver.emergencyContact,
-      bank,
-    });
+    setForm(blank(driver, bank));
     setError('');
     setEditing(true);
   };
@@ -108,138 +106,196 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completed
     }
   };
 
-  const input = 'w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:border-[#E21E26]';
+  const toggleSound = () => {
+    const on = !sound;
+    setSoundEnabled(on);
+    setSound(on);
+    if (on) {
+      unlockSound();
+      setTimeout(() => playTone('general'), 150);
+    }
+  };
+
+  const set = (patch: Partial<ContactFields>) => setForm((f) => ({ ...f, ...patch }));
+  const setBank = (patch: Partial<BankDetails>) => setForm((f) => ({ ...f, bank: { ...f.bank, ...patch } }));
+  const docTone = driver.docStatus === 'Approved' ? 'green' : driver.docStatus === 'Rejected' ? 'red' : 'amber';
+  const line = (label: string, value?: string) => (
+    <div className="detail-line" key={label}>
+      <span>{label}</span>
+      <strong className="wrap-value">{value || '—'}</strong>
+    </div>
+  );
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
-      {/* Identity card */}
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row sm:items-center gap-4">
-        {driver.photoUrl ? (
-          <img src={driver.photoUrl} alt={driver.name} className="w-20 h-20 rounded-2xl object-cover border-2 border-[#E21E26]" />
-        ) : (
-          <div className="w-20 h-20 rounded-2xl bg-[#E21E26] flex items-center justify-center text-white text-2xl font-bold">{driver.name.charAt(0)}</div>
-        )}
-        <div className="flex-1">
-          <h1 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
-            {driver.name} <ShieldCheck className="w-5 h-5 text-emerald-500" />
-          </h1>
-          <p className="text-xs text-gray-500 font-mono">{driver.phone}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            {driver.rating !== null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} • {completedTrips} trips{driver.joiningDate ? ` • Partner since ${driver.joiningDate}` : ''}
-            {driver.vendorName ? ` • ${driver.vendorName}` : ''}
-          </p>
+    <>
+      {driver.docStatus === 'Rejected' && driver.rejectionReason ? (
+        <div style={{ marginBottom: 18 }}>
+          <InfoNote tone="amber" role="alert">
+            <strong>Document note from NESAM:</strong> {driver.rejectionReason}
+          </InfoNote>
         </div>
-        <div className="flex flex-col items-start sm:items-end gap-1">
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">ACCOUNT APPROVED</span>
-          <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${
-            driver.docStatus === 'Approved' ? 'bg-emerald-100 text-emerald-700' : driver.docStatus === 'Rejected' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
-          }`}>
-            DOCUMENTS: {driver.docStatus.toUpperCase()}
-          </span>
+      ) : null}
+      {saved ? (
+        <div style={{ marginBottom: 18 }}>
+          <InfoNote role="status">Profile updated.</InfoNote>
         </div>
-      </div>
-
-      {driver.docStatus === 'Rejected' && driver.rejectionReason && (
-        <div className="bg-red-50 border border-red-200 text-red-800 text-xs p-3 rounded-xl">
-          <span className="font-bold">Document note from NESAM: </span>{driver.rejectionReason}
-        </div>
-      )}
-      {saved && (
-        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold p-3 rounded-xl flex items-center gap-2">
-          <CheckCircle2 className="w-4 h-4" /> Profile updated.
-        </div>
-      )}
-
-      <div className="grid md:grid-cols-2 gap-5">
-        {/* Personal & bank */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><User className="w-4 h-4 text-[#E21E26]" /> Contact &amp; Bank</h2>
-            {!editing && (
-              <button onClick={startEdit} className="text-[11px] font-bold text-[#E21E26] flex items-center gap-1"><Pencil className="w-3 h-3" /> Edit</button>
-            )}
+      ) : null}
+      <div className="two-columns">
+        <section>
+          <div className="panel page-card profile-overview">
+            {driver.photoUrl ? <img className="avatar" src={driver.photoUrl} alt={driver.name} style={{ objectFit: 'cover' }} /> : <div className="avatar" aria-hidden="true">{initials(driver.name)}</div>}
+            <h2>{driver.name}</h2>
+            <p>{driver.vendorName ? `Fleet driver · ${driver.vendorName}` : 'Single vehicle owner / driver'}</p>
+            <span className="badge green">
+              <Icon name="shield" />
+              Account approved
+            </span>
+            <div className="detail-list">
+              {line('Mobile', driver.phone)}
+              {line('Rating', driver.rating !== null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet')}
+              {line('Completed trips', String(completedTrips))}
+              {driver.joiningDate ? line('Partner since', driver.joiningDate) : null}
+              {line('Vehicle', [vehicle.make, vehicle.model].filter(Boolean).join(' '))}
+              {line('Registration', vehicle.vehicleNumber)}
+              {line('Category', `${vehicle.vehicleType}${vehicle.capacity ? ` · ${vehicle.capacity} seats` : ''}${vehicle.fuelType ? ` · ${vehicle.fuelType}` : ''}`)}
+            </div>
           </div>
-          {editing ? (
-            <form onSubmit={save} className="space-y-3">
-              <input className={input} placeholder="Email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <textarea className={`${input} h-16`} placeholder="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-              <div className="grid grid-cols-2 gap-2">
-                <input className={input} placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-                <input className={input} placeholder="Pincode" maxLength={6} value={form.pincode} onChange={(e) => setForm({ ...form, pincode: e.target.value.replace(/\D/g, '') })} />
-                <input className={input} placeholder="Emergency contact name" value={form.emergencyContactName} onChange={(e) => setForm({ ...form, emergencyContactName: e.target.value })} />
-                <input className={input} placeholder="Emergency mobile" maxLength={10} value={form.emergencyContact} onChange={(e) => setForm({ ...form, emergencyContact: e.target.value.replace(/\D/g, '') })} />
-              </div>
-              <p className="text-[11px] font-bold text-gray-700 pt-1">Bank account</p>
-              <input className={input} placeholder="Account holder" value={form.bank.accountHolder} onChange={(e) => setForm({ ...form, bank: { ...form.bank, accountHolder: e.target.value } })} />
-              <div className="grid grid-cols-2 gap-2">
-                <input className={`${input} font-mono`} placeholder="Account number" value={form.bank.accountNumber} onChange={(e) => setForm({ ...form, bank: { ...form.bank, accountNumber: e.target.value.replace(/\D/g, '') } })} />
-                <input className={`${input} font-mono uppercase`} placeholder="IFSC" maxLength={11} value={form.bank.ifsc} onChange={(e) => setForm({ ...form, bank: { ...form.bank, ifsc: e.target.value.toUpperCase() } })} />
-                <input className={input} placeholder="Bank name" value={form.bank.bankName} onChange={(e) => setForm({ ...form, bank: { ...form.bank, bankName: e.target.value } })} />
-                <input className={`${input} font-mono`} placeholder="UPI ID" value={form.bank.upiId} onChange={(e) => setForm({ ...form, bank: { ...form.bank, upiId: e.target.value.trim() } })} />
-              </div>
-              {error && <p className="text-[11px] text-red-600 font-semibold">{error}</p>}
-              <div className="flex justify-end gap-2">
-                <button type="button" onClick={() => setEditing(false)} className="px-3 py-1.5 border text-xs font-bold rounded-lg">Cancel</button>
-                <button type="submit" disabled={saving} className="px-4 py-1.5 bg-[#E21E26] text-white text-xs font-bold rounded-lg flex items-center gap-1 disabled:opacity-60">
-                  {saving && <Loader2 className="w-3 h-3 animate-spin" />} Save
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
-              <Row label="Email" value={driver.email} />
-              <Row label="Date of birth" value={driver.dob} />
-              <Row label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ')} />
-              <Row label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : ''} />
-              <div className="flex items-center gap-2 pt-3 text-xs font-bold text-gray-700"><Landmark className="w-4 h-4 text-[#E21E26]" /> Payout account</div>
-              <Row label="Account holder" value={bank.accountHolder} />
-              <Row label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : ''} />
-              <Row label="IFSC" value={bank.ifsc} />
-              <Row label="UPI" value={bank.upiId} />
-            </>
-          )}
-        </div>
 
-        {/* Licence & vehicle */}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm">
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-2"><CreditCard className="w-4 h-4 text-[#E21E26]" /> Licence &amp; ID</h2>
-          <Row label="Licence no." value={license.number} />
-          <Row label="Licence valid till" value={license.expiryDate} />
-          <Row label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : ''} />
-          <Row label="PAN" value={identity.panNumber} />
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2 mt-4 mb-2"><Car className="w-4 h-4 text-[#E21E26]" /> Vehicle</h2>
-          <Row label="Registration" value={vehicle.vehicleNumber} />
-          <Row label="Vehicle" value={`${vehicle.make} ${vehicle.model} (${vehicle.year})`} />
-          <Row label="Category" value={`${vehicle.vehicleType} • ${vehicle.capacity} seats • ${vehicle.fuelType}`} />
-          <Row label="Colour" value={vehicle.color} />
-        </div>
+          <div className="panel page-card" style={{ marginTop: 18 }}>
+            <div className="card-heading" style={{ marginBottom: 0 }}>
+              <h2>Contact &amp; payout account</h2>
+              <button type="button" className="text-button" onClick={startEdit}>
+                <Icon name="edit" className="icon-sm" />
+                Edit
+              </button>
+            </div>
+            <div className="detail-list">
+              {line('Email', driver.email)}
+              {line('Date of birth', driver.dob)}
+              {line('Address', [driver.address, driver.city, driver.pincode].filter(Boolean).join(', '))}
+              {line('Emergency contact', driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '')}
+              {line('Account holder', bank.accountHolder)}
+              {line('Account no.', bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '')}
+              {line('IFSC', bank.ifsc)}
+              {line('UPI', bank.upiId)}
+            </div>
+          </div>
+
+          <div className="panel page-card" style={{ marginTop: 18 }}>
+            <div className="card-heading" style={{ marginBottom: 0 }}>
+              <h2>Preferences</h2>
+              <Icon name="bell" />
+            </div>
+            <div className="preference-row">
+              <div>
+                <strong>Alert sound</strong>
+                <p>Play a tone for new duties and updates{sound && soundState() === 'locked' ? ' · tap anywhere once to enable' : ''}</p>
+              </div>
+              <button type="button" className="switch" role="switch" aria-checked={sound} aria-label="Alert sound preference" onClick={toggleSound} />
+            </div>
+            <div className="nx-profile-policy" style={{ display: 'grid', gap: 10 }}>
+              <button type="button" className="text-button" onClick={onSupport}>
+                <Icon name="help" className="icon-sm" />
+                Help &amp; SOS
+              </button>
+              <button type="button" className="text-button" onClick={onSignOut}>
+                <Icon name="logout" className="icon-sm" />
+                Sign out
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section className="panel page-card">
+          <div className="card-heading">
+            <div>
+              <h2>Document verification</h2>
+              <p>Your licence and vehicle papers</p>
+            </div>
+            <span className={`badge ${docTone}`}>{driver.docStatus}</span>
+          </div>
+          <div className="document-list">
+            <DocRow label="Driving licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
+            <DocRow label="Driving licence (back)" url={license.backPhotoUrl} />
+            <DocRow label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
+            <DocRow label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
+            <DocRow label="PAN" url={identity.panPhotoUrl} />
+            <DocRow label="Registration certificate (RC)" url={vehicle.rcDocUrl} />
+            <DocRow label="Vehicle insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
+            <DocRow label="Vehicle permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
+            <DocRow label="Fitness certificate (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
+            <DocRow label="Vehicle photo · front" url={vehicle.frontPhotoUrl} />
+            <DocRow label="Vehicle photo · rear" url={vehicle.rearPhotoUrl} />
+            <DocRow label="Vehicle photo · side" url={vehicle.sidePhotoUrl} />
+            <DocRow label="Vehicle photo · interior" url={vehicle.interiorPhotoUrl} />
+          </div>
+          <button type="button" className="button primary full" style={{ marginTop: 18 }} onClick={onEditDocuments}>
+            Update documents <Icon name="arrow" />
+          </button>
+        </section>
       </div>
 
-      {/* Documents */}
-      <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-bold text-gray-900 flex items-center gap-2"><FileText className="w-4 h-4 text-[#E21E26]" /> Documents</h2>
-          <button onClick={onEditDocuments} className="px-3 py-1.5 bg-[#111] text-white text-[11px] font-bold rounded-lg">Update Documents</button>
-        </div>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <DocThumb label="Licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
-          <DocThumb label="Licence (back)" url={license.backPhotoUrl} />
-          <DocThumb label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
-          <DocThumb label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
-          <DocThumb label="RC" url={vehicle.rcDocUrl} />
-          <DocThumb label="Insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
-          <DocThumb label="Permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
-          <DocThumb label="Fitness (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
-          <DocThumb label="Vehicle front" url={vehicle.frontPhotoUrl} />
-          <DocThumb label="Vehicle rear" url={vehicle.rearPhotoUrl} />
-          <DocThumb label="Vehicle side" url={vehicle.sidePhotoUrl} />
-          <DocThumb label="Interior" url={vehicle.interiorPhotoUrl} />
-        </div>
-      </div>
-
-      <button onClick={onSignOut} className="w-full lg:hidden py-3 rounded-xl border border-gray-200 bg-white text-xs font-bold text-gray-700 flex items-center justify-center gap-2">
-        <LogOut className="w-4 h-4" /> Sign Out
-      </button>
-    </div>
+      <Dialog open={editing} onClose={() => setEditing(false)} eyebrow="Profile" title="Edit contact & payout account" locked={saving}>
+        <form onSubmit={save} id="profile-form">
+          <label className="nx-cancel-field" htmlFor="pf-email">
+            Email
+            <input id="pf-email" type="email" autoComplete="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />
+          </label>
+          <label className="nx-cancel-field" htmlFor="pf-address">
+            Address
+            <textarea id="pf-address" value={form.address} onChange={(e) => set({ address: e.target.value })} />
+          </label>
+          <div className="nx-form-grid">
+            <label className="nx-cancel-field" htmlFor="pf-city">
+              City
+              <input id="pf-city" value={form.city} onChange={(e) => set({ city: e.target.value })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-pin">
+              Pincode
+              <input id="pf-pin" inputMode="numeric" maxLength={6} value={form.pincode} onChange={(e) => set({ pincode: e.target.value.replace(/\D/g, '') })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-ecn">
+              Emergency contact name
+              <input id="pf-ecn" value={form.emergencyContactName} onChange={(e) => set({ emergencyContactName: e.target.value })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-ec">
+              Emergency mobile
+              <input id="pf-ec" inputMode="numeric" maxLength={10} value={form.emergencyContact} onChange={(e) => set({ emergencyContact: e.target.value.replace(/\D/g, '') })} />
+            </label>
+          </div>
+          <p className="nx-cancel-field" style={{ marginBottom: 0 }}>
+            Bank account
+          </p>
+          <label className="nx-cancel-field" htmlFor="pf-holder">
+            Account holder
+            <input id="pf-holder" value={form.bank.accountHolder} onChange={(e) => setBank({ accountHolder: e.target.value })} />
+          </label>
+          <div className="nx-form-grid">
+            <label className="nx-cancel-field" htmlFor="pf-acct">
+              Account number
+              <input id="pf-acct" inputMode="numeric" value={form.bank.accountNumber} onChange={(e) => setBank({ accountNumber: e.target.value.replace(/\D/g, '') })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-ifsc">
+              IFSC
+              <input id="pf-ifsc" maxLength={11} value={form.bank.ifsc} onChange={(e) => setBank({ ifsc: e.target.value.toUpperCase() })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-bank">
+              Bank name
+              <input id="pf-bank" value={form.bank.bankName} onChange={(e) => setBank({ bankName: e.target.value })} />
+            </label>
+            <label className="nx-cancel-field" htmlFor="pf-upi">
+              UPI ID
+              <input id="pf-upi" value={form.bank.upiId} onChange={(e) => setBank({ upiId: e.target.value.trim() })} />
+            </label>
+          </div>
+          <div className="nx-cancel-error" role="alert">
+            {error}
+          </div>
+          <button className="button primary full" type="submit" disabled={saving} style={{ marginTop: 14 }}>
+            {saving ? 'Saving…' : 'Save changes'} <Icon name="check" />
+          </button>
+        </form>
+      </Dialog>
+    </>
   );
 };

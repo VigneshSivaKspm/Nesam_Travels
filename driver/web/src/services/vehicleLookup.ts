@@ -40,3 +40,19 @@ export function snapshotFrom(result: VehicleLookupResult, manualType: boolean): 
     validity: v.validity,
   };
 }
+
+/** Snapshot stored when the partner chose the vehicle type by hand (no register lookup). */
+export function manualSnapshot(registrationNumber: string): VahanSnapshot {
+  return {
+    status: 'unavailable',
+    lookupId: registrationNumber,
+    fetchedAtMs: Date.now(),
+    duplicate: false,
+    issues: [],
+    seatClass: '',
+    specClass: '',
+    usage: '',
+    manualType: true,
+    validity: { fitnessUpto: '', insuranceUpto: '', permitUpto: '', taxUpto: '', pucUpto: '' },
+  };
+}

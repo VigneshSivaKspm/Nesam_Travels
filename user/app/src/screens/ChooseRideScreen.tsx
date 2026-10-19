@@ -176,6 +176,20 @@ export function ChooseRideScreen() {
   const outstation = route ? isOutstation(route.distanceKm) : true;
   const tooFar = route ? route.distanceKm > 1500 : false;
   const canContinue = !!route && !!selectedQuote && !tooFar && !!server && !!server.quotes.find((x) => x.categoryId === selectedCategory?.id && x.ok);
+  // Say why the button is off instead of leaving it silently greyed out.
+  const selectedServerEntry = server?.quotes.find((x) => x.categoryId === selectedCategory?.id);
+  const quoteLoading = !!route && !server && serverQuote.status === 'loading';
+  const quoteProblem = !route
+    ? ''
+    : tooFar
+      ? 'This trip is too long to book online. Please call us to arrange it.'
+      : !scheduledAt
+        ? 'Choose a pickup date and time to see confirmed fares.'
+        : serverQuote.status === 'error'
+          ? serverQuote.error || 'We could not confirm the fare right now.'
+          : selectedServerEntry && !selectedServerEntry.ok
+            ? selectedServerEntry.error || 'This cab cannot be booked for this trip. Please choose another cab.'
+            : '';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -226,6 +240,7 @@ export function ChooseRideScreen() {
         </View>
 
         {routeError ? <Notice message={routeError} tone="error" style={{ marginBottom: space.sm }} /> : null}
+        {quoteProblem ? <Notice message={quoteProblem} tone={serverQuote.status === 'error' || tooFar ? 'error' : 'warning'} onRetry={serverQuote.status === 'error' ? serverQuote.retry : undefined} style={{ marginBottom: space.sm }} /> : null}
         {!route && !routeError ? (
           <View style={styles.loadingBox}>
             <Text style={styles.loadingText}>Calculating best driving route and tariffs…</Text>
@@ -361,7 +376,7 @@ export function ChooseRideScreen() {
           accessibilityRole="button"
           accessibilityLabel="Proceed to Booking Confirmation"
         >
-          <Text style={styles.continueBtnText}>Proceed to Book</Text>
+          <Text style={styles.continueBtnText}>{quoteLoading ? 'Confirming fare…' : 'Proceed to Book'}</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.white} />
         </Pressable>
       </View>

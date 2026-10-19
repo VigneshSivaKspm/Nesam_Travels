@@ -105,7 +105,7 @@ function ProfileMenu() {
       ) : null}
       {confirm ? (
         <Dialog
-          title="Log out of People Taxi?"
+          title="Log out of NESAM?"
           onClose={() => setConfirm(false)}
           footer={
             <>

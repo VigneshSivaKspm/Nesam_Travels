@@ -1,4 +1,14 @@
+/* Cascade order: "nx" (the reference interface, styles/reference.css) sits above Tailwind's base and below its
+   utilities, so the older Tailwind screens keep their look and utilities still win inside any nx screen. */
+@layer theme, base, nx, components, utilities;
 @import "tailwindcss";
+@import "./styles/fonts.css";
+
+/* One typeface across the app: Poppins for text and for the monospace utility used on codes and plates. */
+@theme {
+  --font-sans: "Poppins", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "Poppins", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+}
 
 @layer base {
   :root {
@@ -15,7 +25,7 @@
   body {
     background-color: var(--brand-gray-light);
     color: var(--brand-black);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-sans);
   }
 }
 
@@ -50,17 +60,17 @@
    Unlayered rules beat Tailwind's utility layer, so these lift the very small
    sizes used across older screens. 16px inputs also stop mobile browsers from
    zooming the page when a field is focused. */
-input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-select,
-textarea {
+input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(.nx-root *),
+select:not(.nx-root *),
+textarea:not(.nx-root *) {
   font-size: 16px;
   line-height: 1.4;
   color: #111111;
 }
 @media (min-width: 640px) {
-  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
-  select,
-  textarea {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']):not(.nx-root *),
+  select:not(.nx-root *),
+  textarea:not(.nx-root *) {
     font-size: 15px;
   }
 }
@@ -68,15 +78,15 @@ textarea {
   color: #767676;
   opacity: 1;
 }
-input:disabled,
-select:disabled,
-textarea:disabled {
+input:disabled:not(.nx-root *),
+select:disabled:not(.nx-root *),
+textarea:disabled:not(.nx-root *) {
   color: #4a4a4a;
   -webkit-text-fill-color: #4a4a4a;
   background-color: #f1f1f1;
   opacity: 1;
 }
-label > span.block {
+label:not(.nx-root *) > span.block {
   font-size: 13px;
   color: #222222;
 }
@@ -84,26 +94,26 @@ label > span.block {
 .text-\[10px\] { font-size: 12px; }
 .text-\[11px\] { font-size: 12.5px; }
 .text-xs { font-size: 13px; line-height: 1.4; }
-:focus-visible {
+:focus-visible:not(.nx-root *) {
   outline: 2px solid #E21E26;
   outline-offset: 2px;
 }
 
 /* Autofill fixes across browsers */
-input:-webkit-autofill,
-input:-webkit-autofill:hover, 
-input:-webkit-autofill:focus,
-textarea:-webkit-autofill,
-textarea:-webkit-autofill:hover,
-textarea:-webkit-autofill:focus,
-select:-webkit-autofill,
-select:-webkit-autofill:hover,
-select:-webkit-autofill:focus {
+input:-webkit-autofill:not(.nx-root *),
+input:-webkit-autofill:hover:not(.nx-root *),
+input:-webkit-autofill:focus:not(.nx-root *),
+textarea:-webkit-autofill:not(.nx-root *),
+textarea:-webkit-autofill:hover:not(.nx-root *),
+textarea:-webkit-autofill:focus:not(.nx-root *),
+select:-webkit-autofill:not(.nx-root *),
+select:-webkit-autofill:hover:not(.nx-root *),
+select:-webkit-autofill:focus:not(.nx-root *) {
   -webkit-text-fill-color: #111111;
   transition: background-color 5000s ease-in-out 0s;
 }
 
-input:not(:focus):not([aria-invalid="true"]):not([data-invalid="true"]):invalid {
+input:not(:focus):not([aria-invalid="true"]):not([data-invalid="true"]):not(.nx-root *):invalid {
   box-shadow: none;
   outline: none;
 }

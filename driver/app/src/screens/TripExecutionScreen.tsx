@@ -1,15 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  TextInput,
-  Alert,
-  ScrollView,
-  ActivityIndicator,
-  Linking,
-} from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, ScrollView, ActivityIndicator, Linking } from 'react-native';
+import { Text, TextInput } from '../components/nx/Text';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../theme/colors';
 import { formatINR, formatDistance } from '../utils/format';

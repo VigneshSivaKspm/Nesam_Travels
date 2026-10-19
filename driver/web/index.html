@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
     />
     <title>NESAM Tours & Travels - Driver Partner Portal</title>
 
@@ -84,15 +84,11 @@
     <meta name="theme-color" content="#E21E26" />
     <link rel="manifest" href="/icons/manifest.json" />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="preload" href="/fonts/poppins-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/poppins-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin />
   </head>
   <body
-    class="bg-[#F7F7F7] text-[#111111] font-['Inter',sans-serif] antialiased selection:bg-[#E21E26] selection:text-white"
+    class="bg-[#F7F7F7] text-[#111111] font-sans antialiased selection:bg-[#E21E26] selection:text-white"
   >
     <div id="root"></div>
     <div id="driver-recaptcha-container"></div>

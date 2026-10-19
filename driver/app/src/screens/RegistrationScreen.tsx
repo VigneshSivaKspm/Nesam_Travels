@@ -7,16 +7,17 @@
 // vehicle. Modes: 'signup', 'resubmit' (after rejection), 'update' (approved
 // driver refreshing documents). The signup draft survives an app restart.
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, BackHandler, Image, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, BackHandler, Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
+import { Text } from '../components/nx/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Ionicons } from '@expo/vector-icons';
+import { NxIcon } from '../components/nx/Icon';
 import type { ApprovalStatus, DetectedVehicle, RegistrationData, VehicleCategory, VehicleLookupResult } from '../types/driver';
 import { Badge, Button, Card, Notice, Row, TextField } from '../components/ui';
 import { DateField, OptionChips, PhotoField, displayDate } from '../components/forms';
 import { registerDriver, resubmitDriverDocuments } from '../services/driverService';
-import { lookupVehicle, snapshotFrom, vehiclePatchFrom } from '../services/vehicleLookup';
-import { isPlate, localDateISO, normalizePlate, validateStep, type Errors } from '../validation/kyc';
+import { lookupVehicle, manualSnapshot, snapshotFrom, vehiclePatchFrom } from '../services/vehicleLookup';
+import { AUTO_VEHICLE_DETECTION, isPlate, localDateISO, normalizePlate, validateStep, type Errors } from '../validation/kyc';
 import { describeError } from '../utils/retry';
 import { colors, radius, space, type } from '../theme';
 
@@ -32,6 +33,7 @@ const VEHICLE_TYPES: { value: VehicleCategory; label: string; seats: number }[] 
 
 const draftKey = (uid: string) => `nesam-driver-signup-draft-${uid}`;
 const DETECT_DELAY_MS = 800;
+const FUEL_TYPES = ['Diesel', 'Petrol', 'CNG', 'Electric'].map((f) => ({ value: f, label: f }));
 
 type Detection =
   | { state: 'idle' }
@@ -130,7 +132,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
   /** Asks the server to identify the vehicle and fills the form from the register. */
   const detect = useCallback(async (raw: string) => {
     const wanted = normalizePlate(raw);
-    if (!isPlate(wanted)) return;
+    if (!AUTO_VEHICLE_DETECTION || !isPlate(wanted)) return;
     const seq = ++detectSeq.current;
     setDetection({ state: 'loading' });
     try {
@@ -167,7 +169,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   // Detect on its own once a full plate is typed.
   useEffect(() => {
-    if (fleetDriver || step !== 2) return undefined;
+    if (!AUTO_VEHICLE_DETECTION || fleetDriver || step !== 2) return undefined;
     // Only from idle: after an error the partner retries with the button, so a failing provider is not hammered.
     if (!isPlate(v.vehicleNumber) || v.vahan?.lookupId === plate || detection.state !== 'idle') return undefined;
     const t = setTimeout(() => void detect(v.vehicleNumber), DETECT_DELAY_MS);
@@ -176,6 +178,11 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   const onPlateChange = (text: string) => {
     const upper = text.toUpperCase();
+    if (!AUTO_VEHICLE_DETECTION) {
+      // Manual entry: keep the chosen vehicle type while the number is typed.
+      setVehicle({ vehicleNumber: upper, rcNumber: normalizePlate(upper) });
+      return;
+    }
     if (normalizePlate(upper) !== plate) {
       detectSeq.current++;
       setDetection({ state: 'idle' });
@@ -264,7 +271,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
   const reviewStep = lastStep;
   const vehicleStep = fleetDriver ? 0 : 2;
   const result = detection.state === 'done' ? detection.result : null;
-  const manual = result != null && (result.status === 'unavailable' || result.status === 'not_configured');
+  const manual = !AUTO_VEHICLE_DETECTION || (result != null && (result.status === 'unavailable' || result.status === 'not_configured'));
 
   if (!draftLoaded) return null;
 
@@ -294,7 +301,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
             return (
               <Pressable key={label} onPress={() => jumpTo(n)} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${n}: ${label}`}>
                 <View style={[styles.stepDot, active && styles.stepDotActive, done && styles.stepDotDone]}>
-                  {done ? <Ionicons name="checkmark" size={14} color={colors.white} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{n}</Text>}
+                  {done ? <NxIcon name="check" size={14} color={colors.white} strokeWidth={2.2} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{n}</Text>}
                 </View>
                 <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
                   {label}
@@ -348,15 +355,19 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
                 placeholder="TN 01 AB 1234"
                 error={errors.vehicleNumber}
               />
-              <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
-              <Button
-                title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
-                variant="secondary"
-                loading={detection.state === 'loading'}
-                disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
-                onPress={() => void detect(v.vehicleNumber)}
-                style={{ marginBottom: space.md }}
-              />
+              {AUTO_VEHICLE_DETECTION ? (
+                <>
+                  <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
+                  <Button
+                    title={detection.state === 'loading' ? 'Checking…' : v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
+                    variant="secondary"
+                    loading={detection.state === 'loading'}
+                    disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
+                    onPress={() => void detect(v.vehicleNumber)}
+                    style={{ marginBottom: space.md }}
+                  />
+                </>
+              ) : null}
 
               {detection.state === 'loading' ? (
                 <View style={styles.detecting}>
@@ -372,7 +383,14 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
               {detected && result?.status === 'found' ? <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} /> : null}
               {manual ? (
                 <>
-                  <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents." />
+                  <Notice
+                    tone="warning"
+                    message={
+                      AUTO_VEHICLE_DETECTION
+                        ? 'Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents.'
+                        : 'Enter your vehicle details below — NESAM will verify the vehicle from your documents.'
+                    }
+                  />
                   <OptionChips
                     label="Vehicle type"
                     required
@@ -380,10 +398,17 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
                     value={v.vahan?.manualType ? v.vehicleType : ''}
                     onChange={(val) => {
                       const t = VEHICLE_TYPES.find((x) => x.value === val)!;
-                      setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
+                      setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : manualSnapshot(plate) });
                     }}
                     error={errors.vehicleType}
                   />
+                  {!AUTO_VEHICLE_DETECTION ? (
+                    <>
+                      <TextField label="Make (optional)" value={v.make} onChangeText={(t) => setVehicle({ make: t })} placeholder="Toyota" />
+                      <TextField label="Model (optional)" value={v.model} onChangeText={(t) => setVehicle({ model: t })} placeholder="Etios" />
+                      <OptionChips label="Fuel type" options={FUEL_TYPES} value={v.fuelType} onChange={(val) => setVehicle({ fuelType: val })} />
+                    </>
+                  ) : null}
                 </>
               ) : null}
 
@@ -474,7 +499,7 @@ function DetectedCard({ vehicle, issues }: { vehicle: DetectedVehicle; issues: s
   return (
     <View style={styles.detected}>
       <View style={styles.detectedHead}>
-        <Ionicons name="checkmark-circle" size={20} color={colors.success} />
+        <NxIcon name="check" size={20} color={colors.success} />
         <Text style={[type.h3, { flex: 1 }]}>Vehicle found</Text>
         <Badge label={vehicle.category === 'Premium SUV' ? 'Innova Crysta' : vehicle.category} tone="brand" />
       </View>
@@ -485,7 +510,7 @@ function DetectedCard({ vehicle, issues }: { vehicle: DetectedVehicle; issues: s
       <Text style={[type.tiny, { marginTop: 4 }]}>Registered to {vehicle.ownerNameMasked || 'the owner on record'}. If this is not your vehicle, correct the number above.</Text>
       {issues.map((m) => (
         <View key={m} style={styles.issue}>
-          <Ionicons name="alert-circle" size={14} color={colors.warning} />
+          <NxIcon name="alert" size={14} color={colors.warning} />
           <Text style={[type.tiny, { flex: 1 }]}>{m} Enter the dates from your current document below.</Text>
         </View>
       ))}

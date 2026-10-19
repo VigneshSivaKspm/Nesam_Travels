@@ -439,6 +439,37 @@ export async function submitDutyBid(offer: MarketplaceOffer, rate: number, note:
   await callFunction('submitMarketplaceBid', { tripId: offer.id, rate, note: note.trim().slice(0, 300) }, 30000);
 }
 
+/** Withdraws this driver's pending bid on a duty (the bid document id is "driver_<uid>"; the server checks ownership and status). */
+export async function withdrawDutyBid(offer: MarketplaceOffer): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('Sign in again to withdraw your bid.');
+  await callFunction('withdrawMarketplaceBid', { tripId: offer.id, bidId: `driver_${uid}` }, 30000);
+}
+
+/**
+ * The operating limits the server applies to trip steps (settings/operations, readable by every signed-in user).
+ * Same defaults and ranges as functions/src/trips.ts. A null result means the settings could not be read, in which
+ * case the screen does not guess — the server's own message is shown instead.
+ */
+export interface TripRules {
+  /** How long before the pickup time the first trip step (Reached Pickup) opens. */
+  startWindowMs: number;
+  pickupRadiusKm: number;
+}
+
+export function parseTripRules(d: Record<string, unknown> | undefined): TripRules {
+  const n = (v: unknown, dflt: number, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : dflt);
+  return { startWindowMs: n(d?.tripStartWindowMinutes, 360, 15, 4320) * 60000, pickupRadiusKm: n(d?.pickupRadiusKm, 3, 0.1, 25) };
+}
+
+export function subscribeToTripRules(callback: (rules: TripRules | null) => void) {
+  return onSnapshot(
+    doc(db, 'settings', 'operations'),
+    (snap) => callback(parseTripRules(snap.data())),
+    () => callback(null),
+  );
+}
+
 // ── Assigned bookings / trip execution ─────────────────────────────────────
 
 const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);

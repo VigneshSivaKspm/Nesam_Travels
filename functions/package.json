@@ -15,7 +15,7 @@
     "logs": "firebase functions:log",
     "test:http": "npm run build && node --test test/http.test.js",
     "vercel-build": "npm run build",
-    "test:e2e": "npx firebase-tools@13 emulators:exec --config ../firebase.e2e.json --project demo-nesam --only auth,firestore,functions \"node --test --test-concurrency=1 test/advanceBooking.e2e.test.js test/integration.e2e.test.js test/crossRoleJourneys.e2e.test.js\""
+    "test:e2e": "npx firebase-tools@13 emulators:exec --config ../firebase.e2e.json --project demo-nesam --only auth,firestore,functions \"node --test --test-concurrency=1 test/advanceBooking.e2e.test.js test/integration.e2e.test.js test/crossRoleJourneys.e2e.test.js test/driverUiContract.e2e.test.js\""
   },
   "dependencies": {
     "exifr": "^7.1.3",

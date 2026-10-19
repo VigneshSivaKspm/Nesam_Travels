@@ -2,9 +2,10 @@
 // driver/web/src/components/PhotoUpload.tsx (camera or gallery, preview,
 // progress, replace, retry).
 import React, { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './nx/Text';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
+import { NxIcon } from './nx/Icon';
 import { choosePhotoSource } from './photoSource';
 import { describeUploadError, pickImage, uploadDriverImage } from '../services/storageService';
 import { colors, radius, space, type } from '../theme';
@@ -70,7 +71,7 @@ export function PhotoField({
         </View>
         {value && !uploading ? (
           <View style={styles.okBadge}>
-            <Ionicons name="checkmark-circle" size={12} color={colors.success} />
+            <NxIcon name="check" size={12} color={colors.success} />
             <Text style={styles.okText}>Uploaded</Text>
           </View>
         ) : null}
@@ -80,7 +81,7 @@ export function PhotoField({
           <Image source={{ uri: value }} style={styles.photoImg} />
         ) : (
           <View style={{ alignItems: 'center' }}>
-            <Ionicons name="camera-outline" size={26} color={colors.faint} />
+            <NxIcon name="camera" size={26} color={colors.faint} />
             <Text style={type.tiny}>{cameraOnly ? 'Tap to take a photo' : 'Tap to capture or choose'}</Text>
           </View>
         )}
@@ -153,7 +154,7 @@ export function DateField({
         {required ? <Text style={{ color: colors.primary }}> *</Text> : null}
       </Text>
       <Pressable onPress={open} style={[styles.date, !!error && { borderColor: colors.primary }]} accessibilityRole="button" accessibilityLabel={label}>
-        <Ionicons name="calendar-outline" size={18} color={colors.muted} />
+        <NxIcon name="calendar" size={18} color={colors.muted} />
         <Text style={[type.body, { flex: 1, color: value ? colors.ink : colors.faint }]}>{value ? displayDate(value) : 'Select date'}</Text>
       </Pressable>
       {error ? <Text style={styles.err}>{error}</Text> : null}

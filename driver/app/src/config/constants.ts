@@ -4,8 +4,9 @@ export const SUPPORT_PHONE = '+918531970197';
 export const SUPPORT_PHONE_DISPLAY = '85319 70197';
 export const EMERGENCY_NUMBER = '112';
 
-/** A driver must be within this distance of the pickup to mark arrival. */
-export const PICKUP_RADIUS_KM = 2;
+/** A driver must be within this distance of the pickup to mark arrival. This is the server's default; the configured value
+ *  (settings/operations.pickupRadiusKm) is used when it can be read. */
+export const PICKUP_RADIUS_KM = 3;
 
 /** Live position is shared at most this often / after moving this far. */
 export const LOCATION_SHARE_INTERVAL_MS = 20000;

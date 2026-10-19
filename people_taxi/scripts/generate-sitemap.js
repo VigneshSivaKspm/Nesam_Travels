@@ -61,3 +61,4 @@ function generateSitemap() {
 const sitemapXml = generateSitemap();
 fs.writeFileSync(path.join(PUBLIC_DIR, 'sitemap.xml'), sitemapXml, 'utf-8');
 console.log('✓ Generated People Taxi sitemap: public/sitemap.xml');
+

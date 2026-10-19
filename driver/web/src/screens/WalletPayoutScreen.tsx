@@ -1,8 +1,11 @@
 import React, { useState } from 'react';
 import { formatDateTime12 } from '../utils/time';
 import type { BankDetails, DriverWallet, LedgerEntry, PayoutRequest } from '../types';
-import { ArrowUpRight, Clock, History, Loader2 } from 'lucide-react';
 import { describeFirestoreError } from '../services/driverFirestoreService';
+import { Dialog } from '../components/nx/Dialog';
+import { Icon } from '../components/nx/Icon';
+import { InfoNote } from '../components/nx/parts';
+import { inr } from '../components/nx/format';
 
 interface WalletPayoutScreenProps {
   wallet: DriverWallet;
@@ -12,13 +15,12 @@ interface WalletPayoutScreenProps {
   /** Fleet drivers are paid by their vendor, not from a NESAM wallet. */
   fleetDriver: boolean;
   onRequestPayout: (amount: number, method: 'UPI' | 'Bank Transfer') => Promise<void>;
+  onSupport: () => void;
 }
 
-const inr = (n: number) => `${n < 0 ? '−' : ''}₹${Math.abs(Math.round(n * 100) / 100).toLocaleString('en-IN', Number.isInteger(Math.round(Math.abs(n) * 100) / 100) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 const when = (d: Date | null) => (d ? formatDateTime12(d) : '—');
 
-const statusCls = (s: string) =>
-  s === 'Paid' ? 'text-emerald-700 bg-emerald-100' : s === 'Pending' || s === 'Deferred' ? 'text-amber-700 bg-amber-100' : 'text-gray-600 bg-gray-200';
+const badgeTone = (s: string) => (s === 'Paid' ? 'green' : s === 'Pending' || s === 'Deferred' ? 'amber' : 'neutral');
 
 const ENTRY_LABEL: Record<string, string> = {
   trip_earning: 'Trip earning',
@@ -33,15 +35,9 @@ const ENTRY_STATUS: Record<string, string> = {
   completed: 'Completed',
   cancelled: 'Released',
 };
+const ENTRY_ICON: Record<string, 'car' | 'wallet' | 'trip' | 'bank'> = { trip_earning: 'car', toll_reimbursement: 'trip', cash_collected: 'wallet', payout: 'bank' };
 
-export const WalletPayoutScreen: React.FC<WalletPayoutScreenProps> = ({
-  wallet,
-  bank,
-  payoutRequests,
-  ledger,
-  fleetDriver,
-  onRequestPayout,
-}) => {
+export const WalletPayoutScreen: React.FC<WalletPayoutScreenProps> = ({ wallet, bank, payoutRequests, ledger, fleetDriver, onRequestPayout, onSupport }) => {
   const withdrawable = Math.max(0, Math.floor(wallet.available));
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState('');
@@ -76,149 +72,203 @@ export const WalletPayoutScreen: React.FC<WalletPayoutScreenProps> = ({
 
   if (fleetDriver && ledger.length === 0 && payoutRequests.length === 0) {
     return (
-      <div className="max-w-4xl mx-auto bg-white p-6 rounded-2xl border border-gray-200 shadow-sm space-y-2">
-        <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#E21E26]">Driver Wallet</span>
-        <h1 className="text-lg font-extrabold text-gray-900">Settled by your fleet</h1>
-        <p className="text-xs text-gray-500">
-          You drive for a fleet operator. They receive the payout for your trips and pay you directly, so NESAM does not keep a wallet balance for you.
-        </p>
-      </div>
+      <section className="panel page-card">
+        <div className="card-heading">
+          <div>
+            <h2>Settled by your fleet</h2>
+            <p>Driver wallet</p>
+          </div>
+          <span className="badge neutral">Fleet driver</span>
+        </div>
+        <div className="info-note">
+          <Icon name="info" />
+          <span>You drive for a fleet operator. They receive the payout for your trips and pay you directly, so NESAM does not keep a wallet balance for you.</span>
+        </div>
+      </section>
     );
   }
 
+  const negative = wallet.available < 0;
   return (
-    <div className="space-y-5 sm:space-y-6 max-w-4xl mx-auto">
-      <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
-          <div>
-            <span className="text-[10px] uppercase font-extrabold tracking-widest text-[#E21E26]">Driver Wallet</span>
-            <p className="text-xs text-gray-500 mt-0.5">Available to withdraw — kept by NESAM from your trip ledger</p>
-            <div className={`text-3xl sm:text-4xl font-black mt-2 ${wallet.available < 0 ? 'text-red-600' : 'text-gray-900'}`}>{inr(wallet.available)}</div>
-            {wallet.available < 0 && (
-              <p className="text-xs text-red-600 mt-1">Cash fares you collected exceed your earnings; upcoming earnings settle this first.</p>
-            )}
-            <p className="text-xs text-gray-500 mt-1">
-              {inr(wallet.pending)} awaiting customer payment • {inr(wallet.reserved)} held for requests • {inr(wallet.paidOut)} paid out
-            </p>
-          </div>
-          <button
-            onClick={openModal}
-            disabled={withdrawable <= 0}
-            className="px-6 py-3 bg-[#E21E26] hover:bg-[#C9141B] text-white text-xs font-black rounded-xl shadow-sm flex items-center justify-center gap-2 w-full md:w-auto disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <ArrowUpRight className="w-4 h-4" /> Request Payout
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h2 className="text-base font-bold text-gray-900">Request Payout</h2>
-              <span className="text-xs text-gray-500 font-mono">Available: {inr(withdrawable)}</span>
+    <>
+      <div className="two-columns">
+        <section>
+          <div className="panel wallet-card">
+            <div className="eyebrow">Available to withdraw</div>
+            <div className="wallet-value" style={negative ? { color: 'var(--red)' } : undefined}>
+              {inr(wallet.available)}
             </div>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="text-xs font-bold text-gray-700 block mb-1">Amount (₹)</label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  step={1}
-                  max={withdrawable}
-                  value={amount}
-                  onChange={(e) => { setAmount(e.target.value); setError(''); }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-lg font-mono font-bold text-gray-900"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(['Bank Transfer', 'UPI'] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMethod(m)}
-                    className={`py-2 rounded-lg text-xs font-bold border ${method === m ? 'bg-[#E21E26] text-white border-[#E21E26]' : 'bg-gray-50 text-gray-700'}`}
-                  >
-                    {m === 'UPI' ? 'UPI' : 'Bank (NEFT/IMPS)'}
-                  </button>
-                ))}
-              </div>
-              <div className="bg-gray-50 p-3 rounded-lg text-xs space-y-1 font-mono text-gray-700">
-                <p className="font-sans text-[11px] text-gray-500">Paid to the account saved in your profile:</p>
-                {method === 'UPI' ? (
-                  <p className="font-bold">{bank.upiId || 'No UPI ID saved'}</p>
-                ) : bank.accountNumber ? (
-                  <>
-                    <p className="font-sans font-bold">{bank.accountHolder}</p>
-                    <p>A/c ••••{bank.accountNumber.slice(-4)} • {bank.ifsc}</p>
-                    {bank.bankName && <p>{bank.bankName}</p>}
-                  </>
-                ) : (
-                  <p className="font-bold">No bank account saved</p>
-                )}
-              </div>
-              {error && <p className="text-[11px] text-red-600 font-semibold">{error}</p>}
-              <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setOpen(false)} className="px-4 py-2 border text-xs font-bold text-gray-700 rounded-xl">Cancel</button>
-                <button type="submit" disabled={submitting} className="px-6 py-2 bg-[#E21E26] text-white text-xs font-bold rounded-xl shadow flex items-center gap-2 disabled:opacity-60">
-                  {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />} Confirm
-                </button>
-              </div>
-            </form>
+            <button type="button" className="button primary" onClick={openModal} disabled={withdrawable <= 0}>
+              Request payout <Icon name="arrow" />
+            </button>
+            <div className="wallet-foot">
+              <Icon name="shield" />
+              Kept by NESAM from your trip ledger
+            </div>
           </div>
-        </div>
-      )}
+          <div className="wallet-summary">
+            <div className="small-panel">
+              <small>Awaiting customer payment</small>
+              <strong>{inr(wallet.pending)}</strong>
+            </div>
+            <div className="small-panel">
+              <small>Held for requests</small>
+              <strong>{inr(wallet.reserved)}</strong>
+            </div>
+          </div>
+          <div className="wallet-summary" style={{ marginTop: 12 }}>
+            <div className="small-panel">
+              <small>Paid out</small>
+              <strong>{inr(wallet.paidOut)}</strong>
+            </div>
+            <div className="small-panel">
+              <small>Cash fares collected</small>
+              <strong>{inr(wallet.cashCollected)}</strong>
+            </div>
+          </div>
+          {negative ? (
+            <div style={{ marginTop: 15 }}>
+              <InfoNote tone="amber" role="status">
+                Cash fares you collected exceed your earnings; upcoming earnings settle this first.
+              </InfoNote>
+            </div>
+          ) : (
+            <div style={{ marginTop: 15 }}>
+              <InfoNote>Closing a trip does not mark its payment as received. Earnings move to your balance once NESAM verifies the customer’s payment.</InfoNote>
+            </div>
+          )}
+        </section>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 space-y-4">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <Clock className="w-5 h-5 text-[#E21E26]" /> Payout Requests
-        </h2>
-        {payoutRequests.length === 0 ? (
-          <p className="text-xs text-gray-400">No payout requests yet.</p>
-        ) : (
-          <div className="space-y-3">
-            {payoutRequests.map((po) => (
-              <div key={po.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl border gap-3">
-                <div className="min-w-0">
-                  <p className="text-xs font-bold text-gray-900">{po.method}</p>
-                  <p className="text-[11px] text-gray-500 mt-0.5 truncate">{po.details || '—'} • {po.requestedAt}</p>
-                </div>
-                <div className="text-right shrink-0">
-                  <span className="text-sm font-black text-gray-900">{inr(po.amount)}</span>
-                  <span className={`block text-[10px] font-bold px-2 py-0.5 rounded mt-0.5 ${statusCls(po.status)}`}>{po.status}</span>
-                </div>
-              </div>
-            ))}
+        <section className="panel page-card">
+          <div className="card-heading">
+            <div>
+              <h2>Payout requests</h2>
+              <p>Reviewed by NESAM finance</p>
+            </div>
+            <Icon name="clock" />
           </div>
-        )}
+          {payoutRequests.length === 0 ? (
+            <p className="profile-note">No payout requests yet.</p>
+          ) : (
+            <div className="ledger-list">
+              {payoutRequests.map((po) => (
+                <div className="ledger-item" key={po.id}>
+                  <div className="ledger-icon">
+                    <Icon name="bank" />
+                  </div>
+                  <div>
+                    <strong>{po.method}</strong>
+                    <small>
+                      {po.details || '—'} · {po.requestedAt}
+                    </small>
+                  </div>
+                  <div className="ledger-amount">
+                    <strong>{inr(po.amount)}</strong>
+                    <span className={`badge ${badgeTone(po.status)}`}>{po.status}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <button type="button" className="button secondary full" style={{ marginTop: 18 }} onClick={onSupport}>
+            <Icon name="help" />
+            Get settlement help
+          </button>
+        </section>
+
+        <section className="panel page-card">
+          <div className="card-heading">
+            <div>
+              <h2>Wallet ledger</h2>
+              <p>Latest {Math.min(ledger.length, 50)} entries</p>
+            </div>
+            <Icon name="wallet" />
+          </div>
+          {ledger.length === 0 ? (
+            <p className="profile-note">Earnings are recorded here when a completed trip’s fare is verified.</p>
+          ) : (
+            <div className="ledger-list">
+              {ledger.slice(0, 50).map((e) => (
+                <div className="ledger-item" key={e.id}>
+                  <div className="ledger-icon">
+                    <Icon name={ENTRY_ICON[e.type] ?? 'wallet'} />
+                  </div>
+                  <div>
+                    <strong>
+                      {ENTRY_LABEL[e.type] || e.type}
+                      {e.bookingCode ? ` · ${e.bookingCode}` : ''}
+                    </strong>
+                    <small>
+                      {when(e.createdAt)} · {ENTRY_STATUS[e.status] || e.status}
+                    </small>
+                  </div>
+                  <div className="ledger-amount" style={e.status === 'cancelled' ? { textDecoration: 'line-through', opacity: 0.6 } : undefined}>
+                    <strong style={e.direction === 'debit' ? { color: 'var(--red)' } : undefined}>
+                      {e.direction === 'credit' ? '+' : '−'}
+                      {inr(e.amount)}
+                    </strong>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
 
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 space-y-4">
-        <h2 className="text-base font-bold text-gray-900 flex items-center gap-2">
-          <History className="w-5 h-5 text-[#E21E26]" /> Wallet Ledger
-        </h2>
-        {ledger.length === 0 ? (
-          <p className="text-xs text-gray-400">Earnings are recorded here when a completed trip’s fare is verified.</p>
-        ) : (
-          <div>
-            {ledger.slice(0, 50).map((e) => (
-              <div key={e.id} className="flex items-center justify-between py-2.5 border-b last:border-0 text-xs gap-3">
-                <div className="min-w-0">
-                  <span className="font-bold text-gray-900">
-                    {ENTRY_LABEL[e.type] || e.type}
-                    {e.bookingCode && <span className="font-mono font-normal text-gray-500"> · {e.bookingCode}</span>}
-                  </span>
-                  <p className="text-[10px] text-gray-400 mt-0.5">{when(e.createdAt)} • {ENTRY_STATUS[e.status] || e.status}</p>
-                </div>
-                <div className={`font-mono font-extrabold text-sm shrink-0 ${e.status === 'cancelled' ? 'text-gray-400 line-through' : e.direction === 'credit' ? 'text-emerald-600' : 'text-red-600'}`}>
-                  {e.direction === 'credit' ? '+' : '−'} {inr(e.amount)}
-                </div>
-              </div>
+      <Dialog open={open} onClose={() => setOpen(false)} eyebrow={`Available ${inr(withdrawable)}`} title="Request payout" locked={submitting}>
+        <form onSubmit={handleSubmit} id="payout-form">
+          <label className="nx-cancel-field" htmlFor="payout-amount">
+            Amount (₹)
+            <input
+              id="payout-amount"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              max={withdrawable}
+              value={amount}
+              onChange={(e) => {
+                setAmount(e.target.value);
+                setError('');
+              }}
+            />
+          </label>
+          <div className="page-tabs" role="group" aria-label="Payout method" style={{ marginTop: 16, marginBottom: 0 }}>
+            {(['Bank Transfer', 'UPI'] as const).map((m) => (
+              <button key={m} type="button" className={`pill-button ${method === m ? 'active' : ''}`} aria-pressed={method === m} onClick={() => setMethod(m)}>
+                {m === 'UPI' ? 'UPI' : 'Bank (NEFT/IMPS)'}
+              </button>
             ))}
           </div>
-        )}
-      </div>
-    </div>
+          <div className="detail-list">
+            <div className="detail-line">
+              <span>Paid to</span>
+              <strong>
+                {method === 'UPI'
+                  ? bank.upiId || 'No UPI ID saved'
+                  : bank.accountNumber
+                    ? `${bank.accountHolder} · A/c ••••${bank.accountNumber.slice(-4)}`
+                    : 'No bank account saved'}
+              </strong>
+            </div>
+            {method === 'Bank Transfer' && bank.accountNumber ? (
+              <div className="detail-line">
+                <span>IFSC{bank.bankName ? ' / Bank' : ''}</span>
+                <strong>
+                  {bank.ifsc}
+                  {bank.bankName ? ` · ${bank.bankName}` : ''}
+                </strong>
+              </div>
+            ) : null}
+          </div>
+          <div className="nx-cancel-error" role="alert">
+            {error}
+          </div>
+          <button className="button primary full" type="submit" disabled={submitting} style={{ marginTop: 14 }}>
+            {submitting ? 'Submitting…' : 'Confirm request'} <Icon name="check" />
+          </button>
+        </form>
+      </Dialog>
+    </>
   );
 };

@@ -56,9 +56,20 @@ export const UPI_RE = /^[A-Za-z0-9.\-_]{2,256}@[A-Za-z][A-Za-z0-9]{1,63}$/;
 export const VEHICLE_NO_RE = /^[A-Z]{2}[\s-]?\d{1,2}[\s-]?[A-Z]{0,3}[\s-]?\d{1,4}$/;
 export const MOBILE_RE = /^[6-9]\d{9}$/;
 
+/**
+ * TEMPORARILY OFF: the vehicle-register (VAHAN) provider key is not available yet.
+ * While false the registration form never calls the server lookup: the partner
+ * types the registration number and picks the vehicle type by hand, and NESAM
+ * verifies the vehicle from the uploaded documents. Set to true to bring back
+ * automatic detection (the lookupVehicleByRegistration function must be configured).
+ */
+export const AUTO_VEHICLE_DETECTION = false;
+
 export interface ValidateOptions {
   /** A vendor's employee: no vehicle step. */
   fleetDriver?: boolean;
+  /** Override AUTO_VEHICLE_DETECTION (tests). */
+  autoDetect?: boolean;
   today?: string;
 }
 
@@ -89,7 +100,10 @@ export function validateStep(step: number, d: RegistrationData, opts: ValidateOp
   if (step === 2 && !opts.fleetDriver) {
     const v = d.vehicle;
     if (!isPlate(v.vehicleNumber)) e.vehicleNumber = 'Enter a valid registration number (e.g. TN 01 AB 1234)';
-    else if (!v.vahan || v.vahan.lookupId !== normalizePlate(v.vehicleNumber)) e.vehicleNumber = 'Check the vehicle first: tap "Detect vehicle".';
+    else if (!(opts.autoDetect ?? AUTO_VEHICLE_DETECTION)) {
+      // Manual entry: the partner must choose the vehicle type themselves.
+      if (!v.vahan?.manualType) e.vehicleType = 'Choose your vehicle type.';
+    } else if (!v.vahan || v.vahan.lookupId !== normalizePlate(v.vehicleNumber)) e.vehicleNumber = 'Check the vehicle first: tap "Detect vehicle".';
     else if (v.vahan.status === 'not_found') e.vehicleNumber = 'This registration number was not found in the vehicle register. Check it and try again.';
     else if (v.vahan.duplicate) e.vehicleNumber = 'This vehicle is already registered with another NESAM partner. Contact NESAM support.';
     else if (v.vahan.status !== 'found' && !v.vahan.manualType) e.vehicleType = 'Choose your vehicle type.';

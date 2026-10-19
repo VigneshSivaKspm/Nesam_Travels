@@ -1,119 +1,135 @@
-// Earnings summary, 7-day chart and completed trips (port of driver/web
-// EarningsScreen.tsx; the recharts bar chart becomes plain native bars).
-import React, { useMemo } from 'react';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+// Earnings (reference "Earnings"): credited earnings today / last 7 days with a bar chart, what is still awaiting
+// settlement and the completed trips. Every figure is the server's wallet ledger; nothing is computed on the phone
+// beyond summing the entries the server already credited.
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '../components/nx/Text';
+import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
-import { Card, EmptyState } from '../components/ui';
-import { last7Days } from '../utils/ledger';
-import { payoutText } from '../utils/earnings';
+import { NxScreen } from '../components/nx/Shell';
+import { NxColumns } from '../components/nx/layout';
+import { NxIcon } from '../components/nx/Icon';
+import { NxBadge, NxButton, NxEmpty, NxInfo, NxPanel, NxPills, NxRow, NxSectionHeading, nxText, placeName } from '../components/nx/primitives';
+import { payoutLabel } from '../components/nx/tripFormat';
+import { last7Days, tripEarningStatus } from '../utils/ledger';
 import { formatINR } from '../utils/format';
 import { formatDate } from '../utils/time';
-import { colors, radius, space, type } from '../theme';
+import { nx } from '../theme/nx';
+
+type Period = 'today' | 'week';
+const STATUS: Record<string, string> = { pending: 'Awaiting payment', available: 'In wallet', cancelled: 'Reversed' };
 
 export function EarningsScreen() {
+  const navigation = useNavigation();
   const { earnings, completedTrips, ledger } = useDriverData();
+  const [period, setPeriod] = useState<Period>('today');
   const days = useMemo(() => last7Days(ledger), [ledger]);
   const max = Math.max(1, ...days.map((d) => d.amount));
-  const weekAvg = Math.round(days.reduce((s, d) => s + d.amount, 0) / 7);
-
-  const header = (
-    <View>
-      <Text style={type.h1}>Earnings</Text>
-      <Text style={[type.small, { marginBottom: space.md }]}>
-        Totals are what NESAM has credited to your ledger. Approved toll receipts on non-cash trips are reimbursed.
-      </Text>
-      <View style={styles.grid}>
-        {[
-          { label: 'Today', value: earnings.todayEarnings, color: colors.primary },
-          { label: 'Last 7 days', value: earnings.thisWeekEarnings, color: colors.ink },
-          { label: 'This month', value: earnings.thisMonthEarnings, color: colors.ink },
-          { label: 'Lifetime', value: earnings.lifetimeEarnings, color: colors.success },
-        ].map((c) => (
-          <View key={c.label} style={styles.stat}>
-            <Text style={type.tiny}>{c.label.toUpperCase()}</Text>
-            <Text style={[styles.statValue, { color: c.color }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatINR(c.value)}
-            </Text>
-          </View>
-        ))}
-      </View>
-      <Card>
-        <View style={styles.chartHead}>
-          <Text style={type.h3}>Last 7 days</Text>
-          <Text style={type.small}>Avg {formatINR(weekAvg)} / day</Text>
-        </View>
-        <View style={styles.chart} accessibilityLabel={`Earnings last 7 days: ${days.map((d) => `${d.label} ${formatINR(d.amount)}`).join(', ')}`}>
-          {days.map((d) => (
-            <View key={d.key} style={styles.barCol}>
-              <Text style={styles.barValue} numberOfLines={1}>
-                {d.amount ? formatINR(d.amount) : ''}
-              </Text>
-              <View style={[styles.bar, { height: Math.max(3, (d.amount / max) * 120) }]} />
-              <Text style={type.tiny}>{d.label}</Text>
-            </View>
-          ))}
-        </View>
-      </Card>
-      <View style={styles.listHead}>
-        <Text style={type.h3}>Completed trips</Text>
-        <Text style={type.small}>
-          {earnings.totalTripsCompleted} trips · tolls {formatINR(earnings.tollReimbursements)}
-        </Text>
-      </View>
-    </View>
-  );
+  const week = period === 'week';
+  const range = `${days[0]?.label ?? ''} – ${days[6]?.label ?? ''}`;
+  const waiting = completedTrips.filter((t) => tripEarningStatus(ledger, t.id) !== 'available' && !t.fleetTrip);
+  const waitingTotal = waiting.reduce((s, t) => s + (t.payoutRecorded ? t.driverEarnings : 0), 0);
+  const recent = completedTrips.slice(0, 8);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
-      <FlatList
-        data={completedTrips}
-        keyExtractor={(t) => t.id}
-        contentContainerStyle={{ padding: space.lg, paddingBottom: space.xxl }}
-        ListHeaderComponent={header}
-        ListEmptyComponent={<EmptyState title="No completed trips yet" message="Earnings from finished trips appear here." />}
-        renderItem={({ item: t }) => (
-          <View style={styles.row}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.code}>{t.bookingId}</Text>
-              <Text style={type.small} numberOfLines={1}>
-                {t.pickup.address} → {t.drop.address}
-              </Text>
-              <Text style={type.tiny}>{t.completedAt ? formatDate(t.completedAt) : t.scheduledDate}</Text>
-            </View>
-            <View style={{ alignItems: 'flex-end' }}>
-              <Text style={[styles.total, !t.payoutRecorded && styles.totalMuted]}>{payoutText(t)}</Text>
-              {t.payoutRecorded && t.tollCharges ? <Text style={type.tiny}>+ {formatINR(t.tollCharges)} tolls claimed</Text> : null}
-            </View>
-          </View>
-        )}
+    <NxScreen>
+      <NxPills<Period>
+        label="Earnings period"
+        value={period}
+        onChange={setPeriod}
+        options={[
+          { value: 'today', label: 'Today' },
+          { value: 'week', label: 'Last 7 days' },
+        ]}
       />
-    </SafeAreaView>
+
+      <NxColumns>
+      <NxPanel>
+        <NxSectionHeading
+          title={week ? 'Credited weekly earnings' : 'Today’s credited earnings'}
+          caption={week ? range : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+          right={<NxBadge label="Credited" tone="green" />}
+        />
+        <Text style={styles.total}>{formatINR(week ? earnings.thisWeekEarnings : earnings.todayEarnings)}</Text>
+        {week ? (
+          <View style={styles.chart} accessible accessibilityRole="image" accessibilityLabel={`Credited daily earnings: ${days.map((d) => `${d.label} ${formatINR(d.amount)}`).join(', ')}`}>
+            {days.map((d, i) => (
+              <View key={d.key} style={styles.col}>
+                <View style={styles.track}>
+                  <View style={[styles.bar, i === 6 && styles.barNow, { height: `${Math.max(2, (d.amount / max) * 100)}%` }]} />
+                </View>
+                <Text style={styles.day} numberOfLines={1}>
+                  {d.label}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <NxInfo>The payout for a trip is credited once NESAM verifies the trip fare. Approved toll receipts on non-cash trips are reimbursed.</NxInfo>
+        )}
+        <View style={{ marginTop: 10 }}>
+          <NxRow label="This month" value={formatINR(earnings.thisMonthEarnings)} />
+          <NxRow label="Lifetime" value={formatINR(earnings.lifetimeEarnings)} />
+          {earnings.tollReimbursements > 0 ? <NxRow label="Toll reimbursements" value={formatINR(earnings.tollReimbursements)} /> : null}
+        </View>
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading
+          title="Pending settlement review"
+          caption={`${waiting.length} completed trip${waiting.length === 1 ? '' : 's'} not credited yet`}
+          right={<NxIcon name="clock" size={20} color={nx.ink} />}
+        />
+        <Text style={styles.total}>{formatINR(waitingTotal)}</Text>
+        <Text style={nxText.note}>Agreed driver payouts only. NESAM verifies customer collections before settlement.</Text>
+        <NxButton title="View wallet status" trailingIcon="arrow" variant="secondary" onPress={() => navigation.navigate('Tabs', { screen: 'Wallet' })} style={{ marginTop: 16 }} />
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading title="Completed trips" caption={`${earnings.totalTripsCompleted} credited · tolls ${formatINR(earnings.tollReimbursements)}`} right={<NxIcon name="chart" size={20} color={nx.ink} />} />
+        {recent.length === 0 ? (
+          <NxEmpty icon="check" title="No completed trips yet" message="Finished trips and their payouts will appear here." />
+        ) : (
+          recent.map((t) => {
+            const status = tripEarningStatus(ledger, t.id);
+            return (
+              <View style={styles.item} key={t.id}>
+                <View style={styles.itemIcon}>
+                  <NxIcon name="car" size={18} color={nx.muted} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.itemTitle} numberOfLines={2}>
+                    {placeName(t.pickup.address)} → {placeName(t.drop.address)}
+                  </Text>
+                  <Text style={nxText.small}>
+                    {t.bookingId} · {t.completedAt ? formatDate(t.completedAt) : t.scheduledDate}
+                    {t.payoutRecorded && t.tollCharges ? ` · tolls ${formatINR(t.tollCharges)}` : ''}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={[styles.itemAmount, !t.payoutRecorded && { fontSize: 12, color: nx.muted }]}>{t.payoutRecorded && !t.fleetTrip ? `+${payoutLabel(t)}` : payoutLabel(t)}</Text>
+                  <Text style={nxText.small}>{t.fleetTrip ? 'Settled by fleet' : status ? STATUS[status] || status : 'Not credited yet'}</Text>
+                </View>
+              </View>
+            );
+          })
+        )}
+      </NxPanel>
+      </NxColumns>
+    </NxScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm, marginBottom: space.md },
-  stat: { flexGrow: 1, flexBasis: '45%', backgroundColor: colors.card, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, padding: space.md },
-  statValue: { fontSize: 20, fontWeight: '900', marginTop: 4 },
-  chartHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.md },
-  chart: { flexDirection: 'row', alignItems: 'flex-end', height: 170, gap: 4 },
-  barCol: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
-  bar: { width: '70%', backgroundColor: colors.primary, borderTopLeftRadius: 6, borderTopRightRadius: 6 },
-  barValue: { fontSize: 8, color: colors.muted },
-  listHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: space.sm, marginBottom: space.sm },
-  row: {
-    flexDirection: 'row',
-    gap: space.md,
-    backgroundColor: colors.card,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: space.md,
-    marginBottom: space.sm,
-  },
-  code: { fontSize: 13, fontWeight: '800', color: colors.ink },
-  total: { fontSize: 16, fontWeight: '900', color: colors.primary },
-  totalMuted: { fontSize: 13, fontWeight: '700', color: colors.muted },
+  total: { fontSize: 32, fontWeight: '800', letterSpacing: -1, color: nx.ink, marginBottom: 12 },
+  chart: { flexDirection: 'row', alignItems: 'flex-end', height: 170, gap: 6, marginTop: 6 },
+  col: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end', gap: 6 },
+  track: { flex: 1, width: '100%', justifyContent: 'flex-end', alignItems: 'center' },
+  bar: { width: '70%', backgroundColor: '#F0B6BD', borderTopLeftRadius: 6, borderTopRightRadius: 6 },
+  barNow: { backgroundColor: nx.red },
+  day: { fontSize: 10, color: nx.muted },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: nx.line },
+  itemIcon: { width: 36, height: 36, borderRadius: 10, backgroundColor: nx.page, alignItems: 'center', justifyContent: 'center' },
+  itemTitle: { fontSize: 12.5, fontWeight: '700', color: nx.ink, marginBottom: 3 },
+  itemAmount: { fontSize: 14, fontWeight: '800', color: nx.green },
 });

@@ -2,8 +2,9 @@
 // error screens. Native port of driver/web/src/screens/VerificationStatusScreen.tsx
 // (uses the configured support number; the Web file had a stale one).
 import React from 'react';
-import { Linking, StyleSheet, Text, View } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Linking, StyleSheet, View } from 'react-native';
+import { Text } from '../../components/nx/Text';
+import { NxIcon, type NxIconName } from '../../components/nx/Icon';
 import type { DriverAccount } from '../../types/driver';
 import { Button, Card, Notice, Screen } from '../../components/ui';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../config/constants';
@@ -24,11 +25,11 @@ function Shell({ children, onSignOut }: { children: React.ReactNode; onSignOut: 
   );
 }
 
-function Hero({ icon, color, title, body }: { icon: keyof typeof Ionicons.glyphMap; color: string; title: string; body: string }) {
+function Hero({ icon, color, title, body }: { icon: NxIconName; color: string; title: string; body: string }) {
   return (
     <View style={{ alignItems: 'center' }}>
       <View style={[styles.iconWrap, { backgroundColor: `${color}22` }]}>
-        <Ionicons name={icon} size={36} color={color} />
+        <NxIcon name={icon} size={36} color={color} strokeWidth={1.6} />
       </View>
       <Text style={[type.h1, { textAlign: 'center' }]}>{title}</Text>
       <Text style={[type.small, { textAlign: 'center', marginTop: space.sm }]}>{body}</Text>
@@ -43,7 +44,7 @@ export function VerificationStatusScreen({ account, onSignOut, onResubmit }: { a
   if (driver.approvalStatus === 'Rejected') {
     return (
       <Shell onSignOut={onSignOut}>
-        <Hero icon="close-circle" color={colors.danger} title="Application not approved" body={`Hi ${first}, our team could not verify your application.`} />
+        <Hero icon="alert" color={colors.danger} title="Application not approved" body={`Hi ${first}, our team could not verify your application.`} />
         <Notice
           style={{ marginTop: space.lg }}
           message={`Reason: ${driver.rejectionReason || 'One or more documents were unclear or invalid. Please re-upload clear photos.'}`}
@@ -56,7 +57,7 @@ export function VerificationStatusScreen({ account, onSignOut, onResubmit }: { a
   if (driver.approvalStatus === 'Suspended') {
     return (
       <Shell onSignOut={onSignOut}>
-        <Hero icon="ban" color={colors.muted} title="Account suspended" body="Your driver account has been temporarily suspended. Please contact NESAM support to resolve this." />
+        <Hero icon="shield" color={colors.muted} title="Account suspended" body="Your driver account has been temporarily suspended. Please contact NESAM support to resolve this." />
         {driver.rejectionReason ? <Notice tone="warning" message={driver.rejectionReason} style={{ marginTop: space.lg }} /> : null}
       </Shell>
     );
@@ -71,7 +72,7 @@ export function VerificationStatusScreen({ account, onSignOut, onResubmit }: { a
   return (
     <Shell onSignOut={onSignOut}>
       <Hero
-        icon="time"
+        icon="clock"
         color={colors.warning}
         title="Verification pending"
         body={`Thanks ${first}! The NESAM team is verifying your documents — usually 24–48 hours. This screen updates automatically once you are approved.`}
@@ -79,7 +80,7 @@ export function VerificationStatusScreen({ account, onSignOut, onResubmit }: { a
       <View style={styles.list}>
         {checklist.map((c) => (
           <View key={c.label} style={styles.item}>
-            <Ionicons name={c.done ? 'checkmark-circle' : 'alert-circle'} size={18} color={c.done ? colors.success : colors.warning} />
+            <NxIcon name={c.done ? 'check' : 'alert'} size={18} color={c.done ? colors.success : colors.warning} />
             <Text style={[type.body, { flex: 1 }]} numberOfLines={1}>
               {c.label}
             </Text>
@@ -94,7 +95,7 @@ export function VerificationStatusScreen({ account, onSignOut, onResubmit }: { a
 export function NoAccountScreen({ phone, onRegister, onSignOut }: { phone: string; onRegister: () => void; onSignOut: () => void }) {
   return (
     <Shell onSignOut={onSignOut}>
-      <Hero icon="person-remove" color={colors.muted} title="No driver account found" body={`${phone} is not registered as a NESAM driver partner yet.`} />
+      <Hero icon="user" color={colors.muted} title="No driver account found" body={`${phone} is not registered as a NESAM driver partner yet.`} />
       <Button title="Register as a new driver" onPress={onRegister} style={{ marginTop: space.lg }} />
     </Shell>
   );

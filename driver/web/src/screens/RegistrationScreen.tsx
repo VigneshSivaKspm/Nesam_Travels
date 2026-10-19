@@ -10,8 +10,8 @@ import { Car, CheckCircle, AlertTriangle, Loader2, LogOut, ArrowLeft, ShieldChec
 import type { ApprovalStatus, DetectedVehicle, RegistrationData, VehicleCategory, VehicleLookupResult } from '../types';
 import { PhotoUpload } from '../components/PhotoUpload';
 import { registerDriver, resubmitDriverDocuments, describeFirestoreError } from '../services/driverFirestoreService';
-import { lookupVehicle, snapshotFrom, vehiclePatchFrom } from '../services/vehicleLookup';
-import { indiaToday, isPlate, normalizePlate, validateStep, type Errors } from '../utils/onboardingValidation';
+import { lookupVehicle, manualSnapshot, snapshotFrom, vehiclePatchFrom } from '../services/vehicleLookup';
+import { AUTO_VEHICLE_DETECTION, indiaToday, isPlate, normalizePlate, validateStep, type Errors } from '../utils/onboardingValidation';
 
 export type RegistrationMode = 'signup' | 'resubmit' | 'update';
 
@@ -38,6 +38,7 @@ const VEHICLE_TYPES: { value: VehicleCategory; label: string; seats: number }[] 
 ];
 
 const DETECT_DELAY_MS = 800;
+const FUEL_TYPES = ['Diesel', 'Petrol', 'CNG', 'Electric'];
 const draftKey = (uid: string) => `nesam-driver-signup-draft-${uid}`;
 
 function loadDraft(uid: string): { data: RegistrationData; step: number } | null {
@@ -186,7 +187,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
   /** Asks the server to identify the vehicle and fills the form from the register. */
   const detect = useCallback(async (raw: string) => {
     const wanted = normalizePlate(raw);
-    if (!isPlate(wanted)) return;
+    if (!AUTO_VEHICLE_DETECTION || !isPlate(wanted)) return;
     const seq = ++detectSeq.current;
     setDetection({ state: 'loading' });
     try {
@@ -223,7 +224,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
 
   // Detect on its own once a full plate is typed.
   useEffect(() => {
-    if (fleetDriver || step !== vehicleStep) return undefined;
+    if (!AUTO_VEHICLE_DETECTION || fleetDriver || step !== vehicleStep) return undefined;
     // Only from idle: after an error the partner retries with the button, so a failing provider is not hammered.
     if (!isPlate(v.vehicleNumber) || v.vahan?.lookupId === plate || detection.state !== 'idle') return undefined;
     const t = setTimeout(() => void detect(v.vehicleNumber), DETECT_DELAY_MS);
@@ -232,6 +233,11 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
 
   const onPlateChange = (text: string) => {
     const upper = text.toUpperCase();
+    if (!AUTO_VEHICLE_DETECTION) {
+      // Manual entry: keep the chosen vehicle type while the number is typed.
+      setVehicle({ vehicleNumber: upper, rcNumber: normalizePlate(upper) });
+      return;
+    }
     if (normalizePlate(upper) !== plate) {
       detectSeq.current++;
       setDetection({ state: 'idle' });
@@ -305,7 +311,7 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
   const l = data.license;
   const today = indiaToday();
   const result = detection.state === 'done' ? detection.result : null;
-  const manual = result != null && (result.status === 'unavailable' || result.status === 'not_configured');
+  const manual = !AUTO_VEHICLE_DETECTION || (result != null && (result.status === 'unavailable' || result.status === 'not_configured'));
 
   return (
     <div className={mode === 'update' ? '' : 'min-h-screen bg-[#F7F7F7] p-4 sm:p-6'}>
@@ -421,17 +427,19 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
                     autoCapitalize="characters"
                   />
                 </Field>
-                <button
-                  type="button"
-                  onClick={() => void detect(v.vehicleNumber)}
-                  disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
-                  className="px-4 py-2.5 border border-gray-300 text-xs font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-40 hover:border-[#E21E26]"
-                >
-                  {detection.state === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
-                  {v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
-                </button>
+                {AUTO_VEHICLE_DETECTION && (
+                  <button
+                    type="button"
+                    onClick={() => void detect(v.vehicleNumber)}
+                    disabled={!isPlate(v.vehicleNumber) || detection.state === 'loading'}
+                    className="px-4 py-2.5 border border-gray-300 text-xs font-bold rounded-lg flex items-center justify-center gap-2 disabled:opacity-40 hover:border-[#E21E26]"
+                  >
+                    {detection.state === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <SearchCheck className="w-4 h-4" />}
+                    {v.vahan?.lookupId === plate ? 'Check again' : 'Detect vehicle'}
+                  </button>
+                )}
               </div>
-              <p className="text-[11px] text-gray-500 -mt-3">Make, model, seats and fuel type are filled in automatically from the vehicle register.</p>
+              {AUTO_VEHICLE_DETECTION && <p className="text-[11px] text-gray-500 -mt-3">Make, model, seats and fuel type are filled in automatically from the vehicle register.</p>}
 
               {detection.state === 'loading' && (
                 <p className="text-xs text-gray-600 flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin text-[#E21E26]" /> Looking up {v.vehicleNumber} in the vehicle register…</p>
@@ -446,20 +454,39 @@ export const RegistrationScreen: React.FC<RegistrationScreenProps> = ({
               {detected && result?.status === 'found' && <DetectedCard vehicle={detected} issues={result.issues.map((i) => i.message)} />}
               {manual && (
                 <>
-                  <Alert tone="warning">Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents.</Alert>
+                  <Alert tone="warning">
+                    {AUTO_VEHICLE_DETECTION
+                      ? 'Automatic vehicle detection is unavailable right now. Choose your vehicle type — NESAM will verify the vehicle from your documents.'
+                      : 'Enter your vehicle details below — NESAM will verify the vehicle from your documents.'}
+                  </Alert>
                   <Field label="Vehicle Type" required error={errors.vehicleType}>
                     <select
                       className={inputCls(errors.vehicleType)}
                       value={v.vahan?.manualType ? v.vehicleType : ''}
                       onChange={(e) => {
                         const t = VEHICLE_TYPES.find((x) => x.value === e.target.value);
-                        if (t) setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : undefined });
+                        if (t) setVehicle({ vehicleType: t.value, capacity: t.seats, vahan: v.vahan ? { ...v.vahan, manualType: true } : manualSnapshot(plate) });
                       }}
                     >
                       <option value="">Select</option>
                       {VEHICLE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
                   </Field>
+                  {!AUTO_VEHICLE_DETECTION && (
+                    <div className="grid sm:grid-cols-3 gap-3">
+                      <Field label="Make (optional)">
+                        <input className={inputCls()} value={v.make} onChange={(e) => setVehicle({ make: e.target.value })} placeholder="Toyota" />
+                      </Field>
+                      <Field label="Model (optional)">
+                        <input className={inputCls()} value={v.model} onChange={(e) => setVehicle({ model: e.target.value })} placeholder="Etios" />
+                      </Field>
+                      <Field label="Fuel type">
+                        <select className={inputCls()} value={v.fuelType} onChange={(e) => setVehicle({ fuelType: e.target.value })}>
+                          {FUEL_TYPES.map((f) => <option key={f} value={f}>{f}</option>)}
+                        </select>
+                      </Field>
+                    </div>
+                  )}
                 </>
               )}
 

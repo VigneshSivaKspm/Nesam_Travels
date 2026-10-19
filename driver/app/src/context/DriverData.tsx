@@ -22,6 +22,8 @@ import {
   subscribeToDriverWallet,
   subscribeToOpenMarketplace,
   subscribeToPayoutRequests,
+  subscribeToTripRules,
+  type TripRules,
 } from '../services/driverService';
 import { EMPTY_WALLET, summarizeEarnings } from '../utils/ledger';
 import { describeError } from '../utils/retry';
@@ -34,7 +36,12 @@ interface DriverDataValue {
   bookingsLoaded: boolean;
   bookingsError: string;
   activeTrip: TripDetails | null;
+  /** Every assigned / ongoing trip, earliest pickup first. */
+  upcomingTrips: TripDetails[];
+  /** The trip already in progress, else the earliest pickup; null when nothing is assigned. */
+  nextTrip: TripDetails | null;
   completedTrips: TripDetails[];
+  cancelledTrips: TripDetails[];
   offers: MarketplaceOffer[];
   offersError: string;
   payouts: PayoutRequest[];
@@ -49,6 +56,8 @@ interface DriverDataValue {
   wallet: DriverWallet;
   ledger: LedgerEntry[];
   walletError: string;
+  /** Server limits for trip steps; null when they could not be read. */
+  rules: TripRules | null;
 }
 
 const Ctx = createContext<DriverDataValue | null>(null);
@@ -74,6 +83,7 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
   const [wallet, setWallet] = useState<DriverWallet>(EMPTY_WALLET);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [walletError, setWalletError] = useState('');
+  const [rules, setRules] = useState<TripRules | null>(null);
 
   useEffect(
     () =>
@@ -92,6 +102,7 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
     [driverId],
   );
   useEffect(() => subscribeToPayoutRequests(driverId, setPayouts), [driverId]);
+  useEffect(() => subscribeToTripRules(setRules), []);
   useEffect(
     () =>
       subscribeToDriverWallet(
@@ -151,13 +162,20 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
       .filter((b) => b.status === 'Completed')
       .sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0));
     const earnings = summarizeEarnings(ledger);
+    const byPickup = (a: TripDetails, b: TripDetails) => (a.pickupAt?.getTime() ?? Infinity) - (b.pickupAt?.getTime() ?? Infinity);
+    const upcomingTrips = bookings.filter((b) => b.status === 'Assigned' || b.status === 'Ongoing').sort(byPickup);
+    const nextTrip = upcomingTrips.find((t) => t.subStatus !== 'Not Started' || t.verificationSubmitted) ?? upcomingTrips[0] ?? null;
+    const cancelledTrips = bookings.filter((b) => b.status === 'Cancelled' || b.status === 'Rejected').sort(byPickup);
     return {
       account,
       bookings,
       bookingsLoaded,
       bookingsError,
       activeTrip,
+      upcomingTrips,
+      nextTrip,
       completedTrips,
+      cancelledTrips,
       offers: canBrowse ? offers : [],
       offersError: canBrowse ? offersError : '',
       payouts,
@@ -169,8 +187,9 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
       wallet,
       ledger,
       walletError,
+      rules,
     };
-  }, [account, bookings, bookingsLoaded, bookingsError, activeTrip, canBrowse, offers, offersError, payouts, notifications, penalties, deviceWarning, wallet, ledger, walletError]);
+  }, [account, bookings, bookingsLoaded, bookingsError, activeTrip, canBrowse, offers, offersError, payouts, notifications, penalties, deviceWarning, wallet, ledger, walletError, rules]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

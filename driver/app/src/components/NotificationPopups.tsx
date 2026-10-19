@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from './nx/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { DriverNotification } from '../types/driver';
 import { CATEGORY_LABEL, TONE_COLORS, toneOf } from '../utils/notificationModel';

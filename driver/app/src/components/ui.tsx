@@ -1,21 +1,7 @@
 // Shared UI primitives for the NESAM Driver app.
 import React from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleProp,
-  StyleSheet,
-  Text,
-  TextInput,
-  TextInputProps,
-  View,
-  ViewStyle,
-} from 'react-native';
+import { ActivityIndicator, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleProp, StyleSheet, TextInputProps, View, ViewStyle } from 'react-native';
+import { Text, TextInput } from './nx/Text';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
 import { colors, radius, space, type } from '../theme';
 import { initials } from '../utils/format';

@@ -15,6 +15,7 @@ import {
   discountOf,
   emptyManualBooking,
   newRequestId,
+  pickupTimeError,
   pointFromLocation,
   quoteAdminBooking,
   quoteKey,
@@ -73,6 +74,8 @@ export default function ManualBookingModal({ customers, services, locations, cat
   const liveQuote = quote && quote.key === key ? quote.data : null;
   const calculated = liveQuote?.quote.total ?? null;
   const busy = creating;
+  // Shown as soon as a date is picked: an out-of-window pickup silently blocks the fare quote otherwise.
+  const pickupError = errors.pickupAt ?? (form.pickupAt ? pickupTimeError(form.pickupAt) : null);
 
   // Re-price automatically whenever something that affects the fare changes.
   useEffect(() => {
@@ -227,8 +230,8 @@ export default function ManualBookingModal({ customers, services, locations, cat
                 <option>Round Trip</option>
               </select>
             </Field>
-            <Field label="Pickup date & time" required hint="Advance bookings only — the pickup must be in the future." error={errors.pickupAt}>
-              <DateTime12Input value={form.pickupAt} onChange={(v) => set("pickupAt", v)} hasError={!!errors.pickupAt} min={new Date().toISOString().slice(0, 10)} />
+            <Field label="Pickup date & time" required hint="Advance bookings only — up to 180 days ahead, at least 30 minutes from now." error={pickupError}>
+              <DateTime12Input value={form.pickupAt} onChange={(v) => set("pickupAt", v)} hasError={!!pickupError} min={new Date().toISOString().slice(0, 10)} />
             </Field>
             {form.tripType === "Round Trip" && (
               <Field label="Return date & time" required hint="Billed by Indian calendar date from pickup to return, with a daily minimum km and bata." error={errors.tripEndAt}>

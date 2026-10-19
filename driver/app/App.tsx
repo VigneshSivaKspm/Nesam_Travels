@@ -5,6 +5,7 @@
 import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import { useFonts } from 'expo-font';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
 import type { User } from 'firebase/auth';
@@ -24,11 +25,21 @@ import { emptyRegistration, formatPhone, getDriverInvite, subscribeToDriverAccou
 import type { DriverAccount } from './src/types/driver';
 import { describeError } from './src/utils/retry';
 import { colors } from './src/theme';
+import { POPPINS, POPPINS_FILES, setPoppinsReady } from './src/theme/fonts';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
+// React Navigation reads its header and tab fonts from the theme.
+const navFonts = {
+  regular: { fontFamily: POPPINS.regular, fontWeight: '400' as const },
+  medium: { fontFamily: POPPINS.medium, fontWeight: '400' as const },
+  bold: { fontFamily: POPPINS.bold, fontWeight: '400' as const },
+  heavy: { fontFamily: POPPINS.bold, fontWeight: '400' as const },
+};
+
 const navTheme = {
   ...DefaultTheme,
+  fonts: navFonts,
   colors: { ...DefaultTheme.colors, primary: colors.primary, background: colors.bg, card: colors.card, text: colors.ink, border: colors.border },
 };
 
@@ -38,7 +49,20 @@ interface AccountState {
   error: string;
 }
 
+/** Poppins is bundled; if loading ever fails or stalls, the app continues in the system font instead of blocking. */
+function useBrandFonts(): boolean {
+  const [loaded, error] = useFonts(POPPINS_FILES);
+  const [gaveUp, setGaveUp] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setGaveUp(true), 5000);
+    return () => clearTimeout(t);
+  }, []);
+  setPoppinsReady(loaded && !error);
+  return loaded || !!error || gaveUp;
+}
+
 function Root() {
+  const fontsSettled = useBrandFonts();
   const [authUser, setAuthUser] = useState<User | null | undefined>(undefined);
   const [accountState, setAccountState] = useState<AccountState>({ key: '', error: '' });
   const [attempt, setAttempt] = useState(0);
@@ -77,9 +101,10 @@ function Root() {
   }, [needsInvite, uid, phoneE164]);
 
   const resolved = authUser !== undefined && (!authUser || account !== undefined || !!accountError);
+  const ready = resolved && fontsSettled;
   useEffect(() => {
-    if (resolved) void SplashScreen.hideAsync().catch(() => undefined);
-  }, [resolved]);
+    if (ready) void SplashScreen.hideAsync().catch(() => undefined);
+  }, [ready]);
 
   const signOut = () => {
     setRegisterAnyway(false);
@@ -87,6 +112,8 @@ function Root() {
     void signOutUser();
   };
 
+  // The splash screen stays up until the fonts are settled, so the first screen never flashes in a fallback face.
+  if (!fontsSettled) return null;
   if (authUser === undefined) return <FullScreenLoader />;
   if (!authUser) return <AuthScreen />;
   if (account === undefined && accountError) {

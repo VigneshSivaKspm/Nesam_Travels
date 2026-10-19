@@ -37,7 +37,7 @@ h1{font-size:20px;margin:0;color:#1E6CE3}.muted{color:#666;font-size:12px}
 table{width:100%;border-collapse:collapse;font-size:13px}td{padding:6px 0;border-bottom:1px solid #eee}.r{text-align:right}
 .paid{margin-top:8px}.total td{font-weight:700;font-size:15px;border-top:2px solid #111;border-bottom:none}
 </style></head><body>
-<h1>People Taxi</h1><div class="muted">A Unit of ${escapeHtml(COMPANY_NAME)} · Ride receipt · Booking ${escapeHtml(trip.bookingId)}</div>
+<h1>${escapeHtml(COMPANY_NAME)}</h1><div class="muted">Ride receipt · Booking ${escapeHtml(trip.bookingId)}</div>
 <div class="box"><b>Customer:</b> ${escapeHtml(customerName)}<br>
 <b>Trip:</b> ${escapeHtml(trip.pickup.name)} → ${escapeHtml(trip.drop.name)}<br>
 <b>Service:</b> ${escapeHtml(trip.service)} · ${escapeHtml(trip.tripType)} · ${escapeHtml(trip.categoryName)}<br>
@@ -46,7 +46,7 @@ ${trip.driver ? `<b>Driver:</b> ${escapeHtml(trip.driver.name)} · ${escapeHtml(
 <b>Payment:</b> ${escapeHtml(trip.paymentMethod)} (${escapeHtml(trip.paymentStatus)})</div>
 <table>${rows}<tr class="total"><td>Total</td><td class="r">${escapeHtml(money(payableAmount(trip)))}</td></tr></table>
 ${paidRows}${extrasBox}
-<p class="muted">${gstNote} Upfront fare based on ${escapeHtml(formatDistance(trip.distanceKm))} / ${escapeHtml(formatDuration(trip.durationMin))} estimated. Thank you for riding with People Taxi.</p>
+<p class="muted">${gstNote} Upfront fare based on ${escapeHtml(formatDistance(trip.distanceKm))} / ${escapeHtml(formatDuration(trip.durationMin))} estimated. Thank you for riding with NESAM.</p>
 </body></html>`;
 }
 

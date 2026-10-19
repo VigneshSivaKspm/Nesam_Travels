@@ -1,43 +1,42 @@
-// Driver profile, contact/bank edit, documents with expiry badges (port of
-// driver/web ProfileScreen.tsx).
+// Driver profile (reference "My Profile"): identity, contact & payout account (editable), document status with expiry
+// badges, help and sign-out. Validation and the save call are the app's existing ones.
 import React, { useState } from 'react';
-import { Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { Alert, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '../components/nx/Text';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useDriverData } from '../context/DriverData';
 import { useSignOut } from '../navigation/MainNavigator';
-import { Avatar, Badge, Button, Card, Notice, Row, Sheet, TextField } from '../components/ui';
+import { NxScreen, useShell } from '../components/nx/Shell';
+import { NxColumns } from '../components/nx/layout';
+import { NxDialog } from '../components/nx/Dialog';
+import { NxIcon } from '../components/nx/Icon';
+import { NxBadge, NxButton, NxField, NxFormError, NxInfo, NxPanel, NxRow, NxSectionHeading, NxTextButton, nxText } from '../components/nx/primitives';
 import { updateDriverContactDetails, type ContactFields } from '../services/driverService';
 import { displayDate } from '../components/forms';
 import { IFSC_RE, MOBILE_RE, UPI_RE } from '../validation/kyc';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
+import { initials } from '../utils/format';
 import { describeError } from '../utils/retry';
-import { colors, radius, space, type } from '../theme';
+import { nx } from '../theme/nx';
 
 function expiryBadge(date: string) {
   if (!date) return null;
   const days = Math.floor((new Date(`${date}T23:59:59`).getTime() - Date.now()) / 86400000);
   if (Number.isNaN(days)) return null;
-  if (days < 0) return <Badge label="Expired" tone="danger" />;
-  if (days <= 30) return <Badge label={`Expires in ${days}d`} tone="warning" />;
+  if (days < 0) return <NxBadge label="Expired" tone="red" />;
+  if (days <= 30) return <NxBadge label={`Expires in ${days}d`} tone="amber" />;
   return null;
 }
 
-function DocThumb({ label, url, expiry }: { label: string; url: string; expiry?: string }) {
+function DocRow({ label, url, expiry }: { label: string; url: string; expiry?: string }) {
   return (
-    <Pressable
-      style={styles.doc}
-      disabled={!url}
-      onPress={() => void Linking.openURL(url)}
-      accessibilityRole="button"
-      accessibilityLabel={`${label}${url ? '' : ', not uploaded'}`}
-    >
-      {url ? <Image source={{ uri: url }} style={styles.docImg} /> : <View style={[styles.docImg, styles.docMissing]}><Text style={type.tiny}>Not uploaded</Text></View>}
-      <Text style={styles.docLabel} numberOfLines={1}>
+    <Pressable style={styles.doc} disabled={!url} onPress={() => void Linking.openURL(url)} accessibilityRole="button" accessibilityLabel={`${label}${url ? '' : ', not uploaded'}`}>
+      <NxIcon name="document" size={17} color={nx.muted} />
+      <Text style={styles.docLabel} numberOfLines={2}>
         {label}
       </Text>
       {expiry ? expiryBadge(expiry) : null}
+      {url ? <NxBadge label="Uploaded" tone="green" icon="check" /> : <NxBadge label="Not uploaded" tone="neutral" />}
     </Pressable>
   );
 }
@@ -45,6 +44,7 @@ function DocThumb({ label, url, expiry }: { label: string; url: string; expiry?:
 export function ProfileScreen() {
   const navigation = useNavigation();
   const signOut = useSignOut();
+  const { openSupport } = useShell();
   const { account, completedTrips } = useDriverData();
   const { driver, identity, license, vehicle, bank } = account;
   const [editing, setEditing] = useState(false);
@@ -56,10 +56,90 @@ export function ProfileScreen() {
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
 
+  const docTone = driver.docStatus === 'Approved' ? 'green' : driver.docStatus === 'Rejected' ? 'red' : 'amber';
+
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <NxScreen>
+      {driver.docStatus === 'Rejected' && driver.rejectionReason ? <NxInfo tone="amber" style={{ marginTop: 0, marginBottom: 16 }}>Document note from NESAM: {driver.rejectionReason}</NxInfo> : null}
+      {saved ? <NxInfo style={{ marginTop: 0, marginBottom: 16 }}>Profile updated.</NxInfo> : null}
+
+      <NxColumns>
+      <NxPanel style={styles.identity}>
+        {driver.photoUrl ? (
+          <Image source={{ uri: driver.photoUrl }} style={styles.avatar} accessibilityLabel={driver.name} />
+        ) : (
+          <View style={styles.avatar} accessibilityElementsHidden>
+            <Text style={styles.avatarText}>{initials(driver.name)}</Text>
+          </View>
+        )}
+        <Text style={styles.name}>{driver.name}</Text>
+        <Text style={nxText.copy}>{driver.vendorName ? `Fleet driver · ${driver.vendorName}` : 'Single vehicle owner / driver'}</Text>
+        <View style={{ marginTop: 10 }}>
+          <NxBadge label="Account approved" tone="green" icon="shield" />
+        </View>
+        <View style={styles.details}>
+          <NxRow label="Mobile" value={driver.phone} />
+          <NxRow label="Rating" value={driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} />
+          <NxRow label="Completed trips" value={String(completedTrips.length)} />
+          {driver.joiningDate ? <NxRow label="Partner since" value={driver.joiningDate} /> : null}
+          <NxRow label="Vehicle" value={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || '—'} />
+          <NxRow label="Registration" value={vehicle.vehicleNumber || '—'} />
+          <NxRow label="Category" value={`${vehicle.vehicleType}${vehicle.capacity ? ` · ${vehicle.capacity} seats` : ''}${vehicle.fuelType ? ` · ${vehicle.fuelType}` : ''}`} />
+        </View>
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading title="Contact & payout account" right={<NxTextButton title="Edit" icon="edit" onPress={() => setEditing(true)} />} />
+        <NxRow label="Email" value={driver.email || '—'} />
+        <NxRow label="Date of birth" value={displayDate(driver.dob) || '—'} />
+        <NxRow label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
+        <NxRow label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'} />
+        <NxRow label="Account holder" value={bank.accountHolder || '—'} />
+        <NxRow label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
+        <NxRow label="IFSC" value={bank.ifsc || '—'} />
+        <NxRow label="UPI" value={bank.upiId || '—'} />
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading title="Licence & ID" />
+        <NxRow label="Licence no." value={license.number || '—'} />
+        <NxRow label="Licence valid till" value={displayDate(license.expiryDate) || '—'} />
+        <NxRow label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'} />
+        <NxRow label="PAN" value={identity.panNumber || '—'} />
+        <NxRow label="Colour" value={vehicle.color || '—'} />
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading title="Document verification" caption="Your licence and vehicle papers" right={<NxBadge label={driver.docStatus} tone={docTone} />} />
+        <DocRow label="Driving licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
+        <DocRow label="Driving licence (back)" url={license.backPhotoUrl} />
+        <DocRow label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
+        <DocRow label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
+        <DocRow label="PAN" url={identity.panPhotoUrl} />
+        <DocRow label="Registration certificate (RC)" url={vehicle.rcDocUrl} />
+        <DocRow label="Vehicle insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
+        <DocRow label="Vehicle permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
+        <DocRow label="Fitness certificate (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
+        <DocRow label="Vehicle photo · front" url={vehicle.frontPhotoUrl} />
+        <DocRow label="Vehicle photo · rear" url={vehicle.rearPhotoUrl} />
+        <DocRow label="Vehicle photo · side" url={vehicle.sidePhotoUrl} />
+        <DocRow label="Vehicle photo · interior" url={vehicle.interiorPhotoUrl} />
+        <NxButton title="Update documents" trailingIcon="arrow" onPress={() => navigation.navigate('UpdateDocuments')} style={{ marginTop: 18 }} />
+      </NxPanel>
+
+      <NxPanel>
+        <NxSectionHeading title="Help" right={<NxIcon name="help" size={20} color={nx.ink} />} />
+        <View style={{ gap: 14 }}>
+          <NxTextButton title="Help & SOS" icon="help" onPress={() => openSupport()} />
+          <NxTextButton title="Sign out" icon="logout" onPress={confirmSignOut} />
+        </View>
+        <Text style={[nxText.small, { marginTop: 16 }]}>NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+      </NxPanel>
+
+      </NxColumns>
+
       {editing ? (
-        <ContactSheet
+        <ContactDialog
           onClose={() => setEditing(false)}
           onSaved={() => {
             setEditing(false);
@@ -67,83 +147,11 @@ export function ProfileScreen() {
           }}
         />
       ) : null}
-      <ScrollView contentContainerStyle={styles.content}>
-        <Card style={styles.idCard}>
-          <Avatar name={driver.name} photoUrl={driver.photoUrl} size={72} />
-          <View style={{ flex: 1 }}>
-            <Text style={type.h2}>{driver.name}</Text>
-            <Text style={type.small}>{driver.phone}</Text>
-            <Text style={type.small}>
-              {driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} • {completedTrips.length} trips • since {driver.joiningDate}
-            </Text>
-            {driver.vendorName ? <Text style={type.small}>Fleet: {driver.vendorName}</Text> : null}
-            <View style={styles.badges}>
-              <Badge label="Account approved" tone="success" />
-              <Badge label={`Documents: ${driver.docStatus}`} tone={driver.docStatus === 'Approved' ? 'success' : driver.docStatus === 'Rejected' ? 'danger' : 'warning'} />
-            </View>
-          </View>
-        </Card>
-        {driver.docStatus === 'Rejected' && driver.rejectionReason ? <Notice message={`Document note from NESAM: ${driver.rejectionReason}`} /> : null}
-        {saved ? <Notice tone="success" message="Profile updated." /> : null}
-
-        <Card>
-          <View style={styles.cardHead}>
-            <Text style={type.h3}>Contact & bank</Text>
-            <Button small variant="ghost" title="Edit" onPress={() => setEditing(true)} />
-          </View>
-          <Row label="Email" value={driver.email || '—'} />
-          <Row label="Date of birth" value={displayDate(driver.dob) || '—'} />
-          <Row label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
-          <Row label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'} />
-          <Row label="Account holder" value={bank.accountHolder || '—'} />
-          <Row label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
-          <Row label="IFSC" value={bank.ifsc || '—'} />
-          <Row label="UPI" value={bank.upiId || '—'} />
-        </Card>
-
-        <Card>
-          <Text style={[type.h3, { marginBottom: space.sm }]}>Licence & ID</Text>
-          <Row label="Licence no." value={license.number} />
-          <Row label="Licence valid till" value={displayDate(license.expiryDate)} />
-          <Row label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'} />
-          <Row label="PAN" value={identity.panNumber || '—'} />
-          <Text style={[type.h3, { marginVertical: space.sm }]}>Vehicle</Text>
-          <Row label="Registration" value={vehicle.vehicleNumber} />
-          <Row label="Vehicle" value={`${vehicle.make} ${vehicle.model} (${vehicle.year})`} />
-          <Row label="Category" value={`${vehicle.vehicleType} • ${vehicle.capacity} seats • ${vehicle.fuelType}`} />
-          <Row label="Colour" value={vehicle.color} />
-        </Card>
-
-        <Card>
-          <View style={styles.cardHead}>
-            <Text style={type.h3}>Documents</Text>
-            <Button small variant="dark" title="Update documents" onPress={() => navigation.navigate('UpdateDocuments')} />
-          </View>
-          <View style={styles.docs}>
-            <DocThumb label="Licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
-            <DocThumb label="Licence (back)" url={license.backPhotoUrl} />
-            <DocThumb label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
-            <DocThumb label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
-            <DocThumb label="RC" url={vehicle.rcDocUrl} />
-            <DocThumb label="Insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
-            <DocThumb label="Permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
-            <DocThumb label="Fitness (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
-            <DocThumb label="Vehicle front" url={vehicle.frontPhotoUrl} />
-            <DocThumb label="Vehicle rear" url={vehicle.rearPhotoUrl} />
-            <DocThumb label="Vehicle side" url={vehicle.sidePhotoUrl} />
-            <DocThumb label="Interior" url={vehicle.interiorPhotoUrl} />
-          </View>
-        </Card>
-
-        <Button title={`Call support (${SUPPORT_PHONE_DISPLAY})`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
-        <Button title="Sign out" variant="ghost" onPress={confirmSignOut} style={{ marginTop: space.sm }} />
-        <Text style={[type.tiny, { textAlign: 'center', marginTop: space.md }]}>NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
-      </ScrollView>
-    </SafeAreaView>
+    </NxScreen>
   );
 }
 
-function ContactSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+function ContactDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { account } = useDriverData();
   const { driver, bank } = account;
   const [form, setForm] = useState<ContactFields>({
@@ -193,35 +201,32 @@ function ContactSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () =
   };
 
   return (
-    <Sheet visible onClose={onClose} title="Contact & bank" dismissible={!saving}>
-      <TextField label="Email" value={form.email} onChangeText={(t) => set({ email: t })} keyboardType="email-address" autoCapitalize="none" />
-      <TextField label="Address" value={form.address} onChangeText={(t) => set({ address: t })} multiline />
-      <TextField label="City" value={form.city} onChangeText={(t) => set({ city: t })} />
-      <TextField label="Pincode" value={form.pincode} onChangeText={(t) => set({ pincode: t.replace(/\D/g, '').slice(0, 6) })} keyboardType="number-pad" />
-      <TextField label="Emergency contact name" value={form.emergencyContactName} onChangeText={(t) => set({ emergencyContactName: t })} />
-      <TextField label="Emergency mobile" prefix="+91" value={form.emergencyContact} onChangeText={(t) => set({ emergencyContact: t.replace(/\D/g, '').slice(0, 10) })} keyboardType="phone-pad" />
-      <Text style={[type.h3, { marginVertical: space.sm }]}>Bank account</Text>
-      <TextField label="Account holder" value={form.bank.accountHolder} onChangeText={(t) => setBank({ accountHolder: t })} />
-      <TextField label="Account number" value={form.bank.accountNumber} onChangeText={(t) => setBank({ accountNumber: t.replace(/\D/g, '').slice(0, 18) })} keyboardType="number-pad" secureTextEntry />
-      <TextField label="Confirm account number" value={confirm} onChangeText={(t) => setConfirm(t.replace(/\D/g, '').slice(0, 18))} keyboardType="number-pad" contextMenuHidden />
-      <TextField label="IFSC" value={form.bank.ifsc} onChangeText={(t) => setBank({ ifsc: t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11) })} autoCapitalize="characters" />
-      <TextField label="Bank name" value={form.bank.bankName} onChangeText={(t) => setBank({ bankName: t })} />
-      <TextField label="UPI ID" value={form.bank.upiId} onChangeText={(t) => setBank({ upiId: t.trim() })} autoCapitalize="none" />
-      <Notice message={error} />
-      <Button title={saving ? 'Saving…' : 'Save'} loading={saving} onPress={() => void save()} />
-    </Sheet>
+    <NxDialog visible onClose={onClose} eyebrow="PROFILE" title="Edit contact & payout account" locked={saving}>
+      <NxField label="Email" value={form.email} onChangeText={(t) => set({ email: t })} keyboardType="email-address" autoCapitalize="none" style={{ marginTop: 0 }} />
+      <NxField label="Address" value={form.address} onChangeText={(t) => set({ address: t })} multiline />
+      <NxField label="City" value={form.city} onChangeText={(t) => set({ city: t })} />
+      <NxField label="Pincode" value={form.pincode} onChangeText={(t) => set({ pincode: t.replace(/\D/g, '').slice(0, 6) })} keyboardType="number-pad" />
+      <NxField label="Emergency contact name" value={form.emergencyContactName} onChangeText={(t) => set({ emergencyContactName: t })} />
+      <NxField label="Emergency mobile" value={form.emergencyContact} onChangeText={(t) => set({ emergencyContact: t.replace(/\D/g, '').slice(0, 10) })} keyboardType="phone-pad" />
+      <Text style={[nxText.heading, { fontSize: 14, marginTop: 22 }]}>Bank account</Text>
+      <NxField label="Account holder" value={form.bank.accountHolder} onChangeText={(t) => setBank({ accountHolder: t })} />
+      <NxField label="Account number" value={form.bank.accountNumber} onChangeText={(t) => setBank({ accountNumber: t.replace(/\D/g, '').slice(0, 18) })} keyboardType="number-pad" secureTextEntry />
+      <NxField label="Confirm account number" value={confirm} onChangeText={(t) => setConfirm(t.replace(/\D/g, '').slice(0, 18))} keyboardType="number-pad" contextMenuHidden />
+      <NxField label="IFSC" value={form.bank.ifsc} onChangeText={(t) => setBank({ ifsc: t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 11) })} autoCapitalize="characters" />
+      <NxField label="Bank name" value={form.bank.bankName} onChangeText={(t) => setBank({ bankName: t })} />
+      <NxField label="UPI ID" value={form.bank.upiId} onChangeText={(t) => setBank({ upiId: t.trim() })} autoCapitalize="none" />
+      <NxFormError message={error} />
+      <NxButton title={saving ? 'Saving…' : 'Save changes'} trailingIcon="check" loading={saving} onPress={() => void save()} style={{ marginTop: 14 }} />
+    </NxDialog>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
-  content: { padding: space.lg, paddingBottom: space.xxl },
-  idCard: { flexDirection: 'row', gap: space.md },
-  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginTop: space.sm },
-  cardHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: space.sm },
-  docs: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
-  doc: { width: '31%', gap: 4 },
-  docImg: { width: '100%', height: 72, borderRadius: radius.sm, backgroundColor: colors.bg },
-  docMissing: { alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.border, borderStyle: 'dashed' },
-  docLabel: { fontSize: 11, fontWeight: '700', color: colors.text },
+  identity: { alignItems: 'center', paddingTop: 24 },
+  avatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: nx.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  avatarText: { fontSize: 24, fontWeight: '800', color: nx.red },
+  name: { fontSize: 20, fontWeight: '700', letterSpacing: -0.4, color: nx.ink, marginBottom: 4 },
+  details: { alignSelf: 'stretch', marginTop: 18 },
+  doc: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: nx.line },
+  docLabel: { flex: 1, fontSize: 12, color: nx.ink },
 });

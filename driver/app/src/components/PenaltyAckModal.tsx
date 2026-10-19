@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Modal, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, View } from 'react-native';
+import { Text, TextInput } from './nx/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { DriverPenalty } from '../types/driver';
 import { acknowledgePenalty, disputePenalty } from '../services/tripService';

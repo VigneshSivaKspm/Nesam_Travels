@@ -1,5 +1,6 @@
 ﻿import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, StyleSheet, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { Text } from '../components/nx/Text';
 import { useAuth } from '../context/AuthContext';
 import { Colors } from '../theme/colors';
 import { initials } from '../utils/format';

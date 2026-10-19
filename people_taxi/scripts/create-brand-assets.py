@@ -234,3 +234,4 @@ def draw_horizontal_logo(width=840, height=180):
 logo_png = draw_horizontal_logo()
 logo_png.save(os.path.join(BRAND_DIR, 'logo.png'))
 print("Saved logo.png")
+

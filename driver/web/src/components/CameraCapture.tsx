@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, AlertTriangle } from 'lucide-react';
+import { Icon } from './nx/Icon';
 
 interface CameraCaptureProps {
   /** Called with the JPEG and the moment it was taken. */
@@ -7,6 +7,8 @@ interface CameraCaptureProps {
   disabled?: boolean;
   /** 'user' opens the front (selfie) camera; the default is the rear camera. */
   facing?: 'user' | 'environment';
+  /** What is being photographed, for the labels ("selfie", "vehicle front"). */
+  subject?: string;
 }
 
 const MAX_EDGE = 1600;
@@ -21,14 +23,15 @@ function explain(err: unknown): string {
 }
 
 /**
- * A live camera view. There is deliberately no file picker or gallery option:
- * the only way to produce a photo here is to take it now with the camera.
+ * A live camera view in the reference's frame (guide outline, placeholder while the stream starts). There is
+ * deliberately no file picker or gallery option: the only way to produce a photo here is to take it now with the camera.
  */
-export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, disabled, facing = 'environment' }) => {
+export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, disabled, facing = 'environment', subject = 'photo' }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [state, setState] = useState<'starting' | 'live' | 'error'>('starting');
   const [error, setError] = useState('');
+  const selfie = facing === 'user';
 
   const stop = useCallback(() => {
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -75,33 +78,31 @@ export const CameraCapture: React.FC<CameraCaptureProps> = ({ onCapture, disable
   };
 
   return (
-    <div className="space-y-3">
-      <div className="relative w-full aspect-[4/3] bg-black rounded-2xl overflow-hidden">
-        <video ref={videoRef} playsInline muted autoPlay className="w-full h-full object-cover" aria-label="Camera preview" />
-        {state === 'starting' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white bg-black/60" role="status">
-            <Loader2 className="w-7 h-7 animate-spin" /> <span className="text-sm font-semibold">Starting camera…</span>
+    <>
+      <div className={`nx-camera-frame ${selfie ? 'is-selfie' : 'is-car'}`}>
+        <video ref={videoRef} playsInline muted autoPlay aria-label={`Live ${subject} camera`} />
+        {state !== 'live' ? (
+          <div className="nx-camera-placeholder" role={state === 'error' ? 'alert' : 'status'}>
+            <Icon name={selfie ? 'user' : 'car'} />
+            <span>{state === 'starting' ? 'Starting camera…' : `Live ${subject} camera`}</span>
           </div>
-        )}
-        {state === 'error' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-white bg-black/80 p-5 text-center" role="alert">
-            <AlertTriangle className="w-8 h-8 text-amber-400" />
-            <p className="text-sm font-semibold">{error}</p>
-            <button type="button" onClick={() => void start()} className="px-4 py-2 bg-white text-gray-900 text-sm font-bold rounded-lg">
-              Try again
-            </button>
-          </div>
-        )}
+        ) : null}
+        <div className="nx-camera-guide" aria-hidden="true" />
       </div>
-      <button
-        type="button"
-        onClick={snap}
-        disabled={disabled || state !== 'live'}
-        className="w-full py-3.5 bg-[#E21E26] hover:bg-[#C9141B] text-white font-extrabold text-sm rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        <Camera className="w-5 h-5" /> Capture photo
-      </button>
-      <p className="text-xs text-gray-600 text-center">Photos must be taken now with the camera. Gallery or file uploads are not accepted.</p>
-    </div>
+      <p className="nx-camera-message" role="status">
+        {state === 'live' ? 'Camera ready. Photos cannot be selected from your gallery.' : 'Camera access is required. Photos cannot be selected from your gallery.'}
+      </p>
+      <div className="nx-form-error" role="alert">
+        {error}
+      </div>
+      <div className="nx-actions">
+        <button type="button" className="nx-button primary" onClick={snap} disabled={disabled || state !== 'live'}>
+          Capture {subject} <Icon name="camera" />
+        </button>
+        <button type="button" className="nx-button" onClick={() => void start()} disabled={state === 'starting'}>
+          Open camera
+        </button>
+      </div>
+    </>
   );
 };

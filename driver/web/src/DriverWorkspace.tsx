@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { AlertTriangle, ShieldCheck, PhoneCall, X, CheckCircle2 } from 'lucide-react';
 import type {
   DriverAccount,
   DriverNotification,
@@ -12,21 +11,22 @@ import type {
   TollReceipt,
   TripDetails,
 } from './types';
-import { Header } from './components/Header';
-import { BottomNav } from './components/BottomNav';
-import { DashboardScreen } from './screens/DashboardScreen';
+import { Shell, type NavItem, type ShellPage } from './components/nx/Shell';
+import { SupportDialog, type SupportContext } from './components/nx/Support';
+import { tripIsActive } from './components/nx/format';
+import { HomeScreen } from './screens/HomeScreen';
+import { TripsScreen, type TripsTab } from './screens/TripsScreen';
+import { TripFlowScreen } from './screens/TripFlowScreen';
 import { VehicleVerificationScreen } from './screens/VehicleVerificationScreen';
 import { NotificationPopups } from './components/NotificationPopups';
 import { PenaltyAckModal } from './components/PenaltyAckModal';
 import { advanceTrip, verifyBoarding } from './services/tripService';
 import { getFirebaseLocation } from './services/location';
-import { TripExecutionScreen } from './screens/TripExecutionScreen';
 import { EarningsScreen } from './screens/EarningsScreen';
 import { WalletPayoutScreen } from './screens/WalletPayoutScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { RegistrationScreen } from './screens/RegistrationScreen';
-import { SUPPORT_PHONE } from './screens/VerificationStatusScreen';
 import {
   acceptMarketplaceTrip,
   describeFirestoreError,
@@ -40,7 +40,11 @@ import {
   subscribeToDriverWallet,
   subscribeToOpenMarketplace,
   subscribeToPayoutRequests,
+  subscribeToTripRules,
+  submitDutyBid,
+  withdrawDutyBid,
   updateDriverContactDetails,
+  type TripRules,
 } from './services/driverFirestoreService';
 import { EMPTY_WALLET, summarizeEarnings } from './services/driverEarnings';
 
@@ -49,13 +53,16 @@ interface DriverWorkspaceProps {
   onSignOut: () => void;
 }
 
+const byPickup = (a: TripDetails, b: TripDetails) => (a.pickupAt?.getTime() ?? Infinity) - (b.pickupAt?.getTime() ?? Infinity);
+
 export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSignOut }) => {
   const driver = account.driver;
-  const [activeTab, setActiveTab] = useState('dashboard');
-  const [inPreTrip, setInPreTrip] = useState(false);
-  const [editingDocs, setEditingDocs] = useState(false);
-  const [showSOS, setShowSOS] = useState(false);
+  const [page, setPage] = useState<ShellPage>('home');
+  const [tripsTab, setTripsTab] = useState<TripsTab>('upcoming');
+  const [tripId, setTripId] = useState<string | null>(null);
+  const [support, setSupport] = useState<SupportContext | null>(null);
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
+  const [now, setNow] = useState(() => Date.now());
 
   const [bookings, setBookings] = useState<TripDetails[]>([]);
   const [offers, setOffers] = useState<MarketplaceOffer[]>([]);
@@ -67,6 +74,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   const [wallet, setWallet] = useState<DriverWallet>(EMPTY_WALLET);
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [rules, setRules] = useState<TripRules | null>(null);
   const [presenceBusy, setPresenceBusy] = useState(false);
 
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -76,6 +84,11 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
     toastTimer.current = setTimeout(() => setToast(null), 5000);
   }, []);
   useEffect(() => () => clearTimeout(toastTimer.current), []);
+  // Day labels ("Today") and the pickup windows re-evaluate while the app stays open.
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   // ── Live data ────────────────────────────────────────────────────────────
   useEffect(() => subscribeToDriverBookings(driver.id, setBookings), [driver.id]);
@@ -89,23 +102,23 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
     return subscribeToOpenMarketplace(setOffers);
   }, [independent]);
   useEffect(() => subscribeToPayoutRequests(driver.id, setPayouts), [driver.id]);
+  useEffect(() => subscribeToTripRules(setRules), []);
   useEffect(() => subscribeToDriverNotifications(driver.id, setNotifications), [driver.id]);
   useEffect(() => subscribeToDriverPenalties(driver.id, (p) => { setPenalties(p); setPenaltiesError(''); }, setPenaltiesError), [driver.id]);
   // Money comes from the server's partner ledger; the app never computes it.
   useEffect(() => subscribeToDriverWallet(driver.id, setWallet, (m) => notify('error', m)), [driver.id, notify]);
   useEffect(() => subscribeToDriverLedger(driver.id, setLedger, (m) => notify('error', m)), [driver.id, notify]);
 
-  const activeTrip = useMemo(
-    () => bookings.find((b) => b.status === 'Assigned' || b.status === 'Ongoing') ?? null,
-    [bookings],
-  );
+  const upcoming = useMemo(() => bookings.filter((b) => b.status === 'Assigned' || b.status === 'Ongoing').sort(byPickup), [bookings]);
   const completedTrips = useMemo(
-    () =>
-      bookings
-        .filter((b) => b.status === 'Completed')
-        .sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0)),
+    () => bookings.filter((b) => b.status === 'Completed').sort((a, b) => (b.completedAt?.getTime() ?? 0) - (a.completedAt?.getTime() ?? 0)),
     [bookings],
   );
+  const cancelledTrips = useMemo(() => bookings.filter((b) => b.status === 'Cancelled' || b.status === 'Rejected').sort(byPickup), [bookings]);
+  // A trip already in progress comes first; otherwise the earliest pickup.
+  const nextTrip = useMemo(() => upcoming.find(tripIsActive) ?? upcoming[0] ?? null, [upcoming]);
+  const activeTrip = nextTrip;
+  const viewTrip = useMemo(() => (tripId ? bookings.find((b) => b.id === tripId) ?? null : null), [bookings, tripId]);
 
   // Presence follows the trip: On Trip while one is active, back to Online after.
   const presence: DriverStatus = driver.presenceStatus;
@@ -117,11 +130,13 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
     }
   }, [activeTrip, presence, driver.id]);
 
-  // Leave the verification screen if the trip started, was cancelled or was reassigned
+  // Leave the photo check if the trip started, was cancelled or was reassigned
   // (photos can be taken before leaving or at the pickup).
   useEffect(() => {
-    if (inPreTrip && (!activeTrip || (activeTrip.subStatus !== 'Not Started' && activeTrip.subStatus !== 'Reached Pickup'))) setInPreTrip(false);
-  }, [inPreTrip, activeTrip]);
+    if (page === 'camera' && (!viewTrip || viewTrip.status === 'Completed' || viewTrip.status === 'Cancelled' || (viewTrip.subStatus !== 'Not Started' && viewTrip.subStatus !== 'Reached Pickup'))) {
+      setPage(viewTrip ? 'trip' : 'trips');
+    }
+  }, [page, viewTrip]);
 
   // A penalty must be acknowledged (or disputed) before the driver carries on.
   const mustAcknowledge = useMemo(() => penalties.find((p) => p.status === 'Pending' && !p.acknowledged) ?? null, [penalties]);
@@ -131,6 +146,17 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   const earnings = useMemo(() => summarizeEarnings(ledger), [ledger]);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // ── Navigation ───────────────────────────────────────────────────────────
+  const go = useCallback((next: ShellPage) => {
+    setPage(next);
+    window.scrollTo({ top: 0 });
+  }, []);
+  const openTrip = (t: TripDetails) => {
+    setTripId(t.id);
+    go('trip');
+  };
+  const navigate = (id: NavItem['id']) => go(id);
 
   // ── Handlers ─────────────────────────────────────────────────────────────
   const handlePresenceChange = async (next: DriverStatus) => {
@@ -148,57 +174,79 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
     }
   };
 
-  const handleAccept = async (offer: MarketplaceOffer) => {
+  const handleAccept = async (offer: MarketplaceOffer): Promise<boolean> => {
     if (activeTrip) {
       notify('error', 'You already have an active trip.');
-      return;
+      return false;
     }
     setAcceptingId(offer.id);
     try {
       await acceptMarketplaceTrip(driver, account.vehicle.vehicleNumber, offer);
       notify('ok', 'Trip accepted! Drive to the pickup; take the vehicle photos before you start the trip.');
-      setActiveTab('dashboard');
+      go('home');
+      return true;
     } catch (err) {
       notify('error', err instanceof Error && !(err as { code?: string }).code
         ? err.message
         : describeFirestoreError(err, 'This trip is no longer available — another partner may have taken it.'));
+      return false;
     } finally {
       setAcceptingId(null);
     }
   };
 
+  const handleBid = async (offer: MarketplaceOffer, rate: number, note: string): Promise<boolean> => {
+    try {
+      await submitDutyBid(offer, rate, note);
+      notify('ok', 'Bid sent. NESAM reviews bids and will notify you if it is accepted.');
+      return true;
+    } catch (err) {
+      notify('error', err instanceof Error && !(err as { code?: string }).code ? err.message : describeFirestoreError(err, 'Your bid could not be sent.'));
+      return false;
+    }
+  };
+
+  const handleWithdrawBid = async (offer: MarketplaceOffer): Promise<boolean> => {
+    try {
+      await withdrawDutyBid(offer);
+      notify('ok', 'Your bid was withdrawn.');
+      return true;
+    } catch (err) {
+      notify('error', err instanceof Error && !(err as { code?: string }).code ? err.message : describeFirestoreError(err, 'Your bid could not be withdrawn.'));
+      return false;
+    }
+  };
+
   const handleVerified = () => {
-    setInPreTrip(false);
-    setActiveTab('trip');
+    go('trip');
     notify('ok', 'Vehicle photos submitted. Start the trip at the pickup once the boarding OTP is verified.');
   };
 
   const handleTripStart = async (requestId: string) => {
-    if (!activeTrip) return;
+    if (!viewTrip) return;
     const location = await getFirebaseLocation();
-    await advanceTrip({ bookingId: activeTrip.id, to: 'Trip Started', location, requestId });
+    await advanceTrip({ bookingId: viewTrip.id, to: 'Trip Started', location, requestId });
   };
 
   const handleReachedPickup = async (requestId: string) => {
-    if (!activeTrip) return;
+    if (!viewTrip) return;
     const location = await getFirebaseLocation();
-    await advanceTrip({ bookingId: activeTrip.id, to: 'Reached Pickup', location, requestId });
+    await advanceTrip({ bookingId: viewTrip.id, to: 'Reached Pickup', location, requestId });
   };
 
   const handleVerifyBoarding = async (otp: string) => {
-    if (!activeTrip) return;
-    await verifyBoarding(activeTrip.id, otp);
+    if (!viewTrip) return;
+    await verifyBoarding(viewTrip.id, otp);
   };
 
   const handleTripEnd = async (totalKm: number, tolls: TollReceipt[], requestId: string) => {
-    if (!activeTrip) return;
-    const fleetTrip = activeTrip.fleetTrip;
+    if (!viewTrip) return;
+    const fleetTrip = viewTrip.fleetTrip;
     const location = await getFirebaseLocation();
-    await advanceTrip({ bookingId: activeTrip.id, to: 'Trip Ended', location, totalKm, tolls, requestId });
+    await advanceTrip({ bookingId: viewTrip.id, to: 'Trip Ended', location, totalKm, tolls, requestId });
     notify('ok', fleetTrip
       ? 'Trip ended. Your fleet operator settles your pay for this trip.'
       : 'Trip ended. Your earning is added to your wallet once NESAM verifies the fare, and becomes withdrawable when the customer’s payment is confirmed.');
-    setActiveTab('dashboard');
   };
 
   const handleRequestPayout = async (amount: number, method: 'UPI' | 'Bank Transfer') => {
@@ -206,45 +254,11 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
     notify('ok', 'Payout request sent. The amount is held until NESAM Finance transfers it.');
   };
 
-  const goTab = (tab: string) => {
-    setEditingDocs(false);
-    setInPreTrip(false);
-    setActiveTab(tab);
-  };
-
-  return (
-    <div className="min-h-screen bg-[#F7F7F7] text-[#111111] font-sans antialiased flex flex-col">
-      <Header
-        status={presence}
-        onStatusChange={handlePresenceChange}
-        profile={driver}
-        walletBalance={wallet.available}
-        activeTab={activeTab}
-        setActiveTab={goTab}
-        unreadNotificationsCount={unreadCount}
-        fleetDriver={!independent}
-        onOpenSOS={() => setShowSOS(true)}
-        onLogout={onSignOut}
-      />
-
-      {toast && (
-        <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 w-[calc(100%-2rem)] max-w-md">
-          <div
-            className={`p-3 rounded-xl text-xs font-bold shadow-lg flex items-start gap-2 border ${
-              toast.kind === 'ok' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-red-50 text-red-700 border-red-200'
-            }`}
-          >
-            {toast.kind === 'ok' ? <CheckCircle2 className="w-4 h-4 shrink-0" /> : <AlertTriangle className="w-4 h-4 shrink-0" />}
-            <span className="flex-1">{toast.text}</span>
-            <button onClick={() => setToast(null)}><X className="w-4 h-4" /></button>
-          </div>
-        </div>
-      )}
-
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
-        {inPreTrip && activeTrip ? (
-          <VehicleVerificationScreen trip={activeTrip} onDone={handleVerified} onCancel={() => setInPreTrip(false)} />
-        ) : editingDocs ? (
+  // The document update form keeps its production layout; it runs full-screen outside the themed shell.
+  if (page === 'documents') {
+    return (
+      <div className="min-h-screen bg-[#F7F7F7] text-[#111111] font-sans antialiased">
+        <main className="max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
           <RegistrationScreen
             uid={driver.id}
             mode="update"
@@ -252,121 +266,153 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
             fleetDriver={!!driver.vendorId}
             currentStatus={driver.approvalStatus}
             onSubmitted={() => {
-              setEditingDocs(false);
+              go('profile');
               notify('ok', 'Documents submitted for re-verification.');
             }}
-            onCancel={() => setEditingDocs(false)}
+            onCancel={() => go('profile')}
           />
-        ) : (
-          <>
-            {activeTab === 'dashboard' && (
-              <DashboardScreen
-                status={presence}
-                presenceBusy={presenceBusy}
-                onStatusChange={handlePresenceChange}
-                account={account}
-                activeTrip={activeTrip}
-                offers={offers}
-                earnings={earnings}
-                completedTripsCount={completedTrips.length}
-                acceptingId={acceptingId}
-                onAcceptTrip={handleAccept}
-                onStartPreTrip={() => setInPreTrip(true)}
-                onOpenTrip={() => setActiveTab('trip')}
-                onNavigate={goTab}
-              />
-            )}
+        </main>
+      </div>
+    );
+  }
 
-            {activeTab === 'trip' &&
-              (activeTrip ? (
-                <TripExecutionScreen
-                  key={activeTrip.id}
-                  trip={activeTrip}
-                  onStartVerification={() => setInPreTrip(true)}
-                  onTripStart={handleTripStart}
-                  onReachedPickup={handleReachedPickup}
-                  onVerifyBoarding={handleVerifyBoarding}
-                  onTripEnd={handleTripEnd}
-                />
-              ) : (
-                <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-8">
-                  <h3 className="text-lg font-bold text-gray-800">No Active Trip</h3>
-                  <p className="text-sm text-gray-700">Go online and accept a trip from the dashboard to get started.</p>
-                  <button onClick={() => goTab('dashboard')} className="px-6 py-3 bg-[#E21E26] text-white text-sm font-bold rounded-xl">
-                    Go to Dashboard
-                  </button>
-                </div>
-              ))}
+  const online = presence !== 'Offline';
+  const activePage: ShellPage = (page === 'earnings' || page === 'wallet') && !independent ? 'home' : page;
 
-            {activeTab === 'earnings' && independent && (
-              <EarningsScreen earnings={earnings} completedTrips={completedTrips} ledger={ledger} fleetDriver={!independent} fleetName={driver.vendorName} />
-            )}
+  let body: React.ReactNode = null;
+  if (activePage === 'home') {
+    body = (
+      <HomeScreen
+        account={account}
+        now={now}
+        online={online}
+        presenceBusy={presenceBusy}
+        hasActiveTrip={Boolean(activeTrip)}
+        trip={nextTrip}
+        assignedCount={upcoming.length}
+        completedCount={completedTrips.length}
+        offers={offers}
+        acceptingId={acceptingId}
+        onGoOnline={() => void handlePresenceChange('Online')}
+        onAccept={handleAccept}
+        onBid={handleBid}
+        onWithdrawBid={handleWithdrawBid}
+        onOpenTrip={openTrip}
+        onNavigate={(p) => go(p)}
+        earnings={earnings}
+        walletAvailable={wallet.available}
+      />
+    );
+  } else if (activePage === 'trips') {
+    body = (
+      <TripsScreen
+        tab={tripsTab}
+        onTab={setTripsTab}
+        now={now}
+        upcoming={upcoming}
+        completed={completedTrips}
+        cancelled={cancelledTrips}
+        ledger={ledger}
+        onOpenTrip={openTrip}
+        onBrowse={() => go('home')}
+      />
+    );
+  } else if (activePage === 'trip') {
+    body = viewTrip ? (
+      <TripFlowScreen
+        key={viewTrip.id}
+        trip={viewTrip}
+        now={now}
+        rules={rules}
+        onBack={() => go('trips')}
+        onStartVerification={() => go('camera')}
+        onReachedPickup={handleReachedPickup}
+        onVerifyBoarding={handleVerifyBoarding}
+        onTripStart={handleTripStart}
+        onTripEnd={handleTripEnd}
+        onHelp={() => setSupport({ tripCode: viewTrip.bookingId, started: viewTrip.subStatus !== 'Not Started' })}
+      />
+    ) : (
+      <section className="panel empty-state">
+        <h3>No trip selected</h3>
+        <p>Open a trip from My Trips to continue.</p>
+        <button type="button" className="button primary" onClick={() => go('trips')}>
+          Go to My Trips
+        </button>
+      </section>
+    );
+  } else if (activePage === 'camera') {
+    body = viewTrip ? <VehicleVerificationScreen trip={viewTrip} onDone={handleVerified} onCancel={() => go('trip')} /> : null;
+  } else if (activePage === 'earnings') {
+    body = <EarningsScreen earnings={earnings} completedTrips={completedTrips} ledger={ledger} fleetDriver={!independent} fleetName={driver.vendorName} onOpenWallet={() => go('wallet')} />;
+  } else if (activePage === 'wallet') {
+    body = (
+      <WalletPayoutScreen
+        wallet={wallet}
+        bank={account.bank}
+        payoutRequests={payouts}
+        ledger={ledger}
+        fleetDriver={!independent}
+        onRequestPayout={handleRequestPayout}
+        onSupport={() => setSupport({})}
+      />
+    );
+  } else if (activePage === 'notifications') {
+    body = (
+      <NotificationsScreen
+        notifications={notifications}
+        penalties={penalties}
+        penaltiesError={penaltiesError}
+        onMarkRead={(id) => markNotificationRead(id).catch(() => undefined)}
+        onOpenPenalty={(p) => setAckPenaltyId(p.id)}
+      />
+    );
+  } else if (activePage === 'profile') {
+    body = (
+      <ProfileScreen
+        account={account}
+        completedTrips={completedTrips.length}
+        onEditDocuments={() => go('documents')}
+        onSaveContact={(fields) => updateDriverContactDetails(driver.id, fields)}
+        onSignOut={onSignOut}
+        onSupport={() => setSupport({})}
+      />
+    );
+  }
 
-            {activeTab === 'wallet' && independent && (
-              <WalletPayoutScreen
-                wallet={wallet}
-                bank={account.bank}
-                payoutRequests={payouts}
-                ledger={ledger}
-                fleetDriver={!independent}
-                onRequestPayout={handleRequestPayout}
-              />
-            )}
-
-            {activeTab === 'notifications' && (
-              <NotificationsScreen
-                notifications={notifications}
-                penalties={penalties}
-                penaltiesError={penaltiesError}
-                onMarkRead={(id) => markNotificationRead(id).catch(() => undefined)}
-                onOpenPenalty={(p) => setAckPenaltyId(p.id)}
-              />
-            )}
-
-            {activeTab === 'profile' && (
-              <ProfileScreen
-                account={account}
-                completedTrips={completedTrips.length}
-                onEditDocuments={() => setEditingDocs(true)}
-                onSaveContact={(fields) => updateDriverContactDetails(driver.id, fields)}
-                onSignOut={onSignOut}
-              />
-            )}
-          </>
-        )}
-      </main>
-
-      {showSOS && (
-        <div className="fixed inset-0 z-50 bg-gray-900/50 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border-2 border-[#E21E26] rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl relative">
-            <button onClick={() => setShowSOS(false)} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-              <X className="w-5 h-5" />
-            </button>
-            <div className="flex items-center gap-3 text-[#E21E26]">
-              <AlertTriangle className="w-8 h-8 animate-pulse" />
-              <div>
-                <h2 className="text-lg font-black tracking-tight text-gray-900">NESAM EMERGENCY SOS</h2>
-                <p className="text-xs text-[#E21E26] font-bold">24x7 Driver Control &amp; Police Help</p>
-              </div>
-            </div>
-            <div className="space-y-2 pt-2">
-              <a href="tel:112" className="w-full py-3 bg-[#E21E26] hover:bg-[#C9141B] text-white font-black text-xs rounded-xl shadow flex items-center justify-center gap-2">
-                <PhoneCall className="w-4 h-4" /> CALL POLICE EMERGENCY (112)
-              </a>
-              <a href={`tel:${SUPPORT_PHONE}`} className="w-full py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 font-bold text-xs rounded-xl flex items-center justify-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-emerald-500" /> CALL NESAM DRIVER CONTROL ROOM
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+  return (
+    <>
+      <Shell
+        page={activePage}
+        fleetDriver={!independent}
+        driver={{ name: driver.name, photoUrl: driver.photoUrl }}
+        tripCount={upcoming.length}
+        online={online}
+        presenceLocked={Boolean(activeTrip)}
+        presenceBusy={presenceBusy}
+        hasUnread={unreadCount > 0}
+        unreadCount={unreadCount}
+        onNavigate={navigate}
+        onToggleOnline={() => void handlePresenceChange(online ? 'Offline' : 'Online')}
+        onOpenNotifications={() => go('notifications')}
+        onOpenSupport={() => setSupport({})}
+        toast={toast}
+        onDismissToast={() => setToast(null)}
+        overlays={<SupportDialog open={support !== null} onClose={() => setSupport(null)} context={support ?? {}} />}
+      >
+        {body}
+      </Shell>
 
       <NotificationPopups
         notifications={notifications}
         onOpen={(n) => {
           markNotificationRead(n.id).catch(() => undefined);
-          if (n.category === 'penalties') goTab('notifications');
-          else goTab(['dashboard', 'trip', 'earnings', 'wallet', 'notifications', 'profile'].includes(n.ctaPage) ? n.ctaPage : 'notifications');
+          if (n.category === 'penalties') go('notifications');
+          else if (n.ctaPage === 'dashboard') go('home');
+          else if (n.ctaPage === 'trip') {
+            if (nextTrip) openTrip(nextTrip);
+            else go('trips');
+          } else go(['earnings', 'wallet', 'notifications', 'profile'].includes(n.ctaPage) ? (n.ctaPage as ShellPage) : 'notifications');
         }}
       />
       {penaltyToShow && (
@@ -379,8 +425,6 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
           }}
         />
       )}
-
-      <BottomNav activeTab={activeTab} setActiveTab={goTab} hasActiveTrip={Boolean(activeTrip)} unreadCount={unreadCount} fleetDriver={!independent} />
-    </div>
+    </>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CheckCircle2, Gauge, Loader2, RefreshCw, ShieldCheck, Timer } from 'lucide-react';
 import type { TripDetails } from '../types';
 import { CameraCapture } from '../components/CameraCapture';
+import { Icon, type IconName } from '../components/nx/Icon';
 import { ActionError } from '../services/callables';
 import { getFirebaseLocation } from '../services/location';
 import {
@@ -24,10 +24,13 @@ interface Props {
 
 type Phase = 'intro' | 'starting' | 'capturing' | 'review' | 'uploading' | 'odometer' | 'submitting';
 
+const SLOT_ICON: Record<Slot, IconName> = { selfie: 'user', front: 'car', rear: 'car', interior: 'car' };
+const SUBJECT: Record<Slot, string> = { selfie: 'selfie', front: 'vehicle front', rear: 'vehicle rear', interior: 'dashboard' };
+
 /**
- * Step-by-step vehicle verification: front, rear, then dashboard/interior. Each step shows
- * a short-lived instruction, opens the live camera (no gallery), lets the driver retake,
- * and only moves on once the server has accepted the photo.
+ * Step-by-step vehicle verification: selfie, front, rear, then dashboard/interior. Each step shows a short-lived
+ * instruction, opens the live camera (no gallery), lets the driver retake, and only moves on once the server has
+ * accepted the photo. The server session, challenge and finalize calls are unchanged.
  */
 export const VehicleVerificationScreen: React.FC<Props> = ({ trip, onDone, onCancel }) => {
   const [phase, setPhase] = useState<Phase>('intro');
@@ -125,238 +128,188 @@ export const VehicleVerificationScreen: React.FC<Props> = ({ trip, onDone, onCan
     setError('');
     setPhase('submitting');
     try {
-      await finalizeVerification(session.sessionId, n);
+      await finalizeVehicleVerification(session.sessionId, n);
+      onDone();
     } catch (err) {
       fail(err, 'The verification could not be submitted.');
       setPhase('odometer');
     }
   };
-  const finalizeVerification = async (sessionId: string, n: number) => {
-    await finalizeVehicleVerification(sessionId, n);
-    onDone();
-  };
 
-  const header = (
-    <div className="bg-white p-5 sm:p-6 rounded-2xl border border-gray-200 shadow-sm">
-      <div className="flex items-center gap-3 mb-2">
-        <div className="w-10 h-10 rounded-xl bg-[#E21E26] flex items-center justify-center shrink-0">
-          <ShieldCheck className="w-6 h-6 text-white" />
-        </div>
-        <div>
-          <span className="text-xs uppercase font-bold tracking-widest text-[#E21E26]">Mandatory safety check</span>
-          <h1 className="text-lg font-black text-gray-900">Vehicle Verification</h1>
-        </div>
-      </div>
-      <p className="text-sm text-gray-700">
-        Trip <span className="font-mono font-bold text-[#E21E26]">{trip.bookingId}</span>
-        {session?.vehicleNumber ? ` · ${session.vehicleNumber}` : ''}
-      </p>
-    </div>
+  const back = (
+    <button type="button" className="trip-back" onClick={onCancel}>
+      <Icon name="chevron" />
+      Trip
+    </button>
   );
 
-  if (phase === 'intro') {
-    return (
-      <div className="max-w-3xl mx-auto space-y-5">
-        {header}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3 text-sm text-gray-800">
-          <p className="font-bold">You will take 4 photos with the camera, one at a time:</p>
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Your own selfie</li>
-            <li>Vehicle front</li>
-            <li>Vehicle rear</li>
-            <li>Dashboard / interior</li>
-          </ol>
-          <p>
-            For each photo the app shows a short instruction and a 4-digit code that expire after a few minutes. Take the photo straight away. Photos from the
-            gallery, old photos or photos of another screen are not accepted, and suspicious photos are flagged to NESAM.
-          </p>
-          <label className="flex items-start gap-2 font-semibold text-gray-900">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="w-5 h-5 mt-0.5 accent-[#E21E26]" />
-            <span>
-              I understand that the photos, the time they were taken and (if I allow it) my location are saved and shared with NESAM to verify the vehicle.
-            </span>
-          </label>
-        </div>
-        {error && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm font-semibold p-3 rounded-xl">
-            {error}
-          </div>
-        )}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-between gap-3">
-          <button onClick={onCancel} className="px-5 py-3 border border-gray-300 text-gray-800 text-sm font-bold rounded-xl">
-            Back
-          </button>
-          <button onClick={() => void begin()} disabled={!consent} className="px-8 py-3 bg-[#E21E26] text-white text-sm font-extrabold rounded-xl disabled:opacity-50">
-            Start verification
-          </button>
-        </div>
-      </div>
-    );
-  }
+  const errorBox = <div className="nx-form-error" role="alert">{error}</div>;
 
-  const stepper = (
-    <div className="grid grid-cols-3 gap-2" aria-label="Progress">
+  const checklist = (withRetake: boolean) => (
+    <div className="nx-photo-checks">
       {SLOTS.map((s, i) => (
-        <div
-          key={s.slot}
-          className={`rounded-xl border p-2 text-center text-xs font-bold ${
-            accepted[s.slot]
-              ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
-              : i === index && phase !== 'odometer'
-                ? 'bg-red-50 border-red-300 text-[#E21E26]'
-                : 'bg-gray-50 border-gray-200 text-gray-600'
-          }`}
-        >
-          {accepted[s.slot] ? (
-            <img src={accepted[s.slot]} alt={`${s.label} captured`} className="w-full h-14 object-cover rounded-lg mb-1" />
-          ) : (
-            <div className="h-14 flex items-center justify-center text-lg">{i + 1}</div>
-          )}
-          {s.label}
-          {accepted[s.slot] && phase !== 'submitting' && session && (
-            <button type="button" onClick={() => void openStep(session.sessionId, i)} className="block w-full mt-1 text-[11px] underline">
+        <div className={`nx-photo-check ${accepted[s.slot] ? 'is-captured' : ''}`} key={s.slot}>
+          <div className="nx-photo-thumb">{accepted[s.slot] ? <img src={accepted[s.slot]} alt={`${s.label} captured`} /> : <Icon name={SLOT_ICON[s.slot]} />}</div>
+          <div className="nx-photo-copy">
+            <small>STEP {i + 1}</small>
+            <strong>{s.label}</strong>
+            <p>{accepted[s.slot] ? 'Captured live' : s.hint}</p>
+          </div>
+          {withRetake && accepted[s.slot] && session ? (
+            <button type="button" className="nx-photo-action" disabled={phase === 'submitting'} onClick={() => void openStep(session.sessionId, i)}>
               Retake
+              <Icon name="refresh" />
             </button>
-          )}
+          ) : null}
         </div>
       ))}
     </div>
   );
 
-  if (phase === 'odometer' || phase === 'submitting') {
+  if (phase === 'intro') {
     return (
-      <div className="max-w-3xl mx-auto space-y-5">
-        {header}
-        {stepper}
-        <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
-          <p className="text-sm font-bold text-gray-900 flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-600" /> All 4 photos accepted
+      <div className="trip-flow nx-camera-page">
+        {back}
+        <div className="nx-trip-meta">{trip.bookingId}{session?.vehicleNumber ? ` · ${session.vehicleNumber}` : ''}</div>
+        <h2 className="nx-route-title">Vehicle photo check</h2>
+        <p className="nx-copy" style={{ marginTop: 8 }}>Take your live selfie and the vehicle photos, one at a time, then enter the starting odometer reading. This safety check is required before the trip can start.</p>
+        <section className="nx-panel" style={{ marginTop: 18 }}>
+          {checklist(false)}
+          <p className="nx-copy" style={{ marginTop: 16 }}>
+            For each photo the app shows a short instruction and a 4-digit code that expire after a few minutes. Take the photo straight away. Photos from the gallery, old photos or photos of another screen are not accepted, and suspicious photos are flagged to NESAM.
           </p>
-          <label className="block">
-            <span className="text-sm font-bold text-gray-900 block mb-1">
-              Starting odometer reading (km) <span className="text-[#E21E26]">*</span>
-            </span>
-            <div className="relative max-w-xs">
-              <Gauge className="w-5 h-5 text-gray-500 absolute left-3 top-3" />
-              <input
-                type="number"
-                inputMode="numeric"
-                min={1}
-                value={reading}
-                onChange={(e) => setReading(e.target.value.replace(/[^\d]/g, ''))}
-                placeholder="e.g. 48210"
-                className="w-full pl-10 pr-3 py-3 border border-gray-400 rounded-xl text-base font-mono font-bold"
-              />
-            </div>
+          <label className="nx-consent">
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} />
+            <span>I understand that the photos, the time they were taken and (if I allow it) my location are saved and shared with NESAM to verify the vehicle.</span>
           </label>
-        </div>
-        {error && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm font-semibold p-3 rounded-xl">
-            {error}
+          {errorBox}
+          <div className="nx-actions">
+            <button type="button" className="nx-button primary" onClick={() => void begin()} disabled={!consent}>
+              Start photo check <Icon name="camera" />
+            </button>
           </div>
-        )}
-        <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
-          <button
-            onClick={() => session && void openStep(session.sessionId, 0)}
-            disabled={phase === 'submitting'}
-            className="px-5 py-3 border border-gray-300 text-gray-800 text-sm font-bold rounded-xl"
-          >
-            Retake photos
-          </button>
-          <button
-            onClick={() => void submit()}
-            disabled={phase === 'submitting' || !allDone}
-            className="px-8 py-3 bg-[#E21E26] text-white text-sm font-extrabold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
-          >
-            {phase === 'submitting' ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />} Submit verification
-          </button>
-        </div>
+          <p className="nx-camera-only">
+            <Icon name="shield" />
+            Camera only · No gallery upload
+          </p>
+        </section>
       </div>
     );
   }
 
-  return (
-    <div className="max-w-3xl mx-auto space-y-5">
-      {header}
-      {stepper}
-      <div className="bg-white p-5 rounded-2xl border border-gray-200 space-y-3">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-gray-600">
-              Step {index + 1} of {SLOTS.length}
-            </p>
-            <h2 className="text-lg font-black text-gray-900">Capture {step.label}</h2>
-            <p className="text-sm text-gray-700">{step.hint}</p>
-          </div>
-          {challenge && (
-            <span
-              className={`shrink-0 flex items-center gap-1 text-sm font-bold px-2.5 py-1 rounded-lg border ${
-                secondsLeft <= 30 ? 'bg-red-50 text-red-700 border-red-300' : 'bg-gray-50 text-gray-800 border-gray-300'
-              }`}
-            >
-              <Timer className="w-4 h-4" />
-              {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')}
-            </span>
-          )}
+  if (phase === 'odometer' || phase === 'submitting') {
+    return (
+      <div className="trip-flow nx-camera-page">
+        {back}
+        <div className="nx-camera-top">
+          <span className="nx-eyebrow">Final step</span>
+          <span className="nx-live-badge"><span />All photos accepted</span>
         </div>
-        {challenge ? (
-          <div className="rounded-xl bg-amber-50 border border-amber-300 p-3 text-sm text-amber-950">
-            <p className="font-bold">Now: {challenge.instruction}</p>
-            <p>
-              Show or write this code in the photo if you can: <span className="font-mono font-extrabold text-lg tracking-widest">{challenge.code}</span>
-            </p>
+        <h2 className="nx-route-title">Starting odometer</h2>
+        <p className="nx-copy" style={{ marginTop: 8 }}>Enter the reading shown on the dashboard, then submit the check.</p>
+        <section className="nx-panel" style={{ marginTop: 18 }}>
+          {checklist(true)}
+          <label className="nx-field nx-running" htmlFor="odometer">
+            Starting odometer reading
+          </label>
+          <div className="nx-km-control">
+            <input
+              id="odometer"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              placeholder="e.g. 48210"
+              value={reading}
+              onChange={(e) => setReading(e.target.value.replace(/[^\d]/g, ''))}
+            />
+            <span aria-hidden="true">km</span>
           </div>
-        ) : (
-          phase !== 'starting' && (
-            <button onClick={() => session && void openStep(session.sessionId, index)} className="px-4 py-2 border border-gray-400 rounded-lg text-sm font-bold">
-              Get the instruction again
+          {errorBox}
+          <div className="nx-actions">
+            <button type="button" className="nx-button primary" onClick={() => void submit()} disabled={phase === 'submitting' || !allDone}>
+              {phase === 'submitting' ? 'Submitting…' : 'Submit verification'} <Icon name="check" />
             </button>
-          )
-        )}
-        {error && (
-          <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm font-semibold p-3 rounded-xl flex gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" /> {error}
+            <button type="button" className="nx-button" onClick={() => session && void openStep(session.sessionId, 0)} disabled={phase === 'submitting'}>
+              Retake photos
+            </button>
           </div>
-        )}
+        </section>
+      </div>
+    );
+  }
 
-        {phase === 'starting' && (
-          <div className="py-10 flex flex-col items-center gap-2 text-gray-700" role="status">
-            <Loader2 className="w-7 h-7 animate-spin" />
-            <span className="text-sm font-semibold">Preparing…</span>
-          </div>
-        )}
-        {phase === 'capturing' && challenge && <CameraCapture key={step.slot} facing={step.slot === 'selfie' ? 'user' : 'environment'} onCapture={onCapture} />}
-        {(phase === 'review' || phase === 'uploading') && shot && (
-          <div className="space-y-3">
-            <img src={shot.url} alt={`${step.label} preview`} className="w-full rounded-2xl border border-gray-300" />
-            <div className="flex flex-col-reverse sm:flex-row gap-3 sm:justify-end">
-              <button
-                onClick={() => {
-                  setShot(null);
-                  setPhase('capturing');
-                }}
-                disabled={phase === 'uploading'}
-                className="px-5 py-3 border border-gray-400 text-gray-900 text-sm font-bold rounded-xl flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                <RefreshCw className="w-4 h-4" /> Retake
-              </button>
-              <button
-                onClick={() => void usePhoto()}
-                disabled={phase === 'uploading'}
-                className="px-8 py-3 bg-[#E21E26] text-white text-sm font-extrabold rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {phase === 'uploading' ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
-                {phase === 'uploading' ? 'Checking…' : 'Use this photo'}
-              </button>
-            </div>
-          </div>
-        )}
+  const subject = SUBJECT[step.slot];
+  const urgent = secondsLeft <= 30;
+  return (
+    <div className="trip-flow nx-camera-page">
+      {back}
+      <div className="nx-camera-top">
+        <span className="nx-eyebrow">
+          Step {index + 1} of {SLOTS.length}
+        </span>
+        <span className="nx-live-badge">
+          <span />
+          {phase === 'review' || phase === 'uploading' ? 'Captured live' : 'Live camera'}
+        </span>
       </div>
-      <div className="flex justify-start">
-        <button onClick={onCancel} className="px-4 py-2.5 border border-gray-300 text-gray-700 text-sm font-bold rounded-xl">
-          Cancel
-        </button>
-      </div>
+      <h2 className="nx-route-title">{step.slot === 'selfie' ? 'Take a live selfie' : `Capture ${subject}`}</h2>
+      <p className="nx-copy" style={{ marginTop: 8 }}>{step.hint}</p>
+
+      {challenge ? (
+        <div className={`nx-status ${urgent ? 'amber' : ''}`} style={{ marginTop: 16 }}>
+          <Icon name="clock" />
+          <span>
+            Now: {challenge.instruction}. Code <strong>{challenge.code}</strong> · {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} left
+          </span>
+        </div>
+      ) : phase !== 'starting' ? (
+        <div className="nx-actions" style={{ marginTop: 16 }}>
+          <button type="button" className="nx-button" onClick={() => session && void openStep(session.sessionId, index)}>
+            Get the instruction again
+          </button>
+        </div>
+      ) : null}
+
+      {phase === 'starting' ? (
+        <div className={`nx-camera-frame ${step.slot === 'selfie' ? 'is-selfie' : 'is-car'}`} role="status">
+          <div className="nx-camera-placeholder">
+            <Icon name={SLOT_ICON[step.slot]} />
+            <span>Preparing…</span>
+          </div>
+        </div>
+      ) : null}
+      {phase === 'capturing' && challenge ? <CameraCapture key={step.slot} facing={step.slot === 'selfie' ? 'user' : 'environment'} subject={subject} onCapture={onCapture} /> : null}
+      {(phase === 'review' || phase === 'uploading') && shot ? (
+        <>
+          <div className={`nx-camera-frame ${step.slot === 'selfie' ? 'is-selfie' : 'is-car'}`}>
+            <img className="nx-camera-result" src={shot.url} alt={`${step.label} captured from the live camera`} />
+          </div>
+          <p className="nx-camera-message" role="status">{phase === 'uploading' ? 'Checking the photo…' : 'Check that the photo is clear before continuing.'}</p>
+          {errorBox}
+          <div className="nx-actions">
+            <button type="button" className="nx-button primary" onClick={() => void usePhoto()} disabled={phase === 'uploading'}>
+              {phase === 'uploading' ? 'Checking…' : 'Use this photo'} <Icon name="check" />
+            </button>
+            <button
+              type="button"
+              className="nx-button"
+              disabled={phase === 'uploading'}
+              onClick={() => {
+                setShot(null);
+                setPhase('capturing');
+              }}
+            >
+              Retake live photo
+            </button>
+          </div>
+        </>
+      ) : phase === 'capturing' ? (
+        errorBox
+      ) : null}
+      <p className="nx-camera-only">
+        <Icon name="shield" />
+        Camera only · No gallery upload
+      </p>
     </div>
   );
 };
