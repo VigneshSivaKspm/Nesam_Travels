@@ -44,7 +44,7 @@ export default defineConfig(({ mode }) => {
     envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
     resolve: {
       alias: {
-        '@core': path.resolve(here, '../app/src'),
+        '@core': path.resolve(here, '../user/app/src'),
         '@': path.resolve(here, 'src'),
         'expo-location': path.resolve(here, 'src/platform/expoLocation.ts'),
       },
@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: Number(process.env.PORT || 8084),
-      fs: { allow: [here, path.resolve(here, '../app')] },
+      fs: { allow: [here, path.resolve(here, '../user/app')] },
     },
     preview: { host: '0.0.0.0', port: Number(process.env.PORT || 8084) },
     build: {

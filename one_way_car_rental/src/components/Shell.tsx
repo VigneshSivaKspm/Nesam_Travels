@@ -12,7 +12,7 @@ import { Icon } from './Icon';
 export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
     <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a ride">
-      <img src="/brand/logo.svg" alt="" width={40} height={40} />
+      <img src="/brand/ow-logo.png" alt="" width={40} height={40} />
       <span className="brand__word">
         <b>
           One Way <i>Car Rental</i>

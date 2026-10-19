@@ -1,8 +1,12 @@
 import type { ExpoConfig } from 'expo/config';
+declare const require: (id: string) => { existsSync(path: string): boolean };
+const { existsSync } = require('fs');
 
 // Firebase Cloud Messaging needs the app's google-services.json (download it from the Firebase console).
 // Set GOOGLE_SERVICES_JSON to its path (an EAS file secret works); builds without it have no push.
-const googleServicesFile = process.env.GOOGLE_SERVICES_JSON;
+// Falls back to ./google-services.json next to this file when present (local builds); EAS cloud builds
+// do not upload that git-ignored file, so there GOOGLE_SERVICES_JSON must be an EAS file secret.
+const googleServicesFile = process.env.GOOGLE_SERVICES_JSON || (existsSync('./google-services.json') ? './google-services.json' : undefined);
 
 const config: ExpoConfig = {
   owner: 'vigneshsivakspm',

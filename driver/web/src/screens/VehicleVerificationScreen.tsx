@@ -259,7 +259,7 @@ export const VehicleVerificationScreen: React.FC<Props> = ({ trip, onDone, onCan
         <div className={`nx-status ${urgent ? 'amber' : ''}`} style={{ marginTop: 16 }}>
           <Icon name="clock" />
           <span>
-            Now: {challenge.instruction}. Code <strong>{challenge.code}</strong> · {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} left
+            Now: {challenge.instruction}. Show or write this code in the photo if you can: <strong>{challenge.code}</strong> · {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, '0')} left
           </span>
         </div>
       ) : phase !== 'starting' ? (

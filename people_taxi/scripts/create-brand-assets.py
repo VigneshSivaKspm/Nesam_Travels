@@ -1,237 +1,257 @@
 """
-Generate high-fidelity vector SVGs and raster PNGs for People Taxi branding:
-- Logo (SVG + PNG)
-- White Logo for dark/blue backgrounds (SVG)
-- App Icon & Favicon (SVG + PNG)
+Process and generate all People Taxi brand assets from the user-provided official assets:
+- Source: people_taxi/public/icons/logo.jpeg and banner.jpeg + favicon/icon suite
+- Outputs:
+  * people_taxi/public/brand/icon.png (high-res circular emblem, transparent)
+  * people_taxi/public/brand/icon-512.png (512x512)
+  * people_taxi/public/brand/icon-192.png (192x192)
+  * people_taxi/public/brand/logo.png (cropped horizontal lockup, transparent)
+  * people_taxi/public/brand/logo-white.png (horizontal lockup with white text for dark mode, transparent)
+  * people_taxi/public/brand/banner.png (high-res marketing & social sharing banner)
+  * people_taxi/public/brand/icon.svg, logo.svg, logo-white.svg
+  * people_taxi/public/favicon.png, favicon.ico, favicon.svg
+  * people_taxi/public/browserconfig.xml & manifest.webmanifest
 """
 
 import os
-from PIL import Image, ImageDraw, ImageFont
+import shutil
+import base64
+import numpy as np
+from PIL import Image, ImageDraw, ImageFilter
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(SCRIPT_DIR)
 PUBLIC_DIR = os.path.join(BASE_DIR, 'public')
+ICONS_DIR = os.path.join(PUBLIC_DIR, 'icons')
 BRAND_DIR = os.path.join(PUBLIC_DIR, 'brand')
+
 os.makedirs(BRAND_DIR, exist_ok=True)
 
-# 1. Horizontal Logo SVG (Light Background)
-LOGO_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 90" width="420" height="90" fill="none">
-  <defs>
-    <linearGradient id="pt_blue" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2563EB" />
-      <stop offset="100%" stop-color="#1D4ED8" />
-    </linearGradient>
-    <linearGradient id="pt_cyan" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="100%" stop-color="#0284C7" />
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#1E3A8A" flood-opacity="0.15" />
-    </filter>
-  </defs>
+LOGO_JPEG = os.path.join(ICONS_DIR, 'logo.jpeg')
+BANNER_JPEG = os.path.join(ICONS_DIR, 'banner.jpeg')
 
-  <!-- Emblem / Badge -->
-  <g transform="translate(10, 10)" filter="url(#shadow)">
-    <!-- Rounded Shield / Base -->
-    <rect x="0" y="0" width="70" height="70" rx="18" fill="url(#pt_blue)" />
+print(f"Reading brand sources from: {ICONS_DIR}")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 1. PROCESS EMBLEM ICON (from logo.jpeg)
+# ─────────────────────────────────────────────────────────────────────────────
+if os.path.exists(LOGO_JPEG):
+    print("Processing logo.jpeg into transparent emblem...")
+    logo_img = Image.open(LOGO_JPEG)
+    logo_arr = np.array(logo_img)
     
-    <!-- Stylized Taxi Roof & Twin People Transit Wave -->
-    <!-- Car Top Silhouette -->
-    <path d="M18 42 L24 28 C26 24 30 22 35 22 C40 22 44 24 46 28 L52 42 Z" fill="white" opacity="0.95" />
+    # Precise center and radius of circular emblem
+    cx, cy = 635.5, 603.0
+    r = 525.0
     
-    <!-- Car Body / Bottom Bar -->
-    <rect x="14" y="42" width="42" height="12" rx="4" fill="white" />
+    # 4x supersampled circular mask for ultra-smooth antialiasing
+    scale = 4
+    mask = Image.new('L', (logo_img.width * scale, logo_img.height * scale), 0)
+    draw = ImageDraw.Draw(mask)
+    draw.ellipse([
+        (cx - r) * scale,
+        (cy - r) * scale,
+        (cx + r) * scale,
+        (cy + r) * scale
+    ], fill=255)
+    mask = mask.resize(logo_img.size, Image.Resampling.LANCZOS)
     
-    <!-- Taxi Light on Top -->
-    <rect x="30" y="16" width="10" height="5" rx="2" fill="url(#pt_cyan)" />
+    # Combine RGBA
+    logo_rgba = logo_img.convert('RGBA')
+    logo_rgba.putalpha(mask)
     
-    <!-- Wheels / People Dots -->
-    <circle cx="23" cy="54" r="5" fill="#1D4ED8" />
-    <circle cx="23" cy="54" r="2.5" fill="white" />
-    <circle cx="47" cy="54" r="5" fill="#1D4ED8" />
-    <circle cx="47" cy="54" r="2.5" fill="white" />
-
-    <!-- People Symbol inside Car Window -->
-    <circle cx="30" cy="31" r="3.5" fill="url(#pt_blue)" />
-    <circle cx="40" cy="31" r="3.5" fill="url(#pt_cyan)" />
-    <path d="M25 39 C25 35 35 35 35 39 Z" fill="url(#pt_blue)" />
-    <path d="M35 39 C35 35 45 35 45 39 Z" fill="url(#pt_cyan)" />
-  </g>
-
-  <!-- Typography -->
-  <!-- "PEOPLE" -->
-  <text x="96" y="50" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="900" fill="#0F172A" letter-spacing="-0.5">PEOPLE</text>
-  
-  <!-- "TAXI" with accent color -->
-  <text x="238" y="50" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="900" fill="#2563EB" letter-spacing="-0.5">TAXI</text>
-  
-  <!-- Tagline / Subtitle -->
-  <text x="98" y="70" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#64748B" letter-spacing="1.8">INTERCITY &amp; DROP CABS</text>
-  
-  <!-- Verified Badge Dot -->
-  <circle cx="332" cy="40" r="4.5" fill="#38BDF8" />
-</svg>
-"""
-
-# 2. Horizontal Logo SVG (White for Dark/Blue Backgrounds)
-LOGO_WHITE_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 90" width="420" height="90" fill="none">
-  <defs>
-    <linearGradient id="pt_blue_w" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="100%" stop-color="#2563EB" />
-    </linearGradient>
-  </defs>
-
-  <g transform="translate(10, 10)">
-    <rect x="0" y="0" width="70" height="70" rx="18" fill="white" />
-    <path d="M18 42 L24 28 C26 24 30 22 35 22 C40 22 44 24 46 28 L52 42 Z" fill="#1D4ED8" />
-    <rect x="14" y="42" width="42" height="12" rx="4" fill="#1D4ED8" />
-    <rect x="30" y="16" width="10" height="5" rx="2" fill="#38BDF8" />
-    <circle cx="23" cy="54" r="5" fill="#0F172A" />
-    <circle cx="23" cy="54" r="2.5" fill="white" />
-    <circle cx="47" cy="54" r="5" fill="#0F172A" />
-    <circle cx="47" cy="54" r="2.5" fill="white" />
-    <circle cx="30" cy="31" r="3.5" fill="white" />
-    <circle cx="40" cy="31" r="3.5" fill="#38BDF8" />
-  </g>
-
-  <text x="96" y="50" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="900" fill="#FFFFFF" letter-spacing="-0.5">PEOPLE</text>
-  <text x="238" y="50" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="34" font-weight="900" fill="#38BDF8" letter-spacing="-0.5">TAXI</text>
-  <text x="98" y="70" font-family="'Poppins', 'Segoe UI', system-ui, sans-serif" font-size="11" font-weight="700" fill="#94A3B8" letter-spacing="1.8">INTERCITY &amp; DROP CABS</text>
-  <circle cx="332" cy="40" r="4.5" fill="#38BDF8" />
-</svg>
-"""
-
-# 3. Square Icon SVG
-ICON_SVG = """<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" width="120" height="120" fill="none">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2563EB" />
-      <stop offset="100%" stop-color="#1D4ED8" />
-    </linearGradient>
-    <linearGradient id="cyan" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#38BDF8" />
-      <stop offset="100%" stop-color="#0284C7" />
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="120" height="120" rx="30" fill="url(#bg)" />
-  
-  <!-- Car Roof -->
-  <path d="M30 70 L40 45 C43 38 50 35 60 35 C70 35 77 38 80 45 L90 70 Z" fill="white" opacity="0.95" />
-  <!-- Car Body -->
-  <rect x="22" y="70" width="76" height="22" rx="7" fill="white" />
-  <!-- Roof Light -->
-  <rect x="52" y="24" width="16" height="9" rx="3" fill="url(#cyan)" />
-  <!-- Wheels -->
-  <circle cx="38" cy="92" r="9" fill="#0F172A" />
-  <circle cx="38" cy="92" r="4.5" fill="white" />
-  <circle cx="82" cy="92" r="9" fill="#0F172A" />
-  <circle cx="82" cy="92" r="4.5" fill="white" />
-  <!-- Passengers -->
-  <circle cx="51" cy="51" r="6" fill="#1D4ED8" />
-  <circle cx="69" cy="51" r="6" fill="url(#cyan)" />
-</svg>
-"""
-
-# Write SVGs
-with open(os.path.join(BRAND_DIR, 'logo.svg'), 'w', encoding='utf-8') as f:
-    f.write(LOGO_SVG)
-
-with open(os.path.join(BRAND_DIR, 'logo-white.svg'), 'w', encoding='utf-8') as f:
-    f.write(LOGO_WHITE_SVG)
-
-with open(os.path.join(BRAND_DIR, 'icon.svg'), 'w', encoding='utf-8') as f:
-    f.write(ICON_SVG)
-
-with open(os.path.join(PUBLIC_DIR, 'favicon.svg'), 'w', encoding='utf-8') as f:
-    f.write(ICON_SVG)
-
-print("Saved SVG brand files successfully.")
-
-# Generate Raster PNGs using PIL
-def draw_icon(size):
-    img = Image.new("RGBA", (size, size), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(img)
-    
-    # Outer rounded rect (Electric Blue)
-    r = int(size * 0.25)
-    draw.rounded_rectangle([(0, 0), (size, size)], radius=r, fill="#1D4ED8")
-    
-    scale = size / 120.0
-    
-    # Taxi Roof
-    roof_coords = [
-        (int(30 * scale), int(70 * scale)),
-        (int(40 * scale), int(45 * scale)),
-        (int(80 * scale), int(45 * scale)),
-        (int(90 * scale), int(70 * scale))
-    ]
-    draw.polygon(roof_coords, fill="#FFFFFF")
-    
-    # Taxi Body
-    draw.rounded_rectangle(
-        [(int(22 * scale), int(70 * scale)), (int(98 * scale), int(92 * scale))],
-        radius=int(7 * scale),
-        fill="#FFFFFF"
+    # Crop to tight square bounding box centered on emblem
+    side = int(r * 2 + 10)
+    crop_box = (
+        max(0, int(cx - side/2)),
+        max(0, int(cy - side/2)),
+        min(logo_img.width, int(cx + side/2)),
+        min(logo_img.height, int(cy + side/2))
     )
+    emblem_square = logo_rgba.crop(crop_box)
     
-    # Taxi Top Sign
-    draw.rounded_rectangle(
-        [(int(52 * scale), int(24 * scale)), (int(68 * scale), int(33 * scale))],
-        radius=int(3 * scale),
-        fill="#38BDF8"
-    )
+    # Save master icon.png
+    icon_path = os.path.join(BRAND_DIR, 'icon.png')
+    emblem_square.save(icon_path, 'PNG', optimize=True)
+    print(f"Saved: {icon_path} ({emblem_square.size})")
     
-    # Wheels
-    w_r = int(9 * scale)
-    for cx in [int(38 * scale), int(82 * scale)]:
-        cy = int(92 * scale)
-        draw.ellipse([(cx - w_r, cy - w_r), (cx + w_r, cy + w_r)], fill="#0F172A")
-        iw_r = int(4.5 * scale)
-        draw.ellipse([(cx - iw_r, cy - iw_r), (cx + iw_r, cy + iw_r)], fill="#FFFFFF")
-        
-    # Passengers
-    p_r = int(6 * scale)
-    draw.ellipse([(int(51 * scale) - p_r, int(51 * scale) - p_r), (int(51 * scale) + p_r, int(51 * scale) + p_r)], fill="#1D4ED8")
-    draw.ellipse([(int(69 * scale) - p_r, int(51 * scale) - p_r), (int(69 * scale) + p_r, int(51 * scale) + p_r)], fill="#38BDF8")
+    # Save icon-512.png
+    icon_512 = emblem_square.resize((512, 512), Image.Resampling.LANCZOS)
+    icon_512.save(os.path.join(BRAND_DIR, 'icon-512.png'), 'PNG', optimize=True)
+    print("Saved: brand/icon-512.png")
     
-    return img
-
-# Create PNG icons
-icon_192 = draw_icon(192)
-icon_192.save(os.path.join(BRAND_DIR, 'icon-192.png'))
-print("Saved icon-192.png")
-
-icon_512 = draw_icon(512)
-icon_512.save(os.path.join(BRAND_DIR, 'icon-512.png'))
-print("Saved icon-512.png")
-
-favicon_png = draw_icon(64)
-favicon_png.save(os.path.join(PUBLIC_DIR, 'favicon.png'))
-print("Saved favicon.png")
-
-# Horizontal Logo PNG
-def draw_horizontal_logo(width=840, height=180):
-    img = Image.new("RGBA", (width, height), (0, 0, 0, 0))
-    # Place scaled icon
-    icon = draw_icon(140)
-    img.paste(icon, (20, 20), icon)
+    # Save icon-192.png
+    icon_192 = emblem_square.resize((192, 192), Image.Resampling.LANCZOS)
+    icon_192.save(os.path.join(BRAND_DIR, 'icon-192.png'), 'PNG', optimize=True)
+    print("Saved: brand/icon-192.png")
     
-    draw = ImageDraw.Draw(img)
-    # Typography
-    try:
-        font_large = ImageFont.truetype("arialbd.ttf", 64)
-        font_small = ImageFont.truetype("arial.ttf", 22)
-    except Exception:
-        font_large = ImageFont.load_default()
-        font_small = ImageFont.load_default()
-        
-    draw.text((180, 40), "PEOPLE ", font=font_large, fill="#0F172A")
-    # Draw TAXI in blue
-    draw.text((450, 40), "TAXI", font=font_large, fill="#2563EB")
-    draw.text((182, 115), "INTERCITY OUTSTATION & DROP CABS", font=font_small, fill="#64748B")
-    return img
+    # Save public/favicon.png
+    favicon_png = emblem_square.resize((96, 96), Image.Resampling.LANCZOS)
+    favicon_png.save(os.path.join(PUBLIC_DIR, 'favicon.png'), 'PNG', optimize=True)
+    print("Saved: public/favicon.png")
 
-logo_png = draw_horizontal_logo()
-logo_png.save(os.path.join(BRAND_DIR, 'logo.png'))
-print("Saved logo.png")
+# Copy favicon.ico to public root if present
+if os.path.exists(os.path.join(ICONS_DIR, 'favicon.ico')):
+    shutil.copy2(os.path.join(ICONS_DIR, 'favicon.ico'), os.path.join(PUBLIC_DIR, 'favicon.ico'))
+    print("Copied: public/favicon.ico")
 
+# ─────────────────────────────────────────────────────────────────────────────
+# 2. PROCESS HORIZONTAL LOCKUP & BANNER (from banner.jpeg)
+# ─────────────────────────────────────────────────────────────────────────────
+if os.path.exists(BANNER_JPEG):
+    print("Processing banner.jpeg into transparent logo & banner...")
+    banner_img = Image.open(BANNER_JPEG)
+    banner_arr = np.array(banner_img).astype(np.float32)
+    
+    # Tight content crop
+    is_content = (banner_arr[:,:,0] < 240) | (banner_arr[:,:,1] < 240) | (banner_arr[:,:,2] < 240)
+    cols = np.where(is_content.any(axis=0))[0]
+    rows = np.where(is_content.any(axis=1))[0]
+    pad = 16
+    ymin = max(0, rows[0] - pad)
+    ymax = min(banner_arr.shape[0], rows[-1] + pad + 1)
+    xmin = max(0, cols[0] - pad)
+    xmax = min(banner_arr.shape[1], cols[-1] + pad + 1)
+    crop = banner_arr[ymin:ymax, xmin:xmax]
+    
+    # Detect asphalt road inside emblem (left 38%)
+    emblem_w = int(crop.shape[1] * 0.38)
+    asphalt_mask = (crop[:, :emblem_w, 0] < 80) & (crop[:, :emblem_w, 1] < 80) & (crop[:, :emblem_w, 2] < 80)
+    asphalt_img = Image.fromarray(asphalt_mask.astype(np.uint8) * 255)
+    dilated_asphalt = np.array(asphalt_img.filter(ImageFilter.MaxFilter(25))) > 0
+    
+    # White road stripe identification
+    is_white = (crop[:,:,0] >= 238) & (crop[:,:,1] >= 238) & (crop[:,:,2] >= 238)
+    is_road_stripe = np.zeros((crop.shape[0], crop.shape[1]), dtype=bool)
+    is_road_stripe[:, :emblem_w] = is_white[:, :emblem_w] & dilated_asphalt
+    
+    # Soft alpha calculation for smooth edge blending
+    lum = 0.299 * crop[:,:,0] + 0.587 * crop[:,:,1] + 0.114 * crop[:,:,2]
+    alpha = np.ones((crop.shape[0], crop.shape[1]), dtype=np.float32) * 255.0
+    
+    non_stripe = ~is_road_stripe
+    # Smooth fade from 232 (alpha 255) to 250 (alpha 0)
+    alpha[non_stripe] = np.clip((250.0 - lum[non_stripe]) / 22.0 * 255.0, 0, 255.0)
+    
+    # Unmix background color from semi-transparent edge pixels for zero halo
+    a_norm = (alpha / 255.0)[:, :, None]
+    unmixed = crop.copy()
+    mask_unmix = (a_norm[:,:,0] > 0.05) & (a_norm[:,:,0] < 0.98) & non_stripe
+    bg_color = np.array([253.0, 253.0, 253.0])
+    for c in range(3):
+        unmixed[mask_unmix, c] = np.clip(
+            (crop[mask_unmix, c] - (1.0 - a_norm[mask_unmix, 0]) * bg_color[c]) / a_norm[mask_unmix, 0],
+            0, 255
+        )
+    
+    # Build standard logo.png
+    rgba = np.zeros((crop.shape[0], crop.shape[1], 4), dtype=np.uint8)
+    rgba[:,:,:3] = np.clip(unmixed, 0, 255).astype(np.uint8)
+    rgba[:,:,3] = alpha.astype(np.uint8)
+    
+    logo_img = Image.fromarray(rgba, 'RGBA')
+    logo_path = os.path.join(BRAND_DIR, 'logo.png')
+    logo_img.save(logo_path, 'PNG', optimize=True)
+    print(f"Saved: {logo_path} ({logo_img.size})")
+    
+    # Build high-resolution social banner (padded cleanly)
+    banner_out = Image.fromarray(crop.astype(np.uint8))
+    banner_path = os.path.join(BRAND_DIR, 'banner.png')
+    # Save as high-res banner for OG cards
+    banner_out.save(banner_path, 'PNG', optimize=True)
+    print(f"Saved: {banner_path} ({banner_out.size})")
+    
+    # Build logo-white.png for dark backgrounds / footer
+    # In text region, convert dark TAXI text to pure crisp white #FFFFFF
+    white_unmixed = unmixed.copy()
+    is_dark_text = (crop[:,:,0] < 85) & (crop[:,:,1] < 85) & (crop[:,:,2] < 85) & (np.arange(crop.shape[1])[None, :] >= emblem_w)
+    white_unmixed[is_dark_text, 0] = 255
+    white_unmixed[is_dark_text, 1] = 255
+    white_unmixed[is_dark_text, 2] = 255
+    
+    rgba_white = np.zeros((crop.shape[0], crop.shape[1], 4), dtype=np.uint8)
+    rgba_white[:,:,:3] = np.clip(white_unmixed, 0, 255).astype(np.uint8)
+    rgba_white[:,:,3] = alpha.astype(np.uint8)
+    
+    logo_white_img = Image.fromarray(rgba_white, 'RGBA')
+    logo_white_path = os.path.join(BRAND_DIR, 'logo-white.png')
+    logo_white_img.save(logo_white_path, 'PNG', optimize=True)
+    print(f"Saved: {logo_white_path} ({logo_white_img.size})")
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 3. VECTOR SVG WRAPPERS (FOR HIGH-DPI & VECTOR REFERENCES)
+# ─────────────────────────────────────────────────────────────────────────────
+def create_svg_wrapper(png_path, svg_path, view_w, view_h):
+    with open(png_path, 'rb') as f:
+        b64_data = base64.b64encode(f.read()).decode('utf-8')
+    svg_content = f'''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {view_w} {view_h}" width="{view_w}" height="{view_h}">
+  <image width="{view_w}" height="{view_h}" href="data:image/png;base64,{b64_data}" preserveAspectRatio="xMidYMid meet" />
+</svg>'''
+    with open(svg_path, 'w', encoding='utf-8') as f:
+        f.write(svg_content)
+    print(f"Generated SVG wrapper: {svg_path}")
+
+create_svg_wrapper(
+    os.path.join(BRAND_DIR, 'icon.png'),
+    os.path.join(BRAND_DIR, 'icon.svg'),
+    512, 512
+)
+create_svg_wrapper(
+    os.path.join(BRAND_DIR, 'icon.png'),
+    os.path.join(PUBLIC_DIR, 'favicon.svg'),
+    512, 512
+)
+create_svg_wrapper(
+    os.path.join(BRAND_DIR, 'logo.png'),
+    os.path.join(BRAND_DIR, 'logo.svg'),
+    840, 268
+)
+create_svg_wrapper(
+    os.path.join(BRAND_DIR, 'logo-white.png'),
+    os.path.join(BRAND_DIR, 'logo-white.svg'),
+    840, 268
+)
+
+# ─────────────────────────────────────────────────────────────────────────────
+# 4. FIX & SYNC BROWSERCONFIG.XML AND MANIFEST FILES
+# ─────────────────────────────────────────────────────────────────────────────
+# Update browserconfig.xml
+BROWSERCONFIG_XML = """<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+  <msapplication>
+    <tile>
+      <square70x70logo src="/icons/ms-icon-70x70.png"/>
+      <square150x150logo src="/icons/ms-icon-150x150.png"/>
+      <square310x310logo src="/icons/ms-icon-310x310.png"/>
+      <TileColor>#1E6CE3</TileColor>
+    </tile>
+  </msapplication>
+</browserconfig>
+"""
+
+with open(os.path.join(PUBLIC_DIR, 'browserconfig.xml'), 'w', encoding='utf-8') as f:
+    f.write(BROWSERCONFIG_XML)
+with open(os.path.join(ICONS_DIR, 'browserconfig.xml'), 'w', encoding='utf-8') as f:
+    f.write(BROWSERCONFIG_XML)
+print("Updated browserconfig.xml in public/ and public/icons/")
+
+# Update icons/manifest.json
+ICONS_MANIFEST_JSON = """{
+  "name": "People Taxi — Outstation Cabs & Drop Taxi",
+  "short_name": "People Taxi",
+  "icons": [
+    { "src": "/icons/android-icon-36x36.png", "sizes": "36x36", "type": "image/png", "density": "0.75" },
+    { "src": "/icons/android-icon-48x48.png", "sizes": "48x48", "type": "image/png", "density": "1.0" },
+    { "src": "/icons/android-icon-72x72.png", "sizes": "72x72", "type": "image/png", "density": "1.5" },
+    { "src": "/icons/android-icon-96x96.png", "sizes": "96x96", "type": "image/png", "density": "2.0" },
+    { "src": "/icons/android-icon-144x144.png", "sizes": "144x144", "type": "image/png", "density": "3.0" },
+    { "src": "/icons/android-icon-192x192.png", "sizes": "192x192", "type": "image/png", "density": "4.0" }
+  ]
+}
+"""
+
+with open(os.path.join(ICONS_DIR, 'manifest.json'), 'w', encoding='utf-8') as f:
+    f.write(ICONS_MANIFEST_JSON)
+print("Updated icons/manifest.json")
+
+print("\nAll brand assets processed successfully!")

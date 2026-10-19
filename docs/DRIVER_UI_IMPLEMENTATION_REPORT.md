@@ -1,128 +1,173 @@
 # NESAM Driver — UI implementation report
 
-Rebuild of the Driver website (`driver/web`) and the Driver Android app (`driver/app`) to the supplied reference interface.
+Rebuild of the Driver website (`driver/web`) and the Driver Android app (`driver/app`) to the supplied reference interface, then refined (second pass) for Poppins, fluid layouts, accurate trip-step rules, the reference's own icons, and a full feature-preservation check.
 
 | | |
 |---|---|
-| Reference | `Nesam_Driver_App_UX_Updated.html` |
-| SHA-256 | `3757dab48cfcb79fd10c12737e9469756f17f47fc19a99312b4f48799b63b0a1` (checked against the file received) |
-| Targets | `driver/web` (React 19, Tailwind 4, Vite) and `driver/app` (Expo 57, React Native 0.86 — real native screens, no WebView) |
-| Not done, on purpose | No deploy, no publish, no push, no commit. No change to Firebase rules, functions, env files or any other app. |
+| Reference | `Nesam_Driver_App_UX_Updated.html`, SHA-256 `3757dab48cfcb79fd10c12737e9469756f17f47fc19a99312b4f48799b63b0a1` |
+| Targets | `driver/web` (React 19, Tailwind 4, Vite) · `driver/app` (Expo 57, React Native 0.86 — native screens, no WebView) |
+| Not done, on purpose | No deploy, publish, push or commit. No change to Firebase rules, functions source, env files or other apps. |
 
-The reference is a single-file prototype with sample data. This work takes its **final effective visual design** — the CSS cascade as it resolves at the end of the file, the content, wording, branding, navigation, dialogs and states — and puts it on top of the **existing production behaviour**. Nothing from the prototype's sample data or fake logic ships.
+Reference rule used throughout: the HTML decides structure, hierarchy and interaction presentation; the second-pass requirements (Poppins, no wasted side space, responsive) win over its font and fixed widths. Reference defects were fixed, not copied.
 
 ---
 
-## 1. What changed
+## 1. Verdict first — what is verified and what is not
 
-### Web (`driver/web`)
-
-| Area | Files |
+| Area | Status |
 |---|---|
-| Reference stylesheet (ported, scoped) | `src/styles/reference.css` — every selector under `.nx-root`, inside the `nx` cascade layer, in the reference's source order. Deviations are appended at the end, each marked `DEVIATION n`. |
-| Layer wiring | `src/index.css` declares `@layer theme, base, nx, components, utilities;` and excludes the older global rules (input size, focus ring, autofill, …) from `.nx-root`. `src/main.tsx` imports the stylesheet. Sign-in, registration, legal gate, penalty modal and popups keep their Tailwind look. |
-| Building blocks | `src/components/nx/` — `Shell` (sidebar, top bar, bottom bar, toast), `Brand` (emblem + wordmark), `Swipe`, `Dialog`, `Support`, `Icon` + `icons.ts` (30 symbols), `parts` (trip card, route stack, empty state), `format` |
-| Screens | New: `HomeScreen`, `TripsScreen`, `TripFlowScreen`. Restyled in place: `EarningsScreen`, `WalletPayoutScreen`, `ProfileScreen`, `NotificationsScreen`, `VehicleVerificationScreen`, `CameraCapture`. |
-| Wiring | `DriverWorkspace.tsx` now renders `Shell` with a page state. All subscriptions, handlers and popups kept (see §2). |
-| Assets | `public/brand/nesam-emblem.jpg` (26 KB), `public/brand/nesam-wordmark.woff` (the reference's embedded font) |
-| Preview harness (development only) | `preview.html` + `src/preview/` — real screens in the real shell with sample data. Not built by `vite build`, not imported by the app. |
-| Removed (replaced, no remaining importer) | `DashboardScreen`, `TripExecutionScreen`, `Header`, `BottomNav`, `FarePanel` |
-| Moved | `categoryMatches` → `src/utils/offers.ts` |
-
-### Android app (`driver/app`)
-
-| Area | Files |
-|---|---|
-| Tokens | `src/theme/nx.ts` — colours, radii and the wordmark font name, read from the reference's computed styles at phone width |
-| Building blocks | `src/components/nx/` — `Shell` (top bar with the online switch, support and bell; screen frame; toast; support dialog), `TabBar` (icon over label, red top bar on the active item), `Brand`, `Swipe` (PanResponder + Animated), `Dialog`, `TripCard`, `primitives`, `Icon`, `tripFormat` |
-| Screens | New: `TripsScreen` (the "My Trips" tab), `TripFlowScreen`. Restyled in place: `HomeScreen`, `PreTripScreen`, `EarningsScreen`, `WalletScreen`, `ProfileScreen`, `NotificationsScreen`. |
-| Navigation | `MainNavigator` uses the custom tab bar; adds a `TripFlow` stack route; `TripAutoFocus` and notification/push deep links open the trip flow. The `Tabs`, `PreTrip`, `Notifications`, `UpdateDocuments` routes and the sign-out context are kept. |
-| Data | `DriverData` gains `upcomingTrips`, `nextTrip`, `cancelledTrips` (derived from the same bookings subscription). New hook `usePresence` holds the duty-status logic that used to live in `HomeScreen`. |
-| Assets | `assets/brand/nesam-emblem.jpg`, `assets/brand/nesam-wordmark.ttf` (the reference's font converted from WOFF, loaded with `expo-font`) |
-| Tests | `__tests__/nx-render.test.tsx` (17 tests) |
-| Removed | `TripScreen.tsx` (replaced by `TripFlowScreen.tsx`) |
-
-Unchanged on both apps: sign-in, registration (including document update), legal gate, account-state screens, penalty acknowledgement, notification popups, every service and callable, location sharing, network banner.
+| Website, real app against the Firebase emulators (live data, real callables, real rules) | ✅ **30/30** checks (`driver/web/e2e/driver-journey.e2e.cjs`) |
+| Website layout, 12 widths for Home + every screen/state, short/zoom/keyboard | ✅ screenshots + automated audit |
+| Backend contract the screens depend on (emulator suites) | ✅ 40 existing + 4 new tests pass |
+| Android app — types, lint, 70 tests, Android bundle | ✅ |
+| **Android app on a screen** (Poppins, spacing, safe areas, slider feel, camera) | ❌ **not verified — no emulator or device exists on this machine.** Exact device checks are listed in §9. |
+| Production integrations (live Firebase project, real SMS, payments, push, Play Integrity) | ❌ not retested; nothing here touched production |
 
 ---
 
-## 2. Feature-preservation checklist
+## 2. Problems found and their causes
 
-Every row was kept; "same call" means the screen still calls the same service function with the same arguments.
+**Website layout (from the first-pass screenshots at 320 / 414 / 1920 px):**
 
-| Feature | Web | Android |
+| Symptom | Cause | Fix |
 |---|---|---|
-| Duty status Online / Offline, locked while a trip is assigned, "On Trip" sync | ✅ header switch + Home | ✅ top-bar switch + Home |
-| Open duties: category match, "show all", date filter, accept (same server call), already-active guard, fleet / offline / empty states | ✅ | ✅ |
-| Document-rejected banner | ✅ | ✅ |
-| Live selfie + 3 vehicle photos + odometer through the server capture session (session, challenge, upload, finalize); camera only, no gallery | ✅ | ✅ |
-| Reached Pickup (server step, idempotent request id) | ✅ | ✅ + the existing "within 2 km of the pickup" check |
-| Boarding OTP (4 digits, lock message), Trip Started (blocked until OTP and photos are done) | ✅ | ✅ |
-| Phone-integrity retry when the server asks for it | n/a | ✅ unchanged |
-| Customer contact revealed by the server from 8 h before pickup | ✅ | ✅ |
-| Customer fare, paid so far, balance, "paid separately" lines, fare breakup | ✅ | ✅ |
-| Trip End: total km (validated), toll / parking receipts with photo, remove receipt, payments collected (`recordPayment`), idempotent request id | ✅ | ✅ |
-| Completed receipt, cancelled notice | ✅ | ✅ |
-| Earnings from the wallet ledger (today / 7 days / month / lifetime, chart, per-trip status) | ✅ | ✅ |
-| Wallet balances, payout request (amount rules, minimum, saved account only), payout list, ledger | ✅ | ✅ |
-| Fleet drivers: no Earnings / Wallet, trips come from the fleet | ✅ | ✅ |
-| Profile: edit contact + bank with the existing validation, documents with expiry badges, update documents, sign out | ✅ | ✅ |
-| Alert-sound preference | ✅ (Profile) | n/a (not in the app before) |
-| Notifications: categories, mark read, popups with tones, deep links | ✅ + mark-all-read, Penalties tab | ✅ + push-tap deep links |
-| Penalty acknowledge / dispute (blocking) | ✅ unchanged | ✅ unchanged |
-| Support: NESAM office call and police 112 from every screen | ✅ | ✅ |
-| Live location sharing during a trip | n/a | ✅ unchanged |
+| Blank bands left and right on large screens | `.app{max-width:1600px;margin:auto}` | cap removed; workspace fills the space beside the sidebar with `clamp()` gutters (22–52 px) |
+| Trip screen a narrow 540 px column in the middle | `.trip-flow{max-width:540px}` | header across the top; working panels beside Customer + Fare panels from 1000 px; one readable column below; forms/sliders capped at 520 px |
+| Two cramped ~290 px columns on tablets | the reference's later rule restores two columns at every width above 700 px | stacked below 1000 px; duty/trip cards flow in `auto-fill` grids; Earnings/Wallet/Profile columns are `auto-fit(min 420 px)` |
+| Brand clipped by the status pill at 320 px | fixed-width top bar content | the pill drops its word (still announced) below 375 px |
+| Long route titles wrap to 3 lines on phones | 23 px title in a wider face | 20 px on phones |
+| Sidebar caption wrapped at 901–1130 px | wider face | nowrap + tighter tracking |
+| Poppins looked cramped/small | reference sizes and negative tracking were tuned for a system font | negative tracking cut to 35 %; 9–13 px text raised by 1 px (floor 12 px) |
+| Pinch-zoom blocked | `maximum-scale=1, user-scalable=no` | removed; `viewport-fit=cover` added |
+| Tiny touch targets | preference switch, document links, "Show all duties" | hit areas ≥ 40 px |
 
----
+**Behaviour bugs found by running the real app against the emulators (all fixed):**
 
-## 3. Deviations from the reference
-
-Deliberate, so nothing is guessed silently.
-
-| # | Deviation | Why |
+| Bug | Effect | Fix |
 |---|---|---|
-| 1 | **Sample data and prototype logic are not shipped**: no "Suresh Kumar", plate, ₹3,250 earnings, demo OTP, demo GPS, "UX demo" notes, "Reset preview data". | Production data only. |
-| 2 | **The trip steps follow the server, not the prototype's seven local stages.** The prototype's "Slide to Start Trip" at stage 0 is dropped: once the photos are accepted the trip is already "heading to pickup". The sliders trigger the real calls (Mark Reached, Start Trip). "Slide to End Trip" opens the closing form; **Confirm & Close** makes the Trip End call. | `advanceTrip` / `verifyBoarding` order and checks are server-authoritative. |
-| 3 | **Driver cancellation request, penalty quote and cancellation policy are not built.** The Help dialog offers the office call and 112. | No backend workflow and no approved penalty amounts exist in the repository; inventing them would be wrong. Needs a product + backend decision. |
-| 4 | **Office number** is production's `+91 85319 70197` (shown 85319 70197), not the reference's sample 90250 99990. **Police 112** is added to the Help dialog. | The app's configured number; the old SOS button's police call must not be lost. |
-| 5 | **The help button in the top bar is visible** (reference hides it). | The old app had SOS on every screen. (`DEVIATION 2`) |
-| 6 | **Fare card, toll receipts, payments-collected form, consent line, fare breakup** are added to the trip flow using the reference's own panel styles. | Production features the prototype has no screen for. |
-| 7 | **Photo check has 4 photos + odometer**, not the prototype's 2 photos. | The production verification session requires them. |
-| 8 | **Notifications** are a full page (web: inside the shell; app: a stack screen) with category filters instead of the reference's "Driver updates" dialog; items use the reference's notification style. Web keeps a Penalties tab. | The inbox, read-state and penalty flows exist and must stay reachable. |
-| 9 | **Earnings / Wallet wording**: "approved vs admin-review" becomes "credited vs awaiting settlement", driven by the ledger. Profile document rows say Uploaded / Not uploaded + expiry rather than a demo "Verified". | Matches what the ledger and documents actually record. |
-| 10 | **Document update** opens the existing form: web shows it full-screen in its current (Tailwind) style, the app in a stack screen with the standard header. | Sign-in and registration forms were outside the redesign scope; the reference has no document-upload screen. |
-| 11 | **"Start Trip" vs "View Trip" on a card** uses a 3-hour window before pickup (and "Continue trip" once started). | Derived from the reference's labels; the server decides when a step is actually allowed. |
-| 12 | **Android icons are Ionicons**, not the reference's hand-drawn SVGs (no SVG renderer in the app). Web uses the reference's 23 symbols plus 7 matching extras. Font weights 650/750 become 700/800 on Android. | No `react-native-svg`; Android only offers whole weight steps. |
-| 13 | **CSS fixes to prototype defects** (all marked in `reference.css`): modal dialogs centred (Tailwind's reset removed the browser's auto margin); text/number inputs in dialogs styled like the reference's select/textarea; keyboard focus ring on text fields; at 701–900 px the collapsed sidebar rail now shows only the emblem (the reference's wordmark overflowed the 80 px rail and printed over the page title). | Visible defects in the reference. |
+| Website sent the GPS fix **without a timestamp** (`capturedAt`), which the server treats as stale | **"Reached Pickup" could never succeed from the website** ("Your location is out of date"). This predates the redesign. | `services/location.ts` now sends the reading's time |
+| A slider kept its "done" state when the next stage appeared in the same place | after Start Trip, **Slide to End Trip was dead** | each slider has its own `key` (web and app) |
+| App slider animated `width` with the native driver | rejected on a real device | slides with `translateX` only; test asserts no native-animated error |
+| Client pickup radius hard-coded at 2 km; server default is 3 km and configurable | valid arrivals refused on the phone | app now uses `settings/operations.pickupRadiusKm` (default 3) |
+| Bid-only duties (`bid_review`) showed **Accept**, which the server refuses (`bid-only`) | drivers could not take those duties at all; `submitDutyBid` existed but no screen used it | counter-amount form + withdraw on both platforms (server rules unchanged) |
+
+Also found, **not mine and not changed**: `functions/.env` was edited today and now contains `FIREBASE_SERVICE_ACCOUNT` and `FIREBASE_STORAGE_BUCKET`. The Firebase CLI refuses keys with the `FIREBASE_` prefix, so **the functions emulator (and a Firebase deploy) will fail to load** until those two lines move elsewhere (they are for the Vercel API). I ran the emulator from a copy of `functions/` without that file.
 
 ---
 
-## 4. Checks run
+## 3. Poppins
+
+- Bundled locally: website `public/fonts/` (woff2 for 400/500/600/700 × latin, latin-ext, devanagari — ₹ lives in the devanagari file), app `assets/fonts/` (TTF 400/500/600/700). OFL licence text beside each. **No Google Fonts request**: the link and `Inter` are gone from `index.html`.
+- Website: `@theme` makes Poppins the Tailwind `sans` **and `mono`** face (plates, references), so the older Tailwind screens (sign-in, registration, legal, popups, penalty modal) follow. Checked in the browser: loaded faces are Poppins 400/500/600/700 + the NESAM wordmark.
+- App: `Text`/`TextInput` wrappers (`components/nx/Text.tsx`) map a style's `fontWeight` to the right Poppins family (React Native picks custom fonts by family), reset `fontWeight` so Android does not fake a second bold, keep nested text inheriting, honour an explicit `fontFamily`, cap system font scaling at 1.4× (tab labels 1.15×). A codemod switched all 32 files that used `react-native`'s `Text`/`TextInput`, so registration, auth and legal screens are included; placeholders use the input face. `App.tsx` holds the splash screen until fonts settle, with a 5-second give-up and a system-font fallback; React Navigation's theme fonts are Poppins.
+- **Logo artwork kept as supplied**: the emblem image and the embedded NESAM wordmark face (it *is* the logo lettering). The separately rendered "DRIVER" label is Poppins.
+- Unavoidable system text: Android/iOS `Alert` dialogs and the date-picker are drawn by the OS.
+
+---
+
+## 4. Responsive behaviour
+
+**Website** — verified at 320, 360, 390, 414, 700, 701, 900, 901, 1000, 1001, 1130, 1131, 1440, 1920 (Home) and 360 / 768 / 1440 (every screen and state).
+Automated audit (100 screen × width combinations in headless Edge): **no horizontal overflow, no unnamed control, no unlabelled field, no off-screen control, bottom bar never covers content**; small-target findings fixed. Keyboard walk with real key events: logical tab order, 3 px focus ring on every stop, native modal dialogs keep focus inside (only the browser's own chrome is reachable), Escape closes and returns focus to the opener. Safe-area insets are respected on phones in landscape. Dialogs scroll inside themselves on short screens.
+
+**App** — one column up to 760 dp, two columns from 900 dp (Home, Trip flow, Earnings, Wallet, Profile, My Trips), 1180 dp max; tablet gutters; `SafeAreaView` on all edges; compact top and tab bars in short landscape; keyboard-avoiding scroll; no fixed card widths; fixed-height controls (slider 58, knob 48) hold at 1.4× text. *Not seen on a device — see §9.*
+
+---
+
+## 5. Start-trip rule (the invented three-hour window is gone)
+
+What the server actually enforces (`functions/src/trips.ts`, read, not guessed):
+- The **first** driver step, *Reached Pickup*, opens `tripStartWindowMinutes` before the pickup time (`settings/operations`, default 360 min, range 15–4320). Earlier → `too-early` ("can be started from …").
+- Also refused: another trip of this driver or vehicle in progress, driver/vehicle not eligible, no fresh accurate GPS fix, outside `pickupRadiusKm` (default 3 km).
+- Trip Started needs the boarding OTP and the submitted vehicle photos. Photos can be taken at any time.
+
+What the screens now do:
+- Trip cards say **Open trip** / **Continue trip** — opening details and preparing is not starting the journey. "Start Trip" survives only as the slider that records the real start, which unlocks only after OTP + photos.
+- Both platforms read `settings/operations` (readable by any signed-in user; the new emulator test confirms drivers cannot write it). Inside the window the arrival slider is live; outside it is disabled with the exact reason ("Marking arrival opens 20 Oct, 01:35 AM IST — 6 hours before the pickup time. You can take the vehicle photos now."). If the settings cannot be read the screen does **not** guess — the server's own message is shown. Verified live: window 120 min → slider disabled for a pickup in 20 h, enabled for 1.5 h.
+- Preserved: pickup-distance validation (app pre-check now uses the server radius), integrity retry, OTP lock message, idempotent request ids (a repeated request returns `duplicate: true`).
+- Time ticks while the app is open (`useNow`), so a slider unlocks without reopening.
+
+---
+
+## 6. Icons
+
+The reference's **23 SVG symbols** were already ported to the website. The app now draws the **same geometry**: `react-native-svg` (Expo-matched 15.15.4, added with `expo install`; the smallest compatible renderer and the only dependency added) renders paths generated from the website's icon file (`src/components/nx/iconData.ts`, header says how) — 24-unit grid, round caps/joins, 1.8 stroke, identical on both platforms. The Ionicons stand-ins are gone from every screen, including sign-in/registration/account-state/photo fields. Icons are decorative; the control carries the accessible label. **Deviation:** 7 icons the reference lacks (alert, logout, camera, edit, trash, plus, bank) are drawn in the same style. **Needs a native rebuild** (new native module).
+
+---
+
+## 7. Feature-preservation comparison (pre-redesign files in Git `5d7d49d` → new code)
+
+Method: every user-facing string, validation message, service call and handler of each replaced file was extracted from Git and searched for in the new source; every gap was reviewed. Remaining differences are wording only, except those listed as "restored".
+
+| Old | New home | Notes |
+|---|---|---|
+| web `DashboardScreen` (profile + status, stats, active trip, marketplace) | `HomeScreen` + Shell | Duty switch → top bar; stats **restored** as metric cards (today's earnings, 7-day, completed, rating, wallet, upcoming); accept now via details dialog; category match, show-all, fleet/offline/active/empty states, document-rejected banner, mismatch warning kept; **bid + withdraw added** |
+| web `TripExecutionScreen`, `FarePanel` | `TripFlowScreen` | reach, OTP, start, km (validated), tolls + receipt photo + remove, collections (UPI/bank reference rules), end with idempotency key, customer contact reveal (8 h, server), fare/paid/balance/extra lines, fare-line treatment labels and payout + note **restored**, payment mode and step times **restored**, receipt/cancelled states |
+| web `Header`, `BottomNav` | `Shell` | navigation, fleet hides Earnings/Wallet, unread dot (count in label), SOS/help on every screen, sign-out in Profile |
+| web `VehicleVerificationScreen`, `CameraCapture` | same files, restyled | consent, session → 4 challenges with countdown → upload → submit, retake, odometer, "show or write the code" text **restored** |
+| web Earnings / Wallet / Profile / Notifications | same files, restyled | chart, tolls awaiting approval, payout dialog + rules, requests, ledger, edit validation, document expiry badges, sound preference, mark-all-read, penalties tab, **severity colours/"Urgent"/"Warning" restored** |
+| web `DriverWorkspace` | same file | all subscriptions, presence sync (On Trip ↔ Online), accept/trip/payout handlers, popups, penalty gate, deep links |
+| app `TripScreen` | `TripFlowScreen` | 2 km → server-configured radius check, integrity retry, per-action request ids, OTP, collections, tolls, notes, payout note, fare card; payment mode + "Reached pickup" time restored |
+| app `HomeScreen` | `HomeScreen` + top bar + `usePresence` | accept confirmation, device warning, doc-rejected, SOS (police 112 + office), stats **restored**, bid + withdraw added |
+| app Earnings / Wallet / Profile / Notifications / PreTrip | same files | min-payout rule, payout dialog, edit validation + account confirmation, camera modal with single-use challenge and expiry, severity colours |
+| app `MainNavigator` | same file | tabs, `PreTrip`/`Notifications`/`UpdateDocuments` kept, `TripFlow` added; **active-trip restoration and push/notification deep links open the trip flow** |
+
+Unchanged code paths (verified by diff and by tests): authentication, registration/approval/rejection, legal acceptance, document update/resubmission, penalty acknowledge/dispute, notification tones, location sharing, offline banner. Support number remains the configured **85319 70197**; police 112 added. No cancellation backend or penalty values invented — the Help dialog offers the office call.
+Permissions: independent vs fleet (no marketplace, no Earnings/Wallet), customer-contact privacy (masked number until the server reveals it), server-authoritative steps — all as before.
+
+---
+
+## 8. Checks run
 
 | Check | Result |
 |---|---|
-| `driver/web` `npm run typecheck` | ✅ pass |
-| `driver/web` `vite build` | ✅ pass; built CSS confirms layer order `theme, base, nx, components, utilities`; `preview.html` is not in `dist` |
-| `driver/app` `tsc --noEmit` | ✅ pass |
-| `driver/app` `eslint .` | ✅ 0 errors (2 older warnings in files this work did not touch: `trip.test.ts`, `driverService.ts`) |
-| `driver/app` `jest` | ✅ 63 tests pass (46 existing + 17 new) |
-| `driver/app` `expo export --platform android` | ✅ Metro + Hermes bundle builds; brand image and font resolve |
-| Web screenshots, 390 × 844 and 1440 × 900 | ✅ every screen and state |
-| Web breakpoints 360 / 700 / 701 / 900 / 901 / 1130 / 1131 | ✅ Home, Trip, Wallet, Camera; horizontal overflow checked by script (none) |
-| Sign-in screen after the CSS change | ✅ renders as before |
+| `driver/web` typecheck, production build | ✅ (`preview.html` not in `dist`; preview page renders nothing outside the dev server) |
+| **Real website vs emulators** (`driver/web/e2e/driver-journey.e2e.cjs`) | ✅ 30/30: sign-in, live data, Poppins loaded, preparation, window closed/open, location denied, far from pickup, offline, retry (one transition), boarding OTP wrong → right, start, end, km/collection/review/receipt, bid refused above fare, bid accepted and stored |
+| Emulator suites (`functions`: 3 existing files) | ✅ 40/40 |
+| New `driverUiContract.e2e.test.js` (4) | ✅ operating limits readable not writable; first step refused too early with the message shown; duplicate request changes nothing; bid/withdraw payloads, double withdrawal refused; photo session + 4 challenges for the assigned driver only, finish refused without photos |
+| `driver/app` `tsc`, `eslint` | ✅ 0 errors (2 older warnings in files not touched) |
+| `driver/app` `jest` | ✅ 70 (46 existing + 24 new): every screen mounts, trip stages, arrival gating, bid marking, slider (accessibility action, real drag commit, short drag, wrong start, failure, exception, disabled, no native-animated errors), Poppins mapping/fallback |
+| `driver/app` `expo export --platform android` | ✅ Metro + Hermes bundle; fonts, emblem, wordmark resolve |
+| Website audit / keyboard walk | ✅ §4 |
 
-The 17 new app tests mount every redesigned screen with sample data (a missing field or bad import fails here instead of on a phone), check each trip stage shows the right controls, and exercise the slider: accessibility "activate", real drag release at the end of the track (commits), short drag (springs back), a drag starting away from the knob (ignored), failure/exception (knob returns, can retry), disabled. One of these found a real bug before release — animating the fill's `width` with the native driver is rejected on a device — and it is fixed (the fill now slides with `translateX`).
-
-**Screenshots**: `output/driver-ui-screenshots/web/` (each screen at `-390` and `-1440`, dialogs as `dlg-*`) and `output/driver-ui-screenshots/web/breakpoints/`.
-**Re-create them**: `cd driver/web && npx vite`, then open `http://localhost:3002/preview.html?screen=<name>`. Names: `home`, `home-free`, `home-empty`, `home-offline` (add `&offline=1`), `trips`, `trips-completed`, `trips-cancelled`, `trip-confirmed`, `trip-photos`, `trip-otp`, `trip-ready`, `trip-started`, `trip-receipt`, `trip-cancelled`, `trip-fleet`, `camera`, `earnings`, `wallet`, `profile`, `notifications`, `support`; add `&fleet=1` for a fleet driver.
+Photos: the 4-photo session/challenge/finalize contract is tested on the backend; the in-browser camera capture and upload need a real camera and were not exercised (the E2E marks the check submitted directly).
 
 ---
 
-## 5. Limitations — what was not verified
+## 9. Remaining verification (cannot be done here)
 
-- **The Android screens have not been seen on a screen.** There is no emulator or device on this machine, and the app has no web renderer. Layout is built from the reference's measured values and covered by typecheck, lint, the 17 render/behaviour tests and a clean Android bundle, but **spacing, font rendering and the slider feel need a pass on a real phone** before release. The screenshots are of the website only.
-- No live Firebase session was used. The website harness and the app tests use sample data; the server calls themselves are unchanged and were not re-tested against the backend.
-- The camera flow was not exercised with a real camera (website or app). The component code, labels and states are covered; permission prompts and the photo upload need a real device.
-- Headless screenshots on Windows render some letter-spacing unevenly (e.g. "Koyam bedu"); that is the screenshot font renderer, not the CSS.
-- Items in §3 rows 3, 4 and 11 need a product decision if different behaviour is wanted (driver cancellation, office number, start window).
-- Nothing was committed. `git status` shows the changes as working-tree edits; the earlier tasks in the same session (manual vehicle-number entry, user-app booking fix, image compression, one-way rental theme) are also still uncommitted.
+**Android build first:** rebuild the app (new native module `react-native-svg`; the existing Gradle flow in `driver/app/android` works) and install.
+1. Poppins renders in every screen (no fallback face), incl. sign-in, registration, legal and the penalty modal; numbers and ₹ glyph look right.
+2. Spacing at 360 × 640, 412 × 915, a 10-inch tablet (portrait + landscape) and a short landscape phone; tab bar compaction.
+3. System font scale 1.3 and 1.5: no clipped slider/tab/button labels.
+4. Slider feel: slow drag, flick, release at 90 % (springs back), repeated drags, busy state, TalkBack "activate" action.
+5. Camera: permission prompt, front/back camera, shutter, single-use code expiry, upload, retake; keyboard over forms (odometer, profile, payout).
+6. Gesture navigation / notch safe areas; background → resume lands on the active trip; push tap deep links.
+7. Real-device GPS for Reached Pickup (arrival window, radius, permission denied).
+iOS is not built for this app; nothing was checked there.
+
+---
+
+## 10. Deviations (cumulative)
+
+| # | Deviation | Why |
+|---|---|---|
+| 1 | No prototype sample data or fake logic ships | production data only |
+| 2 | Trip steps follow the server, not the prototype's local stages; "Slide to End Trip" opens the closing form and **Confirm & Close** makes the Trip End call | server-authoritative order |
+| 3 | No driver cancellation request / penalty quote / policy | no backend workflow or approved amounts exist; needs a product decision |
+| 4 | Support number is the configured one; police 112 added | existing SOS must not be lost |
+| 5 | Header help button visible (reference hides it) | SOS reachable everywhere |
+| 6 | Fare, tolls, collections, consent, breakup, photo-check extras added | production features the prototype lacks |
+| 7 | 4 photos + odometer (prototype: 2 photos) | the server requires them |
+| 8 | Notifications are a page with category filters (web also Penalties tab) | inbox, read state and penalty flows must stay |
+| 9 | "Credited / awaiting settlement" wording from the ledger; document rows show Uploaded + expiry | what the system records |
+| 10 | Document update opens the existing form (full-screen on web, stack screen in the app) | outside the redesign scope |
+| 11 | Home metric cards restored from the old dashboard (above the grid on wide screens, below it on phones) | feature parity |
+| 12 | Poppins for all text; logo artwork kept; type floor 12 px, tracking reduced | requested; Poppins is wider |
+| 13 | Fluid layout: no 1600 px cap, two-pane trip flow ≥ 1000 px, 760/1180 dp app columns, 1.4× font-scale cap | requested; reference was fixed-width |
+| 14 | Extra icons drawn in the reference's style (7) | reference has 23 |
+| 15 | CSS fixes to reference defects (dialog centring, input styles, focus ring, narrow rail, tablet columns, targets) | marked `DEVIATION n` in `driver/web/src/styles/reference.css` |
+| 16 | Old dead screens removed (web: Dashboard, TripExecution, Header, BottomNav, FarePanel; app: TripScreen) | replaced, no importers |
+
+**Screenshots:** `output/driver-ui-screenshots/` (see its `README.md`; `before/` and `after/` labelled by viewport).
+**Files to know:** `driver/web/src/styles/{reference,fonts}.css`, `driver/web/src/components/nx/`, `driver/web/e2e/driver-journey.e2e.cjs`, `driver/app/src/components/nx/`, `driver/app/src/theme/{nx,fonts}.ts`, `driver/app/__tests__/nx-render.test.tsx`, `functions/test/driverUiContract.e2e.test.js`.

@@ -494,6 +494,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
         <NxButton title="Navigate to Drop" icon="pin" onPress={() => void Linking.openURL(mapsDirections(trip.drop))} />
         {trip.distanceKm > 0 ? <NxRow label="Trip estimate" value={kmText(trip.distanceKm)} /> : null}
         <NxSwipe
+          key="end-trip"
           label="Slide to End Trip"
           onCommit={async () => {
             setError('');
@@ -540,7 +541,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
             <NxRow label="Selfie & vehicle photos" value={trip.verificationSubmitted ? 'Submitted' : 'Needed'} />
           </View>
           {trip.boardingVerified ? <NxFormError message={error} /> : null}
-          <NxSwipe label="Slide to Start Trip" disabled={!ready} busy={busy} onCommit={startTrip} />
+          <NxSwipe key="start-trip" label="Slide to Start Trip" disabled={!ready} busy={busy} onCommit={startTrip} />
           {!ready ? <Text style={nxText.note}>Still needed: {blockers.join(' and ')}.</Text> : null}
         </NxPanel>
       </>
@@ -555,7 +556,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
           <Text style={[nxText.heading, { marginTop: 15 }]}>Reached the location?</Text>
           <Text style={[nxText.copy, { marginTop: 7 }]}>Confirm when you arrive. You must be within {radiusKm} km of the pickup point.</Text>
           <NxFormError message={error} />
-          <NxSwipe label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={reachedPickup} />
+          <NxSwipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={reachedPickup} />
           <Text style={nxText.note}>{arrivalNote || `Vehicle photos submitted · pickup ${placeName(trip.pickup.address)}`}</Text>
         </NxPanel>
         {navigationPanel(trip.pickup, 'Navigate to pickup', 'Navigate to Pickup', 'Customer’s pickup location')}

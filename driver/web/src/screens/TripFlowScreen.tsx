@@ -593,6 +593,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
           </div>
         ) : null}
         <Swipe
+          key="end-trip"
           label="Slide to End Trip"
           onCommit={async () => {
             setError('');
@@ -670,7 +671,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
               {error}
             </div>
           ) : null}
-          <Swipe label="Slide to Start Trip" disabled={!boardingOk || !trip.verificationSubmitted} busy={busy} onCommit={() => run(() => onTripStart(requestId.current), 'Could not start the trip.')} />
+          <Swipe key="start-trip" label="Slide to Start Trip" disabled={!boardingOk || !trip.verificationSubmitted} busy={busy} onCommit={() => run(() => onTripStart(requestId.current), 'Could not start the trip.')} />
           {!boardingOk || !trip.verificationSubmitted ? <p className="nx-note">Complete the boarding OTP and the vehicle photos to unlock Start Trip.</p> : null}
         </section>
       </>
@@ -694,7 +695,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
               {error}
             </div>
           ) : null}
-          <Swipe label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={() => run(() => onReachedPickup(requestId.current), 'Could not update the trip.')} />
+          <Swipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={() => run(() => onReachedPickup(requestId.current), 'Could not update the trip.')} />
           <p className="nx-note">{arrivalNote || `Vehicle photos submitted · pickup ${placeName(trip.pickup.address)}`}</p>
         </section>
         {navigation(trip.pickup, 'Navigate to pickup', 'Navigate to Pickup', 'Customer’s pickup location')}
