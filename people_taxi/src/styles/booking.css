@@ -152,8 +152,10 @@
 .stepper__step:not(.is-current) .stepper__label {
   display: none;
 }
-.review-page__head .stepper__step .stepper__label {
-  display: inline !important;
+@media (min-width: 768px) {
+  .review-page__head .stepper__step .stepper__label {
+    display: inline !important;
+  }
 }
 .stepper__step.is-current {
   color: var(--ink);
@@ -601,8 +603,12 @@
   background: var(--paper);
   padding: 4px var(--gutter) clamp(72px, 7vw, 120px);
 }
+.review-page__inner > *,
+.review-page__grid > * {
+  min-width: 0;
+}
 .review-page__inner {
-  max-width: 1200px;
+  max-width: min(1760px, 100%);
   margin-inline: auto;
   display: flex;
   flex-direction: column;
@@ -652,7 +658,7 @@
 }
 .review-page__grid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   align-items: start;
 }
@@ -794,45 +800,27 @@
   box-shadow: var(--shadow-3);
 }
 
+.review-page__main,
+.review-page__side {
+  display: contents;
+}
+
 @media (min-width: 1024px) {
   .review-page__grid {
-    grid-template-columns: minmax(0, 1.45fr) minmax(360px, 1fr);
-    gap: clamp(24px, 2.5vw, 36px);
+    grid-template-columns: minmax(0, 1.5fr) minmax(400px, 1fr);
+    gap: clamp(24px, 2.5vw, 40px);
+    align-items: stretch;
   }
-  .rcard--trip {
-    grid-column: 1;
-    grid-row: 1;
-  }
-  .rcard--ref-map {
-    grid-column: 2;
-    grid-row: 1;
-  }
-  .rcard--ride {
-    grid-column: 1;
-    grid-row: 2;
+  .review-page__main,
+  .review-page__side {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    min-width: 0;
   }
   .rcard--action {
-    grid-column: 2;
-    grid-row: 2 / span 5;
     position: sticky;
     top: calc(var(--nav-h) + 12px);
-    align-self: start;
-  }
-  .rcard--fare {
-    grid-column: 1;
-    grid-row: 3;
-  }
-  .rcard--pay {
-    grid-column: 1;
-    grid-row: 4;
-  }
-  .rcard--contact {
-    grid-column: 1;
-    grid-row: 5;
-  }
-  .rcard--policy {
-    grid-column: 1;
-    grid-row: 6;
   }
   .review-page__foot-sticky {
     display: none;
@@ -1652,6 +1640,12 @@
   }
 }
 @media (max-width: 599.98px) {
+  .review-page__head {
+    background: var(--brand-gradient);
+  }
+  .review-page__head .stepper ol {
+    gap: 6px;
+  }
   .work__foot > * {
     min-width: 0;
   }

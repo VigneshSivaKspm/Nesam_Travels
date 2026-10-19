@@ -125,11 +125,11 @@
   --shadow-4: 0 30px 80px rgb(12 27 61 / 0.28);
 
   /* Layout: a floating pill header; content sits in padded rounded sections */
-  --gutter: clamp(14px, 3.4vw, 72px);
-  --max: 1680px;
+  --gutter: clamp(14px, 3.2vw, 96px);
+  --max: 2400px;
   --nav-h: 84px;
   --tabbar-h: 72px;
-  --panel-w: clamp(440px, 32vw, 560px);
+  --panel-w: clamp(440px, 30vw, 620px);
   --tap: 48px;
 
   --ring: 0 0 0 4px rgb(22 101 232 / 0.22);

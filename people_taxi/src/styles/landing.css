@@ -36,12 +36,48 @@
     var(--brand-gradient);
   color: var(--on-dark);
 }
+.lp-hero::after {
+  content: '';
+  position: absolute;
+  right: -90px;
+  bottom: -150px;
+  width: 540px;
+  height: 540px;
+  border-radius: 50%;
+  background: rgb(255 255 255 / 0.07);
+  pointer-events: none;
+}
 .lp-hero__inner {
+  position: relative;
+  z-index: 1;
   display: grid;
   justify-items: start;
   gap: 18px;
-  max-width: 920px;
-  padding: clamp(28px, 4vw, 64px) clamp(22px, 4vw, 64px);
+  padding: clamp(28px, 4vw, 72px) clamp(22px, 4vw, 80px);
+}
+.lp-hero__inner > * {
+  max-width: 960px;
+}
+@media (min-width: 1200px) {
+  .lp-hero__inner:has(.lp-facts) {
+    grid-template-columns: minmax(0, 1fr) 360px;
+    column-gap: clamp(32px, 6vw, 120px);
+    align-items: start;
+  }
+  .lp-hero__inner:has(.lp-facts) > * {
+    grid-column: 1;
+  }
+  .lp-hero__inner:has(.lp-facts) > .lp-facts {
+    grid-column: 2;
+    grid-row: 1 / span 5;
+    flex-direction: column;
+    align-self: center;
+    width: 100%;
+  }
+  .lp-hero__inner:has(.lp-facts) .lp-facts li {
+    padding: 18px 24px 18px 20px;
+    border-radius: 28px;
+  }
 }
 .lp-hero h1 {
   color: #fff;
