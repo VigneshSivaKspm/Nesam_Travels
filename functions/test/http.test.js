@@ -58,6 +58,32 @@ test('CORS: allowed origins only, preflight answered', async () => {
   assert.equal(evil.headers['access-control-allow-origin'], undefined);
 });
 
+test('CORS: admin/customer preflight for getLegalStatus / quoteBooking / approveBooking, errors stay readable', async () => {
+  const origin = 'https://customer.example.com'; // stands in for the exact Admin origin in ALLOWED_ORIGINS
+  const preflight = { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization,content-type' } };
+  for (const name of ['getLegalStatus', 'quoteBooking', 'approveBooking']) {
+    // Preflight never needs a token.
+    const p = await run(call, { ...preflight, query: { name } });
+    assert.equal(p.status, 204, name);
+    assert.equal(p.headers['access-control-allow-origin'], origin, name);
+    assert.equal(p.headers['vary'], 'Origin', name);
+    assert.match(p.headers['access-control-allow-methods'], /POST/, name);
+    assert.match(p.headers['access-control-allow-headers'], /Authorization/i, name);
+    assert.match(p.headers['access-control-allow-headers'], /Content-Type/i, name);
+    // The real request is still authenticated, and its 401 carries the CORS header so the app can read it.
+    const noToken = await run(call, { headers: { origin }, query: { name } });
+    assert.equal(noToken.status, 401, name);
+    assert.equal(noToken.headers['access-control-allow-origin'], origin, name);
+    const fake = await run(call, { headers: { origin, authorization: 'Bearer fake' }, query: { name } });
+    assert.equal(fake.status, 401, name);
+    assert.equal(json(fake).error.code, 'unauthenticated', name);
+    assert.equal(fake.headers['access-control-allow-origin'], origin, name);
+    // An origin outside the allow-list gets no permission-granting header on either leg.
+    const evil = await run(call, { ...preflight, headers: { ...preflight.headers, origin: 'https://evil.vercel.app' }, query: { name } });
+    assert.equal(evil.headers['access-control-allow-origin'], undefined, name);
+  }
+});
+
 test('only POST; unknown and prototype names are 404', async () => {
   assert.equal((await run(call, { method: 'GET', query: { name: 'createBooking' } })).status, 405);
   for (const name of ['nope', '__proto__', 'constructor', 'toString', 'onBookingCancelled', 'unassignedBookingAlerts', 'whatsappWebhook']) {
