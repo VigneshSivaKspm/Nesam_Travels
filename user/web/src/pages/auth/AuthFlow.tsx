@@ -15,47 +15,22 @@ import { useOnline, usePageTitle } from '@/lib/hooks';
 const RESEND_SECONDS = 30;
 const OTP_LENGTH = 6;
 
-const POINTS = [
-  { icon: 'verified', text: 'Fares shown upfront, before you book' },
-  { icon: 'driver', text: 'Verified commercial drivers' },
-  { icon: 'support', text: 'Customer care you can call any time' },
-];
-
-function AuthLayout({ art, title, subtitle, children }: { art: string; title: string; subtitle: string; children: ReactNode }) {
+function AuthLayout({ title, subtitle, children }: { art?: string; title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="auth">
-      <aside className="auth__hero">
-        <picture>
-          <source media="(max-width: 720px)" srcSet="/website-images/web/heroes/hero-mobile.webp" />
-          <img className="auth__bg" src="/website-images/web/heroes/hero-family.webp" alt="Family traveling comfortably with NESAM Cabs outstation taxi" width={1774} height={887} />
-        </picture>
-        <span className="auth__shade" aria-hidden="true" />
-        <div className="auth__top">
-          <span className="brand brand--light">
-            <img src="/brand/logo.png" alt="NESAM Cabs Logo" width={44} height={44} />
-            <span className="brand__word">
-              <b>NESAM</b>
-              <small>Cabs</small>
-            </span>
+      <header className="auth__top">
+        <span className="brand">
+          <span className="brand__logo">
+            <img src="/nesam/emblem.webp" alt="" width={40} height={40} />
           </span>
-        </div>
-        <div className="auth__hero-body">
-          <p className="hero__eyebrow">
-            <Icon name="route" size={16} /> Outstation &amp; intercity cabs
-          </p>
-          <h2>Safe journeys, happy memories.</h2>
-          <ul className="auth__points">
-            {POINTS.map((p) => (
-              <li key={p.text}>
-                <Icon name={p.icon} size={20} /> {p.text}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </aside>
+          <span className="brand__text">
+            <span className="brand__word">NESAM</span>
+            <span className="brand__sub">Cabs &amp; Car Rentals</span>
+          </span>
+        </span>
+      </header>
       <main className="auth__main" id="main">
         <div className="auth__panel">
-          <img className="auth__art" src={`/art/${art}.webp`} alt="" width={132} height={132} />
           <h1>{title}</h1>
           <p className="auth__sub">{subtitle}</p>
           {children}

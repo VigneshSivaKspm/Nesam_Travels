@@ -31,7 +31,7 @@ export function useCustomerData(): CustomerDataValue {
   return v;
 }
 
-export function CustomerDataProvider({ profile, children }: { profile: UserProfile; children: React.ReactNode }) {
+export function CustomerDataProvider({ profile = null, children }: { profile?: UserProfile | null; children: React.ReactNode }) {
   const [trips, setTrips] = useState<TripRecord[]>([]);
   const [tripsLoading, setTripsLoading] = useState(false);
   const [tripsError, setTripsError] = useState('');
@@ -39,10 +39,12 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
   const [savedPlaces, setSavedPlaces] = useState<LocationItem[]>([]);
   const [now, setNow] = useState(() => Date.now());
 
+  const uid = profile?.uid;
+
   // The provider is keyed by uid, so only an explicit retry needs a reset —
   // done in retryTrips, not here.
   useEffect(() => {
-    if (!profile.uid) {
+    if (!uid) {
       setTrips([]);
       setTripsLoading(false);
       setTripsError('');
@@ -50,7 +52,7 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
     }
     setTripsLoading(true);
     return subscribeToUserBookings(
-      profile.uid,
+      uid,
       (t) => {
         setTrips(t);
         setTripsLoading(false);
@@ -61,15 +63,15 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
         setTripsError(describeError(e, 'We couldn’t load your trips.'));
       },
     );
-  }, [profile.uid, tripsKey]);
+  }, [uid, tripsKey]);
 
   useEffect(() => {
-    if (!profile.uid) {
+    if (!uid) {
       setSavedPlaces([]);
       return undefined;
     }
-    return subscribeToSavedPlaces(profile.uid, setSavedPlaces);
-  }, [profile.uid]);
+    return subscribeToSavedPlaces(uid, setSavedPlaces);
+  }, [uid]);
 
   // Scheduled rides become "live" an hour before pickup without any write.
   useEffect(() => {
@@ -90,7 +92,7 @@ export function CustomerDataProvider({ profile, children }: { profile: UserProfi
         (t) => t.status === 'Completed' && t.rating == null && !!t.completedAt && now - t.completedAt.getTime() < RATING_PROMPT_WINDOW_MS,
       ) ?? null;
     return {
-      profile,
+      profile: profile as UserProfile,
       trips,
       tripsLoading,
       tripsError,

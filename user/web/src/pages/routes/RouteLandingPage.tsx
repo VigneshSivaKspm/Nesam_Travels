@@ -271,7 +271,7 @@ export function RouteLandingPage() {
                     <td style={{ padding: '16px', color: '#475569' }}>{est.seats}</td>
                     <td style={{ padding: '16px', color: '#475569' }}>₹{est.perKm} / KM</td>
                     <td style={{ padding: '16px', color: '#475569' }}>₹{est.driverBata}</td>
-                    <td style={{ padding: '16px', color: '#e31e24', fontWeight: 700, fontSize: '1.1rem' }}>
+                    <td style={{ padding: '16px', color: 'var(--red)', fontWeight: 700, fontSize: '1.1rem' }}>
                       {formatINR(est.estimatedOneWay)}
                     </td>
                     <td style={{ padding: '16px', textAlign: 'right' }}>
@@ -362,25 +362,25 @@ export function RouteLandingPage() {
               padding: 0,
             }}
           >
-            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #e31e24' }}>
+            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Zero Return Fare</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Pay strictly for the distance from {route.origin} to {route.destination}. No return fare surprises.
               </p>
             </li>
-            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #e31e24' }}>
+            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Verified Chauffeurs</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Full commercial licenses, highway route experience, and background-verified drivers.
               </p>
             </li>
-            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #e31e24' }}>
+            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Boarding Security Code</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Every trip has an exclusive 4-digit boarding code. Your journey only begins once you are safely seated.
               </p>
             </li>
-            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid #e31e24' }}>
+            <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Pay Driver in Cash or UPI</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Zero advance payments required during booking. Pay your chauffeur via Google Pay, PhonePe, or Cash upon arrival.
@@ -462,7 +462,7 @@ export function RouteLandingPage() {
                   <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
                     {r.distanceKm} KM · ~{r.duration} · From ₹{r.estimates[0].estimatedOneWay}
                   </span>
-                  <div style={{ marginTop: '12px', color: '#e31e24', fontWeight: 600, fontSize: '0.9rem' }}>
+                  <div style={{ marginTop: '12px', color: 'var(--red)', fontWeight: 600, fontSize: '0.9rem' }}>
                     View Route &amp; Pricing →
                   </div>
                 </Link>

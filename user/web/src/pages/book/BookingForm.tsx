@@ -17,7 +17,6 @@ import { useBooking } from '@/state/Booking';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
-import { whatsappLink } from '@/lib/contact';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
@@ -273,9 +272,6 @@ export function BookingForm({
           <div className="bf-offline-service__actions">
             <a className="btn btn--primary" href={`tel:${SUPPORT_PHONE}`}>
               <Icon name="phone" size={17} /> Call {SUPPORT_PHONE_DISPLAY}
-            </a>
-            <a className="btn btn--secondary" href={whatsappLink(SUPPORT_PHONE, 'Hello NESAM, I would like to plan a multicity trip.')} target="_blank" rel="noopener noreferrer">
-              <Icon name="chat" size={17} /> WhatsApp
             </a>
           </div>
           <p className="bf-trust">

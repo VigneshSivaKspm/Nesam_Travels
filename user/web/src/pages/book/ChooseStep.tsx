@@ -12,7 +12,7 @@ import { Badge, Button, EmptyState, FlowSteps, Notice, PageHead } from '@/compon
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
-import { categoryGroup, categoryPhoto, type CategoryGroup } from '@/lib/categories';
+import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
 import { FareDialog, FlowBar, PromoControl } from './parts';
 
@@ -59,7 +59,9 @@ export function ChooseStep() {
   const noCategories = categories.length === 0 && (categoryStatus === 'unavailable' || categoryStatus === 'error');
   const selectedHidden = !!selected && !shown.some((c) => c.id === selected.id);
 
-  const summaryFare = canContinue && quote ? quote.total : null;
+  // The confirmed fare once the server has answered; until then the estimate, clearly labelled.
+  const summaryFare = quote && selected && !q.unavailable.has(selected.id) ? quote.total : null;
+  const summaryLabel = canContinue ? 'Total fare' : q.quoteLoading ? 'Estimated fare · confirming' : 'Estimated fare';
 
   return (
     <div className="flow-page">
@@ -188,6 +190,18 @@ export function ChooseStep() {
             ) : (
               <>
                 <p className="choose__intro">Fares are confirmed by NESAM’s booking server for this exact trip and include GST.</p>
+                {q.quoteError ? (
+                  <Notice
+                    tone="error"
+                    action={
+                      <Button size="sm" variant="secondary" icon="refresh" onClick={q.retryQuote} disabled={!online}>
+                        Try again
+                      </Button>
+                    }
+                  >
+                    We couldn’t confirm fares with NESAM. The amounts below are estimates; you can continue once the fare is confirmed.
+                  </Notice>
+                ) : null}
                 {groups.length > 1 || categories.length > 2 ? (
                   <div className="cab-tools">
                     <div className="cab-tools__filters" role="group" aria-label="Filter cabs">
@@ -209,7 +223,7 @@ export function ChooseStep() {
                 ) : null}
                 <p className="choose__count" aria-live="polite">
                   {shown.length} cab option{shown.length === 1 ? '' : 's'} for your journey
-                  {selectedHidden ? ` · your selection (${selected!.name}) is hidden by this filter` : ''}
+                  {selectedHidden ? ` · your selection (${categoryName(selected!)}) is hidden by this filter` : ''}
                 </p>
                 <h2 className="sr-only" id="cabs-h">
                   Available cabs
@@ -232,7 +246,7 @@ export function ChooseStep() {
                             <img src={categoryPhoto(c)} alt="" width={360} height={220} loading="lazy" />
                           </span>
                           <span className="cab__info">
-                            <strong className="cab__name">{c.name}</strong>
+                            <strong className="cab__name">{categoryName(c)}</strong>
                             {c.description ? <span className="cab__model">{c.description}</span> : null}
                             <span className="cab__badges">
                               <span className="feat feat--seats">
@@ -250,7 +264,7 @@ export function ChooseStep() {
                             ) : fare ? (
                               <>
                                 <strong className="num">{formatINR(fare.total)}</strong>
-                                <small>{q.quoteLoading || q.quoteError ? 'Estimate · confirming fare' : 'Total fare'}</small>
+                                <small>{q.quoteLoading ? 'Estimate · confirming fare' : q.quoteError ? 'Estimate · not confirmed' : 'Total fare'}</small>
                                 <small>GST included</small>
                               </>
                             ) : q.quoteLoading ? (
@@ -295,7 +309,7 @@ export function ChooseStep() {
                 <>
                   <div className="sel-card__car">
                     <div>
-                      <strong>{selected.name}</strong>
+                      <strong>{categoryName(selected)}</strong>
                       {selected.description ? <small>{selected.description}</small> : null}
                     </div>
                     <img src={categoryPhoto(selected)} alt="" width={180} height={110} />
@@ -326,7 +340,7 @@ export function ChooseStep() {
                 </div>
               </dl>
               <div className="sel-card__total">
-                <span>Total fare</span>
+                <span>{summaryLabel}</span>
                 <strong className="num">{summaryFare != null ? formatINR(summaryFare) : q.quoteLoading ? '…' : '—'}</strong>
               </div>
               {q.coupon ? <p className="sel-card__saving">Includes {q.coupon.code}: −{formatINR(q.coupon.discount)}</p> : null}
@@ -348,7 +362,7 @@ export function ChooseStep() {
       <FlowBar back={() => navigate('/book')} className="flow-bar--choose">
         <div className="flow-bar__total">
           <div>
-            <small>Total fare</small>
+            <small>{summaryLabel}</small>
             <strong className="num">{summaryFare != null ? formatINR(summaryFare) : q.quoteLoading ? '…' : '—'}</strong>
           </div>
           <Button size="lg" icon="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
@@ -358,7 +372,7 @@ export function ChooseStep() {
       </FlowBar>
 
       {fareFor && breakupFor(fareFor) && q.quotes.get(fareFor.id) ? (
-        <FareDialog title={`${fareFor.name} · fare details`} lines={breakupFor(fareFor)!.lines} total={q.quotes.get(fareFor.id)!.total} estimated={!q.authoritative} onClose={() => setFareFor(null)} />
+        <FareDialog title={`${categoryName(fareFor)} · fare details`} lines={breakupFor(fareFor)!.lines} total={q.quotes.get(fareFor.id)!.total} estimated={!q.authoritative} onClose={() => setFareFor(null)} />
       ) : null}
     </div>
   );

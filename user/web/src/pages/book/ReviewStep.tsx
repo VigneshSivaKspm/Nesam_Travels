@@ -17,6 +17,7 @@ import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
+import { categoryName } from '@/lib/categories';
 import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
 
 export function ReviewStep() {
@@ -148,7 +149,7 @@ export function ReviewStep() {
       {tripType === 'Round Trip' && tripEndAt ? <p className="rv-sum__when">Return {`${formatDate(tripEndAt)} · ${formatTime(tripEndAt)}`}</p> : null}
       <div className="rv-sum__car">
         <span>
-          {category.name} · {category.seats} passengers
+          {categoryName(category)} · {category.seats} passengers
         </span>
         <small>{route ? formatDistance(route.distanceKm) : ''}</small>
       </div>
@@ -308,7 +309,7 @@ export function ReviewStep() {
 
       <FlowBar back={() => navigate('/book/ride')} />
 
-      {showFare ? <FareDialog title={`${category.name} · fare details`} lines={breakup.lines} total={quote.total} estimated={!q.authoritative} onClose={() => setShowFare(false)} /> : null}
+      {showFare ? <FareDialog title={`${categoryName(category)} · fare details`} lines={breakup.lines} total={quote.total} estimated={!q.authoritative} onClose={() => setShowFare(false)} /> : null}
     </div>
   );
 }

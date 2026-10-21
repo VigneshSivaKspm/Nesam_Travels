@@ -72,12 +72,12 @@ export function LegalGate({ children }: { children: ReactNode }) {
   };
 
   return (
-    <main id="main" tabIndex={-1}>
-      <PageHead eyebrow="Before you continue" title="Please review and accept to continue">
-        These documents are new or have changed since you last accepted.
-      </PageHead>
-      <div className="page">
-        <div className="stack gate">
+    <main id="main" tabIndex={-1} className="gate-page">
+      <div className="wrap gate">
+        <PageHead eyebrow="Before you continue" title="Review and accept to continue">
+          These documents are new or have changed since you last accepted.
+        </PageHead>
+        <div className="stack">
           {missing.map((m) => (
             <section key={m.key} className="card legal-doc">
               <button type="button" className="legal-doc__head" aria-expanded={open === m.key} onClick={() => setOpen(open === m.key ? '' : m.key)}>

@@ -176,7 +176,7 @@ export function ServiceLandingPage() {
                   background: '#f8fafc',
                   padding: '24px',
                   borderRadius: '12px',
-                  borderLeft: '4px solid #e31e24',
+                  borderLeft: '4px solid var(--red)',
                 }}
               >
                 <strong style={{ display: 'block', fontSize: '1.15rem', color: '#0f172a', marginBottom: '8px' }}>
@@ -304,7 +304,7 @@ export function ServiceLandingPage() {
                   <span style={{ fontSize: '0.85rem', color: '#64748b' }}>
                     {r.distanceKm} KM · ~{r.duration}
                   </span>
-                  <div style={{ marginTop: '10px', color: '#e31e24', fontWeight: 600, fontSize: '0.9rem' }}>
+                  <div style={{ marginTop: '10px', color: 'var(--red)', fontWeight: 600, fontSize: '0.9rem' }}>
                     View Route Details →
                   </div>
                 </Link>
@@ -348,7 +348,7 @@ export function ServiceLandingPage() {
                   {s.h1}
                 </strong>
                 <p style={{ color: '#64748b', fontSize: '0.9rem', lineHeight: 1.5 }}>{s.lead}</p>
-                <span style={{ display: 'inline-block', marginTop: '10px', color: '#e31e24', fontWeight: 600, fontSize: '0.9rem' }}>
+                <span style={{ display: 'inline-block', marginTop: '10px', color: 'var(--red)', fontWeight: 600, fontSize: '0.9rem' }}>
                   Learn more →
                 </span>
               </Link>

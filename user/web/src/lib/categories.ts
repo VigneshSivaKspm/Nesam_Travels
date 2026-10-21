@@ -27,6 +27,9 @@ export function categoryPhoto(c: Pick<RideCategory, 'name' | 'seats'> & { imageU
   const art = vehicleArtFor(c);
   if (art === 'sedan' || art === 'premium-sedan' || art === 'hatchback') return art === 'hatchback' ? '/vehicles/hatchback.webp' : '/nesam/cars/sedan.webp';
   if (art === 'mpv') return c.seats >= 7 ? '/nesam/cars/innova.webp' : '/nesam/cars/ertiga.webp';
-  if (art === 'suv') return '/nesam/cars/carens.webp';
+  if (art === 'suv') return c.seats >= 7 ? '/nesam/cars/carens.webp' : '/nesam/cars/ertiga.webp';
   return `/vehicles/${art}.webp`;
 }
+
+/** The visible category name: the "6+1" / "7+1" seat suffix is dropped (the passenger badge says it). */
+export const categoryName = (c: Pick<RideCategory, 'name'>) => c.name.replace(/\s*\d+\s*\+\s*\d+\s*$/, '').trim() || c.name;

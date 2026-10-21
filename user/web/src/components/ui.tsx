@@ -319,7 +319,7 @@ export function Dialog({
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     const node = ref.current;
-    const first = node?.querySelector<HTMLElement>('[data-autofocus]') ?? node?.querySelector<HTMLElement>(FOCUSABLE);
+    const first = node?.querySelector<HTMLElement>('[data-autofocus]') ?? node?.querySelector<HTMLElement>(`.dialog__body :is(${FOCUSABLE})`) ?? node?.querySelector<HTMLElement>(FOCUSABLE);
     first?.focus();
     const overflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
