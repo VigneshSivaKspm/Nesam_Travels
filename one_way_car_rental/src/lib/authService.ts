@@ -1,7 +1,7 @@
 // Phone-number sign-in (Firebase Auth) for the browser: Firebase's own invisible
 // reCAPTCHA, a fresh verifier per OTP request (a used or failed one cannot be reused).
 //
-// Phone sign-in on a deployed site needs its domain under Firebase console ›
+// Phone ssign-in on a deployed site needs its domain under Firebase console ›
 // Authentication › Settings › Authorized domains (localhost is there by default).
 import {
   RecaptchaVerifier,
