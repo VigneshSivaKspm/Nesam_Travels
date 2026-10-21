@@ -11,6 +11,7 @@ import { formatDate, formatDistance, formatDuration, formatINR, formatTime } fro
 import { Badge, Button, EmptyState, FlowSteps, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
+import { useCustomerData } from '@/state/CustomerData';
 import { useOnline } from '@/lib/hooks';
 import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
@@ -24,6 +25,8 @@ export function ChooseStep() {
   const { draft, update, route, routeStatus, retryRoute, categories, categoryStatus, adjustment } = useBooking();
   const q = useBookingQuote();
   const { online } = useOnline();
+  const { profile } = useCustomerData();
+  const guest = !profile;
   const [fareFor, setFareFor] = useState<RideCategory | null>(null);
   const [group, setGroup] = useState<'All' | CategoryGroup>('All');
   const [sort, setSort] = useState<Sort>('recommended');
@@ -46,7 +49,9 @@ export function ChooseStep() {
   const tooFar = !!route && route.distanceKm > TOO_FAR_KM;
   const selected = q.category;
   const quote = q.quote;
-  const canContinue = q.authoritative && !!quote && !tooFar && !!selected && !q.unavailable.has(selected.id);
+  // NESAM's server prices a trip only for a signed-in customer. A guest continues with the clearly
+  // labelled estimate, signs in on the review step, and can submit only once the server has priced it.
+  const canContinue = (q.authoritative || (guest && !!quote && !q.quoteLoading)) && !!quote && !tooFar && !!selected && !q.unavailable.has(selected.id);
   const breakupFor = (c: RideCategory) => {
     if (c.id === selected?.id && q.breakup) return q.breakup;
     const f = q.quotes.get(c.id);
@@ -55,13 +60,13 @@ export function ChooseStep() {
   const when = scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)}` : 'Pickup time not chosen';
   const allUnavailable = !q.quoteLoading && categories.length > 0 && categories.every((c) => q.unavailable.has(c.id));
   const loading = categoryStatus === 'loading' || (q.quoteLoading && q.quotes.size === 0);
-  const connection = !online || (!!q.quoteError && q.quotes.size === 0);
+  const connection = !online || (!guest && !!q.quoteError && q.quotes.size === 0);
   const noCategories = categories.length === 0 && (categoryStatus === 'unavailable' || categoryStatus === 'error');
   const selectedHidden = !!selected && !shown.some((c) => c.id === selected.id);
 
   // The confirmed fare once the server has answered; until then the estimate, clearly labelled.
   const summaryFare = quote && selected && !q.unavailable.has(selected.id) ? quote.total : null;
-  const summaryLabel = canContinue ? 'Total fare' : q.quoteLoading ? 'Estimated fare · confirming' : 'Estimated fare';
+  const summaryLabel = q.authoritative ? 'Total fare' : q.quoteLoading ? 'Estimated fare · confirming' : 'Estimated fare';
 
   return (
     <div className="flow-page">
@@ -190,7 +195,9 @@ export function ChooseStep() {
             ) : (
               <>
                 <p className="choose__intro">Fares are confirmed by NESAM’s booking server for this exact trip and include GST.</p>
-                {q.quoteError ? (
+                {guest && !q.authoritative && !q.quoteLoading ? (
+                  <Notice>These are estimates. Sign in on the next step and NESAM’s booking server confirms the exact fare before you submit.</Notice>
+                ) : q.quoteError ? (
                   <Notice
                     tone="error"
                     action={
@@ -264,7 +271,7 @@ export function ChooseStep() {
                             ) : fare ? (
                               <>
                                 <strong className="num">{formatINR(fare.total)}</strong>
-                                <small>{q.quoteLoading ? 'Estimate · confirming fare' : q.quoteError ? 'Estimate · not confirmed' : 'Total fare'}</small>
+                                <small>{q.quoteLoading ? 'Estimate · confirming fare' : q.authoritative || q.quotes.size && !q.quoteError ? 'Total fare' : 'Estimate · not confirmed'}</small>
                                 <small>GST included</small>
                               </>
                             ) : q.quoteLoading ? (

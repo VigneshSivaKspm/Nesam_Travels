@@ -24,7 +24,7 @@ export function ReviewStep() {
   const navigate = useNavigate();
   const { profile } = useCustomerData();
   const { openLoginModal } = useAuth();
-  const { draft, update, reset, route, adjustment } = useBooking();
+  const { draft, update, route, adjustment } = useBooking();
   const q = useBookingQuote();
   const { online } = useOnline();
   const [submitting, setSubmitting] = useState(false);
@@ -43,9 +43,13 @@ export function ReviewStep() {
   // Signing in from here returns to this page; nothing is submitted until the rider taps again.
   const hadProfile = useRef(!!profile);
   useEffect(() => {
-    if (profile && !hadProfile.current) setJustSignedIn(true);
+    if (profile && !hadProfile.current) {
+      setJustSignedIn(true);
+      // The booking server prices trips for signed-in customers only: ask again now.
+      q.retryQuote();
+    }
     hadProfile.current = !!profile;
-  }, [profile]);
+  }, [profile]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to signing in only
 
   if (!pickup || !drop || !category || !q.quote) {
     return (
@@ -84,7 +88,7 @@ export function ReviewStep() {
   const blocker = !online
     ? 'You’re offline. Reconnect to book.'
     : scheduleProblem(scheduledAt) ||
-      (!q.authoritative ? (q.quoteLoading ? 'Confirming your fare with NESAM…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') ||
+      (profile && !q.authoritative ? (q.quoteLoading ? 'Confirming your fare with NESAM…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') ||
       (waError || emailError || passengerError ? 'Check the contact details above.' : '');
 
   const submit = async () => {
@@ -125,8 +129,9 @@ export function ReviewStep() {
         bookingSource: 'nesam',
         brand: 'nesam',
       });
-      reset();
-      navigate(`/book/done/${encodeURIComponent(res.id)}`, { replace: true });
+      // The confirmation page clears the draft once it is showing (clearing it here would make this
+      // step redirect to /book before the navigation lands).
+      navigate(`/book/done/${encodeURIComponent(res.id)}`, { replace: true, state: { fresh: true } });
     } catch (e) {
       const currentFare = (e as { details?: { fare?: Fare } }).details?.fare;
       if (currentFare && Number.isFinite(currentFare.total)) setServerQuote({ key: priceKey, fare: currentFare });
@@ -158,8 +163,8 @@ export function ReviewStep() {
       </div>
       <div className="rv-sum__total">
         <div>
-          <strong>Total fare</strong>
-          <small>GST included{q.coupon ? ` · ${q.coupon.code} −${formatINR(q.coupon.discount)}` : ''}</small>
+          <strong>{q.authoritative ? 'Total fare' : 'Estimated fare'}</strong>
+          <small>{q.authoritative ? '' : profile ? 'Confirming with NESAM · ' : 'Confirmed after you sign in · '}GST included{q.coupon ? ` · ${q.coupon.code} −${formatINR(q.coupon.discount)}` : ''}</small>
           <button type="button" className="link-btn" onClick={() => setShowFare(true)}>
             View fare details
           </button>

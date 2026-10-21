@@ -53,7 +53,10 @@ function RideAutoFocus() {
 
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
-  if (state.status === 'loading')
+  // After the first render, signing in keeps the current page mounted (a guest's half-finished booking,
+  // ticked boxes and scroll position survive) while the account loads.
+  const rendered = useRef(false);
+  if (state.status === 'loading' && !rendered.current)
     return (
       <main id="main">
         <PageLoader label={state.label} />
@@ -63,6 +66,7 @@ function AppShellProvider({ children }: { children: ReactNode }) {
   if (state.status === 'needs-profile' && !isLoginModalOpen) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
   if (state.status === 'on-hold') return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
 
+  rendered.current = true;
   const profile = state.status === 'ready' ? state.profile : null;
   const content = (
     <ToastProvider>
@@ -78,10 +82,7 @@ function AppShellProvider({ children }: { children: ReactNode }) {
     </ToastProvider>
   );
 
-  if (profile) {
-    return <LegalGate>{content}</LegalGate>;
-  }
-  return content;
+  return <LegalGate enabled={!!profile}>{content}</LegalGate>;
 }
 
 function NotFound() {

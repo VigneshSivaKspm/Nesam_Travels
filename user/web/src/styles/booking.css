@@ -1224,6 +1224,9 @@
     gap: 6px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
   }
+  .done-actions {
+    justify-content: stretch;
+  }
   .done-actions .btn--primary {
     min-width: 0;
     width: 100%;

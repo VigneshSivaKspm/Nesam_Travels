@@ -216,15 +216,16 @@
 .bf-route {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 11px;
   align-items: start;
 }
 .bf-route--single {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 .bf-route__cell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
   min-width: 0;
 }
@@ -263,6 +264,7 @@
 }
 .bf-field__main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   flex: 1;
   min-width: 0;
@@ -341,11 +343,12 @@
 }
 .bf-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 11px;
 }
 .bf-cell {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-content: start;
   min-width: 0;
 }
@@ -1018,7 +1021,7 @@
     border-radius: 14px;
   }
   .bf-route {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 0;
     padding: 0;
   }
@@ -1038,6 +1041,7 @@
   }
   .bf-route .bf-field__main {
     padding-left: 4px;
+    padding-right: 22px;
   }
   .bf-trigger {
     font-size: 16px;

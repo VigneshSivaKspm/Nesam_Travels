@@ -16,8 +16,10 @@ interface RequiredDoc {
   checkboxText: string;
 }
 
-export function LegalGate({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<'loading' | 'ok' | 'needed'>('loading');
+export function LegalGate({ children, enabled = true }: { children: ReactNode; enabled?: boolean }) {
+  const [state, setState] = useState<'loading' | 'ok' | 'needed'>(enabled ? 'loading' : 'ok');
+  // Signing in on a page that is already showing keeps that page while the check runs.
+  const [shownBefore] = useState(!enabled);
   const [missing, setMissing] = useState<RequiredDoc[]>([]);
   const [bodies, setBodies] = useState<Record<string, string>>({});
   const [open, setOpen] = useState('');
@@ -26,6 +28,10 @@ export function LegalGate({ children }: { children: ReactNode }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
+    if (!enabled) {
+      setState('ok');
+      return undefined;
+    }
     let alive = true;
     (async () => {
       try {
@@ -46,9 +52,9 @@ export function LegalGate({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [enabled]);
 
-  if (state === 'loading') return <PageLoader label="Checking terms…" />;
+  if (state === 'loading') return shownBefore ? <>{children}</> : <PageLoader label="Checking terms…" />;
   if (state === 'ok') return <>{children}</>;
 
   const text = missing.find((m) => m.checkboxText)?.checkboxText || 'I agree to the Terms & Conditions and Privacy Policy.';

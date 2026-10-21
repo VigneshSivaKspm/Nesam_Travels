@@ -2,7 +2,7 @@
 // the booking's real status — a new request is awaiting NESAM's review and is not called confirmed
 // until NESAM approves it. Safe to reload: everything is read from the booking itself.
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import type { TripRecord } from '@core/types';
 import { subscribeToBooking } from '@core/services/rideService';
 import { formatDate, formatTime } from '@core/utils/format';
@@ -10,6 +10,7 @@ import { describeError } from '@core/utils/retry';
 import { Button, Notice, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
+import { useBooking } from '@/state/Booking';
 import { tripTypeLabel } from '@/lib/services';
 
 function headline(t: TripRecord): { title: string; text: string; tone: 'pending' | 'ok' | 'bad' } {
@@ -45,6 +46,13 @@ export function DonePage() {
   const [missing, setMissing] = useState(false);
   const [error, setError] = useState('');
   const [attempt, setAttempt] = useState(0);
+  const location = useLocation();
+  const { reset } = useBooking();
+
+  // Arriving straight from "Submit booking request": the draft has done its job.
+  useEffect(() => {
+    if ((location.state as { fresh?: boolean } | null)?.fresh) reset();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on arrival
 
   useEffect(() => {
     setError('');

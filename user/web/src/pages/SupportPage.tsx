@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import type { SupportTicket } from '@core/types';
 import { useCustomerData } from '@/state/CustomerData';
 import { SUPPORT_CATEGORIES, submitSupportTicket, subscribeToSupportTickets } from '@core/services/userService';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP } from '@core/config/constants';
 import { formatINR } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
 import { Badge, Button, EmptyState, FieldShell, Notice, PageHead, Tabs, TextArea, TextField } from '@/components/ui';
@@ -12,7 +12,7 @@ import { Icon } from '@/components/Icon';
 import { AccountLayout, SignInPrompt } from '@/components/AccountLayout';
 import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
-import { CONTACT } from '@/lib/contact';
+import { CONTACT, whatsappLink } from '@/lib/contact';
 
 type Tab = 'help' | 'ticket' | 'mine';
 
@@ -194,6 +194,9 @@ export function SupportPage() {
             <p>For a booking or a trip in progress, call us — we’re here around the clock.</p>
             <a className="btn btn--primary btn--block" href={`tel:${SUPPORT_PHONE}`}>
               <Icon name="phone" size={17} /> Call {SUPPORT_PHONE_DISPLAY}
+            </a>
+            <a className="btn btn--secondary btn--block" href={whatsappLink(SUPPORT_WHATSAPP, 'Hello NESAM, I need help with my booking.')} target="_blank" rel="noopener noreferrer">
+              <Icon name="chat" size={17} /> WhatsApp NESAM
             </a>
             <a className="contact-card__mail" href={`mailto:${CONTACT.email}`}>
               {CONTACT.email}

@@ -67,18 +67,32 @@ export function BookingProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => saveDraft(draft), [draft]);
 
+  const categoriesRef = useRef<RideCategory[]>([]);
+  // Categories, adjustment and coupons are readable only when signed in, so they are subscribed
+  // again when the rider signs in or out (a guest sees the published default categories).
+  const { profile } = useCustomerData();
+  const uid = profile?.uid ?? '';
   useEffect(
     () =>
       subscribeToRideCategories((cats, status) => {
+        const previous = categoriesRef.current;
+        categoriesRef.current = cats;
         setCategories(cats);
         setCategoryStatus(status);
-        // Keep the rider's choice while it is still bookable; otherwise pre-select one.
-        setDraft((d) => (cats.some((c) => c.id === d.categoryId) ? d : { ...d, categoryId: cats[Math.min(1, cats.length - 1)]?.id ?? '' }));
+        // Keep the rider's choice while it is still bookable. When the list is replaced (a guest sees the
+        // default list until signing in) the same category is found again by name; otherwise pre-select one.
+        setDraft((d) => {
+          if (cats.some((c) => c.id === d.categoryId)) return d;
+          const key = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '');
+          const name = previous.find((c) => c.id === d.categoryId)?.name;
+          const same = name ? cats.find((c) => key(c.name) === key(name)) : undefined;
+          return { ...d, categoryId: same?.id ?? cats[Math.min(1, cats.length - 1)]?.id ?? '' };
+        });
       }),
-    [],
+    [uid],
   );
-  useEffect(() => subscribeToFareAdjustment(setAdjustment), []);
-  useEffect(() => subscribeToCoupons(setCoupons), []);
+  useEffect(() => subscribeToFareAdjustment(setAdjustment), [uid]);
+  useEffect(() => subscribeToCoupons(setCoupons), [uid]);
 
   const update = useCallback<BookingValue['update']>(
     (patch) => setDraft((d) => ({ ...d, ...(typeof patch === 'function' ? patch(d) : patch) })),
