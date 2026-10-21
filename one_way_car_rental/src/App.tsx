@@ -12,11 +12,13 @@ import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
 import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
 import { LoginModal } from '@/components/LoginModal';
+import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 
 // Pages load on demand: the booking map (Leaflet) and the other screens stay out of the first download.
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<never>>>, name: K) =>
   lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
 const BookPage = lazy(() => import('@/pages/book/BookPage').then((m) => ({ default: m.BookPage })));
+const DonePage = page(() => import('@/pages/book/DonePage'), 'DonePage');
 const RidePage = page(() => import('@/pages/ride/RidePage'), 'RidePage');
 const TripsPage = page(() => import('@/pages/TripsPage'), 'TripsPage');
 const NotificationsPage = page(() => import('@/pages/NotificationsPage'), 'NotificationsPage');
@@ -49,11 +51,7 @@ function RideAutoFocus() {
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
   if (state.status === 'loading')
-    return (
-      <main id="main">
-        <PageLoader label={state.label} />
-      </main>
-    );
+    return <DashboardSkeleton label={state.label} />;
   if (state.status === 'error') return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
   if (state.status === 'needs-profile' && !isLoginModalOpen) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
   if (state.status === 'on-hold') return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
@@ -108,6 +106,7 @@ export function AppRoutes() {
         <Route path="/book" element={<BookPage step="plan" />} />
         <Route path="/book/ride" element={<BookPage step="choose" />} />
         <Route path="/book/confirm" element={<BookPage step="review" />} />
+        <Route path="/book/done/:id" element={<DonePage />} />
         <Route path="/ride/:id" element={<RidePage />} />
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/trips/:id" element={<RidePage />} />

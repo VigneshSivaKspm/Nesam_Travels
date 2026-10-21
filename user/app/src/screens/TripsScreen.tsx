@@ -1,13 +1,13 @@
-// My Bookings in the reference layout: Upcoming / Ongoing / Completed / Cancelled tabs and
-// booking cards that open the full booking (ActiveRide). Status wording comes from the real
-// booking status via utils/tripView.
+// My Bookings in the modern layout:
+// Header shows the logo emblem with "My Bookings" title right to it,
+// followed by Upcoming / Ongoing / Completed / Cancelled tabs and booking cards.
 import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlatList } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
-import { Badge, Button, Chip, EmptyState, Notice, PageHead, type BadgeTone } from '../components/ui';
+import { Badge, Button, Chip, EmptyState, Notice, type BadgeTone } from '../components/ui';
 import { AppHeader } from '../components/brand';
 import { Icon } from '../components/Icon';
 import { CancelRideSheet } from '../components/CancelRideSheet';
@@ -49,7 +49,7 @@ export function TripsScreen() {
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <CancelRideSheet key={cancelTrip?.id ?? 'none'} trip={cancelTrip} onClose={() => setCancelTrip(null)} />
-      <AppHeader />
+      <AppHeader title="My Bookings" />
       <FlatList
         data={shown}
         kind="narrow"
@@ -58,8 +58,7 @@ export function TripsScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={false} onRefresh={retryTrips} colors={[colors.primary]} />}
         ListHeaderComponent={
-          <View>
-            <PageHead title="My Bookings" subtitle="Every journey, in one place." onBack={() => navigation.navigate('Tabs', { screen: 'Account' })} />
+          <View style={{ marginBottom: space.sm }}>
             <View style={styles.tabs} accessibilityRole="tablist">
               {BOOKING_TABS.map((t) => (
                 <Chip key={t} label={t} active={t === tab} accessibilityLabel={`${t}, ${counts[t]} bookings`} onPress={() => setTab(t)} />
@@ -139,8 +138,8 @@ function TripCard({ trip: t, onOpen, onCancel }: { trip: TripRecord; onOpen: () 
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  list: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
-  tabs: { flexDirection: 'row', gap: 8, marginBottom: space.lg },
+  list: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
+  tabs: { flexDirection: 'row', gap: 8, marginBottom: space.sm },
   loading: { fontFamily: fonts.medium, textAlign: 'center', color: colors.muted, marginTop: space.xl, fontSize: 13 },
   card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 10, marginBottom: 12, backgroundColor: colors.white, overflow: 'hidden' },
   cardBody: { paddingHorizontal: 14, paddingTop: 14, paddingBottom: 14 },

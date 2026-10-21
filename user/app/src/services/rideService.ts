@@ -216,6 +216,9 @@ export function mapBooking(id: string, d: Record<string, unknown>): TripRecord {
     driver,
     driverLocation: mapDriverLocation(d.driverLocation),
     assignedVendorName: str(d.assignedVendorName),
+    source: str(d.source),
+    bookingSource: str(d.bookingSource || d.source || d.brand),
+    brand: str(d.brand || d.bookingSource || d.source),
     rating: typeof d.rating === 'number' ? d.rating : null,
     reviewComment: str(d.reviewComment),
     date: str(d.date) || (when ? formatDate(when) : ''),
@@ -311,6 +314,9 @@ export interface RideRequestInput {
   whatsapp?: { sameAsMobile: boolean; countryCode?: string; number?: string };
   /** Optional email for the confirmation and receipt (the profile email is used when blank). */
   email?: string;
+  source?: string;
+  bookingSource?: string;
+  brand?: string;
 }
 
 export interface RideRequestResult {
@@ -324,7 +330,8 @@ const pendingBookingIds = new Map<string, string>();
 export async function createRideRequest(input: RideRequestInput): Promise<RideRequestResult> {
   if (!input.scheduledAt || !Number.isFinite(input.scheduledAt.getTime())) throw new Error('Choose your pickup date and time.');
   if (input.tripType === 'Round Trip' && (!input.tripEndAt || !Number.isFinite(input.tripEndAt.getTime()))) throw new Error('Choose when your round trip ends.');
-  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode]);
+  const bSource = input.bookingSource || input.source || input.brand || '';
+  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode, bSource]);
   const requestId = pendingBookingIds.get(key) ?? doc(collection(db, BOOKINGS)).id;
   pendingBookingIds.set(key, requestId);
   // An advance booking request: it waits for NESAM's review and is not offered to any partner until then.
@@ -332,7 +339,10 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
     categoryId: input.category.id, tripType: input.tripType, expectedFare: input.fare.total,
     paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes,
     whatsapp: input.whatsapp, email: input.email || undefined,
-    scheduledAt: input.scheduledAt.toISOString(), tripEndAt: input.tripType === 'Round Trip' ? input.tripEndAt?.toISOString() : undefined }, 60000);
+    scheduledAt: input.scheduledAt.toISOString(), tripEndAt: input.tripType === 'Round Trip' ? input.tripEndAt?.toISOString() : undefined,
+    source: bSource || undefined,
+    bookingSource: bSource || undefined,
+    brand: bSource || undefined }, 60000);
   pendingBookingIds.delete(key);
   return { id: requestId, unconfirmed: false };
 }

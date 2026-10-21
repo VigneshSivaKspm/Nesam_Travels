@@ -1,167 +1,210 @@
-// Pieces shared by the "choose" and "review" steps.
-import { useMemo, useState } from 'react';
-import type { PaymentMethod } from '@core/types';
-import { isCouponLive } from '@core/services/pricingService';
+import { useState, type ReactNode } from 'react';
+import type { FareBreakdown as Fare, FareLine, PaymentMethod } from '@core/types';
+import type { FareBreakup } from '@core/utils/fareBreakup';
 import { formatINR } from '@core/utils/format';
-import { Button, Dialog, IconButton } from '@/components/ui';
+import { Button, Dialog } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { Stepper } from '@/components/Workspace';
-import { useBooking, useBookingQuote } from '@/state/Booking';
+import { FareBreakdown } from '@/components/FareBreakdown';
 
-export function StepHead({ title, step, onBack, aside }: { title: string; step: 1 | 2 | 3; onBack: () => void; aside?: React.ReactNode }) {
+export function PaymentChoice({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: PaymentMethod;
+  onChange: (m: PaymentMethod) => void;
+  disabled?: boolean;
+}) {
   return (
-    <header className="work__head">
-      <div className="work__head-row">
-        <IconButton icon="arrow-left" label="Back" outline onClick={onBack} />
-        <Stepper current={step} />
-        {aside}
-      </div>
-      <h1 className="work__title">{title}</h1>
-    </header>
-  );
-}
+    <div className="pay-opts" role="radiogroup" aria-label="Payment mode">
+      <label className={`pay-opt ${value === 'Cash' ? 'is-selected' : ''}`}>
+        <input
+          type="radio"
+          name="pay"
+          value="Cash"
+          checked={value === 'Cash'}
+          disabled={disabled}
+          onChange={() => onChange('Cash')}
+        />
+        <div className="pay-opt__text">
+          <strong>Pay Cash to Chauffeur</strong>
+          <small>Pay your chauffeur in cash when your journey finishes.</small>
+        </div>
+        <Icon name="wallet" size={20} />
+      </label>
 
-const PAYMENTS: { id: PaymentMethod; label: string; hint: string; icon: string }[] = [
-  { id: 'Cash', label: 'Cash', hint: 'Pay your driver at drop', icon: 'wallet' },
-  { id: 'UPI', label: 'UPI', hint: 'GPay, PhonePe, Paytm', icon: 'payment-card' },
-];
-
-/** The booking server records Cash or UPI only, so nothing else is offered. */
-export function PaymentChoice({ value, onChange, compact = false }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void; compact?: boolean }) {
-  return (
-    <div className={`pay ${compact ? 'pay--compact' : ''}`} role="radiogroup" aria-label="Payment method">
-      {PAYMENTS.map((p) => (
-        <label key={p.id} className={`pay__opt ${value === p.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="payment" className="sr-only" checked={value === p.id} onChange={() => onChange(p.id)} />
-          <Icon name={p.icon} size={compact ? 18 : 22} />
-          <span className="pay__text">
-            <strong>{p.label}</strong>
-            {compact ? null : <small>{p.hint}</small>}
-          </span>
-          {!compact ? <span className="pay__tick" aria-hidden="true">{value === p.id ? <Icon name="check" size={16} /> : null}</span> : null}
-        </label>
-      ))}
+      <label className={`pay-opt ${value === 'UPI' ? 'is-selected' : ''}`}>
+        <input
+          type="radio"
+          name="pay"
+          value="UPI"
+          checked={value === 'UPI'}
+          disabled={disabled}
+          onChange={() => onChange('UPI')}
+        />
+        <div className="pay-opt__text">
+          <strong>Pay Chauffeur via UPI / QR</strong>
+          <small>Scan and pay your driver's UPI QR code (GPay, PhonePe, Paytm) at destination.</small>
+        </div>
+        <Icon name="sparkles" size={20} />
+      </label>
     </div>
   );
 }
 
-/** Applied promo (neat chip) or an "Add promo code" button that opens the code dialog. */
-export function PromoControl() {
-  const { draft, update } = useBooking();
-  const q = useBookingQuote();
+export function PromoControl({
+  code,
+  applied,
+  onApply,
+  onRemove,
+  disabled,
+}: {
+  code: string;
+  applied: boolean;
+  onApply: (code: string) => void;
+  onRemove: () => void;
+  disabled?: boolean;
+}) {
+  const [val, setVal] = useState(code);
   const [open, setOpen] = useState(false);
-  const code = draft.promoCode;
-  const applied = q.coupon;
-  const rejected = code && q.couponCheck && !q.couponCheck.ok ? q.couponCheck.message : '';
 
-  return (
-    <>
-      {applied ? (
-        <span className="promo-chip" role="status">
-          <Icon name="offers" size={18} />
-          <span>
-            <strong>{applied.code}</strong>
-            <small>−{formatINR(applied.discount)}</small>
-          </span>
-          <button type="button" aria-label={`Remove promo code ${applied.code}`} onClick={() => update({ promoCode: '' })}>
-            <Icon name="close" size={16} />
+  if (applied && code) {
+    return (
+      <div className="promo">
+        <span className="promo-chip">
+          <Icon name="tag" size={14} />
+          <strong>{code.toUpperCase()}</strong> applied
+          <button type="button" onClick={onRemove} disabled={disabled} aria-label="Remove coupon">
+            <Icon name="close" size={12} />
           </button>
         </span>
-      ) : (
-        <button type="button" className="promo-add" onClick={() => setOpen(true)}>
-          <Icon name="offers" size={18} />
-          {code ? 'Promo not valid' : 'Promo code'}
+      </div>
+    );
+  }
+
+  return (
+    <div className="promo">
+      {!open ? (
+        <button type="button" className="btn btn--text" onClick={() => setOpen(true)} disabled={disabled}>
+          <Icon name="tag" size={14} /> Have a coupon code?
         </button>
+      ) : (
+        <form
+          className="promo-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            const trimmed = val.trim();
+            if (trimmed) onApply(trimmed);
+          }}
+        >
+          <input
+            type="text"
+            className="input"
+            placeholder="Enter promo code"
+            value={val}
+            onChange={(e) => setVal(e.target.value.toUpperCase())}
+            autoFocus
+          />
+          <Button type="submit" variant="secondary" size="sm" disabled={!val.trim() || disabled}>
+            Apply
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setOpen(false)}>
+            Cancel
+          </Button>
+        </form>
       )}
-      {rejected && !open ? (
-        <p className="field__error" role="alert">
-          {rejected}
-        </p>
-      ) : null}
-      {open ? <PromoDialog onClose={() => setOpen(false)} /> : null}
-    </>
+    </div>
   );
 }
 
-function PromoDialog({ onClose }: { onClose: () => void }) {
-  const { draft, update, coupons } = useBooking();
-  const q = useBookingQuote();
-  const [input, setInput] = useState(draft.promoCode);
-  const [error, setError] = useState('');
-  const live = useMemo(() => coupons.filter((c) => isCouponLive(c)), [coupons]);
-
-  const apply = (raw: string) => {
-    const code = raw.trim().toUpperCase().replace(/\s+/g, '');
-    if (!code) {
-      setError('Enter a promo code.');
-      return;
-    }
-    const res = q.checkCoupon(code);
-    if (!res.ok) {
-      setError(res.message);
-      return;
-    }
-    update({ promoCode: res.coupon.code });
-    onClose();
-  };
-
+export function FareDialog({
+  title = 'Fare Breakup & Inclusions',
+  lines,
+  total,
+  fare,
+  estimated,
+  note,
+  onClose,
+}: {
+  title?: string;
+  lines?: FareLine[];
+  total?: number;
+  fare?: FareBreakup | Fare | null;
+  estimated?: boolean;
+  note?: ReactNode;
+  onClose: () => void;
+}) {
+  const finalLines: FareLine[] = lines ?? ((fare as any)?.lines ?? []);
+  const finalTotal: number = total ?? ((fare as any)?.packageTotal ?? (fare as any)?.total ?? 0);
   return (
-    <Dialog title="Promo code" onClose={onClose}>
-      <form
-        className="promo-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          apply(input);
-        }}
-      >
-        <label className="sr-only" htmlFor="promo-input">
-          Promo code
-        </label>
-        <input
-          id="promo-input"
-          data-autofocus
-          className="input"
-          value={input}
-          onChange={(e) => {
-            setInput(e.target.value.toUpperCase());
-            setError('');
-          }}
-          placeholder="Enter code"
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-          aria-invalid={!!error || undefined}
-        />
-        <Button type="submit" variant="dark">
-          Apply
-        </Button>
-      </form>
-      {error ? (
-        <p className="field__error" role="alert" style={{ marginTop: 8 }}>
-          {error}
-        </p>
-      ) : null}
-      {live.length ? (
-        <>
-          <p className="eyebrow" style={{ margin: '20px 0 8px' }}>
-            Available offers
-          </p>
-          <ul className="offer-list">
-            {live.map((c) => (
-              <li key={c.id}>
-                <button type="button" className="offer-pick" onClick={() => apply(c.code)}>
-                  <strong>{c.code}</strong>
-                  <span>{c.description || c.name}</span>
-                  <small className="muted">
-                    {c.discountType === 'PERCENTAGE' ? `${c.discountValue}% off${c.maximumDiscount ? ` up to ${formatINR(c.maximumDiscount)}` : ''}` : `${formatINR(c.discountValue)} off`}
-                    {c.minimumBookingAmount ? ` · min fare ${formatINR(c.minimumBookingAmount)}` : ''}
-                  </small>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+    <Dialog title={title} subtitle={estimated ? 'Estimate — confirmed upfront before dispatch.' : 'Confirmed upfront fare for this trip.'} onClose={onClose} variant="sheet">
+      <FareBreakdown lines={finalLines} total={finalTotal} estimated={estimated} />
+      {note ? <p className="fare-note">{note}</p> : null}
+      <p className="fare-note">Category images are illustrative. The assigned model may vary within the booked category.</p>
     </Dialog>
+  );
+}
+
+export function FlowBar({
+  onBack,
+  onNext,
+  backLabel = 'Back',
+  nextLabel = 'Continue',
+  nextDisabled = false,
+  nextLoading = false,
+  total,
+  secondary,
+}: {
+  onBack?: () => void;
+  onNext?: () => void;
+  backLabel?: string;
+  nextLabel?: string;
+  nextDisabled?: boolean;
+  nextLoading?: boolean;
+  total?: number;
+  secondary?: React.ReactNode;
+}) {
+  return (
+    <div className="flow-bar">
+      {total !== undefined && onNext ? (
+        <div className="flow-bar__total">
+          <div>
+            <small>Estimated Fare</small>
+            <strong>{formatINR(total)}</strong>
+          </div>
+          <Button
+            variant="primary"
+            size="lg"
+            disabled={nextDisabled}
+            loading={nextLoading}
+            onClick={onNext}
+            iconTrailing="arrow-right"
+          >
+            {nextLabel}
+          </Button>
+        </div>
+      ) : null}
+
+      <div className="flow-bar__nav">
+        {onBack ? (
+          <Button variant="secondary" size="md" onClick={onBack} icon="arrow-left">
+            {backLabel}
+          </Button>
+        ) : null}
+        {secondary}
+        {total === undefined && onNext ? (
+          <Button
+            variant="primary"
+            size="md"
+            disabled={nextDisabled}
+            loading={nextLoading}
+            onClick={onNext}
+            iconTrailing="arrow-right"
+          >
+            {nextLabel}
+          </Button>
+        ) : null}
+      </div>
+    </div>
   );
 }

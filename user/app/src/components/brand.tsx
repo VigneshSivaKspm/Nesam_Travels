@@ -1,8 +1,8 @@
-// Brand pieces shared by the customer screens: the reference header (emblem,
-// NESAM wordmark, notification + support actions) and the five-item service
-// navigation (Airport · Multicity · Outstation · Local Rental · Account).
-import React from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+// Brand pieces shared by the customer screens: the modern header (emblem,
+// dynamic page heading, notification + support actions) and the modern five-item service
+// navigation (Airport · Multicity · Outstation · Local Rental · Account) with prominent middle hero.
+import React, { useRef } from 'react';
+import { Animated, Image, Linking, Pressable, type PressableProps, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
@@ -18,26 +18,91 @@ export const APP_ICON = BRAND.logo;
 export const VEHICLE_IMAGES = VEHICLES;
 export { getVehicleImage };
 
-/** Emblem + “NESAM / Cabs & Car Rentals”. */
-export function BrandMark({ onPress }: { onPress?: () => void }) {
+/** A responsive pressable that scales down slightly with a spring on touch, giving tactile click feedback. */
+export function PressableScale({
+  onPress,
+  onPressIn,
+  onPressOut,
+  style,
+  children,
+  activeScale = 0.93,
+  disabled,
+  ...props
+}: PressableProps & {
+  activeScale?: number;
+  children: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode);
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = (e: any) => {
+    if (disabled) return;
+    Animated.spring(scale, {
+      toValue: activeScale,
+      speed: 55,
+      bounciness: 0,
+      useNativeDriver: true,
+    }).start();
+    onPressIn?.(e);
+  };
+
+  const handlePressOut = (e: any) => {
+    Animated.spring(scale, {
+      toValue: 1,
+      speed: 30,
+      bounciness: 12,
+      useNativeDriver: true,
+    }).start();
+    onPressOut?.(e);
+  };
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Pressable
+        {...props}
+        disabled={disabled}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        style={style}
+      >
+        {children}
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+/** Emblem + Page Heading (moves all page headings right to the logo). */
+export function BrandMark({
+  title,
+  subtitle,
+  onPress,
+}: {
+  title?: string;
+  subtitle?: string;
+  onPress?: () => void;
+}) {
   const body = (
     <View style={styles.brand}>
       <View style={styles.logoWrap}>
         <Image source={LOGO} style={styles.logo} resizeMode="contain" accessible={false} />
       </View>
-      <View>
-        <Text style={styles.wordmark} maxFontSizeMultiplier={1.2}>
-          NESAM
-        </Text>
-        <Text style={styles.submark} maxFontSizeMultiplier={1.3}>
-          Cabs & Car Rentals
-        </Text>
-      </View>
+      {title ? (
+        <View style={styles.headerTitleWrap}>
+          <Text style={styles.headerTitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+            {title}
+          </Text>
+          {subtitle ? (
+            <Text style={styles.headerSubtitle} numberOfLines={1} maxFontSizeMultiplier={1.2}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   );
-  if (!onPress) return <View accessibilityRole="header" accessibilityLabel="NESAM Cabs and Car Rentals">{body}</View>;
+  if (!onPress) return <View accessibilityRole="header">{body}</View>;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="NESAM home" hitSlop={4}>
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Home" hitSlop={6}>
       {body}
     </Pressable>
   );
@@ -45,14 +110,15 @@ export function BrandMark({ onPress }: { onPress?: () => void }) {
 
 function HeaderAction({ icon, label, onPress, active, badge }: { icon: IconName; label: string; onPress: () => void; active?: boolean; badge?: number }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={badge ? `${label}, ${badge} unread` : label}
-      hitSlop={4}
-      style={({ pressed }) => [styles.action, active && styles.actionOn, pressed && { opacity: 0.6 }]}
+      hitSlop={6}
+      activeScale={0.88}
+      style={[styles.action, active && styles.actionOn]}
     >
-      <Icon name={icon} size={21} color={active ? colors.primary : '#626E80'} />
+      <Icon name={icon} size={20} color={active ? colors.primary : '#4B5563'} strokeWidth={2.0} />
       {badge ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText} maxFontSizeMultiplier={1.1}>
@@ -60,44 +126,90 @@ function HeaderAction({ icon, label, onPress, active, badge }: { icon: IconName;
           </Text>
         </View>
       ) : null}
-    </Pressable>
+    </PressableScale>
   );
 }
 
 /**
- * The app header. Inside the signed-in app it shows the notification bell (with the unread
- * count) and the support action; `actions={false}` is for sign-in and account-state screens.
+ * The app header. Renders the logo emblem on the left with the page heading right to it,
+ * optional back button when navigating, and action icons (notifications with unread count + support) on the right.
  */
-export function AppHeader({ active, actions = true }: { active?: 'alerts' | 'support'; actions?: boolean }) {
-  return <View style={styles.top}>{actions ? <SignedInHeader active={active} /> : <BrandMark />}</View>;
-}
-
-function SignedInHeader({ active }: { active?: 'alerts' | 'support' }) {
+export function AppHeader({
+  title,
+  subtitle,
+  onBack,
+  active,
+  actions = true,
+  rightAction,
+}: {
+  title?: string;
+  subtitle?: string;
+  onBack?: () => void;
+  active?: 'alerts' | 'support';
+  actions?: boolean;
+  rightAction?: React.ReactNode;
+}) {
   const navigation = useNavigation();
   const { unreadCount } = useInbox();
+
   return (
-    <>
-      <BrandMark onPress={() => navigation.navigate('Tabs', { screen: 'Book' })} />
-      <View style={styles.actions}>
-        <HeaderAction icon="bell" label="Notifications" active={active === 'alerts'} badge={unreadCount} onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' })} />
-        <HeaderAction icon="headphones" label="Help and support" active={active === 'support'} onPress={() => navigation.navigate('Support')} />
+    <View style={styles.top}>
+      <View style={styles.headerLeft}>
+        {onBack ? (
+          <PressableScale
+            onPress={onBack}
+            hitSlop={8}
+            activeScale={0.88}
+            accessibilityRole="button"
+            accessibilityLabel="Back"
+            style={styles.headerBackBtn}
+          >
+            <Icon name="arrow-left" size={18} color="#475569" strokeWidth={2.2} />
+          </PressableScale>
+        ) : null}
+        <BrandMark
+          title={title}
+          subtitle={subtitle}
+          onPress={() => navigation.navigate('Tabs', { screen: 'Book' })}
+        />
       </View>
-    </>
+      <View style={styles.actions}>
+        {rightAction ? (
+          rightAction
+        ) : actions ? (
+          <>
+            <HeaderAction
+              icon="bell"
+              label="Notifications"
+              active={active === 'alerts'}
+              badge={unreadCount}
+              onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' })}
+            />
+            <HeaderAction
+              icon="headphones"
+              label="Help and support"
+              active={active === 'support'}
+              onPress={() => navigation.navigate('Support')}
+            />
+          </>
+        ) : null}
+      </View>
+    </View>
   );
 }
 
 /** Kept for screens that still pass a custom right-hand action. */
-export function MobileBrandHeader({ rightAction }: { showTrustBar?: boolean; rightAction?: React.ReactNode }) {
+export function MobileBrandHeader({ rightAction, title }: { showTrustBar?: boolean; rightAction?: React.ReactNode; title?: string }) {
   return (
     <View style={styles.top}>
-      <BrandMark />
+      <BrandMark title={title} />
       {rightAction ? <View style={styles.actions}>{rightAction}</View> : null}
     </View>
   );
 }
 
-export function BrandHeader({ right }: { right?: React.ReactNode }) {
-  return <MobileBrandHeader rightAction={right} />;
+export function BrandHeader({ right, title }: { right?: React.ReactNode; title?: string }) {
+  return <MobileBrandHeader rightAction={right} title={title} />;
 }
 
 export type NavKey = HomeService | 'account';
@@ -110,19 +222,52 @@ const NAV_ITEMS: { key: NavKey; label: string; glyph: TravelGlyph }[] = [
   { key: 'account', label: 'Account', glyph: 'account' },
 ];
 
-/** The reference bottom navigation. `active` defaults to the current service. */
+/**
+ * Modern bottom navigation.
+ * Features modern stylish icons, prominent elevated red-filled Outstation middle button,
+ * and micro-animations for click feedback.
+ */
 export function BottomNav({ active }: { active?: NavKey }) {
   const navigation = useNavigation();
   const { service, setService } = useBookingDraft();
   const insets = useSafeAreaInsets();
   const selected = active ?? service;
+
   return (
-    <View style={[styles.nav, { paddingBottom: 8 + insets.bottom }]} accessibilityRole="tablist" accessibilityLabel="Services and account">
+    <View style={[styles.nav, { paddingBottom: Math.max(8, insets.bottom) }]} accessibilityRole="tablist" accessibilityLabel="Services and account">
       {NAV_ITEMS.map((item) => {
         const on = selected === item.key;
+        const isMiddle = item.key === 'outstation';
+
+        if (isMiddle) {
+          return (
+            <PressableScale
+              key={item.key}
+              activeScale={0.88}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={item.label}
+              onPress={() => {
+                setService('outstation');
+                navigation.navigate('Tabs', { screen: 'Book' });
+              }}
+              style={styles.navItemMiddle}
+            >
+              <View style={[styles.middleCircle, on && styles.middleCircleOn]}>
+                <TravelIcon name={item.glyph} size={26} color="#FFFFFF" strokeWidth={2.2} />
+              </View>
+              <Text style={[styles.navLabel, styles.middleLabel, on && styles.middleLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
+                {item.label}
+              </Text>
+              <View style={[styles.navBar, on && styles.navBarOn, { marginTop: 2 }]} />
+            </PressableScale>
+          );
+        }
+
         return (
-          <Pressable
+          <PressableScale
             key={item.key}
+            activeScale={0.92}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}
             accessibilityLabel={item.label}
@@ -134,16 +279,16 @@ export function BottomNav({ active }: { active?: NavKey }) {
               setService(item.key);
               navigation.navigate('Tabs', { screen: 'Book' });
             }}
-            style={({ pressed }) => [styles.navItem, pressed && { backgroundColor: colors.subtle }]}
+            style={styles.navItem}
           >
             <View style={styles.navSymbol}>
-              <TravelIcon name={item.glyph} size={25} color={on ? colors.primaryActive : '#697586'} />
+              <TravelIcon name={item.glyph} size={24} color={on ? colors.primaryActive : '#64748B'} strokeWidth={on ? 2.0 : 1.7} />
             </View>
             <Text style={[styles.navLabel, on && styles.navLabelOn]} numberOfLines={1} maxFontSizeMultiplier={1.15}>
               {item.label}
             </Text>
             <View style={[styles.navBar, on && styles.navBarOn]} />
-          </Pressable>
+          </PressableScale>
         );
       })}
     </View>
@@ -185,9 +330,9 @@ export function SubHeader({
   const r = rightAction ?? right;
   return (
     <View style={[styles.subHeader, !plain && styles.subHeaderPadded]}>
-      <Pressable onPress={onBack} hitSlop={6} accessibilityRole="button" accessibilityLabel="Back" style={({ pressed }) => [styles.back, pressed && { opacity: 0.6 }]}>
-        <Icon name="arrow-left" size={17} color="#757880" />
-      </Pressable>
+      <PressableScale onPress={onBack} hitSlop={6} activeScale={0.88} accessibilityRole="button" accessibilityLabel="Back" style={styles.back}>
+        <Icon name="arrow-left" size={17} color="#757880" strokeWidth={2.2} />
+      </PressableScale>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={styles.subTitle} accessibilityRole="header">
           {title}
@@ -212,15 +357,16 @@ export function SupportBanner() {
           <Text style={styles.supportSub}>NESAM Tours & Travels</Text>
         </View>
       </View>
-      <Pressable
+      <PressableScale
         onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)}
-        style={({ pressed }) => [styles.supportCall, pressed && { backgroundColor: colors.primaryDark }]}
+        activeScale={0.96}
+        style={styles.supportCall}
         accessibilityRole="button"
         accessibilityLabel={`Call our office on ${SUPPORT_PHONE_DISPLAY}`}
       >
         <Icon name="phone" size={18} color={colors.white} />
         <Text style={styles.supportCallText}>Call our office · {SUPPORT_PHONE_DISPLAY}</Text>
-      </Pressable>
+      </PressableScale>
     </View>
   );
 }
@@ -231,18 +377,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: colors.white,
-    paddingHorizontal: space.xl,
-    paddingVertical: 13,
-    minHeight: 70,
+    paddingHorizontal: space.lg,
+    paddingVertical: 11,
+    minHeight: 64,
     borderBottomWidth: 1,
     borderBottomColor: '#EEF0F3',
   },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  logoWrap: { width: 38, height: 38, borderRadius: 19, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-  logo: { width: 46, height: 46 },
-  wordmark: { fontFamily: fonts.heading, fontSize: 25, lineHeight: 27, color: colors.primary, letterSpacing: 1.3 },
-  submark: { fontFamily: fonts.medium, fontSize: 9, lineHeight: 12.6, color: '#697587', marginTop: 3 },
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  headerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+    marginRight: 8,
+  },
+  headerBackBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#F8FAFC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brand: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 0,
+  },
+  logoWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
+  },
+  logo: { width: 44, height: 44 },
+  headerTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: fonts.semiBold,
+    fontSize: 18.5,
+    lineHeight: 23,
+    color: '#0F172A',
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    lineHeight: 14,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   action: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   actionOn: { backgroundColor: '#FFF1F1' },
   badge: {
@@ -265,14 +462,57 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     borderTopWidth: 1,
     borderTopColor: '#E5E8ED',
-    paddingTop: 9,
+    paddingTop: 8,
     paddingHorizontal: 6,
+    alignItems: 'flex-end',
   },
-  navItem: { flex: 1, alignItems: 'center', paddingTop: 6, paddingBottom: 2, borderRadius: 8, minHeight: 56 },
-  navSymbol: { width: 36, height: 28, alignItems: 'center', justifyContent: 'center' },
-  navLabel: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12.5, color: '#697586', letterSpacing: -0.1, marginTop: 6 },
+  navItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingTop: 4,
+    paddingBottom: 2,
+    minHeight: 52,
+  },
+  navItemMiddle: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: -22,
+    minHeight: 68,
+  },
+  middleCircle: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3.5,
+    borderColor: colors.white,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  middleCircleOn: {
+    backgroundColor: colors.primaryActive,
+    shadowOpacity: 0.55,
+    transform: [{ scale: 1.05 }],
+  },
+  middleLabel: {
+    fontFamily: fonts.semiBold,
+    fontSize: 10.5,
+    marginTop: 3,
+  },
+  middleLabelOn: {
+    color: colors.primary,
+    fontFamily: fonts.bold,
+  },
+  navSymbol: { width: 36, height: 26, alignItems: 'center', justifyContent: 'center' },
+  navLabel: { fontFamily: fonts.medium, fontSize: 10, lineHeight: 12.5, color: '#64748B', letterSpacing: -0.1, marginTop: 4 },
   navLabelOn: { fontFamily: fonts.semiBold, color: colors.primaryActive },
-  navBar: { width: 18, height: 2, borderRadius: 1, marginTop: 3, backgroundColor: 'transparent' },
+  navBar: { width: 16, height: 2, borderRadius: 1, marginTop: 3, backgroundColor: 'transparent' },
   navBarOn: { backgroundColor: colors.primaryActive },
   back: {
     width: 38,

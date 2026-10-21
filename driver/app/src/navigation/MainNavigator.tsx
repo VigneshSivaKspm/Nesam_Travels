@@ -5,6 +5,7 @@ import type { RootStackParamList, TabParamList } from './types';
 import { navigationRef } from './navigationRef';
 import { useDriverData } from '../context/DriverData';
 import { HomeScreen } from '../screens/HomeScreen';
+import MarketplaceScreen from '../screens/MarketplaceScreen';
 import { TripsScreen } from '../screens/TripsScreen';
 import { TripFlowScreen } from '../screens/TripFlowScreen';
 import { EarningsScreen } from '../screens/EarningsScreen';
@@ -31,13 +32,17 @@ export const useSignOut = () => useContext(SignOutCtx);
 
 function Tabs() {
   const { account } = useDriverData();
-  // A vendor's employee drives assigned trips only: no earnings, commission, wallet or payout screens.
+  // A vendor's employee drives assigned trips only: no commission, wallet or payout screens.
   const fleetDriver = !!account.driver.vendorId;
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }} tabBar={(props) => <NxTabBar {...props} />}>
-      <Tab.Screen name="Home" component={HomeScreen} />
+    <Tab.Navigator
+      initialRouteName="Home"
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <NxTabBar {...props} />}
+    >
+      <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
       <Tab.Screen name="Trip" component={TripsScreen} />
-      {fleetDriver ? null : <Tab.Screen name="Earnings" component={EarningsScreen} />}
+      <Tab.Screen name="Home" component={HomeScreen} />
       {fleetDriver ? null : <Tab.Screen name="Wallet" component={WalletScreen} />}
       <Tab.Screen name="Profile" component={ProfileScreen} />
     </Tab.Navigator>
@@ -72,10 +77,15 @@ function openPage(page: string, tripId?: string) {
   if (!navigationRef.isReady()) return;
   switch (page) {
     case 'dashboard':
+    case 'home':
       return navigationRef.navigate('Tabs', { screen: 'Home' });
+    case 'marketplace':
+      return navigationRef.navigate('Tabs', { screen: 'Marketplace' });
     case 'trip':
     case 'booking-detail':
       return tripId ? navigationRef.navigate('TripFlow', { bookingId: tripId }) : navigationRef.navigate('Tabs', { screen: 'Trip' });
+    case 'earnings':
+      return navigationRef.navigate('Tabs', { screen: 'Profile', params: { openSection: 'earnings' } });
     case 'wallet':
       return navigationRef.navigate('Tabs', { screen: 'Wallet' });
     case 'profile':
@@ -124,6 +134,8 @@ export function MainNavigator({ onSignOut }: { onSignOut: () => void }) {
       <ShellProvider>
         <Stack.Navigator screenOptions={{ headerTintColor: colors.ink, headerTitleStyle: { fontWeight: '800' }, headerShadowVisible: false }}>
           <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
+          <Stack.Screen name="Marketplace" component={MarketplaceScreen} options={{ headerShown: false }} />
+          <Stack.Screen name="Earnings" component={EarningsScreen} options={{ headerShown: false }} />
           <Stack.Screen name="TripFlow" component={TripFlowScreen} options={{ headerShown: false }} />
           <Stack.Screen name="PreTrip" component={PreTripScreen} options={{ headerShown: false }} />
           <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />

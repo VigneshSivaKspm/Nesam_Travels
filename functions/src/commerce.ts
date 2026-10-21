@@ -160,6 +160,17 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const time = formatTime12(when);
     const bookingCode = await nextBookingCode(tx, now);
     const stamp = FieldValue.serverTimestamp();
+    const rawSource = text(input.bookingSource || input.source || input.brand || '');
+    let bookingSource = 'customer';
+    if (rawSource.toLowerCase().includes('oneway') || rawSource.toLowerCase().includes('one_way')) {
+      bookingSource = 'onewaycarrentals';
+    } else if (rawSource.toLowerCase().includes('people')) {
+      bookingSource = 'people_taxi';
+    } else if (rawSource.toLowerCase().includes('nesam')) {
+      bookingSource = 'nesam';
+    } else if (rawSource) {
+      bookingSource = rawSource;
+    }
     tx.create(ref, {
       id: requestId, bookingId: bookingCode, customerId: uid, customer: text(c.name), phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng, pickupType: pickup.type,
@@ -173,7 +184,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       paymentMethod: input.paymentMethod === 'UPI' ? 'UPI' : 'Cash',
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
       termsAccepted: true, termsAcceptedAt: stamp,
-      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: 'customer', createdAt: stamp, updatedAt: stamp,
+      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingSource, bookingSource, brand: bookingSource, createdAt: stamp, updatedAt: stamp,
     });
     // Raw contact details live in booking_contacts (staff + the customer); partners get the masked number only.
     createContactInTx(tx, requestId, { customerId: uid, name: text(c.name), phone, whatsapp, email });
@@ -185,9 +196,19 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (usedCoupon) tx.update(usedCoupon.ref, { usedCount: FieldValue.increment(1) });
     // Serializes first-booking/per-customer coupon eligibility across concurrent requests.
     tx.update(customer.ref, { lastBookingAt: stamp });
+    const sourceTag = bookingSource === 'onewaycarrentals'
+      ? ' · [One Way Car Rental]'
+      : bookingSource === 'people_taxi'
+      ? ' · [People Taxi]'
+      : '';
+    const sourceTitle = bookingSource === 'onewaycarrentals'
+      ? 'New One Way Car Rental booking to review'
+      : bookingSource === 'people_taxi'
+      ? 'New People Taxi booking to review'
+      : 'New booking request to review';
     const n: NotifyInput = {
       recipientType: 'admin', recipientId: 'admin', category: 'bookings', severity: 'info', sound: 'new_booking',
-      title: 'New booking request to review', message: `${bookingCode} · ${text(c.name)} · ${pickup.name} → ${drop.name} · ${formatDateTime12(when)} · ₹${fare.total.toLocaleString('en-IN')}`,
+      title: sourceTitle, message: `${bookingCode}${sourceTag} · ${text(c.name)} · ${pickup.name} → ${drop.name} · ${formatDateTime12(when)} · ₹${fare.total.toLocaleString('en-IN')}`,
       bookingId: requestId, bookingCode, cta: { label: 'Review booking', page: 'booking-detail', bookingId: requestId }, push: true, sentBy: uid,
     };
     pushes.push({ id: notifyInTx(tx, n), input: n });

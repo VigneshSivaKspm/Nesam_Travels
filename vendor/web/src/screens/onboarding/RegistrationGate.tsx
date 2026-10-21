@@ -119,7 +119,7 @@ export const RegistrationGate: React.FC<Props> = ({ phone, onSignOut }) => {
         {/* Footer */}
         <div className="flex items-center justify-between text-[12px] font-semibold text-[#666] px-2 pt-2">
           <a href="tel:+919025099990" className="flex items-center gap-1.5 hover:text-[#111] transition-colors">
-            <PhoneCall className="w-4 h-4 text-[#E21B23]" /> Partner support: 90250 99990
+            <PhoneCall className="w-4 h-4 text-[#E21B23]" /> Partner support: +91 90250 99990
           </a>
           <button
             type="button"

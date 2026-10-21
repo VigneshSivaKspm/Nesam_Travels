@@ -17,6 +17,7 @@ import { LoginModal } from '@/components/LoginModal';
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<never>>>, name: K) =>
   lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
 const BookPage = lazy(() => import('@/pages/book/BookPage').then((m) => ({ default: m.BookPage })));
+const DonePage = lazy(() => import('@/pages/book/DonePage'));
 const RidePage = page(() => import('@/pages/ride/RidePage'), 'RidePage');
 const TripsPage = page(() => import('@/pages/TripsPage'), 'TripsPage');
 const NotificationsPage = page(() => import('@/pages/NotificationsPage'), 'NotificationsPage');
@@ -111,6 +112,7 @@ export function AppRoutes() {
         <Route path="/book" element={<BookPage step="plan" />} />
         <Route path="/book/ride" element={<BookPage step="choose" />} />
         <Route path="/book/confirm" element={<BookPage step="review" />} />
+        <Route path="/book/done/:id" element={<DonePage />} />
         <Route path="/ride/:id" element={<RidePage />} />
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/trips/:id" element={<RidePage />} />

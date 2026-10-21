@@ -1,6 +1,6 @@
 // GENERATED from driver/web/src/components/nx/icons.ts — the reference's SVG symbols (first 23) plus the matching extras
 // (alert, logout, camera, edit, trash, plus, bank). Same 24-unit grid; drawn with 1.8 round strokes by Icon.tsx.
-export type NxIconName = 'home' | 'trip' | 'chart' | 'wallet' | 'user' | 'bell' | 'arrow' | 'chevron' | 'calendar' | 'clock' | 'pin' | 'car' | 'check' | 'shield' | 'help' | 'close' | 'refresh' | 'power' | 'info' | 'copy' | 'phone' | 'document' | 'distance' | 'alert' | 'logout' | 'camera' | 'edit' | 'trash' | 'plus' | 'bank';
+export type NxIconName = 'home' | 'trip' | 'chart' | 'wallet' | 'user' | 'bell' | 'arrow' | 'chevron' | 'calendar' | 'clock' | 'pin' | 'car' | 'check' | 'shield' | 'help' | 'close' | 'refresh' | 'power' | 'info' | 'copy' | 'phone' | 'document' | 'distance' | 'alert' | 'logout' | 'camera' | 'edit' | 'trash' | 'plus' | 'bank' | 'marketplace';
 
 export interface IconEl {
   tag: 'path' | 'circle' | 'rect' | 'line' | 'polyline';
@@ -38,4 +38,5 @@ export const ICON_DATA: Record<NxIconName, { viewBox: string; els: IconEl[] }> =
   trash: { viewBox: '0 0 24 24', els: [{"tag":"path","a":{"d":"M3 6h18m-2 0-1 14H6L5 6m4 0V3h6v3"}}] },
   plus: { viewBox: '0 0 24 24', els: [{"tag":"path","a":{"d":"M12 5v14M5 12h14"}}] },
   bank: { viewBox: '0 0 24 24', els: [{"tag":"path","a":{"d":"M3 10 12 4l9 6M5 10v8m4-8v8m6-8v8m4-8v8M3 20h18"}}] },
+  marketplace: { viewBox: '0 0 24 24', els: [{"tag":"path","a":{"d":"m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"}},{"tag":"path","a":{"d":"M2 7v13a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7"}},{"tag":"path","a":{"d":"M2 7h20"}},{"tag":"path","a":{"d":"M16 11a4 4 0 0 1-8 0"}}] },
 };

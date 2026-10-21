@@ -112,7 +112,7 @@ Method: every user-facing string, validation message, service call and handler o
 | app Earnings / Wallet / Profile / Notifications / PreTrip | same files | min-payout rule, payout dialog, edit validation + account confirmation, camera modal with single-use challenge and expiry, severity colours |
 | app `MainNavigator` | same file | tabs, `PreTrip`/`Notifications`/`UpdateDocuments` kept, `TripFlow` added; **active-trip restoration and push/notification deep links open the trip flow** |
 
-Unchanged code paths (verified by diff and by tests): authentication, registration/approval/rejection, legal acceptance, document update/resubmission, penalty acknowledge/dispute, notification tones, location sharing, offline banner. Support number remains the configured **85319 70197**; police 112 added. No cancellation backend or penalty values invented — the Help dialog offers the office call.
+Unchanged code paths (verified by diff and by tests): authentication, registration/approval/rejection, legal acceptance, document update/resubmission, penalty acknowledge/dispute, notification tones, location sharing, offline banner. Support number remains the configured **+91 90250 99990**; police 112 added. No cancellation backend or penalty values invented — the Help dialog offers the office call.
 Permissions: independent vs fleet (no marketplace, no Earnings/Wallet), customer-contact privacy (masked number until the server reveals it), server-authoritative steps — all as before.
 
 ---

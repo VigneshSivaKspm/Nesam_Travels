@@ -10,10 +10,10 @@ export interface SupportContext {
   started?: boolean;
 }
 
-/** "+918531970197" → "85319 70197". */
+/** "+919025099990" → "+91 90250 99990". */
 const display = (tel: string) => {
   const d = tel.replace(/\D/g, '').slice(-10);
-  return `${d.slice(0, 5)} ${d.slice(5)}`;
+  return `+91 ${d.slice(0, 5)} ${d.slice(5)}`;
 };
 
 /**

@@ -1,12 +1,11 @@
-// Settings / About NESAM. The app has no translated strings yet, so language is shown
-// as the account's stored preference rather than offered as a switch that would do nothing.
+// Settings / About NESAM.
 import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useCustomerData } from '../context/CustomerData';
-import { Card, MenuGroup, MenuRow, PageHead, Row, TextButton } from '../components/ui';
+import { Card, MenuGroup, MenuRow, Row, TextButton } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { isConfirmationSoundOn, playConfirmationSound, setConfirmationSound } from '../services/confirmationSound';
@@ -22,9 +21,8 @@ export function SettingsScreen() {
   }, []);
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Settings" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <PageHead title="Settings / About NESAM" onBack={() => navigation.goBack()} />
         <Card>
           <Row label="Language" value={profile.language || 'English'} />
         </Card>
@@ -64,7 +62,7 @@ export function SettingsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   soundRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 6 },
   head: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.ink, marginBottom: 6 },
   text: { fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 19, color: '#55606F' },

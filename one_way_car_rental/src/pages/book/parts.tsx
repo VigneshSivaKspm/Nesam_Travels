@@ -1,51 +1,41 @@
-// Pieces shared by the "choose" and "review" steps.
-import { useMemo, useState } from 'react';
-import type { PaymentMethod } from '@core/types';
+// Pieces shared by the booking steps, the confirmation and trip details.
+import { useMemo, useState, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
+import type { FareLine, PaymentMethod } from '@core/types';
 import { isCouponLive } from '@core/services/pricingService';
 import { formatINR } from '@core/utils/format';
-import { Button, Dialog, IconButton } from '@/components/ui';
+import { Button, Dialog } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { Stepper } from '@/components/Workspace';
+import { FareBreakdown } from '@/components/FareBreakdown';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 
-export function StepHead({ title, step, onBack, aside }: { title: string; step: 1 | 2 | 3; onBack: () => void; aside?: React.ReactNode }) {
-  return (
-    <header className="work__head">
-      <div className="work__head-row">
-        <IconButton icon="arrow-left" label="Back" outline onClick={onBack} />
-        <Stepper current={step} />
-        {aside}
-      </div>
-      <h1 className="work__title">{title}</h1>
-    </header>
-  );
-}
-
-const PAYMENTS: { id: PaymentMethod; label: string; hint: string; icon: string }[] = [
-  { id: 'Cash', label: 'Cash', hint: 'Pay your driver at drop', icon: 'wallet' },
-  { id: 'UPI', label: 'UPI', hint: 'GPay, PhonePe, Paytm', icon: 'payment-card' },
+const PAYMENTS: { id: PaymentMethod; label: string; hint: string }[] = [
+  { id: 'Cash', label: 'Book now, pay cash later', hint: 'Pay your driver in cash at the end of the trip' },
+  { id: 'UPI', label: 'Book now, pay by UPI later', hint: 'Pay your driver by UPI (GPay/PhonePe/Paytm) at drop' },
 ];
 
-/** The booking server records Cash or UPI only, so nothing else is offered. */
-export function PaymentChoice({ value, onChange, compact = false }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void; compact?: boolean }) {
+/** The booking server records Cash or UPI, collected by the driver, so nothing else is offered. */
+export function PaymentChoice({ value, onChange }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void }) {
   return (
-    <div className={`pay ${compact ? 'pay--compact' : ''}`} role="radiogroup" aria-label="Payment method">
+    <div className="pay-opts" role="radiogroup" aria-label="Payment method">
       {PAYMENTS.map((p) => (
-        <label key={p.id} className={`pay__opt ${value === p.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="payment" className="sr-only" checked={value === p.id} onChange={() => onChange(p.id)} />
-          <Icon name={p.icon} size={compact ? 18 : 22} />
-          <span className="pay__text">
+        <label key={p.id} className={`pay-opt ${value === p.id ? 'is-selected' : ''}`}>
+          <input type="radio" name="payment" checked={value === p.id} onChange={() => onChange(p.id)} />
+          <span className="pay-opt__text">
             <strong>{p.label}</strong>
-            {compact ? null : <small>{p.hint}</small>}
+            <small>{p.hint}</small>
           </span>
-          {!compact ? <span className="pay__tick" aria-hidden="true">{value === p.id ? <Icon name="check" size={16} /> : null}</span> : null}
+          <span className="pay-opt__amount">
+            <strong className="num">{formatINR(0)}</strong>
+            <small>now</small>
+          </span>
         </label>
       ))}
     </div>
   );
 }
 
-/** Applied promo (neat chip) or an "Add promo code" button that opens the code dialog. */
+/** Applied promo (chip) or an "Apply a promo code" link that opens the code dialog. */
 export function PromoControl() {
   const { draft, update } = useBooking();
   const q = useBookingQuote();
@@ -55,22 +45,21 @@ export function PromoControl() {
   const rejected = code && q.couponCheck && !q.couponCheck.ok ? q.couponCheck.message : '';
 
   return (
-    <>
+    <div className="promo">
       {applied ? (
         <span className="promo-chip" role="status">
-          <Icon name="offers" size={18} />
+          <Icon name="offers" size={16} />
           <span>
-            <strong>{applied.code}</strong>
-            <small>−{formatINR(applied.discount)}</small>
+            <strong>{applied.code}</strong> applied · <span className="num">−{formatINR(applied.discount)}</span>
           </span>
           <button type="button" aria-label={`Remove promo code ${applied.code}`} onClick={() => update({ promoCode: '' })}>
-            <Icon name="close" size={16} />
+            <Icon name="close" size={14} />
           </button>
         </span>
       ) : (
-        <button type="button" className="promo-add" onClick={() => setOpen(true)}>
-          <Icon name="offers" size={18} />
-          {code ? 'Promo not valid' : 'Promo code'}
+        <button type="button" className="link-btn" onClick={() => setOpen(true)}>
+          <Icon name="offers" size={15} />
+          {code ? 'Promo code not valid — try another' : 'Apply a promo code'}
         </button>
       )}
       {rejected && !open ? (
@@ -79,7 +68,7 @@ export function PromoControl() {
         </p>
       ) : null}
       {open ? <PromoDialog onClose={() => setOpen(false)} /> : null}
-    </>
+    </div>
   );
 }
 
@@ -106,7 +95,7 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Dialog title="Promo code" onClose={onClose}>
+    <Dialog title="Promo code" subtitle="The booking server verifies every code against your fare." onClose={onClose}>
       <form
         className="promo-form"
         onSubmit={(e) => {
@@ -131,19 +120,18 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
           autoComplete="off"
           spellCheck={false}
           aria-invalid={!!error || undefined}
+          aria-describedby={error ? 'promo-err' : undefined}
         />
-        <Button type="submit" variant="dark">
-          Apply
-        </Button>
+        <Button type="submit">Apply</Button>
       </form>
       {error ? (
-        <p className="field__error" role="alert" style={{ marginTop: 8 }}>
+        <p className="field__error" id="promo-err" role="alert" style={{ marginTop: 8 }}>
           {error}
         </p>
       ) : null}
       {live.length ? (
         <>
-          <p className="eyebrow" style={{ margin: '20px 0 8px' }}>
+          <p className="picker__head" style={{ marginTop: 20 }}>
             Available offers
           </p>
           <ul className="offer-list">
@@ -163,5 +151,34 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
         </>
       ) : null}
     </Dialog>
+  );
+}
+
+/** The full fare breakup in a dialog ("View fare"). */
+export function FareDialog({ title, lines, total, estimated, note, onClose }: { title: string; lines: FareLine[]; total: number; estimated?: boolean; note?: ReactNode; onClose: () => void }) {
+  return (
+    <Dialog title={title} subtitle={estimated ? 'Estimate — the booking server confirms the final fare.' : 'Confirmed upfront fare for this trip.'} onClose={onClose}>
+      <FareBreakdown lines={lines} total={total} estimated={estimated} />
+      {note ? <p className="fare-note">{note}</p> : null}
+      <p className="fare-note">Category images are illustrative. The assigned model may vary within the booked category.</p>
+    </Dialog>
+  );
+}
+
+/** Bottom flow action bar for mobile or sidebar action container */
+export function FlowBar({ children, back, className = '' }: { children?: ReactNode; back?: () => void; className?: string }) {
+  const navigate = useNavigate();
+  return (
+    <div className={`flow-bar ${className}`}>
+      {children}
+      <div className="flow-bar__nav">
+        <Button variant="secondary" icon="arrow-left" onClick={back ?? (() => navigate(-1))}>
+          Back
+        </Button>
+        <Button variant="secondary" icon="home" onClick={() => navigate('/book')}>
+          Home
+        </Button>
+      </div>
+    </div>
   );
 }

@@ -25,11 +25,11 @@ export function Icon({ name, size = 20, color = '#626e80', strokeWidth = 1.8, fi
   );
 }
 
-/** The reference's custom 28×28 service pictograms (bottom navigation). */
-export function TravelIcon({ name, size = 25, color = '#697586' }: { name: TravelGlyph; size?: number; color?: string }) {
+/** The modern 28×28 service pictograms (bottom navigation). */
+export function TravelIcon({ name, size = 25, color = '#697586', strokeWidth = 1.8, fill }: { name: TravelGlyph; size?: number; color?: string; strokeWidth?: number; fill?: string }) {
   return (
-    <Svg width={size} height={size} viewBox="0 0 28 28" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-      {draw(TRAVEL_GLYPHS[name] as IconNode[])}
+    <Svg width={size} height={size} viewBox="0 0 28 28" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      {draw(TRAVEL_GLYPHS[name] as IconNode[], fill)}
     </Svg>
   );
 }

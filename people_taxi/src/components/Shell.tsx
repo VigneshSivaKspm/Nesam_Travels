@@ -15,8 +15,8 @@ export function Brand({ compact = false, light = false }: { compact?: boolean; l
       <img
         src={light ? '/brand/logo-white.png' : compact ? '/brand/icon.png' : '/brand/logo.png'}
         alt="People Taxi Logo"
-        width={compact ? 44 : 200}
-        height={compact ? 44 : 64}
+        width={compact ? 44 : 180}
+        height={compact ? 44 : 50}
         style={{ objectFit: 'contain' }}
       />
     </Link>
@@ -33,8 +33,9 @@ const NAV = [
 /** Desktop header links. Account lives in the profile menu there; the phone tab bar keeps all four. */
 const TOP_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
 
-/** Booking steps and the live ride are full-screen workspaces (panel + map), so the footer and tab bar step aside. */
-const IMMERSIVE = [/^\/book\/(ride|confirm)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
+/** Active booking flow pages where the phone bottom tab bar steps aside for the sticky FlowBar. */
+const FLOW = [/^\/book\/(ride|confirm|done\/[^/]+)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
+const IMMERSIVE = [/^\/ride\//, /^\/trips\/[^/]+$/];
 
 function ProfileMenu() {
   const { profile } = useCustomerData();
@@ -105,7 +106,7 @@ function ProfileMenu() {
       ) : null}
       {confirm ? (
         <Dialog
-          title="Log out of NESAM?"
+          title="Log out of People Taxi?"
           onClose={() => setConfirm(false)}
           footer={
             <>
@@ -139,84 +140,40 @@ function Footer() {
       <div className="footer__inner">
         <div className="footer__cta">
           <div>
-            <h2>Need a cab today?</h2>
-            <p>Book in a minute — or talk to a real person any time.</p>
+            <p className="eyebrow eyebrow--sun">PEOPLE TAXI 24/7 HELPLINE</p>
+            <h3>Ready to travel? Book your cab online in seconds.</h3>
+            <p className="muted">Verified drivers, upfront transparent fares, and air-conditioned cars across South India.</p>
           </div>
           <div className="footer__cta-actions">
-            <Link className="btn btn--sun" to="/book">
-              Book a ride <Icon name="arrow-right" size={18} />
-            </Link>
-            <a className="btn btn--ghost-light" href={`tel:${SUPPORT_PHONE}`}>
+            <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--secondary btn--lg">
               <Icon name="phone" size={18} /> {SUPPORT_PHONE_DISPLAY}
             </a>
+            <Link to="/book" className="btn btn--primary btn--lg">
+              Book a Ride Now
+            </Link>
           </div>
         </div>
         <div className="footer__grid">
-          <div className="footer__about">
-            <Brand />
-            <p>Outstation and intercity cabs across Tamil Nadu and beyond — fares shown before you book, verified chauffeurs and a team you can call.</p>
-            <a className="footer__call" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" size={22} />
-              <span>
-                <small>Talk to People Taxi</small>
-                <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-              </span>
-            </a>
+          <div className="footer__brand">
+            <Brand light />
+            <p className="muted">
+              Tamil Nadu and South India's trusted cab network for outstation one-way drops, round trips, airport transfers, and hourly rentals.
+            </p>
           </div>
-          <nav className="footer__col" aria-label="Popular Routes">
-            <h2>Popular Routes</h2>
-            <ul>
-              <li>
-                <Link to="/routes/chennai-to-pondicherry">Chennai to Pondicherry Taxi</Link>
-              </li>
-              <li>
-                <Link to="/routes/chennai-to-bangalore">Chennai to Bangalore Cab</Link>
-              </li>
-              <li>
-                <Link to="/routes/coimbatore-to-ooty">Coimbatore to Ooty Taxi</Link>
-              </li>
-              <li>
-                <Link to="/routes/madurai-to-rameshwaram">Madurai to Rameshwaram Cab</Link>
-              </li>
-              <li>
-                <Link to="/routes/bangalore-to-mysore">Bangalore to Mysore Cab</Link>
-              </li>
-            </ul>
-          </nav>
           <nav className="footer__col" aria-label="Services">
             <h2>Services</h2>
             <ul>
               <li>
-                <Link to="/services/one-way-drop-taxi">One-Way Drop Taxi</Link>
+                <Link to="/book?service=outstation">Outstation One Way</Link>
               </li>
               <li>
-                <Link to="/services/outstation-round-trip">Outstation Round Trips</Link>
+                <Link to="/book?service=outstation&trip=round-trip">Round Trips</Link>
               </li>
               <li>
-                <Link to="/services/airport-taxi">Airport Taxi Transfers</Link>
+                <Link to="/book?service=airport">Airport Transfers</Link>
               </li>
               <li>
-                <Link to="/services/local-rental">Hourly City Rentals</Link>
-              </li>
-              <li>
-                <Link to="/services/pilgrimage-tours">Temple Pilgrimage Tours</Link>
-              </li>
-            </ul>
-          </nav>
-          <nav className="footer__col" aria-label="Your account">
-            <h2>Your account</h2>
-            <ul>
-              <li>
-                <Link to="/trips">My trips</Link>
-              </li>
-              <li>
-                <Link to="/account/places">Saved places</Link>
-              </li>
-              <li>
-                <Link to="/account/payments">Payments &amp; refunds</Link>
-              </li>
-              <li>
-                <Link to="/notifications">Notifications</Link>
+                <Link to="/book?service=rental">Hourly City Rental</Link>
               </li>
             </ul>
           </nav>
@@ -224,7 +181,7 @@ function Footer() {
             <h2>Support</h2>
             <ul>
               <li>
-                <Link to="/support">Help &amp; tickets</Link>
+                <Link to="/support">Help &amp; Support</Link>
               </li>
               <li>
                 <Link to="/offers">Special Offers</Link>
@@ -233,7 +190,7 @@ function Footer() {
                 <a href={`tel:${SUPPORT_PHONE}`}>Call {SUPPORT_PHONE_DISPLAY}</a>
               </li>
               <li>
-                <Link to="/legal">Terms &amp; privacy</Link>
+                <Link to="/legal">Terms &amp; Privacy</Link>
               </li>
             </ul>
           </nav>
@@ -254,16 +211,16 @@ export function Shell() {
   const { online, recovered } = useOnline();
   const location = useLocation();
   const navigate = useNavigate();
-  const immersive = IMMERSIVE.some((re) => re.test(location.pathname));
+  const isFlow = FLOW.some((re) => re.test(location.pathname));
+  const isImmersive = IMMERSIVE.some((re) => re.test(location.pathname));
 
-  // New page → start at the top and move focus to the page (keyboard and screen-reader users).
   useEffect(() => {
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
   }, [location.pathname]);
 
   return (
-    <div className={`shell ${immersive ? 'shell--immersive' : ''}`}>
+    <div className={`shell ${isImmersive ? 'shell--immersive' : ''}`}>
       <a
         className="skip-link"
         href="#main"
@@ -302,7 +259,7 @@ export function Shell() {
           </nav>
           <div className="topbar__right">
             <Link to="/support" className="help-link" aria-label="Help and support">
-              <Icon name="support" size={20} />
+              <Icon name="help" size={18} />
               <span className="help-link__text">Help</span>
             </Link>
             <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call People Taxi support ${SUPPORT_PHONE_DISPLAY}`}>
@@ -322,7 +279,7 @@ export function Shell() {
               </Button>
             ) : null}
             <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
-              <Icon name="support" size={22} />
+              <Icon name="help" size={20} />
             </button>
           </div>
         </div>
@@ -334,9 +291,9 @@ export function Shell() {
         </Suspense>
       </main>
 
-      {!immersive ? <Footer /> : null}
+      {!isImmersive ? <Footer /> : null}
 
-      {!immersive ? (
+      {!isFlow ? (
         <nav className="tabbar" aria-label="Main">
           {NAV.map((n) => (
             <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive ? 'is-active' : ''}`}>
@@ -352,3 +309,4 @@ export function Shell() {
     </div>
   );
 }
+export default Shell;

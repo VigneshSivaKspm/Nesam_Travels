@@ -5,9 +5,9 @@ import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Button, Disclosure, FlowFooter, Notice, RadioCard, Sheet, TextButton, TextField } from '../components/ui';
+import { Button, Disclosure, FlowFooter, Notice, RadioCard, Sheet, Steps, TextButton, TextField } from '../components/ui';
 import { Content, ScrollView } from '../components/layout';
-import { AppHeader, SubHeader } from '../components/brand';
+import { AppHeader } from '../components/brand';
 import { Checkbox } from '../components/Checkbox';
 import { FareLines } from '../components/FareLines';
 import { useCustomerData } from '../context/CustomerData';
@@ -68,9 +68,9 @@ export function ConfirmBookingScreen() {
   if (!pickup || !drop || !route || !category) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
-        <AppHeader />
+        <AppHeader title="Review & Book" onBack={() => navigation.goBack()} />
         <View style={styles.pad}>
-          <SubHeader plain title="Review & book" onBack={() => navigation.goBack()} />
+          {/* Review & Book header title moved to AppHeader */}
           <Notice message="Your trip details changed. Please go back and choose your cab again." />
           <Button title="Back to Choose your cab" variant="secondary" onPress={() => navigation.goBack()} />
         </View>
@@ -159,6 +159,9 @@ export function ConfirmBookingScreen() {
           ? { sameAsMobile: true }
           : { sameAsMobile: false, countryCode: waCode.trim(), number: waNumber.replace(/[\s()-]/g, '') },
         email: email.trim(),
+        source: 'nesam',
+        bookingSource: 'nesam',
+        brand: 'nesam',
         tripEndAt: tripType === 'Round Trip' ? draft.tripEndAt : null,
         termsAccepted,
       });
@@ -190,9 +193,9 @@ export function ConfirmBookingScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Review & Book" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-        <SubHeader plain title="Review & book" onBack={() => navigation.goBack()} />
+        <Steps step={3} />
 
         {/* Trip and total */}
         <View style={styles.card}>

@@ -1,126 +1,208 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
+import { useCallback, useEffect, useRef } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@core/context/CustomerData';
 import { useBooking } from '@/state/Booking';
-import { usePageTitle } from '@/lib/hooks';
 import { useSeo } from '@/lib/seo';
 import { Icon } from '@/components/Icon';
-import { PlanStep, type PlanIntent, type PlanUi } from './PlanStep';
+import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
+import { BookingForm } from './BookingForm';
 import { ChooseStep } from './ChooseStep';
 import { ReviewStep } from './ReviewStep';
-import { AssuranceSection, Banners, DestinationsSection, FaqSection, FleetSection, HowSection, RoutesSection, ServicesSection, TrustStrip } from './HomeSections';
-import { IMG, type Corridor, type Destination, type Service } from './content';
+import {
+  AssuranceSection,
+  Banners,
+  DestinationsSection,
+  FaqSection,
+  FleetSection,
+  HowSection,
+  RoutesSection,
+  ServicesSection,
+  TrustStrip,
+} from './HomeSections';
+import { type Corridor, type Destination, type Service } from './content';
 
 export type BookStep = 'plan' | 'choose' | 'review';
 
-/** A ride in progress, or one waiting for a rating, surfaced above the hero. */
+const OUTSTATION_KEY = 'peopletaxi.outstation.trip';
+const readOutstation = (): 'One Way' | 'Round Trip' => {
+  try {
+    return sessionStorage.getItem(OUTSTATION_KEY) === 'Round Trip' ? 'Round Trip' : 'One Way';
+  } catch {
+    return 'One Way';
+  }
+};
+
+/** A ride in progress or one awaiting rating. */
 function RideBanner() {
   const { liveRide, unratedTrip } = useCustomerData();
-  if (liveRide) {
-    return (
-      <div className="ride-banner">
+  const trip = liveRide ?? unratedTrip;
+  if (!trip) return null;
+  const live = !!liveRide;
+  return (
+    <div className={`ride-banner ${live ? '' : 'ride-banner--soft'}`}>
+      <div className="wrap">
         <div className="ride-banner__inner">
-          <span className="ride-banner__pulse" aria-hidden="true" />
+          <span className="ride-banner__icon" aria-hidden="true">
+            <Icon name={live ? 'car' : 'star'} size={18} />
+          </span>
           <p>
-            <strong>{liveRide.status === 'Ongoing' ? 'Trip in progress' : 'Upcoming booking'}</strong>
-            <span className="truncate"> · to {liveRide.drop.name}</span>
+            <strong>{live ? (trip.status === 'Ongoing' ? 'Trip in progress' : 'Upcoming booking') : 'How was your journey?'}</strong>
+            <span className="truncate">
+              {' '}
+              · {trip.pickup.name} → {trip.drop.name}
+            </span>
           </p>
-          <Link className="btn btn--sm ride-banner__btn" to={`/ride/${liveRide.id}`}>
-            View booking <Icon name="arrow-right" size={16} />
+          <Link className="ride-banner__link btn btn--sm btn--primary" to={`/ride/${trip.id}`}>
+            {live ? 'View booking' : 'Rate trip'} <Icon name="arrow-right" size={14} />
           </Link>
         </div>
       </div>
-    );
-  }
-  if (unratedTrip) {
-    return (
-      <div className="ride-banner ride-banner--soft">
-        <div className="ride-banner__inner">
-          <Icon name="star" size={18} />
-          <p>
-            <strong>How was your ride?</strong>
-            <span className="truncate"> · rate your trip to {unratedTrip.drop.name}</span>
-          </p>
-          <Link className="btn btn--sm ride-banner__btn" to={`/ride/${unratedTrip.id}`}>
-            Rate trip <Icon name="arrow-right" size={16} />
-          </Link>
+    </div>
+  );
+}
+
+function HeroCopy() {
+  return (
+    <div className="hero-copy">
+      <p className="eyebrow eyebrow--brand">
+        <Icon name="route" size={16} /> Friendly City &amp; Outstation Taxi
+      </p>
+      <h1>
+        Any journey, <em>priced with a friendly smile.</em>
+      </h1>
+      <p className="hero-copy__sub">
+        Verified chauffeurs, clean air-conditioned cars, and 100% upfront transparent fares with no hidden costs across Tamil Nadu, Bangalore and Pondicherry.
+      </p>
+      <ul className="hero-points">
+        <li>
+          <Icon name="check" size={18} /> Exact upfront fares before you book
+        </li>
+        <li>
+          <Icon name="check" size={18} /> Professional, verified chauffeurs
+        </li>
+        <li>
+          <Icon name="check" size={18} /> Pay your driver directly via Cash or UPI
+        </li>
+      </ul>
+      <div className="hero-trust-badges">
+        <div className="badge-pill">
+          <Icon name="shield-check" size={16} /> 24/7 Helpline
+        </div>
+        <div className="badge-pill">
+          <Icon name="snowflake" size={16} /> 100% AC Fleet
+        </div>
+        <div className="badge-pill">
+          <Icon name="circle-check" size={16} /> Zero Surge Pricing
         </div>
       </div>
-    );
-  }
-  return null;
+    </div>
+  );
 }
 
 function Home() {
-  const { update, draft } = useBooking();
-  const [ui, setUi] = useState<PlanUi>({ active: null, pin: null });
-  const [intent, setIntent] = useState<PlanIntent | null>(null);
+  const { draft, update } = useBooking();
+  const [params, setParams] = useSearchParams();
+  const fromUrl = parseService(params.get('service'));
+  const tripParam = params.get('trip');
+  const service: ServiceId = fromUrl ?? serviceOfTrip(draft.tripType);
+  const outstationTrip: 'One Way' | 'Round Trip' =
+    draft.tripType === 'Round Trip' ? 'Round Trip' : draft.tripType === 'One Way' ? 'One Way' : readOutstation();
+  const lastOutstation = useRef(outstationTrip);
 
-  const toConsole = () => document.getElementById('book-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const ask = (field: PlanIntent['field'], text = '') => setIntent({ n: Date.now(), field, text });
+  useEffect(() => {
+    const wanted =
+      service === 'airport'
+        ? 'Airport Taxi'
+        : service === 'rental'
+          ? 'Local Rental'
+          : service === 'outstation'
+            ? tripParam === 'round-trip'
+              ? 'Round Trip'
+              : tripParam === 'one-way'
+                ? 'One Way'
+                : draft.tripType === 'One Way' || draft.tripType === 'Round Trip'
+                  ? draft.tripType
+                  : lastOutstation.current
+            : null;
+    if (!wanted || wanted === draft.tripType) return;
+    update((d) => ({
+      tripType: wanted,
+      drop: d.drop?.id === 'place-local-disposal' && wanted !== 'Local Rental' ? null : d.drop,
+      tripEndAt: wanted === 'Round Trip' ? d.tripEndAt : null,
+    }));
+  }, [service, tripParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onService = useCallback(
+    (s: ServiceId) => {
+      setParams({ service: s }, { replace: true });
+    },
+    [setParams],
+  );
+
+  const onOutstationTrip = (t: 'One Way' | 'Round Trip') => {
+    lastOutstation.current = t;
+    try {
+      sessionStorage.setItem(OUTSTATION_KEY, t);
+    } catch {
+      /* private mode */
+    }
+    update({ tripType: t, tripEndAt: t === 'Round Trip' ? draft.tripEndAt : null });
+    setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
+  };
+
+  const scrollToConsole = () => {
+    const el = document.getElementById('book-console');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
 
   const onRoute = (c: Corridor) => {
-    update({ pickup: c.pickup, drop: c.drop });
-    toConsole();
+    update({ pickup: c.pickup, drop: c.drop, tripType: outstationTrip });
+    setParams({ service: 'outstation' }, { replace: true });
+    scrollToConsole();
+    window.setTimeout(() => document.getElementById('bf-date')?.focus({ preventScroll: true }), 400);
   };
+
   const onDestination = (d: Destination) => {
-    update({ drop: d.place });
-    toConsole();
-    if (!draft.pickup) ask('pickup');
+    update({ drop: d.place, tripType: outstationTrip });
+    setParams({ service: 'outstation' }, { replace: true });
+    scrollToConsole();
   };
-  const onService = (s: Service) => {
-    if (s.action.tripType) update({ tripType: s.action.tripType });
-    toConsole();
-    if (s.action.search) ask('drop', s.action.search);
-    else if (!draft.drop) ask('drop');
+
+  const onServiceCard = (s: Service) => {
+    if (s.id === 'airport') onService('airport');
+    else if (s.id === 'local-rental') onService('rental');
+    else if (s.id === 'round-trip') onOutstationTrip('Round Trip');
+    else onOutstationTrip('One Way');
+    scrollToConsole();
   };
 
   return (
-    <>
+    <div className="home">
       <RideBanner />
-      <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__panel">
-          <div className="hero__left">
-            <p className="hero__eyebrow">
-              <Icon name="route" size={16} /> Outstation &amp; intercity cabs
-            </p>
-            <h1 id="hero-title">
-              Outstation rides, <mark>priced before you book.</mark>
-            </h1>
-            <p className="hero__lead">Verified chauffeurs, clean air-conditioned cars and the fare for every vehicle upfront — across Tamil Nadu and beyond.</p>
-            <div className="hero__console">
-              <PlanStep ui={ui} setUi={setUi} intent={intent} />
-            </div>
-          </div>
-          <div className="hero__media">
-            <img src={IMG('heroes/hero-family')} alt="People Taxi outstation and intercity cab service across Tamil Nadu" width={1600} height={800} fetchPriority="high" />
-            <ul className="hero__points">
-              <li>
-                <Icon name="check" size={18} /> Fares shown upfront
-              </li>
-              <li>
-                <Icon name="check" size={18} /> Verified chauffeurs
-              </li>
-              <li>
-                <Icon name="check" size={18} /> Pay your driver in cash or UPI
-              </li>
-            </ul>
-          </div>
+      <div className="wrap home__wrap">
+        <div className="home-hero">
+          <HeroCopy />
+          <BookingForm
+            service={service}
+            onService={onService}
+            outstationTrip={outstationTrip}
+            onOutstationTrip={onOutstationTrip}
+          />
         </div>
-      </section>
+      </div>
 
       <div className="hero-after">
         <TrustStrip />
-        <ServicesSection onPick={onService} />
+        <ServicesSection onPick={onServiceCard} />
         <RoutesSection onRoute={onRoute} />
         <DestinationsSection onPick={onDestination} />
-        <FleetSection onPick={toConsole} />
+        <FleetSection onPick={scrollToConsole} />
         <HowSection />
         <AssuranceSection />
         <Banners />
         <FaqSection />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -136,17 +218,18 @@ export function BookPage({ step }: { step: BookStep }) {
       : step === 'choose'
         ? {
             title: 'Choose Vehicle & Upfront Fares · People Taxi',
-            description: 'Select your vehicle category and check exact upfront fare with verified chauffeurs.',
+            description: 'Compare every vehicle category with its upfront fare before you book.',
             canonical: '/book/ride',
             noindex: true,
           }
         : {
             title: 'Review and Confirm Booking · People Taxi',
-            description: 'Review ride details and scheduled pickup. Pay your driver directly in Cash or via UPI.',
+            description: 'Review your trip itinerary, passenger details and transparent fare before submission.',
             canonical: '/book/confirm',
             noindex: true,
           },
   );
+
   const { draft } = useBooking();
   const { pickup, drop } = draft;
 
@@ -157,3 +240,4 @@ export function BookPage({ step }: { step: BookStep }) {
   if (step === 'review') return <ReviewStep />;
   return <Home />;
 }
+export default BookPage;

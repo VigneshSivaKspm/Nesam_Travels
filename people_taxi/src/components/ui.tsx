@@ -1,5 +1,15 @@
-import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
-import { Link, type LinkProps } from 'react-router-dom';
+import {
+  forwardRef,
+  useEffect,
+  useId,
+  useRef,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+  type SelectHTMLAttributes,
+  type TextareaHTMLAttributes,
+} from 'react';
+import { Link, type LinkProps, useNavigate } from 'react-router-dom';
 import { Icon } from './Icon';
 
 type Variant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger';
@@ -18,30 +28,55 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   block?: boolean;
   loading?: boolean;
   icon?: string;
+  iconTrailing?: string;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', block, loading, icon, className, children, disabled, type = 'button', ...rest },
+  { variant = 'primary', size = 'md', block, loading, icon, iconTrailing, className, children, disabled, type = 'button', ...rest },
   ref,
 ) {
   return (
-    <button ref={ref} type={type} className={btnClass(variant, size, block, className)} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
+    <button
+      ref={ref}
+      type={type}
+      className={btnClass(variant, size, block, className)}
+      disabled={disabled || loading}
+      aria-busy={loading || undefined}
+      {...rest}
+    >
       {loading ? <Spinner /> : icon ? <Icon name={icon} /> : null}
       {children}
+      {!loading && iconTrailing ? <Icon name={iconTrailing} /> : null}
     </button>
   );
 });
 
-export function LinkButton({ variant = 'secondary', size = 'md', block, icon, className, children, ...rest }: LinkProps & { variant?: Variant; size?: Size; block?: boolean; icon?: string }) {
+export function LinkButton({
+  variant = 'secondary',
+  size = 'md',
+  block,
+  icon,
+  iconTrailing,
+  className,
+  children,
+  ...rest
+}: LinkProps & { variant?: Variant; size?: Size; block?: boolean; icon?: string; iconTrailing?: string }) {
   return (
     <Link className={btnClass(variant, size, block, className)} {...rest}>
       {icon ? <Icon name={icon} /> : null}
       {children}
+      {iconTrailing ? <Icon name={iconTrailing} /> : null}
     </Link>
   );
 }
 
-export function IconButton({ icon, label, outline, className = '', ...rest }: { icon: string; label: string; outline?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
+export function IconButton({
+  icon,
+  label,
+  outline,
+  className = '',
+  ...rest
+}: { icon: string; label: string; outline?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" aria-label={label} title={label} className={`icon-btn ${outline ? 'icon-btn--outline' : ''} ${className}`} {...rest}>
       <Icon name={icon} />
@@ -49,31 +84,49 @@ export function IconButton({ icon, label, outline, className = '', ...rest }: { 
   );
 }
 
-// ── Fields ────────────────────────────────────────────────────────────────
+export function BackButton({ to, onClick, label = 'Back' }: { to?: string; onClick?: () => void; label?: string }) {
+  const navigate = useNavigate();
+  const handle = () => {
+    if (onClick) onClick();
+    else if (to) navigate(to);
+    else navigate(-1);
+  };
+  return (
+    <button type="button" className="back-btn" onClick={handle} aria-label={label} title={label}>
+      <Icon name="arrow-left" size={18} />
+    </button>
+  );
+}
 
-interface FieldShellProps {
+// ── Text input, textarea, select & FieldShell ──────────────────────────────
+
+export function FieldShell({
+  label,
+  hint,
+  error,
+  children,
+  className = '',
+}: {
   label: ReactNode;
   hint?: ReactNode;
   error?: string;
   children: (ids: { id: string; describedBy?: string; invalid: boolean }) => ReactNode;
   className?: string;
-}
-
-export function FieldShell({ label, hint, error, children, className = '' }: FieldShellProps) {
+}) {
   const id = useId();
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
   return (
-    <div className={`field ${className}`}>
-      <label className="field__label" htmlFor={id}>
+    <div className={`field ${error ? 'is-invalid' : ''} ${className}`}>
+      <label htmlFor={id} className="field__label">
         {label}
       </label>
       {children({ id, describedBy, invalid: !!error })}
       {error ? (
-        <p className="field__error" id={`${id}-err`} role="alert">
+        <p id={`${id}-err`} className="field__error" role="alert">
           {error}
         </p>
       ) : hint ? (
-        <p className="field__hint" id={`${id}-hint`}>
+        <p id={`${id}-hint`} className="field__hint">
           {hint}
         </p>
       ) : null}
@@ -81,96 +134,421 @@ export function FieldShell({ label, hint, error, children, className = '' }: Fie
   );
 }
 
-interface TextFieldProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'prefix'> {
-  label: ReactNode;
+interface FieldBaseProps {
+  label?: ReactNode;
   hint?: ReactNode;
   error?: string;
-  prefix?: string;
-  wrapperClassName?: string;
+  optional?: boolean;
+  required?: boolean;
+  block?: boolean;
 }
 
-export const TextField = forwardRef<HTMLInputElement, TextFieldProps>(function TextField({ label, hint, error, prefix, wrapperClassName, className = '', ...rest }, ref) {
+export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & FieldBaseProps>(function TextField(
+  { label, hint, error, optional, required, block, id: explicitId, className = '', ...rest },
+  ref,
+) {
+  const autoId = useId();
+  const id = explicitId || autoId;
+  const descId = hint || error ? `${id}-desc` : undefined;
   return (
-    <FieldShell label={label} hint={hint} error={error} className={wrapperClassName}>
-      {({ id, describedBy, invalid }) => {
-        const input = <input ref={ref} id={id} className={`input ${className}`} aria-invalid={invalid || undefined} aria-describedby={describedBy} {...rest} />;
-        return prefix ? (
-          <div className="input-affix">
-            <span aria-hidden="true">{prefix}</span>
-            {input}
-          </div>
-        ) : (
-          input
-        );
-      }}
-    </FieldShell>
+    <div className={`field ${error ? 'is-invalid' : ''} ${block ? 'field--block' : ''} ${className}`}>
+      {label ? (
+        <label htmlFor={id} className="field__label">
+          {label}
+          {optional ? <span className="field__opt">Optional</span> : null}
+        </label>
+      ) : null}
+      <input ref={ref} id={id} className="input" aria-invalid={!!error || undefined} aria-describedby={descId} required={required} {...rest} />
+      {error ? (
+        <p id={descId} className="field__error" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={descId} className="field__hint">
+          {hint}
+        </p>
+      ) : null}
+    </div>
   );
 });
 
-interface TextAreaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
-  label: ReactNode;
-  hint?: ReactNode;
-  error?: string;
-}
-
-export function TextArea({ label, hint, error, className = '', ...rest }: TextAreaProps) {
+export const TextArea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement> & FieldBaseProps>(function TextArea(
+  { label, hint, error, optional, required, block, id: explicitId, className = '', rows = 3, ...rest },
+  ref,
+) {
+  const autoId = useId();
+  const id = explicitId || autoId;
+  const descId = hint || error ? `${id}-desc` : undefined;
   return (
-    <FieldShell label={label} hint={hint} error={error}>
-      {({ id, describedBy, invalid }) => <textarea id={id} className={`textarea ${className}`} aria-invalid={invalid || undefined} aria-describedby={describedBy} {...rest} />}
-    </FieldShell>
+    <div className={`field ${error ? 'is-invalid' : ''} ${block ? 'field--block' : ''} ${className}`}>
+      {label ? (
+        <label htmlFor={id} className="field__label">
+          {label}
+          {optional ? <span className="field__opt">Optional</span> : null}
+        </label>
+      ) : null}
+      <textarea ref={ref} id={id} rows={rows} className="textarea" aria-invalid={!!error || undefined} aria-describedby={descId} required={required} {...rest} />
+      {error ? (
+        <p id={descId} className="field__error" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={descId} className="field__hint">
+          {hint}
+        </p>
+      ) : null}
+    </div>
   );
-}
+});
 
-export function Checkbox({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
+export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & FieldBaseProps>(function Select(
+  { label, hint, error, optional, required, block, id: explicitId, className = '', children, ...rest },
+  ref,
+) {
+  const autoId = useId();
+  const id = explicitId || autoId;
+  const descId = hint || error ? `${id}-desc` : undefined;
   return (
-    <label className="check">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
-      <span>{children}</span>
-    </label>
+    <div className={`field ${error ? 'is-invalid' : ''} ${block ? 'field--block' : ''} ${className}`}>
+      {label ? (
+        <label htmlFor={id} className="field__label">
+          {label}
+          {optional ? <span className="field__opt">Optional</span> : null}
+        </label>
+      ) : null}
+      <div className="select-wrap">
+        <select ref={ref} id={id} className="select" aria-invalid={!!error || undefined} aria-describedby={descId} required={required} {...rest}>
+          {children}
+        </select>
+        <span className="select-arrow" aria-hidden="true">
+          <Icon name="chevron-down" size={16} />
+        </span>
+      </div>
+      {error ? (
+        <p id={descId} className="field__error" role="alert">
+          {error}
+        </p>
+      ) : hint ? (
+        <p id={descId} className="field__hint">
+          {hint}
+        </p>
+      ) : null}
+    </div>
   );
+});
+
+// ── Checkbox & Radio ──────────────────────────────────────────────────────
+
+export interface CheckboxProps extends Omit<InputHTMLAttributes<HTMLInputElement>, 'onChange'> {
+  label?: ReactNode;
+  description?: ReactNode;
+  children?: ReactNode;
+  onChange?: (checked: boolean) => void;
 }
 
-// ── Segmented control (radio semantics) ───────────────────────────────────
+export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
+  function Checkbox({ label, description, children, className = '', id: explicitId, onChange, ...rest }, ref) {
+    const autoId = useId();
+    const id = explicitId || autoId;
+    const body = children || (
+      label || description ? (
+        <span className="check__label">
+          {label ? <strong>{label}</strong> : null}
+          {description ? <small>{description}</small> : null}
+        </span>
+      ) : null
+    );
+    return (
+      <label htmlFor={id} className={`check ${className}`}>
+        <input
+          ref={ref}
+          id={id}
+          type="checkbox"
+          className="check__input"
+          onChange={(e) => onChange?.(e.target.checked)}
+          {...rest}
+        />
+        <span className="check__box" aria-hidden="true">
+          <Icon name="check" size={14} />
+        </span>
+        {body}
+      </label>
+    );
+  },
+);
 
-export function Segmented<T extends string>({ value, options, onChange, label }: { value: T; options: { value: T; label: string }[]; onChange: (v: T) => void; label: string }) {
+export const Radio = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label?: ReactNode; description?: ReactNode }>(
+  function Radio({ label, description, className = '', id: explicitId, ...rest }, ref) {
+    const autoId = useId();
+    const id = explicitId || autoId;
+    return (
+      <label htmlFor={id} className={`radio ${className}`}>
+        <input ref={ref} id={id} type="radio" className="radio__input" {...rest} />
+        <span className="radio__circle" aria-hidden="true" />
+        {label || description ? (
+          <span className="radio__label">
+            {label ? <strong>{label}</strong> : null}
+            {description ? <small>{description}</small> : null}
+          </span>
+        ) : null}
+      </label>
+    );
+  },
+);
+
+// ── Segmented Control ─────────────────────────────────────────────────────
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  label,
+  className = '',
+}: {
+  options: { value: T; label: string; icon?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  label?: string;
+  className?: string;
+}) {
   return (
-    <div className="seg" role="radiogroup" aria-label={label}>
-      {options.map((o) => (
-        <button key={o.value} type="button" role="radio" aria-checked={value === o.value} onClick={() => onChange(o.value)}>
-          {o.label}
+    <div className={`segmented ${className}`} role="tablist" aria-label={label}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          role="tab"
+          aria-selected={opt.value === value}
+          className={`segmented__btn ${opt.value === value ? 'is-active' : ''}`}
+          onClick={() => onChange(opt.value)}
+        >
+          {opt.icon ? <Icon name={opt.icon} /> : null}
+          <span>{opt.label}</span>
         </button>
       ))}
     </div>
   );
 }
 
-// ── Feedback ──────────────────────────────────────────────────────────────
+// ── Cards & list rows ─────────────────────────────────────────────────────
 
-export function Notice({ tone = 'info', children, action }: { tone?: 'info' | 'warning' | 'error' | 'success'; children: ReactNode; action?: ReactNode }) {
-  const icon = tone === 'error' ? 'error' : tone === 'warning' ? 'warning' : tone === 'success' ? 'success' : 'information';
-  return (
-    <div className={`notice notice--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
-      <Icon name={icon} size={20} />
-      <div className="notice__body">
-        {children}
-        {action}
+export function Card({
+  className = '',
+  children,
+  padding = 'md',
+}: {
+  className?: string;
+  children: ReactNode;
+  padding?: 'none' | 'sm' | 'md' | 'lg';
+}) {
+  return <div className={`card ${padding !== 'md' ? `card--p-${padding}` : ''} ${className}`}>{children}</div>;
+}
+
+export function ListRow({
+  icon,
+  title,
+  sub,
+  right,
+  onClick,
+  to,
+  className = '',
+}: {
+  icon?: string;
+  title: ReactNode;
+  sub?: ReactNode;
+  right?: ReactNode;
+  onClick?: () => void;
+  to?: string;
+  className?: string;
+}) {
+  const content = (
+    <>
+      {icon ? (
+        <span className="list-row__icon">
+          <Icon name={icon} size={20} />
+        </span>
+      ) : null}
+      <div className="list-row__body">
+        <strong>{title}</strong>
+        {sub ? <small>{sub}</small> : null}
       </div>
+      {right ? <div className="list-row__right">{right}</div> : <Icon name="chevron-right" size={16} className="list-row__chev" />}
+    </>
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={`list-row list-row--interactive ${className}`}>
+        {content}
+      </Link>
+    );
+  }
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} className={`list-row list-row--interactive ${className}`}>
+        {content}
+      </button>
+    );
+  }
+  return <div className={`list-row ${className}`}>{content}</div>;
+}
+
+// ── Badges, notices, chips ────────────────────────────────────────────────
+
+export function Badge({
+  variant,
+  tone = 'neutral',
+  dot,
+  children,
+}: {
+  variant?: 'neutral' | 'brand' | 'green' | 'amber' | 'blue' | 'red' | 'sun';
+  tone?: 'neutral' | 'brand' | 'green' | 'amber' | 'blue' | 'red' | 'sun' | string;
+  dot?: boolean;
+  children: ReactNode;
+}) {
+  const v = variant || tone || 'neutral';
+  return (
+    <span className={`badge badge--${v} ${dot ? 'badge--dot' : ''}`}>
+      {children}
+    </span>
+  );
+}
+
+export function Notice({
+  variant,
+  tone = 'info',
+  icon,
+  action,
+  children,
+  className = '',
+}: {
+  variant?: 'info' | 'warning' | 'error' | 'success';
+  tone?: 'info' | 'warning' | 'error' | 'success' | string;
+  icon?: string;
+  action?: ReactNode;
+  children: ReactNode;
+  className?: string;
+}) {
+  const v = variant || (tone as 'info' | 'warning' | 'error' | 'success') || 'info';
+  const defaultIcon = v === 'error' ? 'circle-xmark' : v === 'warning' ? 'warning' : v === 'success' ? 'check' : 'info';
+  return (
+    <aside className={`notice notice--${v} ${className}`} role={v === 'error' ? 'alert' : 'status'}>
+      <Icon name={icon || defaultIcon} size={18} />
+      <div className="notice__body">
+        <div>{children}</div>
+        {action ? <div className="notice__action">{action}</div> : null}
+      </div>
+    </aside>
+  );
+}
+
+export function Chip({
+  active,
+  onClick,
+  children,
+  icon,
+  className = '',
+}: {
+  active?: boolean;
+  onClick?: () => void;
+  children: ReactNode;
+  icon?: string;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      className={`chip ${active ? 'is-active' : ''} ${className}`}
+      onClick={onClick}
+      aria-pressed={active}
+    >
+      {icon ? <Icon name={icon} size={14} /> : null}
+      {children}
+    </button>
+  );
+}
+
+// ── Flow Steps ────────────────────────────────────────────────────────────
+
+export function FlowSteps({ total = 3, current = 1 }: { total?: number; current: number }) {
+  return (
+    <div className="flow-steps" role="progressbar" aria-valuenow={current} aria-valuemin={1} aria-valuemax={total}>
+      {Array.from({ length: total }, (_, i) => (
+        <span key={i} className={i < current ? 'is-on' : ''} />
+      ))}
     </div>
   );
 }
 
-export function Badge({ tone, dot, children }: { tone?: 'red' | 'green' | 'amber' | 'blue'; dot?: boolean; children: ReactNode }) {
-  return <span className={['badge', tone && `badge--${tone}`, dot && 'badge--dot'].filter(Boolean).join(' ')}>{children}</span>;
+// ── Tabs ──────────────────────────────────────────────────────────────────
+
+export interface TabItem {
+  id: string;
+  label: string;
+  count?: number;
+  icon?: string;
 }
 
-export function EmptyState({ art, title, children, action }: { art?: string; title: string; children?: ReactNode; action?: ReactNode }) {
+export function Tabs({
+  items,
+  active,
+  onChange,
+  variant = 'line',
+  className = '',
+}: {
+  items: readonly TabItem[] | TabItem[];
+  active: string;
+  onChange: (id: string) => void;
+  variant?: 'line' | 'boxed';
+  className?: string;
+}) {
   return (
-    <div className="empty">
-      {art ? <img src={`/art/${art}.webp`} alt="" width={220} height={220} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
-      <h2>{title}</h2>
-      {children ? <p>{children}</p> : null}
-      {action}
+    <div className={`tabs tabs--${variant} ${className}`} role="tablist">
+      {items.map((t) => {
+        const is = t.id === active;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={is}
+            className={`tab ${is ? 'is-active' : ''}`}
+            onClick={() => onChange(t.id)}
+          >
+            {t.icon ? <Icon name={t.icon} size={16} /> : null}
+            <span>{t.label}</span>
+            {typeof t.count === 'number' ? <span className="tab__count">{t.count}</span> : null}
+          </button>
+        );
+      })}
     </div>
+  );
+}
+
+// ── Avatar, Empty State, PageLoader ───────────────────────────────────────
+
+export function Avatar({
+  name,
+  photoUrl,
+  size = 40,
+}: {
+  name: string;
+  photoUrl?: string | null;
+  size?: number;
+}) {
+  if (photoUrl) {
+    return <img src={photoUrl} alt={name} className="avatar" style={{ width: size, height: size }} />;
+  }
+  const initials = (name || '?')
+    .split(' ')
+    .slice(0, 2)
+    .map((s) => s[0])
+    .join('')
+    .toUpperCase();
+  return (
+    <span className="avatar" style={{ width: size, height: size, fontSize: size * 0.38 }}>
+      {initials}
+    </span>
   );
 }
 
@@ -185,29 +563,55 @@ export function PageLoader({ label = 'Loading…' }: { label?: string }) {
   );
 }
 
-export function Avatar({ name, photoUrl, size = 44 }: { name: string; photoUrl?: string; size?: number }) {
-  const initials =
-    name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((p) => p[0]!.toUpperCase())
-      .join('') || '?';
-  if (photoUrl) {
-    return <img className="avatar" style={{ ['--size' as string]: `${size}px` }} src={photoUrl} alt="" referrerPolicy="no-referrer" />;
-  }
+export function EmptyState({
+  art,
+  title,
+  action,
+  children,
+}: {
+  art?: string;
+  title: string;
+  action?: ReactNode;
+  children?: ReactNode;
+}) {
   return (
-    <span className="avatar" style={{ ['--size' as string]: `${size}px` }} aria-hidden="true">
-      {initials}
-    </span>
+    <div className="empty">
+      <div className="empty__icon">
+        <Icon name={art === 'error' ? 'circle-xmark' : 'route'} size={28} />
+      </div>
+      <h2>{title}</h2>
+      {children ? <p>{children}</p> : null}
+      {action ? <div className="empty__action">{action}</div> : null}
+    </div>
   );
 }
 
-// ── Dialog (modal; centred on desktop, bottom sheet on phones) ─────────────
+// ── Dialog (Modal / Bottom Sheet / Full page) ─────────────────────────────
 
-const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ title, onClose, children, footer, dismissible = true, wide = false }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; dismissible?: boolean; wide?: boolean }) {
+export function Dialog({
+  title,
+  subtitle,
+  onClose,
+  children,
+  footer,
+  dismissible = true,
+  wide = false,
+  variant = 'dialog',
+  className = '',
+}: {
+  title: ReactNode;
+  subtitle?: ReactNode;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  dismissible?: boolean;
+  wide?: boolean;
+  variant?: 'dialog' | 'sheet' | 'page';
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -245,10 +649,23 @@ export function Dialog({ title, onClose, children, footer, dismissible = true, w
   };
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && dismissible && onClose()} onKeyDown={onKey}>
-      <div className={`dialog ${wide ? 'dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
+    <div
+      className={`overlay overlay--${variant}`}
+      onMouseDown={(e) => e.target === e.currentTarget && dismissible && onClose()}
+      onKeyDown={onKey}
+    >
+      <div
+        className={`dialog dialog--${variant} ${wide ? 'dialog--wide' : ''} ${className}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        ref={ref}
+      >
         <div className="dialog__head">
-          <h2 id={titleId}>{title}</h2>
+          <div>
+            <h2 id={titleId}>{title}</h2>
+            {subtitle ? <p className="dialog__sub">{subtitle}</p> : null}
+          </div>
           {dismissible ? <IconButton icon="close" label="Close" onClick={onClose} /> : null}
         </div>
         <div className="dialog__body">{children}</div>
@@ -258,20 +675,30 @@ export function Dialog({ title, onClose, children, footer, dismissible = true, w
   );
 }
 
-// ── Page header: a full-width band that opens every page outside the booking flow ──
+// ── Page Head ─────────────────────────────────────────────────────────────
 
-export function PageHead({ eyebrow, title, children, actions, back }: { eyebrow?: string; title: ReactNode; children?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
+export function PageHead({
+  eyebrow,
+  title,
+  children,
+  actions,
+  back,
+}: {
+  eyebrow?: string;
+  title: ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
+  back?: ReactNode;
+}) {
   return (
-    <div className="page-head">
-      <div className="page-head__inner">
-        <div className="page-head__text">
-          {back}
-          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h1>{title}</h1>
-          {children ? <p>{children}</p> : null}
-        </div>
-        {actions ? <div className="page-head__actions">{actions}</div> : null}
+    <header className="page-head">
+      {back}
+      <div className="page-head__text">
+        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+        <h1>{title}</h1>
+        {children ? <p className="page-head__sub">{children}</p> : null}
       </div>
-    </div>
+      {actions ? <div className="page-head__actions">{actions}</div> : null}
+    </header>
   );
 }

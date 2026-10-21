@@ -1,6 +1,7 @@
-// Driver profile (reference "My Profile"): identity, contact & payout account (editable), document status with expiry
-// badges, help and sign-out. Validation and the save call are the app's existing ones.
-import React, { useState } from 'react';
+// Driver profile: identity, earnings (moved inside profile), contact & payout account,
+// licence & ID, document status with expiry badges, and help/sign-out.
+// All sections are minimized by default and only expand when clicked.
+import React, { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/nx/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -10,14 +11,29 @@ import { useSignOut } from '../navigation/MainNavigator';
 import { NxScreen, useShell } from '../components/nx/Shell';
 import { NxColumns } from '../components/nx/layout';
 import { NxDialog } from '../components/nx/Dialog';
-import { NxIcon } from '../components/nx/Icon';
-import { NxBadge, NxButton, NxField, NxFormError, NxInfo, NxPanel, NxRow, NxSectionHeading, NxTextButton, nxText } from '../components/nx/primitives';
+import { NxIcon, NxIconName } from '../components/nx/Icon';
+import {
+  NxBadge,
+  NxButton,
+  NxField,
+  NxFormError,
+  NxInfo,
+  NxPanel,
+  NxPills,
+  NxRow,
+  NxTextButton,
+  nxText,
+} from '../components/nx/primitives';
 import { updateDriverContactDetails, type ContactFields } from '../services/driverService';
 import { displayDate } from '../components/forms';
 import { IFSC_RE, MOBILE_RE, UPI_RE } from '../validation/kyc';
-import { initials } from '../utils/format';
+import { formatINR, initials } from '../utils/format';
+import { last7Days, tripEarningStatus } from '../utils/ledger';
 import { describeError } from '../utils/retry';
 import { nx } from '../theme/nx';
+import { POPPINS } from '../theme/fonts';
+
+type Period = 'today' | 'week';
 
 function expiryBadge(date: string) {
   if (!date) return null;
@@ -30,7 +46,13 @@ function expiryBadge(date: string) {
 
 function DocRow({ label, url, expiry }: { label: string; url: string; expiry?: string }) {
   return (
-    <Pressable style={styles.doc} disabled={!url} onPress={() => void Linking.openURL(url)} accessibilityRole="button" accessibilityLabel={`${label}${url ? '' : ', not uploaded'}`}>
+    <Pressable
+      style={styles.doc}
+      disabled={!url}
+      onPress={() => void Linking.openURL(url)}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}${url ? '' : ', not uploaded'}`}
+    >
       <NxIcon name="document" size={17} color={nx.muted} />
       <Text style={styles.docLabel} numberOfLines={2}>
         {label}
@@ -41,14 +63,89 @@ function DocRow({ label, url, expiry }: { label: string; url: string; expiry?: s
   );
 }
 
-export function ProfileScreen() {
+/** Accordion section header: clickable header that toggles section expansion. */
+function AccordionHeader({
+  icon,
+  title,
+  subtitle,
+  badge,
+  isOpen,
+  onToggle,
+  rightAction,
+}: {
+  icon: NxIconName;
+  title: string;
+  subtitle?: string;
+  badge?: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  rightAction?: React.ReactNode;
+}) {
+  return (
+    <Pressable
+      onPress={onToggle}
+      style={[styles.accordionHeader, isOpen && styles.accordionHeaderOpen]}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: isOpen }}
+      accessibilityLabel={`${title}. ${isOpen ? 'Expanded' : 'Minimized'}. Tap to toggle.`}
+    >
+      <View style={styles.accordionLeft}>
+        <View style={[styles.accordionIconWrap, isOpen && styles.accordionIconWrapOpen]}>
+          <NxIcon name={icon} size={18} color={isOpen ? nx.red : '#475569'} />
+        </View>
+        <View style={styles.accordionTitleWrap}>
+          <Text style={[styles.accordionTitle, isOpen && { color: nx.red }]}>{title}</Text>
+          {subtitle && !isOpen ? (
+            <Text style={styles.accordionSubtitle} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.accordionRight}>
+        {badge}
+        {rightAction}
+        <View style={[styles.chevronWrap, isOpen && styles.chevronRotated]}>
+          <NxIcon name="chevron" size={16} color={isOpen ? nx.red : nx.muted} />
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+export function ProfileScreen({ route }: { route?: { params?: { openSection?: string } } } = {}) {
   const navigation = useNavigation();
   const signOut = useSignOut();
   const { openSupport } = useShell();
-  const { account, completedTrips } = useDriverData();
+  const { account, completedTrips, earnings, ledger } = useDriverData();
   const { driver, identity, license, vehicle, bank } = account;
+  const fleet = !!driver.vendorId;
+
+  // By default, ALL sections are minimized. Only expand when clicked!
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  // Earnings section inside profile
+  const [period, setPeriod] = useState<Period>('today');
+  const days = useMemo(() => last7Days(ledger), [ledger]);
+  const maxEarnings = Math.max(1, ...days.map((d) => d.amount));
+  const week = period === 'week';
+  const range = `${days[0]?.label ?? ''} – ${days[6]?.label ?? ''}`;
+  const waiting = completedTrips.filter((t) => tripEarningStatus(ledger, t.id) !== 'available' && !t.fleetTrip);
+  const waitingTotal = waiting.reduce((s, t) => s + (t.payoutRecorded ? t.driverEarnings : 0), 0);
+
+  // If navigated here with a specific section request (e.g. from Home's earnings metric), expand it
+  useEffect(() => {
+    const targetSection = route?.params?.openSection;
+    if (targetSection) {
+      setExpanded((prev) => ({ ...prev, [targetSection]: true }));
+    }
+  }, [route?.params?.openSection]);
+
+  const toggle = (key: string) => {
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const confirmSignOut = () =>
     Alert.alert('Sign out?', 'You’ll need to verify your phone number again to sign back in.', [
@@ -59,83 +156,266 @@ export function ProfileScreen() {
   const docTone = driver.docStatus === 'Approved' ? 'green' : driver.docStatus === 'Rejected' ? 'red' : 'amber';
 
   return (
-    <NxScreen>
-      {driver.docStatus === 'Rejected' && driver.rejectionReason ? <NxInfo tone="amber" style={{ marginTop: 0, marginBottom: 16 }}>Document note from NESAM: {driver.rejectionReason}</NxInfo> : null}
+    <NxScreen title="Profile" subtitle="Driver & Vehicle Account">
+      {driver.docStatus === 'Rejected' && driver.rejectionReason ? (
+        <NxInfo tone="amber" style={{ marginTop: 0, marginBottom: 16 }}>
+          Document note from NESAM: {driver.rejectionReason}
+        </NxInfo>
+      ) : null}
       {saved ? <NxInfo style={{ marginTop: 0, marginBottom: 16 }}>Profile updated.</NxInfo> : null}
 
       <NxColumns>
-      <NxPanel style={styles.identity}>
-        {driver.photoUrl ? (
-          <Image source={{ uri: driver.photoUrl }} style={styles.avatar} accessibilityLabel={driver.name} />
-        ) : (
-          <View style={styles.avatar} accessibilityElementsHidden>
-            <Text style={styles.avatarText}>{initials(driver.name)}</Text>
-          </View>
-        )}
-        <Text style={styles.name}>{driver.name}</Text>
-        <Text style={nxText.copy}>{driver.vendorName ? `Fleet driver · ${driver.vendorName}` : 'Single vehicle owner / driver'}</Text>
-        <View style={{ marginTop: 10 }}>
-          <NxBadge label="Account approved" tone="green" icon="shield" />
-        </View>
-        <View style={styles.details}>
-          <NxRow label="Mobile" value={driver.phone} />
-          <NxRow label="Rating" value={driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} />
-          <NxRow label="Completed trips" value={String(completedTrips.length)} />
-          {driver.joiningDate ? <NxRow label="Partner since" value={driver.joiningDate} /> : null}
-          <NxRow label="Vehicle" value={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || '—'} />
-          <NxRow label="Registration" value={vehicle.vehicleNumber || '—'} />
-          <NxRow label="Category" value={`${vehicle.vehicleType}${vehicle.capacity ? ` · ${vehicle.capacity} seats` : ''}${vehicle.fuelType ? ` · ${vehicle.fuelType}` : ''}`} />
-        </View>
-      </NxPanel>
+        {/* Section 1: Identity & Vehicle Overview */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="user"
+            title={driver.name}
+            subtitle={`${driver.phone} · ${vehicle.vehicleType} (${vehicle.vehicleNumber || 'No reg'})`}
+            badge={<NxBadge label={driver.approvalStatus || 'Approved'} tone="green" />}
+            isOpen={!!expanded.identity}
+            onToggle={() => toggle('identity')}
+          />
+          {expanded.identity ? (
+            <View style={styles.sectionBody}>
+              <View style={styles.identityHead}>
+                {driver.photoUrl ? (
+                  <Image source={{ uri: driver.photoUrl }} style={styles.avatar} accessibilityLabel={driver.name} />
+                ) : (
+                  <View style={styles.avatar} accessibilityElementsHidden>
+                    <Text style={styles.avatarText}>{initials(driver.name)}</Text>
+                  </View>
+                )}
+                <Text style={styles.name}>{driver.name}</Text>
+                <Text style={nxText.copy}>
+                  {driver.vendorName ? `Fleet driver · ${driver.vendorName}` : 'Single vehicle owner / driver'}
+                </Text>
+                <View style={{ marginTop: 8 }}>
+                  <NxBadge label="Account approved" tone="green" icon="shield" />
+                </View>
+              </View>
+              <View style={styles.details}>
+                <NxRow label="Mobile" value={driver.phone} />
+                <NxRow label="Rating" value={driver.rating != null ? `★ ${driver.rating.toFixed(1)}` : 'No ratings yet'} />
+                <NxRow label="Completed trips" value={String(completedTrips.length)} />
+                {driver.joiningDate ? <NxRow label="Partner since" value={driver.joiningDate} /> : null}
+                <NxRow label="Vehicle" value={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || '—'} />
+                <NxRow label="Registration" value={vehicle.vehicleNumber || '—'} />
+                <NxRow
+                  label="Category"
+                  value={`${vehicle.vehicleType}${vehicle.capacity ? ` · ${vehicle.capacity} seats` : ''}${vehicle.fuelType ? ` · ${vehicle.fuelType}` : ''}`}
+                />
+              </View>
+            </View>
+          ) : null}
+        </NxPanel>
 
-      <NxPanel>
-        <NxSectionHeading title="Contact & payout account" right={<NxTextButton title="Edit" icon="edit" onPress={() => setEditing(true)} />} />
-        <NxRow label="Email" value={driver.email || '—'} />
-        <NxRow label="Date of birth" value={displayDate(driver.dob) || '—'} />
-        <NxRow label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
-        <NxRow label="Emergency contact" value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'} />
-        <NxRow label="Account holder" value={bank.accountHolder || '—'} />
-        <NxRow label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
-        <NxRow label="IFSC" value={bank.ifsc || '—'} />
-        <NxRow label="UPI" value={bank.upiId || '—'} />
-      </NxPanel>
+        {/* Section 2: Earnings & Settlements (Moved inside Profile) */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="chart"
+            title="Earnings & settlements"
+            subtitle={fleet ? 'Settled by your fleet' : `${formatINR(earnings.todayEarnings)} today · ${formatINR(earnings.thisWeekEarnings)} 7 days`}
+            badge={fleet ? <NxBadge label="Fleet driver" tone="neutral" /> : <NxBadge label="Credited" tone="green" />}
+            isOpen={!!expanded.earnings}
+            onToggle={() => toggle('earnings')}
+          />
+          {expanded.earnings ? (
+            <View style={styles.sectionBody}>
+              {fleet ? (
+                <NxInfo>
+                  You drive for {driver.vendorName || 'a fleet operator'}. Your fleet operator receives trip settlements directly.
+                </NxInfo>
+              ) : (
+                <>
+                  <NxPills<Period>
+                    label="Earnings period"
+                    value={period}
+                    onChange={setPeriod}
+                    options={[
+                      { value: 'today', label: 'Today' },
+                      { value: 'week', label: 'Last 7 days' },
+                    ]}
+                  />
 
-      <NxPanel>
-        <NxSectionHeading title="Licence & ID" />
-        <NxRow label="Licence no." value={license.number || '—'} />
-        <NxRow label="Licence valid till" value={displayDate(license.expiryDate) || '—'} />
-        <NxRow label="Aadhaar" value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'} />
-        <NxRow label="PAN" value={identity.panNumber || '—'} />
-        <NxRow label="Colour" value={vehicle.color || '—'} />
-      </NxPanel>
+                  <View style={styles.earningsSummaryBox}>
+                    <Text style={styles.earningsSummaryLabel}>
+                      {week ? `Weekly earnings (${range})` : 'Today’s credited earnings'}
+                    </Text>
+                    <Text style={styles.earningsTotal}>
+                      {formatINR(week ? earnings.thisWeekEarnings : earnings.todayEarnings)}
+                    </Text>
+                  </View>
 
-      <NxPanel>
-        <NxSectionHeading title="Document verification" caption="Your licence and vehicle papers" right={<NxBadge label={driver.docStatus} tone={docTone} />} />
-        <DocRow label="Driving licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
-        <DocRow label="Driving licence (back)" url={license.backPhotoUrl} />
-        <DocRow label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
-        <DocRow label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
-        <DocRow label="PAN" url={identity.panPhotoUrl} />
-        <DocRow label="Registration certificate (RC)" url={vehicle.rcDocUrl} />
-        <DocRow label="Vehicle insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
-        <DocRow label="Vehicle permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
-        <DocRow label="Fitness certificate (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
-        <DocRow label="Vehicle photo · front" url={vehicle.frontPhotoUrl} />
-        <DocRow label="Vehicle photo · rear" url={vehicle.rearPhotoUrl} />
-        <DocRow label="Vehicle photo · side" url={vehicle.sidePhotoUrl} />
-        <DocRow label="Vehicle photo · interior" url={vehicle.interiorPhotoUrl} />
-        <NxButton title="Update documents" trailingIcon="arrow" onPress={() => navigation.navigate('UpdateDocuments')} style={{ marginTop: 18 }} />
-      </NxPanel>
+                  {week ? (
+                    <View
+                      style={styles.chart}
+                      accessible
+                      accessibilityRole="image"
+                      accessibilityLabel={`Credited daily earnings: ${days.map((d) => `${d.label} ${formatINR(d.amount)}`).join(', ')}`}
+                    >
+                      {days.map((d, i) => (
+                        <View key={d.key} style={styles.col}>
+                          <View style={styles.track}>
+                            <View
+                              style={[
+                                styles.bar,
+                                i === 6 && styles.barNow,
+                                { height: `${Math.max(4, (d.amount / maxEarnings) * 100)}%` },
+                              ]}
+                            />
+                          </View>
+                          <Text style={styles.day} numberOfLines={1}>
+                            {d.label}
+                          </Text>
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <NxInfo style={{ marginTop: 8 }}>
+                      The payout for each duty is credited once verified. Approved toll receipts on non-cash trips are reimbursed.
+                    </NxInfo>
+                  )}
 
-      <NxPanel>
-        <NxSectionHeading title="Help" right={<NxIcon name="help" size={20} color={nx.ink} />} />
-        <View style={{ gap: 14 }}>
-          <NxTextButton title="Help & SOS" icon="help" onPress={() => openSupport()} />
-          <NxTextButton title="Sign out" icon="logout" onPress={confirmSignOut} />
-        </View>
-        <Text style={[nxText.small, { marginTop: 16 }]}>NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
-      </NxPanel>
+                  <View style={{ marginTop: 14 }}>
+                    <NxRow label="This month" value={formatINR(earnings.thisMonthEarnings)} />
+                    <NxRow label="Lifetime" value={formatINR(earnings.lifetimeEarnings)} />
+                    {earnings.tollReimbursements > 0 ? (
+                      <NxRow label="Toll reimbursements" value={formatINR(earnings.tollReimbursements)} />
+                    ) : null}
+                    <NxRow label="Completed duties" value={String(earnings.totalTripsCompleted)} />
+                  </View>
 
+                  <View style={styles.settlementBox}>
+                    <Text style={styles.settlementHeading}>Pending settlement review</Text>
+                    <Text style={styles.settlementAmount}>{formatINR(waitingTotal)}</Text>
+                    <Text style={nxText.note}>
+                      {waiting.length} completed trip{waiting.length === 1 ? '' : 's'} awaiting settlement verification.
+                    </Text>
+                    <NxButton
+                      title="Open wallet balance"
+                      trailingIcon="arrow"
+                      variant="secondary"
+                      compact
+                      onPress={() => navigation.navigate('Tabs', { screen: 'Wallet' } as never)}
+                      style={{ marginTop: 12 }}
+                    />
+                  </View>
+                </>
+              )}
+            </View>
+          ) : null}
+        </NxPanel>
+
+        {/* Section 3: Contact & Payout Account */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="edit"
+            title="Contact & payout account"
+            subtitle={bank.accountNumber ? `A/c ••••${bank.accountNumber.slice(-4)} · ${driver.phone}` : driver.phone}
+            isOpen={!!expanded.contact}
+            onToggle={() => toggle('contact')}
+            rightAction={
+              expanded.contact ? (
+                <NxTextButton title="Edit" icon="edit" onPress={() => setEditing(true)} />
+              ) : null
+            }
+          />
+          {expanded.contact ? (
+            <View style={styles.sectionBody}>
+              <NxRow label="Email" value={driver.email || '—'} />
+              <NxRow label="Date of birth" value={displayDate(driver.dob) || '—'} />
+              <NxRow label="Address" value={[driver.address, driver.city, driver.pincode].filter(Boolean).join(', ') || '—'} />
+              <NxRow
+                label="Emergency contact"
+                value={driver.emergencyContact ? `${driver.emergencyContactName} (${driver.emergencyContact})` : '—'}
+              />
+              <NxRow label="Account holder" value={bank.accountHolder || '—'} />
+              <NxRow label="Account no." value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : '—'} />
+              <NxRow label="IFSC" value={bank.ifsc || '—'} />
+              <NxRow label="UPI" value={bank.upiId || '—'} />
+            </View>
+          ) : null}
+        </NxPanel>
+
+        {/* Section 4: Licence & ID */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="document"
+            title="Licence & ID"
+            subtitle={license.number ? `DL: ${license.number} · Till ${displayDate(license.expiryDate)}` : 'Licence details'}
+            isOpen={!!expanded.license}
+            onToggle={() => toggle('license')}
+          />
+          {expanded.license ? (
+            <View style={styles.sectionBody}>
+              <NxRow label="Licence no." value={license.number || '—'} />
+              <NxRow label="Licence valid till" value={displayDate(license.expiryDate) || '—'} />
+              <NxRow
+                label="Aadhaar"
+                value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'}
+              />
+              <NxRow label="PAN" value={identity.panNumber || '—'} />
+              <NxRow label="Colour" value={vehicle.color || '—'} />
+            </View>
+          ) : null}
+        </NxPanel>
+
+        {/* Section 5: Document Verification */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="shield"
+            title="Document verification"
+            subtitle="Licence and vehicle papers"
+            badge={<NxBadge label={driver.docStatus} tone={docTone} />}
+            isOpen={!!expanded.documents}
+            onToggle={() => toggle('documents')}
+          />
+          {expanded.documents ? (
+            <View style={styles.sectionBody}>
+              <DocRow label="Driving licence (front)" url={license.frontPhotoUrl} expiry={license.expiryDate} />
+              <DocRow label="Driving licence (back)" url={license.backPhotoUrl} />
+              <DocRow label="Aadhaar (front)" url={identity.aadhaarFrontUrl} />
+              <DocRow label="Aadhaar (back)" url={identity.aadhaarBackUrl} />
+              <DocRow label="PAN" url={identity.panPhotoUrl} />
+              <DocRow label="Registration certificate (RC)" url={vehicle.rcDocUrl} />
+              <DocRow label="Vehicle insurance" url={vehicle.insuranceDocUrl} expiry={vehicle.insuranceExpiry} />
+              <DocRow label="Vehicle permit" url={vehicle.statePermitDocUrl} expiry={vehicle.permitExpiry} />
+              <DocRow label="Fitness certificate (FC)" url={vehicle.fitnessDocUrl} expiry={vehicle.fitnessExpiry} />
+              <DocRow label="Vehicle photo · front" url={vehicle.frontPhotoUrl} />
+              <DocRow label="Vehicle photo · rear" url={vehicle.rearPhotoUrl} />
+              <DocRow label="Vehicle photo · side" url={vehicle.sidePhotoUrl} />
+              <DocRow label="Vehicle photo · interior" url={vehicle.interiorPhotoUrl} />
+              <NxButton
+                title="Update documents"
+                trailingIcon="arrow"
+                onPress={() => navigation.navigate('UpdateDocuments' as never)}
+                style={{ marginTop: 18 }}
+              />
+            </View>
+          ) : null}
+        </NxPanel>
+
+        {/* Section 6: Help & Sign Out */}
+        <NxPanel style={styles.sectionPanel}>
+          <AccordionHeader
+            icon="help"
+            title="Help & sign out"
+            subtitle="Support, SOS & application version"
+            isOpen={!!expanded.help}
+            onToggle={() => toggle('help')}
+          />
+          {expanded.help ? (
+            <View style={styles.sectionBody}>
+              <View style={{ gap: 14 }}>
+                <NxTextButton title="Help & SOS" icon="help" onPress={() => openSupport()} />
+                <NxTextButton title="Sign out" icon="logout" onPress={confirmSignOut} />
+              </View>
+              <Text style={[nxText.small, { marginTop: 16 }]}>
+                NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}
+              </Text>
+            </View>
+          ) : null}
+        </NxPanel>
       </NxColumns>
 
       {editing ? (
@@ -222,11 +502,196 @@ function ContactDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 }
 
 const styles = StyleSheet.create({
-  identity: { alignItems: 'center', paddingTop: 24 },
-  avatar: { width: 68, height: 68, borderRadius: 34, backgroundColor: nx.redSoft, alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  avatarText: { fontSize: 24, fontWeight: '800', color: nx.red },
-  name: { fontSize: 20, fontWeight: '700', letterSpacing: -0.4, color: nx.ink, marginBottom: 4 },
-  details: { alignSelf: 'stretch', marginTop: 18 },
-  doc: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingVertical: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: nx.line },
-  docLabel: { flex: 1, fontSize: 12, color: nx.ink },
+  sectionPanel: {
+    padding: 0,
+    overflow: 'hidden',
+    borderRadius: 14,
+    marginBottom: 12,
+  },
+  accordionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 15,
+    paddingHorizontal: 16,
+    minHeight: 58,
+    backgroundColor: nx.white,
+  },
+  accordionHeaderOpen: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: nx.line,
+    backgroundColor: '#FAFAFB',
+  },
+  accordionLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flex: 1,
+    minWidth: 0,
+  },
+  accordionIconWrap: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: '#F1F5F9',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accordionIconWrapOpen: {
+    backgroundColor: nx.redSoft,
+  },
+  accordionTitleWrap: {
+    flex: 1,
+    minWidth: 0,
+  },
+  accordionTitle: {
+    fontFamily: POPPINS.bold,
+    fontSize: 14.5,
+    color: '#0F172A',
+    letterSpacing: -0.2,
+  },
+  accordionSubtitle: {
+    fontFamily: POPPINS.regular,
+    fontSize: 11,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  accordionRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  chevronWrap: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    transform: [{ rotate: '0deg' }],
+  },
+  chevronRotated: {
+    transform: [{ rotate: '90deg' }],
+  },
+  sectionBody: {
+    padding: 16,
+    backgroundColor: nx.white,
+  },
+  identityHead: {
+    alignItems: 'center',
+    paddingTop: 8,
+    paddingBottom: 12,
+  },
+  avatar: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: nx.redSoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  avatarText: {
+    fontSize: 24,
+    fontFamily: POPPINS.bold,
+    color: nx.red,
+  },
+  name: {
+    fontSize: 19,
+    fontFamily: POPPINS.bold,
+    letterSpacing: -0.4,
+    color: nx.ink,
+    marginBottom: 4,
+  },
+  details: {
+    alignSelf: 'stretch',
+    marginTop: 6,
+  },
+  doc: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 48,
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: nx.line,
+  },
+  docLabel: {
+    flex: 1,
+    fontSize: 12,
+    fontFamily: POPPINS.regular,
+    color: nx.ink,
+  },
+  earningsSummaryBox: {
+    backgroundColor: nx.redSoft,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  earningsSummaryLabel: {
+    fontSize: 11.5,
+    fontFamily: POPPINS.medium,
+    color: nx.red,
+  },
+  earningsTotal: {
+    fontSize: 26,
+    fontFamily: POPPINS.bold,
+    color: nx.red,
+    marginTop: 4,
+    letterSpacing: -0.5,
+  },
+  chart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 120,
+    gap: 8,
+    paddingTop: 16,
+    paddingBottom: 4,
+    marginTop: 8,
+  },
+  col: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 6,
+  },
+  track: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+  },
+  bar: {
+    width: '100%',
+    backgroundColor: '#94A3B8',
+    borderRadius: 4,
+    minHeight: 4,
+  },
+  barNow: {
+    backgroundColor: nx.red,
+  },
+  day: {
+    fontSize: 10,
+    fontFamily: POPPINS.medium,
+    color: nx.muted,
+  },
+  settlementBox: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 16,
+  },
+  settlementHeading: {
+    fontSize: 12.5,
+    fontFamily: POPPINS.bold,
+    color: nx.ink,
+  },
+  settlementAmount: {
+    fontSize: 20,
+    fontFamily: POPPINS.bold,
+    color: nx.ink,
+    marginTop: 2,
+    marginBottom: 4,
+  },
 });

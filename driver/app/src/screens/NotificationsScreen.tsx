@@ -23,7 +23,7 @@ export function NotificationsScreen() {
   const unread = (c: NotificationCategory | 'all') => notifications.filter((n) => !n.read && (c === 'all' || n.category === c)).length;
 
   return (
-    <NxScreen tabs={false}>
+    <NxScreen tabs={false} title="Notifications" subtitle="Updates & Alerts">
       <Pressable style={styles.back} onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))} accessibilityRole="button" accessibilityLabel="Back">
         <NxIcon name="back" size={16} color={nx.muted} />
         <Text style={styles.backText}>Back</Text>

@@ -8,7 +8,7 @@ import FareOverrideModal from "../components/FareOverrideModal";
 import FareBreakupView from "../components/FareBreakupView";
 import { Notice, primaryBtn, secondaryBtn } from "../components/FormKit";
 import { Toast, useToast } from "../components/Feedback";
-import { AlertBadge, StatusBadge } from "../components/booking/BookingBadges";
+import { AlertBadge, StatusBadge, BookingSourceBadge, BookingSourceBanner } from "../components/booking/BookingBadges";
 import { ApproveDialog, AssignDriverModal, AssignVendorModal, CancelBookingModal, PublishDialog, RecordPaymentModal, RefundModal, RejectDialog, VoidPaymentDialog } from "../components/booking/BookingActions";
 import { AssignmentHistory, PaymentsPanel, VehicleVerificationPanel, VerifyCustomerModal, type AssignmentRow, type PaymentRow, type VerificationDoc } from "../components/booking/BookingPanels";
 import { useCan } from "../components/AccessContext";
@@ -187,6 +187,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
       <div className="flex flex-wrap items-center gap-3">
         <button onClick={onBack} className="text-sm font-semibold text-[#555] hover:text-[#111]">← Back to bookings</button>
         <span className="text-sm font-mono font-bold text-[#E21B23]">{booking.bookingId || booking.id}</span>
+        <BookingSourceBadge booking={booking} size="md" />
         <StatusBadge status={booking.status} />
         <AlertBadge severity={severity} label={pickup ? relativeFromNow(pickup, now).replace(/^in /, "") : undefined} />
         <div className="ml-auto flex flex-wrap gap-2">
@@ -210,6 +211,8 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
           </div>
         </Notice>
       ) : null}
+
+      <BookingSourceBanner booking={booking} />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 space-y-5">

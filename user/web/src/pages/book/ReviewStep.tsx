@@ -121,6 +121,9 @@ export function ReviewStep() {
         termsAccepted,
         whatsapp: waSame ? { sameAsMobile: true } : { sameAsMobile: false, countryCode: waCode.trim(), number: waNumber.replace(/[\s()-]/g, '') },
         email: email.trim(),
+        source: 'nesam',
+        bookingSource: 'nesam',
+        brand: 'nesam',
       });
       reset();
       navigate(`/book/done/${encodeURIComponent(res.id)}`, { replace: true });

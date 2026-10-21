@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
-import { Button, Chip, Notice, PageHead, TextField } from '../components/ui';
+import { Button, Chip, Notice, TextField } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { Icon } from '../components/Icon';
@@ -73,9 +73,8 @@ export function EditProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="My Profile" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <PageHead title="My Profile" subtitle="Keep your contact details up to date." onBack={() => navigation.goBack()} />
         <View style={styles.card}>
           <TextField label="Full name" required value={name} onChangeText={setName} autoComplete="name" />
           <TextField
@@ -119,7 +118,7 @@ export function EditProfileScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, backgroundColor: colors.white },
   label: { fontFamily: fonts.regular, fontSize: 11.5, color: '#697587', marginBottom: 8 },
   langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

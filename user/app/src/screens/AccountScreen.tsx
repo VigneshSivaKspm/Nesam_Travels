@@ -1,14 +1,14 @@
-// Account hub in the reference layout: person header, grouped menu rows with counts,
-// and sign out. Every pre-existing destination (profile, saved places, payments,
-// support, offers, legal) stays reachable.
+// Account hub in the modern layout:
+// Header shows the logo emblem with "Account" title right to it,
+// followed by profile details, grouped menu rows with counts, and sign out.
 import React, { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
-import { Notice, MenuGroup, MenuRow, PageHead } from '../components/ui';
+import { Notice, MenuGroup, MenuRow } from '../components/ui';
 import { ScrollView } from '../components/layout';
-import { AppHeader } from '../components/brand';
+import { AppHeader, PressableScale } from '../components/brand';
 import { Icon } from '../components/Icon';
 import { choosePhotoSource } from '../components/photoSource';
 import { PickerError, pickImage, uploadProfilePhoto } from '../services/storageService';
@@ -57,9 +57,8 @@ export function AccountScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Account" />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <PageHead title="Account" subtitle="Everything for your journey." onBack={() => navigation.navigate('Tabs', { screen: 'Book' })} />
         <Notice message={error} />
 
         <View style={styles.person}>
@@ -107,10 +106,16 @@ export function AccountScreen() {
           <MenuRow icon="info" title="Settings / About NESAM" subtitle="Language, preferences & company details" onPress={() => navigation.navigate('Settings')} />
         </MenuGroup>
 
-        <Pressable onPress={logout} style={({ pressed }) => [styles.logout, pressed && { opacity: 0.6 }]} accessibilityRole="button" accessibilityLabel="Sign out">
-          <Icon name="log-out" size={17} color={colors.primary} />
-          <Text style={styles.logoutText}>Sign out</Text>
-        </Pressable>
+        <PressableScale
+          onPress={logout}
+          activeScale={0.96}
+          style={styles.logoutBtn}
+          accessibilityRole="button"
+          accessibilityLabel="Sign out"
+        >
+          <Icon name="log-out" size={17} color={colors.white} strokeWidth={2.0} />
+          <Text style={styles.logoutBtnText}>Sign out</Text>
+        </PressableScale>
       </ScrollView>
     </SafeAreaView>
   );
@@ -118,8 +123,8 @@ export function AccountScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
-  person: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingBottom: 22 },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
+  person: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingBottom: 20 },
   avatar: { width: 48, height: 48, borderRadius: 24 },
   initials: { backgroundColor: '#FFF1F1', alignItems: 'center', justifyContent: 'center' },
   initialsText: { fontFamily: fonts.medium, fontSize: 18, color: colors.primary },
@@ -127,6 +132,31 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.semiBold, fontSize: 20, lineHeight: 25, letterSpacing: -0.35, color: colors.ink },
   phone: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: '#6D7785', marginTop: 2 },
   uploading: { fontFamily: fonts.medium, fontSize: 11, color: colors.primary, marginTop: 2 },
-  logout: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, marginTop: 4, alignSelf: 'flex-start' },
-  logoutText: { fontFamily: fonts.medium, fontSize: 13, color: colors.primary },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    minHeight: 48,
+    backgroundColor: '#E21B23',
+    borderRadius: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    marginTop: 20,
+    marginBottom: 8,
+    alignSelf: 'center',
+    width: '100%',
+    maxWidth: 320,
+    shadowColor: '#E21B23',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  logoutBtnText: {
+    fontFamily: fonts.semiBold,
+    fontSize: 15,
+    color: colors.white,
+    letterSpacing: 0.2,
+  },
 });

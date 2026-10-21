@@ -5,7 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
 import { useBookingDraft } from '../context/BookingDraft';
-import { Button, EmptyState, Notice, PageHead, Segmented, TextButton, TextField } from '../components/ui';
+import { Button, EmptyState, Notice, Segmented, TextButton, TextField } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { Icon, type IconName } from '../components/Icon';
@@ -28,55 +28,60 @@ export function SavedPlacesScreen() {
   const [adding, setAdding] = useState<LocationItem | 'new' | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [picked, setPicked] = useState<GeoPlace | null>(null);
+  const [kind, setKind] = useState<SaveType>('home');
   const [label, setLabel] = useState('');
-  const [kind, setKind] = useState<SaveType>('favorite');
   const [busy, setBusy] = useState(false);
-  const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  const startEdit = (p: LocationItem) => {
+    setAdding(p);
+    setKind(p.type as SaveType);
+    setLabel(p.type === 'favorite' ? p.name : '');
+    setPicked(p as GeoPlace);
+  };
 
   const reset = () => {
     setAdding(null);
     setPicked(null);
     setLabel('');
-    setKind('favorite');
+    setKind('home');
     setError('');
-  };
-
-  const startEdit = (p: LocationItem) => {
-    setAdding(p);
-    setPicked(isValidLatLng(p as { lat?: number; lng?: number }) ? (p as GeoPlace) : null);
-    setLabel(p.type === 'favorite' ? p.name : '');
-    setKind((['home', 'work'].includes(p.type) ? p.type : 'favorite') as SaveType);
   };
 
   const save = async () => {
-    if (!picked) return setError('Search for the address to save.');
-    const editing = adding && adding !== 'new' ? adding : null;
-    const name = kind === 'home' ? 'Home' : kind === 'work' ? 'Work' : label.trim() || picked.name;
-    // Home and Work are single slots: saving one replaces the existing one.
-    const existing = editing ?? (kind !== 'favorite' ? savedPlaces.find((p) => p.type === kind) : undefined);
+    if (!picked) return setError('Choose an address first.');
+    const name = kind === 'home' ? 'Home' : kind === 'work' ? 'Work' : label.trim() || 'Saved place';
     setBusy(true);
     setError('');
     try {
-      await savePlace({ ...picked, id: existing?.id ?? '', name, address: picked.address, type: kind }, profile.uid);
+      await savePlace(
+        {
+          id: (typeof adding === 'object' && adding ? adding.id : '') || '',
+          name,
+          address: picked.address || picked.name,
+          lat: picked.lat,
+          lng: picked.lng,
+          type: kind,
+        },
+        profile.uid,
+      );
       reset();
     } catch (e) {
       setError(describeError(e, 'Couldn’t save this address.'));
     } finally {
       setBusy(false);
     }
-    return undefined;
   };
 
   const remove = (p: LocationItem) =>
-    Alert.alert('Remove address?', `“${p.name}” will be removed from your saved addresses.`, [
+    Alert.alert(`Remove ${p.name}?`, 'You can add it again anytime.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
         style: 'destructive',
         onPress: () => {
           setDeleting(p.id);
-          setError('');
           deleteSavedPlace(p.id)
             .catch((e: unknown) => setError(describeError(e, 'Couldn’t remove this address.')))
             .finally(() => setDeleting(null));
@@ -93,10 +98,9 @@ export function SavedPlacesScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Saved Addresses" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <PlaceSearchModal visible={searchOpen} title="Find an address" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
-        <PageHead title="Saved addresses" subtitle="Your regular pickup & drop places." onBack={() => navigation.goBack()} />
         <Notice message={error} />
 
         {adding ? (
@@ -163,7 +167,7 @@ export function SavedPlacesScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, marginBottom: 14, backgroundColor: colors.white },
   cardTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, marginBottom: 12 },
   pick: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 12, marginVertical: 14, minHeight: 48 },

@@ -8,7 +8,7 @@ import { useNavigation } from '@react-navigation/native';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { callFunction } from '../services/callables';
-import { Badge, Disclosure, Notice, PageHead } from '../components/ui';
+import { Badge, Disclosure, Notice } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { colors, fonts, space } from '../theme';
@@ -46,9 +46,8 @@ export function LegalDocumentsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Terms & Privacy" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <PageHead title="Terms & privacy" subtitle="Official agreements, cancellation and refund policy." onBack={() => navigation.goBack()} />
         <Notice message={error} />
         {rows === null && !error ? <ActivityIndicator color={colors.primary} style={{ marginTop: space.xl }} /> : null}
         {rows && rows.length === 0 ? <Text style={styles.muted}>NESAM has not published customer terms or a privacy policy in the app yet. Contact support for a copy.</Text> : null}
@@ -71,7 +70,7 @@ export function LegalDocumentsScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   list: { borderTopWidth: 1, borderTopColor: '#E3E6EB' },
   muted: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, textAlign: 'center', marginTop: space.xl },
   body: { fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 20, color: '#55606F' },

@@ -1,64 +1,22 @@
-// Step 3 — review and confirm: route, time, vehicle, payment, contact, the final fare
-// breakup and the booking itself. The server re-prices and refuses a fare that changed.
+// Step 3 — review & confirm: trip, vehicle, contact, payment and booking request submission.
 import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { FareBreakdown as Fare } from '@core/types';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/customer';
 import { createRideRequest } from '@core/services/rideService';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
-import { inclusionLine, scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
-import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail } from '@core/utils/format';
+import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
+import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS } from '@core/config/constants';
-import { Button, Checkbox, Dialog, Notice, TextArea, TextField } from '@/components/ui';
+import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
-import { FareBreakdown } from '@/components/FareBreakdown';
-import { RoutePoints } from '@/components/RoutePoints';
-import { RouteMap } from '@/components/RouteMap';
 import { useBooking, useBookingQuote } from '@/state/Booking';
-import { useToasts } from '@/state/Toasts';
 import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
-import { vehicleArtUrl } from '@/lib/vehicleArt';
-import { PaymentChoice, PromoControl, StepHead } from './parts';
-
-interface ConfirmedBooking {
-  id: string;
-  pickupName: string;
-  dropName: string;
-  categoryName: string;
-  total: number;
-  when: string;
-  tripType: string;
-  payment: string;
-}
-
-/**
- * If the visitor signed in through the login popup while trying to book, submit once their profile is ready.
- * It lives in its own component so the effect is never skipped by ReviewStep's early return
- * (a hook after a conditional return crashes React when the route or quote arrives late).
- */
-function PendingSubmit({
-  profileReady,
-  blocker,
-  pending,
-  submitting,
-  run,
-}: {
-  profileReady: boolean;
-  blocker: string;
-  pending: { current: boolean };
-  submitting: { current: boolean };
-  run: () => void;
-}) {
-  useEffect(() => {
-    if (profileReady && pending.current && !blocker && !submitting.current) {
-      pending.current = false;
-      run();
-    }
-  }, [profileReady, blocker]); // eslint-disable-line react-hooks/exhaustive-deps -- reacts to sign-in and to the blocker clearing only
-  return null;
-}
+import { composeNotes, notesRoom } from '@/lib/notes';
+import { categoryName, categoryPhoto } from '@/lib/categories';
+import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
 
 export function ReviewStep() {
   const navigate = useNavigate();
@@ -67,80 +25,135 @@ export function ReviewStep() {
   const { draft, update, reset, route, adjustment } = useBooking();
   const q = useBookingQuote();
   const { online } = useOnline();
-  const { push } = useToasts();
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [tried, setTried] = useState(false);
   const [serverQuote, setServerQuote] = useState<{ key: string; fare: Fare } | null>(null);
-  const [confirmedBooking, setConfirmedBooking] = useState<ConfirmedBooking | null>(null);
-  const [redirectCountdown, setRedirectCountdown] = useState(5);
+  const [showFare, setShowFare] = useState(false);
+  const [justSignedIn, setJustSignedIn] = useState(false);
   const submittingRef = useRef(false);
-  const pendingSubmitRef = useRef(false);
+  const termsRef = useRef<HTMLDivElement>(null);
 
-  const { pickup, drop, tripType, scheduledAt, tripEndAt, payment, notes, waSame, waCode, waNumber, email } = draft;
+  const {
+    pickup,
+    drop,
+    tripType,
+    scheduledAt,
+    tripEndAt,
+    payment,
+    notes,
+    waSame,
+    waCode,
+    waNumber,
+    email,
+    forOther,
+    passengerName,
+    passengerMobile,
+    flight,
+  } = draft;
   const category = q.category;
 
-  const goToTrips = () => {
-    reset();
-    navigate('/trips', { replace: true });
-  };
-
+  const hadProfile = useRef(!!profile);
   useEffect(() => {
-    if (!confirmedBooking) return undefined;
-    const timer = setInterval(() => {
-      setRedirectCountdown((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          goToTrips();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [confirmedBooking]);
+    if (profile && !hadProfile.current) setJustSignedIn(true);
+    hadProfile.current = !!profile;
+  }, [profile]);
 
-  if (!pickup || !drop || !route || !category || !q.quote) {
+  if (!pickup || !drop || !category || !q.quote) {
     return (
-      <div className="review-page">
-        <div className="review-page__inner" style={{ maxWidth: 640 }}>
-          <StepHead title="Review and confirm" step={3} onBack={() => navigate('/book/ride')} />
-          <Notice tone="warning">Your trip details changed. Go back and choose your ride again.</Notice>
-          <Button block variant="secondary" onClick={() => navigate('/book/ride')}>
-            Back to rides
-          </Button>
+      <div className="flow-page">
+        <div className="wrap flow-page__wrap review-missing">
+          <PageHead
+            back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Choose Vehicle</Button>}
+            title="Review & Confirm"
+          />
+          {q.quoteLoading ? (
+            <Notice>Confirming fare with People Taxi server…</Notice>
+          ) : (
+            <Notice
+              variant="warning"
+              action={
+                <Button size="sm" variant="secondary" onClick={() => navigate('/book/ride')}>
+                  Choose your vehicle
+                </Button>
+              }
+            >
+              Your trip details changed. Please go back and select your vehicle again.
+            </Notice>
+          )}
         </div>
       </div>
     );
   }
 
-  const priceKey = JSON.stringify([pickup.lat, pickup.lng, drop.lat, drop.lng, tripType, scheduledAt?.toISOString() ?? null, category.id, q.coupon?.code, adjustment?.id, adjustment?.percent]);
+  const priceKey = JSON.stringify([
+    pickup.lat,
+    pickup.lng,
+    drop.lat,
+    drop.lng,
+    tripType,
+    scheduledAt?.toISOString() ?? null,
+    category.id,
+    q.coupon?.code,
+    adjustment?.id,
+    adjustment?.percent,
+  ]);
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : q.quote;
   const breakup = q.breakup ?? buildFareBreakup(category, quote, q.outstation);
+  const airport = tripType === 'Airport Taxi';
 
   const emailError = email.trim() && !isValidEmail(email) ? 'Enter a valid email address or leave it blank.' : '';
   const waError = whatsappProblem(waSame, waCode, waNumber);
+  const passengerError = forOther
+    ? !passengerName.trim()
+      ? 'Enter the passenger’s name.'
+      : !isValidIndianMobile(passengerMobile.replace(/\s+/g, ''))
+        ? 'Enter the passenger’s 10-digit mobile number.'
+        : ''
+    : '';
+  const room = notesRoom({
+    flight: airport ? flight : '',
+    passengerName: forOther ? passengerName : '',
+    passengerMobile: forOther ? passengerMobile : '',
+  });
+  const termsError = tried && !termsAccepted ? 'Please accept the fare and cancellation terms to confirm.' : '';
   const blocker = !online
     ? 'You’re offline. Reconnect to book.'
-    : scheduleProblem(scheduledAt) || (!q.authoritative ? (q.quoteLoading ? 'Confirming your fare with People Taxi…' : q.quoteError || 'We need to confirm your fare before you can submit.') : '') || (waError || emailError ? 'Check your contact details below.' : '') || (!termsAccepted ? 'Accept the booking terms to submit your request.' : '');
+    : scheduleProblem(scheduledAt) ||
+      (!q.authoritative
+        ? q.quoteLoading
+          ? 'Confirming fare with People Taxi…'
+          : q.quoteError || 'Fare confirmation required.'
+        : '') ||
+      (waError || emailError || passengerError ? 'Check your contact details below.' : '');
 
   const submit = async () => {
+    setTried(true);
+    if (!termsAccepted) {
+      termsRef.current?.querySelector('input')?.focus();
+      return;
+    }
     if (!profile) {
-      pendingSubmitRef.current = true;
       openLoginModal({
         title: 'Sign in to complete booking',
-        subtitle: 'Enter your mobile number to confirm your ride request.',
-        onSuccess: () => {
-          pendingSubmitRef.current = true;
-        },
+        subtitle: 'Enter your mobile number to send your ride request.',
       });
       return;
     }
-    if (blocker || submittingRef.current || !pickup || !drop || !category || !route || !quote) return;
+    if (blocker || submittingRef.current || !route) {
+      return;
+    }
     submittingRef.current = true;
     setSubmitting(true);
     setSubmitError('');
     try {
+      const fullNotes = composeNotes({
+        flight: airport ? flight : '',
+        passengerName: forOther ? passengerName : '',
+        passengerMobile: forOther ? passengerMobile : '',
+        notes,
+      });
       const res = await createRideRequest({
         profile,
         pickup,
@@ -151,387 +164,275 @@ export function ReviewStep() {
         tripType,
         paymentMethod: payment,
         couponCode: q.coupon?.code ?? '',
-        notes,
+        notes: fullNotes,
         scheduledAt,
         tripEndAt: tripType === 'Round Trip' ? tripEndAt : null,
         termsAccepted,
         whatsapp: waSame ? { sameAsMobile: true } : { sameAsMobile: false, countryCode: waCode.trim(), number: waNumber.replace(/[\s()-]/g, '') },
         email: email.trim(),
+        source: 'people_taxi',
+        bookingSource: 'peopletaxi',
+        brand: 'peopletaxi',
       });
-      setConfirmedBooking({
-        id: res.id,
-        pickupName: pickup.name,
-        dropName: drop.name,
-        categoryName: category.name,
-        total: quote.total,
-        when: scheduledAt ? `${formatDate(scheduledAt)}, ${formatTime(scheduledAt)}` : 'Not chosen',
-        tripType:
-          tripType === 'Round Trip'
-            ? 'Round trip'
-            : tripType === 'Airport Taxi'
-            ? 'Airport taxi'
-            : tripType === 'Local Rental'
-            ? 'Local rental'
-            : 'One way',
-        payment: payment === 'Cash' ? 'Cash' : 'UPI',
-      });
-      push({ title: 'Booking confirmed!', message: 'Your booking has been placed. Redirecting to My Trips…', tone: 'success' });
-    } catch (e) {
-      const currentFare = (e as { details?: { fare?: Fare } }).details?.fare;
-      if (currentFare && Number.isFinite(currentFare.total)) setServerQuote({ key: priceKey, fare: currentFare });
-      setSubmitError(
-        currentFare ? `The fare is now ${formatINR(currentFare.total)}. Review it and submit your booking request again.` : describeError(e, 'We couldn’t place your booking. Please try again.'),
-      );
+      reset();
+      navigate(`/book/done/${res.id}`);
+    } catch (e: unknown) {
+      const err = e as { code?: string; fare?: Fare };
+      if (err.code === 'fare-changed' && err.fare) {
+        setServerQuote({ key: priceKey, fare: err.fare });
+        setSubmitError('The fare for this route has updated. Review the updated amount and tap Confirm Booking to proceed.');
+        return;
+      }
+      setSubmitError(describeError(e, 'We couldn’t submit your booking request. Please check your connection and try again.'));
     } finally {
       submittingRef.current = false;
       setSubmitting(false);
     }
   };
 
-  const freeHours = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000);
-  const when = scheduledAt ? `${formatDate(scheduledAt)}, ${formatTime(scheduledAt)}` : 'Not chosen';
-
-  const submitButtonText = submitting ? 'Submitting…' : profile ? 'Submit booking request' : 'Sign in & submit booking';
-
   return (
-    <div className="review-page">
-      <div className="review-page__inner">
-        <PendingSubmit profileReady={!!profile} blocker={blocker} pending={pendingSubmitRef} submitting={submittingRef} run={() => void submit()} />
-        <div className="review-page__head">
-          <StepHead title="Review and confirm" step={3} onBack={() => navigate('/book/ride')} />
-          <p className="review-page__subhead">Review your route, vehicle, fare breakup, and contact details before confirming.</p>
-        </div>
+    <div className="flow-page flow-page--review">
+      <div className="wrap flow-page__wrap">
+        <PageHead
+          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Choose Vehicle</Button>}
+          eyebrow="Step 3 of 3 · Final Review"
+          title="Review &amp; Confirm Booking"
+        >
+          Verify your itinerary, passenger details and payment mode before confirmation.
+        </PageHead>
 
-        <div className="review-page__grid">
-          <div className="review-page__main">
-            {/* Trip Card */}
-            <section className="rcard rcard--trip" aria-labelledby="rv-trip">
-              <header>
-                <h2 id="rv-trip">Trip</h2>
-                <Link to="/book" className="link-btn">
+        <FlowSteps total={3} current={3} />
+
+        <div className="review">
+          <div className="review__main">
+            <section className="card rv-sum" aria-labelledby="rv-trip-head">
+              <div className="trip-sum__top">
+                <h2 id="rv-trip-head" className="route-title route-title--lg">
+                  <span>{pickup.name}</span>
+                  <Icon name="arrow-right" size={18} />
+                  <span>{drop.id === 'place-local-disposal' ? 'Within City' : drop.name}</span>
+                </h2>
+                <Link to="/book" className="btn btn--text btn--sm">
                   Edit
                 </Link>
-              </header>
-              <RoutePoints pickup={pickup.name} drop={drop.name} pickupAddress={pickup.address} dropAddress={drop.address} />
-              <dl className="facts">
-                <div>
-                  <dt>Pickup time</dt>
-                  <dd>{when}</dd>
-                </div>
-                {tripType === 'Round Trip' && tripEndAt ? (
-                  <div>
-                    <dt>Return</dt>
-                    <dd>{`${formatDate(tripEndAt)}, ${formatTime(tripEndAt)}`}</dd>
-                  </div>
-                ) : null}
-                <div>
-                  <dt>Distance</dt>
-                  <dd>
-                    {formatDistance(route.distanceKm)} · {formatDuration(route.durationMin)}
-                    {route.estimated ? ' (estimate)' : ''}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Trip type</dt>
-                  <dd>
-                    {tripType === 'Round Trip'
-                      ? 'Round trip'
-                      : tripType === 'Airport Taxi'
-                      ? 'Airport taxi'
-                      : tripType === 'Local Rental'
-                      ? 'Local rental'
-                      : 'One way'}{' '}
-                    · {q.service}
-                  </dd>
-                </div>
-              </dl>
-            </section>
+              </div>
 
-            {/* Vehicle Card */}
-            <section className="rcard rcard--ride" aria-labelledby="rv-ride">
-              <header>
-                <h2 id="rv-ride">Vehicle</h2>
-                <Link to="/book/ride" className="link-btn">
-                  Change
+              {scheduledAt ? (
+                <p className="rv-sum__when">
+                  <Icon name="calendar" size={15} /> <strong>Pickup:</strong> {formatDate(scheduledAt)}, {formatTime(scheduledAt)}
+                  {tripEndAt ? ` · Return: ${formatDate(tripEndAt)}` : ''}
+                </p>
+              ) : null}
+
+              {route ? (
+                <p className="trip-sum__meta">
+                  Distance: {formatDistance(route.distanceKm)} · Approx. {formatDuration(route.durationMin)} drive
+                </p>
+              ) : null}
+
+              <div className="rv-sum__car">
+                <div>
+                  <strong>{categoryName(category)}</strong>
+                  <small className="muted">{category.description || `${category.seats} seats · AC fleet`}</small>
+                </div>
+                <Link to="/book/ride" className="btn btn--text btn--sm">
+                  Change Cab
                 </Link>
-              </header>
-              <div className="mini-ride">
-                <img src={vehicleArtUrl(category)} alt="" width={112} height={73} />
+              </div>
+
+              <div className="rv-sum__total">
                 <div>
-                  <strong>{category.name}</strong>
-                  <small className="muted">
-                    Up to {category.seats} passengers · {inclusionLine(category, q.outstation) || 'Fare as per route distance'}
-                  </small>
+                  <strong>Authoritative Server Fare</strong>
+                  <small className="muted">All inclusions &amp; discounts accounted for</small>
                 </div>
-                <strong className="num">{formatINR(quote.total)}</strong>
+                <strong className="rv-sum__amount num">{formatINR(quote.total)}</strong>
               </div>
             </section>
 
-            {/* Fare Breakup Card */}
-            <section className="rcard rcard--fare" aria-labelledby="rv-fare">
-              <header>
-                <h2 id="rv-fare">Fare breakup</h2>
-              </header>
-              <FareBreakdown lines={breakup.lines} total={quote.total} estimated />
-            </section>
+            <section className="card" aria-labelledby="rv-who-head">
+              <h2 id="rv-who-head">Passenger &amp; Contact Details</h2>
 
-            {/* Payment Card */}
-            <section className="rcard rcard--pay" aria-labelledby="rv-pay">
-              <header>
-                <h2 id="rv-pay">Payment</h2>
-              </header>
-              <PaymentChoice value={payment} onChange={(m) => update({ payment: m })} />
-              <p className="muted small">
-                {payment === 'Cash' ? 'Pay your driver in cash when you reach your destination.' : 'Pay your driver by UPI when you reach your destination.'} No payment is taken now.
-              </p>
-              <div className="promo-row">
-                <PromoControl />
+              <div className="rv-grid">
+                <TextField
+                  label="Contact Mobile (for Driver & SMS)"
+                  value={profile?.phone ? formatPhone(profile.phone) : 'Sign in on booking'}
+                  readOnly
+                  disabled
+                />
+                <TextField
+                  label="Email Address"
+                  type="email"
+                  placeholder="name@example.com (optional)"
+                  value={email}
+                  error={emailError}
+                  onChange={(e) => update({ email: e.target.value })}
+                />
               </div>
-            </section>
 
-            {/* Contact & Notes Card */}
-            <section className="rcard rcard--contact" aria-labelledby="rv-contact">
-              <header>
-                <h2 id="rv-contact">Contact &amp; notes</h2>
-              </header>
-              <div className="stack">
-                <Checkbox checked={waSame} onChange={(v) => update({ waSame: v })}>
-                  Send WhatsApp updates to my mobile number <span className="muted">({profile?.phone ? formatPhone(profile.phone) : 'verified at sign-in'})</span>
-                </Checkbox>
+              <div className="rv-fold">
+                <Checkbox
+                  label="Receive trip updates on WhatsApp"
+                  description="Real-time chauffeur assignment, OTP and live arrival updates."
+                  checked={waSame}
+                  onChange={(checked) => update({ waSame: checked })}
+                />
                 {!waSame ? (
-                  <div className="wa-row">
-                    <TextField label="Code" value={waCode} onChange={(e) => update({ waCode: e.target.value })} inputMode="tel" autoComplete="off" maxLength={4} />
+                  <div className="rv-grid rv-grid--wa" style={{ marginTop: 10 }}>
+                    <TextField label="Code" value={waCode} onChange={(e) => update({ waCode: e.target.value })} />
                     <TextField
-                      label="WhatsApp number"
+                      label="WhatsApp Number"
                       value={waNumber}
-                      onChange={(e) => update({ waNumber: e.target.value })}
-                      inputMode="tel"
-                      autoComplete="off"
-                      maxLength={16}
-                      placeholder="10-digit number"
                       error={waError}
+                      placeholder="9876543210"
+                      onChange={(e) => update({ waNumber: e.target.value })}
                     />
                   </div>
                 ) : null}
-                <TextField
-                  label="Email (optional)"
-                  type="email"
-                  value={email}
-                  onChange={(e) => update({ email: e.target.value })}
-                  autoComplete="email"
-                  placeholder={profile?.email || 'name@example.com'}
-                  hint={profile?.email ? 'Leave blank to use your account email.' : 'For your booking confirmation and GST receipt.'}
-                  error={emailError}
+              </div>
+
+              <div className="rv-fold">
+                <Checkbox
+                  label="Booking this ride for someone else?"
+                  description="We will share chauffeur & cab details with the passenger directly."
+                  checked={forOther}
+                  onChange={(checked) => update({ forOther: checked })}
                 />
-                <TextArea
-                  label="Note for the driver (optional)"
-                  value={notes}
-                  onChange={(e) => update({ notes: e.target.value.slice(0, 300) })}
-                  placeholder="Gate number, building name, luggage…"
-                  hint={`${notes.length}/300`}
-                />
-                {!profile ? (
-                  <p className="muted small" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: '4px 0 0' }}>
-                    <Icon name="information" size={14} /> You’ll verify your mobile number when you submit this booking.
-                  </p>
+                {forOther ? (
+                  <div className="rv-grid" style={{ marginTop: 10 }}>
+                    <TextField
+                      label="Passenger Name"
+                      placeholder="Full name"
+                      value={passengerName}
+                      error={forOther && !passengerName.trim() ? 'Passenger name is required' : ''}
+                      onChange={(e) => update({ passengerName: e.target.value })}
+                    />
+                    <TextField
+                      label="Passenger 10-digit Mobile"
+                      placeholder="9876543210"
+                      value={passengerMobile}
+                      error={passengerError}
+                      onChange={(e) => update({ passengerMobile: e.target.value })}
+                    />
+                  </div>
                 ) : null}
+              </div>
+
+              {airport ? (
+                <div className="rv-fold">
+                  <TextField
+                    label="Flight Number (Optional)"
+                    placeholder="e.g. 6E 214"
+                    value={flight}
+                    hint="Our chauffeur will track flight delays and adjust pickup time automatically."
+                    onChange={(e) => update({ flight: e.target.value.toUpperCase() })}
+                  />
+                </div>
+              ) : null}
+
+              <div className="rv-fold">
+                <TextArea
+                  label="Chauffeur Instructions / Landmarks"
+                  placeholder="e.g. Apartment gate number, landmark near house, luggage count…"
+                  value={notes}
+                  rows={2}
+                  hint={`${room} characters left`}
+                  onChange={(e) => update({ notes: e.target.value.slice(0, 300) })}
+                />
               </div>
             </section>
 
-            {/* Cancellation Policy & Terms Card */}
-            <section className="rcard rcard--policy" aria-labelledby="rv-policy">
-              <header>
-                <h2 id="rv-policy">Cancellation &amp; terms</h2>
-              </header>
-              <p>
-                Free to cancel until {freeHours} hour before pickup; after that a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies. Tolls, parking and permits are charged at actuals
-                unless listed as included. This is a booking request: People Taxi reviews it first, then arranges your vehicle and driver.
+            <section className="card" aria-labelledby="rv-pay-head">
+              <h2 id="rv-pay-head">Payment Method</h2>
+              <p className="muted small" style={{ marginBottom: 12 }}>
+                You do not pay anything right now. Pay your chauffeur directly at the end of the trip.
               </p>
-              <Checkbox checked={termsAccepted} onChange={setTermsAccepted}>
-                I accept the booking terms and the People Taxi <Link to="/legal">terms and privacy policy</Link>, and understand this request is subject to People Taxi review.
-              </Checkbox>
+              <PaymentChoice value={payment} onChange={(p) => update({ payment: p })} />
             </section>
+
+            <section className="card rv-policy" ref={termsRef}>
+              <Checkbox
+                label="I agree to the Fare and Cancellation Terms"
+                description={
+                  <span>
+                    Free cancellation up to {SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000} hours before scheduled pickup.
+                    Standard fee of {formatINR(SCHEDULED_CANCELLATION_FEE)} applies thereafter to compensate assigned chauffeur.
+                  </span>
+                }
+                checked={termsAccepted}
+                onChange={setTermsAccepted}
+              />
+              {termsError ? <p className="bf-error">{termsError}</p> : null}
+            </section>
+
+            {submitError ? (
+              <Notice variant="error" icon="warning">
+                {submitError}
+              </Notice>
+            ) : null}
           </div>
 
-          <aside className="review-page__side">
-            {/* Reference Map Card (Compact container for reference) */}
-            <section className="rcard rcard--ref-map" aria-labelledby="rv-map">
-              <header>
-                <div className="ref-map__title-group">
-                  <h2 id="rv-map">Route preview</h2>
-                  <span className="ref-map__pill">Reference only</span>
-                </div>
-                <Link to="/book" className="link-btn">
-                  Change route
-                </Link>
-              </header>
-              <div className="ref-map__frame">
-                <RouteMap
-                  className="ref-map__canvas"
-                  label="Route preview for reference"
-                  pickup={pickup}
-                  drop={drop}
-                  path={route?.path ?? null}
-                  padding={{ top: 24, right: 24, bottom: 24, left: 24 }}
-                />
-                {route ? (
-                  <div className="map-chip" aria-label="Route summary">
-                    <Icon name="route" size={15} />
-                    <strong className="num">{formatDistance(route.distanceKm)}</strong>
-                    <span aria-hidden="true">·</span>
-                    <span className="num">{formatDuration(route.durationMin)}</span>
-                    {route.estimated ? <span className="map-chip__est">estimate</span> : null}
-                  </div>
-                ) : null}
-              </div>
-              <p className="ref-map__note">
-                <Icon name="information" size={14} /> Map route shown for visual reference. Driver follows optimal live traffic route.
-              </p>
-            </section>
+          <aside className="review__sticky">
+            <div className="card sel-card">
+              <span className="sel-card__eyebrow">Price Summary</span>
 
-            {/* Booking Summary & Action Card (Sticky sidebar on desktop) */}
-            <section className="rcard rcard--action" aria-labelledby="rv-action">
-              <header>
-                <h2 id="rv-action">Booking summary</h2>
-                <span className="summary-status">Final step</span>
-              </header>
-
-              <div className="summary-specs">
-                <div className="summary-spec-row">
-                  <span className="muted">Vehicle</span>
-                  <strong>{category.name}</strong>
+              <div className="sel-card__total">
+                <div>
+                  <span>Total Amount Due</span>
+                  <small className="muted">To be paid directly to chauffeur</small>
                 </div>
-                <div className="summary-spec-row">
-                  <span className="muted">Trip type</span>
-                  <strong>
-                    {tripType === 'Round Trip'
-                      ? 'Round trip'
-                      : tripType === 'Airport Taxi'
-                      ? 'Airport taxi'
-                      : tripType === 'Local Rental'
-                      ? 'Local rental'
-                      : 'One way'}
-                  </strong>
-                </div>
-                <div className="summary-spec-row">
-                  <span className="muted">Pickup</span>
-                  <strong>{when}</strong>
-                </div>
-                <div className="summary-spec-row">
-                  <span className="muted">Payment</span>
-                  <strong>{payment === 'Cash' ? 'Cash on drop' : 'UPI to driver'}</strong>
-                </div>
+                <strong className="num">{formatINR(quote.total)}</strong>
               </div>
 
-              <div className="summary-total-box">
-                <div className="summary-total-label">
-                  <span>Total Fare</span>
-                  <small className="muted">All taxes &amp; allowances included</small>
-                </div>
-                <strong className="summary-total-val num">{formatINR(quote.total)}</strong>
-              </div>
+              <PromoControl
+                code={draft.promoCode}
+                applied={quote.discount > 0}
+                onApply={(code) => update({ promoCode: code })}
+                onRemove={() => update({ promoCode: '' })}
+              />
 
-              {submitError ? <Notice tone="error">{submitError}</Notice> : blocker ? <Notice tone="warning">{blocker}</Notice> : null}
-
-              <Button block size="lg" loading={submitting} disabled={!!blocker} onClick={() => void submit()}>
-                <span>{submitButtonText}</span>
-                {!submitting ? <span className="btn__price num">{formatINR(quote.total)}</span> : null}
+              <Button
+                variant="secondary"
+                size="sm"
+                block
+                icon="info"
+                onClick={() => setShowFare(true)}
+              >
+                View Detailed Fare Breakup
               </Button>
 
-              <p className="foot-note">
-                <Icon name="lock" size={14} /> No payment now · {payment === 'Cash' ? 'pay cash' : 'pay by UPI'} to the driver after your trip
-              </p>
-            </section>
-          </aside>
-        </div>
-
-        {/* Floating sticky bar for mobile users */}
-        <div className="review-page__foot-sticky">
-          {submitError ? (
-            <Notice tone="error">{submitError}</Notice>
-          ) : blocker && termsAccepted ? (
-            <Notice tone="warning">{blocker}</Notice>
-          ) : null}
-          <Button block size="lg" loading={submitting} disabled={!!blocker} onClick={() => void submit()}>
-            <span>{submitButtonText}</span>
-            {!submitting ? <span className="btn__price num">{formatINR(quote?.total ?? 0)}</span> : null}
-          </Button>
-        </div>
-
-        {/* Booking Confirmed Popup Dialog */}
-        {confirmedBooking ? (
-          <Dialog
-            title="Booking Confirmed"
-            onClose={goToTrips}
-            footer={
-              <Button block size="lg" variant="primary" onClick={goToTrips}>
-                <span>View in My Trips</span>
-                <Icon name="arrow-right" size={18} />
-              </Button>
-            }
-          >
-            <div className="booking-confirmed-modal">
-              <div className="bcm-hero">
-                <div className="bcm-icon">
-                  <Icon name="check" size={32} />
-                </div>
-                <h3>Ride Request Placed!</h3>
-                <p className="bcm-subtitle">
-                  Your booking has been successfully confirmed. People Taxi is arranging your vehicle and driver.
+              <div className="rv-act">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  block
+                  disabled={submitting}
+                  loading={submitting}
+                  onClick={submit}
+                  iconTrailing="check"
+                >
+                  {profile ? 'Confirm & Book Ride' : 'Sign in to Confirm'}
+                </Button>
+                <p className="rv-act__note">
+                  <Icon name="shield-check" size={14} /> Immediate booking request · 24/7 Support: {SUPPORT_PHONE_DISPLAY}
                 </p>
               </div>
-
-              <div className="bcm-card">
-                <div className="bcm-row">
-                  <span className="muted">Booking ID</span>
-                  <strong className="num">#{confirmedBooking.id.slice(0, 8).toUpperCase()}</strong>
-                </div>
-                <div className="bcm-route">
-                  <div className="bcm-point">
-                    <span className="bcm-dot bcm-dot--pickup" />
-                    <span className="truncate">{confirmedBooking.pickupName}</span>
-                  </div>
-                  <div className="bcm-line" />
-                  <div className="bcm-point">
-                    <span className="bcm-dot bcm-dot--drop" />
-                    <span className="truncate">{confirmedBooking.dropName}</span>
-                  </div>
-                </div>
-                <div className="bcm-grid">
-                  <div>
-                    <dt>Pickup time</dt>
-                    <dd>{confirmedBooking.when}</dd>
-                  </div>
-                  <div>
-                    <dt>Vehicle</dt>
-                    <dd>{confirmedBooking.categoryName}</dd>
-                  </div>
-                  <div>
-                    <dt>Trip type</dt>
-                    <dd>{confirmedBooking.tripType}</dd>
-                  </div>
-                  <div>
-                    <dt>Total Fare</dt>
-                    <dd className="num">
-                      {formatINR(confirmedBooking.total)} ({confirmedBooking.payment})
-                    </dd>
-                  </div>
-                </div>
-              </div>
-
-              <p className="bcm-note">
-                <Icon name="information" size={16} />
-                <span>
-                  You will receive live driver details via SMS &amp; WhatsApp prior to pickup. You can manage or track this ride anytime in{' '}
-                  <strong>My Trips</strong>.
-                </span>
-              </p>
-
-              <div className="bcm-redirect-timer">Redirecting to My Trips in {redirectCountdown}s…</div>
             </div>
-          </Dialog>
-        ) : null}
+          </aside>
+        </div>
       </div>
+
+      <FlowBar
+        onBack={() => navigate('/book/ride')}
+        onNext={submit}
+        backLabel="Change Cab"
+        nextLabel={profile ? 'Confirm & Book' : 'Sign in & Book'}
+        nextDisabled={submitting}
+        nextLoading={submitting}
+        total={quote.total}
+      />
+
+      {showFare ? <FareDialog fare={breakup} onClose={() => setShowFare(false)} /> : null}
     </div>
   );
 }
+export default ReviewStep;

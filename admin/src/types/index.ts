@@ -166,6 +166,9 @@ export interface Booking {
   invoiceId?: string;
   invoiceNumber?: string;
   source?: string;
+  bookingSource?: string;
+  brand?: string;
+  website?: string;
   createdBy?: string;
   completedAt?: any;
   customer: string;

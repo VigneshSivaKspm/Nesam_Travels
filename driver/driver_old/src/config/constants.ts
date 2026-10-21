@@ -1,7 +1,7 @@
 // Driver app constants. Support contact matches the Customer app / Customer
 // Web configuration (the Driver Web panel had a stale hard-coded number).
-export const SUPPORT_PHONE = '+918531970197';
-export const SUPPORT_PHONE_DISPLAY = '85319 70197';
+export const SUPPORT_PHONE = '+919025099990';
+export const SUPPORT_PHONE_DISPLAY = '+91 90250 99990';
 export const EMERGENCY_NUMBER = '112';
 
 /** A driver must be within this distance of the pickup to mark arrival. */

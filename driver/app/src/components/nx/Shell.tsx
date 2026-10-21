@@ -101,7 +101,7 @@ function SupportDialog({ visible, onClose, context }: { visible: boolean; onClos
 
 // ── Top bar ─────────────────────────────────────────────────────────────────
 
-function NxTopbar() {
+function NxTopbar({ title, subtitle }: { title?: string; subtitle?: string }) {
   const navigation = useNavigation();
   const { unreadCount } = useDriverData();
   const { notify, openSupport } = useShell();
@@ -110,7 +110,7 @@ function NxTopbar() {
   const narrow = width <= 374;
   return (
     <View style={[styles.topbar, short && { minHeight: 56, paddingVertical: 8 }]}>
-      <NxBrand />
+      <NxBrand title={title} subtitle={subtitle} />
       <View style={styles.actions}>
         <Pressable
           onPress={() => (presence.locked ? notify('error', 'Duty status is locked while you have a trip.') : void presence.toggle())}
@@ -150,17 +150,21 @@ export function NxScreen({
   children,
   tabs = true,
   refreshControl,
+  title,
+  subtitle,
 }: {
   children: React.ReactNode;
   tabs?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
+  title?: string;
+  subtitle?: string;
 }) {
   const { wide, width } = useLayout();
   // Phones use the full width; tablets keep a readable column (one column up to 760, two columns up to 1180).
   const gutter = width >= 600 ? 28 : 17;
   return (
     <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-      <NxTopbar />
+      <NxTopbar title={title} subtitle={subtitle} />
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 20, paddingHorizontal: gutter, paddingBottom: tabs ? 24 : 40 }}
@@ -192,8 +196,23 @@ const styles = StyleSheet.create({
   switchKnob: { width: 12, height: 12, borderRadius: 6, backgroundColor: nx.white },
   iconButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: nx.white, borderWidth: 1, borderColor: nx.line, alignItems: 'center', justifyContent: 'center' },
   bellDot: { position: 'absolute', top: 8, right: 9, width: 8, height: 8, borderRadius: 4, backgroundColor: nx.red, borderWidth: 1.5, borderColor: nx.white },
-  footer: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 25 },
-  footerText: { fontSize: 11, color: '#989DA6', flexShrink: 1 },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 28,
+    marginBottom: 8,
+    width: '100%',
+    alignSelf: 'center',
+  },
+  footerText: {
+    fontSize: 11,
+    color: '#989DA6',
+    textAlign: 'center',
+    fontWeight: '500',
+    letterSpacing: 0.3,
+  },
   toast: { position: 'absolute', left: 17, right: 17, backgroundColor: nx.ink, borderRadius: 12, paddingVertical: 12, paddingHorizontal: 15, elevation: 6 },
   toastError: { backgroundColor: nx.red },
   toastText: { color: nx.white, fontSize: 12.5, fontWeight: '600', lineHeight: 18 },

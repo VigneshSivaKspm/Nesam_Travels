@@ -32,7 +32,7 @@ export function EarningsScreen() {
   const recent = completedTrips.slice(0, 8);
 
   return (
-    <NxScreen>
+    <NxScreen title="Earnings" subtitle="Credited Payouts">
       <NxPills<Period>
         label="Earnings period"
         value={period}

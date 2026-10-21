@@ -8,7 +8,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useRideFocus } from '../navigation/MainNavigator';
 import { useCustomerData } from '../context/CustomerData';
-import { Avatar, Badge, Button, Disclosure, FlowFooter, Notice, PageHead, Screen, type BadgeTone } from '../components/ui';
+import { Avatar, Badge, Button, Disclosure, FlowFooter, Notice, Screen, type BadgeTone } from '../components/ui';
 import { Content, ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { Icon, type IconName } from '../components/Icon';
@@ -79,7 +79,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
 
   if (loadError && !trip) {
     return (
-      <Screen edges={['top']} header={<AppHeader />}>
+      <Screen edges={['top']} header={<AppHeader title="Trip Details" onBack={toBookings} />}>
         <Notice message={loadError} onRetry={() => { setLoadError(''); setSubKey((k) => k + 1); }} />
         <Button title="Back to My Bookings" variant="secondary" onPress={toBookings} />
       </Screen>
@@ -87,7 +87,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
   }
   if (vanished) {
     return (
-      <Screen edges={['top']} header={<AppHeader />}>
+      <Screen edges={['top']} header={<AppHeader title="Trip Details" onBack={toBookings} />}>
         <Notice message="This booking is no longer available. If this was unexpected, please contact support." />
         <Button title="Back to My Bookings" variant="secondary" onPress={toBookings} />
       </Screen>
@@ -95,7 +95,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
   }
   if (!trip) {
     return (
-      <Screen edges={['top']} header={<AppHeader />}>
+      <Screen edges={['top']} header={<AppHeader title="Trip Details" onBack={toBookings} />}>
         <View style={styles.loading}>
           <Text style={styles.loadingTitle}>Loading your booking…</Text>
           <Text style={styles.loadingSub}>Ref: {bookingId}</Text>
@@ -142,10 +142,10 @@ export function ActiveRideScreen({ route, navigation }: Props) {
     <SafeAreaView style={styles.root} edges={['top']}>
       <CancelRideSheet key={trip.id} trip={showCancel ? trip : null} onClose={() => setShowCancel(false)} />
       <SafetySheet visible={showSafety} trip={trip} profile={profile} location={null} onClose={() => setShowSafety(false)} />
-      <AppHeader />
+      <AppHeader title="Trip Details" subtitle={`#${ref}`} onBack={toBookings} />
 
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <PageHead title="Booking details" subtitle={`#${ref}`} onBack={toBookings} />
+
 
         <View style={styles.badges}>
           <Badge label={trip.tripType === 'Airport Taxi' ? 'Airport' : trip.tripType} tone="success" />
@@ -343,7 +343,7 @@ function ConfirmedView({ trip, pending, onHome, onView }: { trip: TripRecord; pe
   const destination = trip.tripType === 'Local Rental' ? 'Local city rental' : trip.drop.name;
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title={confirmed ? 'Booking Confirmed' : 'Booking Received'} subtitle={`#${ref}`} onBack={onHome} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Pressable
           onPress={() => {

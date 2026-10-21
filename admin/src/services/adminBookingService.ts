@@ -49,6 +49,7 @@ export interface ManualBookingForm {
   overrideEnabled: boolean;
   overrideFare: string;
   overrideReason: string;
+  channel: "nesam" | "onewaycarrentals" | "people_taxi";
 }
 export type ManualBookingField = keyof ManualBookingForm;
 
@@ -81,6 +82,7 @@ export const emptyManualBooking = (): ManualBookingForm => ({
   overrideEnabled: false,
   overrideFare: "",
   overrideReason: "",
+  channel: "nesam",
 });
 
 export const PAYMENT_METHODS = ["Cash", "UPI", "Bank Transfer"] as const;
@@ -223,6 +225,9 @@ const bookingRequest = (f: ManualBookingForm, requestId: string) => ({
   scheduledAt: f.pickupAt && Number.isFinite(new Date(f.pickupAt).getTime()) ? new Date(f.pickupAt).toISOString() : null,
   tripEndAt: f.tripType === "Round Trip" && f.tripEndAt && Number.isFinite(new Date(f.tripEndAt).getTime()) ? new Date(f.tripEndAt).toISOString() : null,
   paymentMethod: f.paymentMethod,
+  bookingSource: f.channel || "nesam",
+  source: f.channel && f.channel !== "nesam" ? f.channel : "admin",
+  brand: f.channel || "nesam",
   notes: f.notes.trim(),
   discount: (() => {
     const d = discountOf(f).value;

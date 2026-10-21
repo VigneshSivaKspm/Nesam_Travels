@@ -90,6 +90,7 @@ jest.mock('../src/context/DriverData', () => ({
 }));
 
 import { HomeScreen } from '../src/screens/HomeScreen';
+import MarketplaceScreen from '../src/screens/MarketplaceScreen';
 import { TripsScreen } from '../src/screens/TripsScreen';
 import { TripFlowScreen } from '../src/screens/TripFlowScreen';
 import { EarningsScreen } from '../src/screens/EarningsScreen';
@@ -98,6 +99,8 @@ import { ProfileScreen } from '../src/screens/ProfileScreen';
 import { NotificationsScreen } from '../src/screens/NotificationsScreen';
 import { NxSwipe } from '../src/components/nx/Swipe';
 import { ShellProvider } from '../src/components/nx/Shell';
+import { NxTabBar } from '../src/components/nx/TabBar';
+import { NxBrand } from '../src/components/nx/Brand';
 
 function mount(el: React.ReactElement) {
   let tree!: renderer.ReactTestRenderer;
@@ -163,7 +166,46 @@ describe('tab screens render', () => {
     expect(wallet).toContain('AVAILABLE TO WITHDRAW');
     expect(wallet).toContain('₹8,450');
     expect(textOf(mount(<ProfileScreen />))).toContain('Document verification');
+    expect(textOf(mount(<ProfileScreen />))).toContain('Earnings & settlements');
     expect(textOf(mount(<NotificationsScreen />))).toContain('Driver updates');
+  });
+
+  it('MarketplaceScreen renders open duties and bidding for driver', () => {
+    const text = textOf(mount(<MarketplaceScreen />));
+    expect(text).toContain('Marketplace');
+    expect(text).toContain('Sedan only');
+    expect(text).toContain('All categories');
+    expect(text).toContain('Bid Duty');
+    expect(text).toContain('Place bid');
+  });
+
+  it('NxBrand displays page heading on the right of logo and hides NESAM / DRIVER wordmarks', () => {
+    const headerWithTitle = textOf(mount(<NxBrand title="Marketplace" subtitle="Open duties" />));
+    expect(headerWithTitle).toContain('Marketplace');
+    expect(headerWithTitle).toContain('Open duties');
+    expect(headerWithTitle).not.toContain('NESAM');
+    expect(headerWithTitle).not.toContain('DRIVER');
+  });
+
+  it('NxTabBar renders 5 tabs with Home as dominant middle action', () => {
+    const state: any = {
+      index: 2,
+      routes: [
+        { key: 'm1', name: 'Marketplace' },
+        { key: 't1', name: 'Trip' },
+        { key: 'h1', name: 'Home' },
+        { key: 'w1', name: 'Wallet' },
+        { key: 'p1', name: 'Profile' },
+      ],
+    };
+    const nav: any = { emit: jest.fn(() => ({ defaultPrevented: false })), navigate: jest.fn() };
+    const tabTree = mount(<NxTabBar state={state} navigation={nav} descriptors={{} as any} insets={{} as any} />);
+    const tabText = textOf(tabTree);
+    expect(tabText).toContain('Marketplace');
+    expect(tabText).toContain('My Trips');
+    expect(tabText).toContain('Home');
+    expect(tabText).toContain('Wallet');
+    expect(tabText).toContain('Profile');
   });
 });
 

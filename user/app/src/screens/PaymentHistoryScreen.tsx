@@ -1,13 +1,12 @@
 // Payments & Refunds: what each booking cost, what has been paid, balances and refunds, from the
-// server-derived payment summary on the customer's own bookings. Online payment is not offered
-// in the app yet, so there are no pay buttons — only the real recorded state.
+// server-derived payment summary on the customer's own bookings.
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlatList } from '../components/layout';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
-import { Badge, EmptyState, PageHead, type BadgeTone } from '../components/ui';
+import { Badge, EmptyState, type BadgeTone } from '../components/ui';
 import { AppHeader } from '../components/brand';
 import { Icon } from '../components/Icon';
 import { formatINR } from '../utils/format';
@@ -25,7 +24,7 @@ export function PaymentHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Payments & Refunds" onBack={() => navigation.goBack()} />
       <FlatList
         data={rows}
         kind="narrow"
@@ -33,8 +32,7 @@ export function PaymentHistoryScreen() {
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={
-          <View>
-            <PageHead title="Payments & Refunds" subtitle="Transactions, balances & refunds" onBack={() => navigation.goBack()} />
+          <View style={{ marginBottom: space.md }}>
             <View style={styles.summary}>
               <Line label="Refund credits" value={formatINR(profile.walletBalance)} />
               {owed > 0 ? <Line label="Balance on active bookings" value={formatINR(owed)} /> : null}
@@ -96,7 +94,7 @@ function Line({ label, value, last }: { label: string; value: string; last?: boo
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  list: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  list: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   summary: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, paddingHorizontal: 18, backgroundColor: colors.white },
   line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 14 },
   lineRule: { borderBottomWidth: 1, borderBottomColor: colors.divider },

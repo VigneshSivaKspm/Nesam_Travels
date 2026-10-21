@@ -20,6 +20,12 @@ export interface BookingDraft {
   waCode: string;
   waNumber: string;
   email: string;
+  /** Booking for someone else: who travels (sent to the server inside the notes). */
+  forOther: boolean;
+  passengerName: string;
+  passengerMobile: string;
+  /** Airport transfers: optional flight number (sent inside the notes). */
+  flight: string;
 }
 
 export const EMPTY_DRAFT: BookingDraft = {
@@ -36,6 +42,10 @@ export const EMPTY_DRAFT: BookingDraft = {
   waCode: '+91',
   waNumber: '',
   email: '',
+  forOther: false,
+  passengerName: '',
+  passengerMobile: '',
+  flight: '',
 };
 
 const STORAGE_KEY = 'peopletaxi.booking.v1';
@@ -81,6 +91,10 @@ export function loadDraft(): BookingDraft {
       waCode: typeof d.waCode === 'string' ? d.waCode : '+91',
       waNumber: typeof d.waNumber === 'string' ? d.waNumber : '',
       email: typeof d.email === 'string' ? d.email : '',
+      forOther: d.forOther === true,
+      passengerName: typeof d.passengerName === 'string' ? d.passengerName.slice(0, 60) : '',
+      passengerMobile: typeof d.passengerMobile === 'string' ? d.passengerMobile.slice(0, 16) : '',
+      flight: typeof d.flight === 'string' ? d.flight.slice(0, 12) : '',
     };
   } catch {
     return EMPTY_DRAFT;
@@ -89,9 +103,11 @@ export function loadDraft(): BookingDraft {
 
 export function saveDraft(d: BookingDraft): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ ...d, scheduledAt: d.scheduledAt?.toISOString() ?? null, tripEndAt: d.tripEndAt?.toISOString() ?? null }));
+    sessionStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ ...d, scheduledAt: d.scheduledAt?.toISOString() ?? null, tripEndAt: d.tripEndAt?.toISOString() ?? null }),
+    );
   } catch {
     /* storage unavailable (private mode): the draft just lives in memory */
   }
 }
-

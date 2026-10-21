@@ -4,7 +4,7 @@ import { FlatList, ScrollView } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useInbox } from '../context/Inbox';
-import { EmptyState, Notice, PageHead, TextButton } from '../components/ui';
+import { EmptyState, Notice, TextButton } from '../components/ui';
 import { AppHeader } from '../components/brand';
 import { markAllNotificationsRead, markNotificationRead } from '../services/userService';
 import { CATEGORIES, CATEGORY_LABEL, TONE_COLORS, toneOf } from '../utils/notificationModel';
@@ -33,15 +33,13 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader active="alerts" />
+      <AppHeader
+        title="Notifications"
+        active="alerts"
+        rightAction={unread.length > 0 ? <TextButton title="Mark all read" icon="check-check" size={11} onPress={() => void markAll()} /> : undefined}
+      />
       <View style={styles.container}>
         <View style={styles.head}>
-          <PageHead
-            title="Notifications"
-            subtitle="Booking and payment updates."
-            onBack={() => navigation.navigate('Tabs', { screen: 'Account' })}
-            right={unread.length > 0 ? <TextButton title="Mark all read" icon="check-check" size={11} onPress={() => void markAll()} /> : undefined}
-          />
           {tabs.length > 1 ? (
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} style={{ flexGrow: 0 }}>
               {tabs.map((c) => {
@@ -64,7 +62,7 @@ export function NotificationsScreen() {
           data={shown}
           kind="narrow"
           keyExtractor={(n) => n.id}
-          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl }}
+          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: space.sm, paddingBottom: space.xxl }}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={<Notice message={error} />}
           ListEmptyComponent={<EmptyState icon="bell" title="No notifications yet" message="Your trip updates will appear here." />}
@@ -101,7 +99,7 @@ export function NotificationsScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  head: { paddingHorizontal: space.xl, paddingTop: space.xl, width: '100%', maxWidth: 780, alignSelf: 'center' },
+  head: { paddingHorizontal: space.xl, paddingTop: space.md, width: '100%', maxWidth: 780, alignSelf: 'center' },
   tabs: { gap: 8, paddingBottom: 4 },
   tab: { paddingHorizontal: 13, minHeight: 34, justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#E3E7EC', backgroundColor: colors.white },
   tabOn: { backgroundColor: '#FFF1F1', borderColor: '#F3C3C3' },

@@ -7,7 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { Badge, Button, FlowFooter, Notice, Sheet, Steps, TextButton } from '../components/ui';
 import { Content, ScrollView } from '../components/layout';
-import { AppHeader, SubHeader, getVehicleImage } from '../components/brand';
+import { AppHeader, getVehicleImage } from '../components/brand';
 import { Icon } from '../components/Icon';
 import { FareLines } from '../components/FareLines';
 import { useBookingDraft } from '../context/BookingDraft';
@@ -48,9 +48,8 @@ export function ChooseRideScreen() {
   if (!pickup || !drop) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
-        <AppHeader />
+        <AppHeader title="Choose a cab" onBack={() => navigation.goBack()} />
         <View style={styles.pad}>
-          <SubHeader plain title="Choose your cab" subtitle="Your journey. Your choice of comfort." onBack={() => navigation.goBack()} />
           <Notice message="Please set your pickup and drop locations first." />
           <Button title="Plan a trip" onPress={goHome} />
         </View>
@@ -95,9 +94,8 @@ export function ChooseRideScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Choose a cab" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <SubHeader plain title="Choose your cab" subtitle="Your journey. Your choice of comfort." onBack={() => navigation.goBack()} />
         <Steps step={2} />
 
         <View style={styles.summary}>
@@ -111,92 +109,94 @@ export function ChooseRideScreen() {
             {tripType === 'Local Rental' ? 'Local Rental' : drop.name}
           </Text>
           <Text style={styles.meta}>
-            {scheduledAt ? `${dayText(scheduledAt)} · ${formatTime(scheduledAt).replace(/^0/, '')}` : 'Pickup time not chosen'}
-            {tripType === 'Round Trip' && tripEndAt ? `  –  Return ${dayText(tripEndAt)} · ${formatTime(tripEndAt).replace(/^0/, '')}` : ''}
+            {route ? `${formatDistance(route.distanceKm)} · ` : ''}
+            {scheduledAt ? `${dayText(scheduledAt)} · ${formatTime(scheduledAt).replace(/^0/, '')}` : 'Time not set'}
+            {tripType === 'Round Trip' && tripEndAt ? ` – Return ${dayText(tripEndAt)} · ${formatTime(tripEndAt).replace(/^0/, '')}` : ''}
           </Text>
-          {route ? <Text style={[styles.meta, { marginTop: 14 }]}>{`${formatDistance(included)} route distance${tripType === 'Round Trip' ? ' (both ways)' : ''}`}</Text> : null}
         </View>
-        <Text style={[styles.meta, { marginBottom: 14 }]}>Prices include GST.</Text>
 
-        {routeError ? <Notice message={routeError} /> : null}
-        {quoteProblem ? <Notice message={quoteProblem} tone={serverQuote.status === 'error' || tooFar ? 'error' : 'warning'} onRetry={serverQuote.status === 'error' ? serverQuote.retry : undefined} /> : null}
-        {tooFar ? <Button title={`Call NESAM · ${SUPPORT_PHONE_DISPLAY}`} icon="phone" variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={{ marginBottom: 12 }} /> : null}
-        {!route && !routeError ? <Notice tone="info" message="Calculating the driving route and fares…" /> : null}
-        {server && !!route ? null : route && serverQuote.status === 'loading' ? <Notice tone="info" message="Confirming fares with NESAM — amounts shown are estimates until then." /> : null}
+        <Notice message={routeError} />
 
-        <View accessibilityRole="radiogroup" style={{ gap: 12 }}>
+        {/* Cab cards */}
+        <Content style={{ gap: 12 }}>
           {categories.map((c) => {
-            const q = quotes.get(c.id);
+            const on = selected?.id === c.id;
+            const quote = quotes.get(c.id);
             const entry = entryOf(c.id);
-            const unavailable = !!entry && !entry.ok;
-            const on = c.id === selected?.id;
-            const extra = c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
-            const includedKm = entry?.includedKm ?? (c.fare.baseKm > 0 ? c.fare.baseKm : 0);
+            const photo = getVehicleImage(c.name);
+            const bagText = `${c.luggageCapacity ?? (c.seats >= 6 ? 4 : 2)} bags`;
+            const seatText = `${c.seats} seats`;
+            const extraRate = c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
+            const includedKm = entry?.includedKm ?? (c.fare.baseKm > 0 ? c.fare.baseKm : (route ? included : 0));
+            const inclLine = includedKm > 0 ? `${includedKm} km included · Extra km ₹${extraRate}` : `Extra km ₹${extraRate}`;
+            const unavailReason = !serverQuote.data ? '' : entry && !entry.ok ? entry.error || 'Not available for this trip' : '';
+
             return (
-              <View key={c.id} style={[styles.car, on && styles.carOn, unavailable && { opacity: 0.6 }]}>
+              <View key={c.id} style={[styles.car, on && styles.carOn]}>
                 <Pressable
                   onPress={() => update({ categoryId: c.id })}
-                  style={styles.carPick}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: on, disabled: false }}
-                  accessibilityLabel={`${c.name}, ${c.seats} passengers, ${q ? formatINR(q.total) : 'fare loading'}${unavailable ? ', not available for this trip' : ''}`}
+                  accessibilityState={{ selected: on, disabled: !!unavailReason }}
+                  accessibilityLabel={`${c.name}, ${seatText}, ${quote ? formatINR(quote.total) : 'price loading'}`}
+                  style={styles.carPick}
                 >
-                  <View style={[styles.choice, on && styles.choiceOn]}>{on ? <Icon name="check" size={10} color={colors.white} strokeWidth={3} /> : null}</View>
+                  <View style={[styles.choice, on && styles.choiceOn]}>
+                    <Icon name="check" size={10} color={on ? colors.white : 'transparent'} strokeWidth={3} />
+                  </View>
                   <View style={styles.carTop}>
-                    <View style={{ flex: 1, minWidth: 0, paddingRight: 10 }}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
                       <Text style={styles.carName}>{c.name}</Text>
-                      <Text style={styles.carModel} numberOfLines={2}>
-                        {entry?.model || c.description || 'Air-conditioned cab'}
-                      </Text>
+                      <Text style={styles.carModel}>{c.description || (c.name.toLowerCase().includes('innova') ? 'Toyota Innova or equivalent' : 'Dzire, Etios or equivalent')}</Text>
+                      <View style={styles.facts}>
+                        <Fact tint="slate" icon="seat-belt" text={seatText} />
+                        <Fact tint="amber" icon="luggage" text={bagText} />
+                        <Fact tint="blue" icon="snowflake" text="AC" />
+                      </View>
                     </View>
-                    <Image source={c.imageUrl ? { uri: c.imageUrl } : getVehicleImage(c.name)} style={styles.carPhoto} resizeMode="contain" accessible={false} />
+                    <Image source={photo} style={styles.carPhoto} resizeMode="contain" accessible={false} />
                   </View>
-                  <View style={styles.facts}>
-                    <Fact tint="slate" icon="seat-belt" text={`${c.seats} passengers`} />
-                    <Fact tint="amber" icon="luggage" text={`${c.seats > 4 ? 3 : 2} bags`} />
-                    <Fact tint="blue" icon="snowflake" text="AC" />
-                  </View>
-                  {includedKm > 0 ? <Text style={styles.included}>{`${includedKm} km included`}</Text> : null}
+                  <Text style={styles.included}>{inclLine}</Text>
                   <View style={styles.rate}>
-                    <Text style={styles.rateLabel}>
-                      Total fare{'\n'}
-                      {unavailable ? 'Not available' : 'GST included'}
-                    </Text>
-                    <Text style={styles.price}>{q ? formatINR(q.total) : '…'}</Text>
+                    <Text style={styles.rateLabel}>{gstText} included</Text>
+                    <Text style={styles.price}>{quote ? formatINR(quote.total) : '—'}</Text>
                   </View>
                 </Pressable>
+                {unavailReason ? <Text style={styles.unavail}>{unavailReason}</Text> : null}
                 <View style={styles.carFoot}>
-                  <Text style={styles.extra}>{`Extra ${formatINR(extra)}/km + ${gstText}`}</Text>
-                  <TextButton title="View fare" iconRight="chevron-right" size={11} onPress={() => setFareFor(c.id)} disabled={!q} accessibilityLabel={`View fare details for ${c.name}`} />
+                  <Text style={styles.extra}>Toll, parking and state tax extra</Text>
+                  <TextButton title="Fare breakup" icon="receipt-text" size={11} onPress={() => setFareFor(c.id)} accessibilityLabel={`View fare breakup for ${c.name}`} />
                 </View>
-                {unavailable ? <Text style={styles.unavail}>{entry?.error || 'Not available for this trip.'}</Text> : null}
               </View>
             );
           })}
-        </View>
+        </Content>
+
+        <Notice message={quoteProblem} style={{ marginTop: space.md }} />
+        {tooFar ? <Button title={`Call NESAM · ${SUPPORT_PHONE_DISPLAY}`} icon="phone" variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={{ marginBottom: 12 }} /> : null}
+        <FlowFooter onBack={() => navigation.goBack()} onHome={goHome} />
       </ScrollView>
 
+      {/* Floating total + CTA */}
       <View style={styles.bottom}>
-       <Content kind="narrow" style={{ gap: 8 }}>
-        <View style={styles.bottomRow}>
-          <View style={{ minWidth: 92 }}>
-            <Text style={styles.totalLabel}>Total fare</Text>
-            <Text style={styles.totalValue}>{selectedQuote ? formatINR(selectedQuote.total) : '—'}</Text>
+          <View style={styles.bottomRow}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.totalLabel}>Total fare ({gstText} included)</Text>
+              <Text style={styles.totalValue}>{selectedQuote ? formatINR(selectedQuote.total) : '—'}</Text>
+            </View>
+            <Button
+              title="Continue"
+              iconRight="arrow-right"
+              loading={quoteLoading}
+              disabled={!canContinue}
+              onPress={() => navigation.navigate('ConfirmBooking')}
+              accessibilityLabel={selectedQuote ? `Continue with ${selected?.name}, total ${formatINR(selectedQuote.total)}` : 'Continue'}
+              style={{ minWidth: 140 }}
+            />
           </View>
-          <Button
-            title={quoteLoading ? 'Confirming fare…' : 'Continue'}
-            iconRight={quoteLoading ? undefined : 'arrow-right'}
-            icon={undefined}
-            disabled={!canContinue}
-            loading={quoteLoading}
-            onPress={() => navigation.navigate('ConfirmBooking')}
-            style={{ flex: 1 }}
-          />
         </View>
-        <FlowFooter onBack={() => navigation.goBack()} onHome={goHome} />
-       </Content>
-      </View>
 
+
+      {/* Fare breakup bottom sheet */}
       <Sheet visible={!!fareSheet} onClose={() => setFareFor(null)} title={fareSheet ? `${fareSheet.name} fare` : 'Fare'} subtitle="Prices include GST.">
         {fareSheet && fareSheetQuote ? (
           <>
@@ -228,8 +228,8 @@ function Fact({ tint, icon, text }: { tint: keyof typeof FACT; icon: 'seat-belt'
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
   pad: { padding: space.xl },
-  scroll: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: 24 },
-  summary: { paddingBottom: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  scroll: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: 24 },
+  summary: { paddingBottom: 18, marginBottom: 14, borderBottomWidth: 1, borderBottomColor: colors.divider, marginTop: space.sm },
   summaryTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   route: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, color: colors.text },
   routeArrow: { fontFamily: fonts.regular, color: '#8A929E' },

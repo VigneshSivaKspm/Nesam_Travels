@@ -106,7 +106,13 @@ export function HomeScreen() {
   };
 
   // The at-a-glance figures the previous dashboard carried; each opens the screen that explains it.
-  const goTab = (screen: 'Trip' | 'Earnings' | 'Wallet') => navigation.navigate('Tabs', { screen });
+  const goTab = (screen: 'Trip' | 'Earnings' | 'Wallet' | 'Marketplace') => {
+    if (screen === 'Earnings') {
+      navigation.navigate('Tabs', { screen: 'Profile', params: { openSection: 'earnings' } } as never);
+      return;
+    }
+    navigation.navigate('Tabs', { screen } as never);
+  };
   const metrics = (
     <View style={styles.metrics} accessibilityLabel="Today at a glance">
       {fleet ? (
@@ -188,7 +194,7 @@ export function HomeScreen() {
   }
 
   return (
-    <NxScreen>
+    <NxScreen title="Home" subtitle="Duty Dashboard">
       {driver.docStatus === 'Rejected' ? (
         <NxPanel>
           <NxSectionHeading title="Document update required" caption={driver.rejectionReason || 'Some of your updated documents were not accepted. Please upload them again.'} right={<NxBadge label="Action needed" tone="red" icon="info" />} />
@@ -227,18 +233,25 @@ export function HomeScreen() {
         caption={showAll ? 'All open duties' : `Duties eligible for your ${vehicle.vehicleType}`}
         right={
           !fleet ? (
-            <Pressable
-              onPress={() => setFilterOpen(true)}
-              disabled={!presence.online || hasActive}
-              style={[styles.filter, (!presence.online || hasActive) && { opacity: 0.5 }]}
-              accessibilityRole="button"
-              accessibilityLabel={`Filter duties by pickup date: ${dateFilter === 'all' ? 'all dates' : dateFilter}`}
-            >
-              <Text style={styles.filterText} numberOfLines={1}>
-                {dateFilter === 'all' ? 'All dates' : dateFilter}
-              </Text>
-              <NxIcon name="chevron" size={12} color={nx.muted} />
-            </Pressable>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <NxTextButton
+                title="Marketplace"
+                trailingIcon="arrow"
+                onPress={() => navigation.navigate('Tabs', { screen: 'Marketplace' } as never)}
+              />
+              <Pressable
+                onPress={() => setFilterOpen(true)}
+                disabled={!presence.online || hasActive}
+                style={[styles.filter, (!presence.online || hasActive) && { opacity: 0.5 }]}
+                accessibilityRole="button"
+                accessibilityLabel={`Filter duties by pickup date: ${dateFilter === 'all' ? 'all dates' : dateFilter}`}
+              >
+                <Text style={styles.filterText} numberOfLines={1}>
+                  {dateFilter === 'all' ? 'All dates' : dateFilter}
+                </Text>
+                <NxIcon name="chevron" size={12} color={nx.muted} />
+              </Pressable>
+            </View>
           ) : null
         }
       />

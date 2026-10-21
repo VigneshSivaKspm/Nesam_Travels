@@ -16,7 +16,7 @@ type Tab = 'help' | 'ticket' | 'mine';
 export function SupportPage() {
   useSeo({
     title: 'Customer Support & 24/7 Helpline',
-    description: 'Need help with your outstation cab or drop taxi booking? Call One Way Car Rental at 85319 70197 or submit a ticket. Fast 24/7 assistance across Tamil Nadu.',
+    description: 'Need help with your outstation cab or drop taxi booking? Call One Way Car Rental at +91 90250 99990 or submit a ticket. Fast 24/7 assistance across Tamil Nadu.',
     canonical: '/support',
   });
   const [params] = useSearchParams();

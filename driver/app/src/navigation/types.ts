@@ -1,11 +1,12 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
 export type TabParamList = {
-  Home: undefined;
+  Marketplace: undefined;
   Trip: undefined;
-  Earnings: undefined;
+  Home: undefined;
   Wallet: undefined;
-  Profile: undefined;
+  Profile: { openSection?: string } | undefined;
+  Earnings?: undefined;
 };
 
 export type RootStackParamList = {
@@ -14,6 +15,8 @@ export type RootStackParamList = {
   TripFlow: { bookingId: string };
   Notifications: undefined;
   UpdateDocuments: undefined;
+  Marketplace: undefined;
+  Earnings: undefined;
 };
 
 declare global {

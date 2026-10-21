@@ -28,7 +28,7 @@ export function TripsScreen() {
   const open = (t: TripDetails) => navigation.navigate('TripFlow', { bookingId: t.id });
 
   return (
-    <NxScreen>
+    <NxScreen title="My Trips" subtitle="Duty History & Schedule">
       <NxPills<Tab>
         label="Trip list"
         value={tab}

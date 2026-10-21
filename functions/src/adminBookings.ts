@@ -192,6 +192,14 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       notes: text(advanceIn.notes, 300), enteredBy: admin.uid, enteredByRole: 'admin', enteredByName: admin.name, createdAt: stamp,
     } : null;
     const summary = summarizePayments(fare.total, advanceTxn ? [{ amount: advanceTxn.amount, method: advanceTxn.method, kind: 'advance', collectorType: 'admin', status: 'Success' }] : []);
+    const rawChan = text(input.bookingSource || input.source || input.brand || '');
+    const bookingChannel = rawChan.toLowerCase().includes('oneway')
+      ? 'onewaycarrentals'
+      : rawChan.toLowerCase().includes('people')
+      ? 'people_taxi'
+      : rawChan.toLowerCase().includes('nesam')
+      ? 'nesam'
+      : 'nesam';
     tx.create(ref, {
       id: requestId, bookingId: bookingCode, customerId, customer: name, phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng,
@@ -206,7 +214,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       routeEstimated: false, couponCode: '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
       paymentSummary: { ...summary, updatedAt: Timestamp.now() }, paymentMethod,
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
-      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: 'admin', createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
+      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingChannel === 'nesam' ? 'admin' : bookingChannel, bookingSource: bookingChannel, brand: bookingChannel, createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
     });
     const otp = String(randomInt(1000, 10000));
     tx.create(db.doc(`booking_secrets/${requestId}`), { customerId, otp, createdAt: stamp });

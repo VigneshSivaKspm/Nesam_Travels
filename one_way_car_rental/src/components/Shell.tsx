@@ -1,18 +1,21 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
-import { formatPhone } from '@core/utils/format';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { formatPhone } from '@core/utils/format';
 import { useInbox } from '@/state/Inbox';
 import { useAuth } from '@/state/Auth';
+import { useBooking } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
+import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
+import { DashboardMainSkeleton } from './DashboardSkeleton';
 
-export function Brand({ light = false }: { compact?: boolean; light?: boolean }) {
+export function Brand({ light = false }: { light?: boolean; compact?: boolean }) {
   return (
-    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a ride">
-      <img src="/brand/ow-logo.png" alt="" width={44} height={44} />
+    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a cab">
+      <img src="/brand/ow-logo.png" alt="One Way Car Rental Logo" width={42} height={42} />
       <span className="brand__word">
         <b>One Way</b>
         <small>Car Rental</small>
@@ -21,18 +24,57 @@ export function Brand({ light = false }: { compact?: boolean; light?: boolean })
   );
 }
 
-const NAV = [
-  { to: '/book', label: 'Book a ride', short: 'Book', icon: 'car' },
-  { to: '/trips', label: 'My trips', short: 'Trips', icon: 'trip-history' },
-  { to: '/notifications', label: 'Notifications', short: 'Alerts', icon: 'notifications' },
-  { to: '/account', label: 'Account', short: 'Account', icon: 'profile' },
-] as const;
+const FLOW = [/^\/book\/(ride|confirm|done\/[^/]+)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
+const ACCOUNT_PATHS = /^\/(account|trips|notifications|offers|support|legal)(\/|$)/;
 
-/** Sidebar links. Account lives in the profile menu there; the phone tab bar keeps all four. */
-const SIDE_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
+function NotificationsLink({ compact = false }: { compact?: boolean }) {
+  const { unreadCount } = useInbox();
+  return (
+    <NavLink
+      to="/notifications"
+      className={({ isActive }) => `head-action ${compact ? 'head-action--icon' : ''} ${isActive ? 'is-active' : ''}`}
+      aria-label={compact ? `Notifications${unreadCount ? `, ${unreadCount} unread` : ''}` : undefined}
+    >
+      <span className="head-action__icon">
+        <Icon name="notifications" size={compact ? 22 : 17} />
+        {unreadCount > 0 ? (
+          <em className="count" aria-hidden={compact || undefined}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </em>
+        ) : null}
+      </span>
+      {compact ? null : <span>Notifications</span>}
+    </NavLink>
+  );
+}
 
-/** Booking steps and the live ride are full-screen workspaces (panel + map), so the footer and tab bar step aside. */
-const IMMERSIVE = [/^\/book\/(ride|confirm)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
+function BottomNav() {
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const { draft } = useBooking();
+  const onHome = location.pathname === '/book' || location.pathname === '/';
+  const current: ServiceId | null = onHome ? (parseService(params.get('service')) ?? serviceOfTrip(draft.tripType)) : null;
+  const accountActive = ACCOUNT_PATHS.test(location.pathname) && !location.pathname.startsWith('/notifications') && !location.pathname.startsWith('/support');
+
+  return (
+    <nav className="bottom-nav" aria-label="Services and account">
+      {SERVICES.map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+          <span className="bottom-nav__symbol">
+            <Icon name={s.icon} size={24} />
+          </span>
+          <span className="bottom-nav__label">{s.label}</span>
+        </Link>
+      ))}
+      <Link to="/account" className={`bottom-nav__item ${accountActive ? 'is-active' : ''}`} aria-current={accountActive ? 'page' : undefined}>
+        <span className="bottom-nav__symbol">
+          <Icon name="travel-account" size={24} />
+        </span>
+        <span className="bottom-nav__label">Account</span>
+      </Link>
+    </nav>
+  );
+}
 
 function ProfileMenu() {
   const { profile } = useCustomerData();
@@ -60,23 +102,23 @@ function ProfileMenu() {
 
   if (!profile) {
     return (
-      <button type="button" className="side__signin" title="Sign in" onClick={() => openLoginModal({ title: 'Sign in to One Way Car Rental' })}>
-        <Icon name="profile" size={20} />
-        <span className="lbl-long">Sign in</span>
-      </button>
+      <Button
+        variant="primary"
+        size="sm"
+        onClick={() => openLoginModal({ title: 'Sign in to One Way Car Rental' })}
+      >
+        <Icon name="profile" size={16} /> Sign in
+      </Button>
     );
   }
 
   const first = profile.name.split(' ')[0] || 'Account';
   return (
     <div className="menu" ref={root}>
-      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} title={profile.name}>
-        <Avatar name={profile.name} photoUrl={profile.photoUrl} size={38} />
-        <span className="menu__who-mini">
-          <span className="menu__name">{first}</span>
-          <small>Your account</small>
-        </span>
-        <Icon name="chevron-up" size={16} />
+      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <Avatar name={profile.name} photoUrl={profile.photoUrl} size={36} />
+        <span className="menu__name">{first}</span>
+        <Icon name="chevron-down" size={15} />
       </button>
       {open ? (
         <div className="menu__panel" role="menu">
@@ -85,19 +127,22 @@ function ProfileMenu() {
             <span className="muted small">{formatPhone(profile.phone)}</span>
           </div>
           <Link role="menuitem" to="/account">
-            <Icon name="profile" /> Account
+            <Icon name="profile" size={16} /> Account
+          </Link>
+          <Link role="menuitem" to="/trips">
+            <Icon name="trip-history" size={16} /> My trips
           </Link>
           <Link role="menuitem" to="/account/places">
-            <Icon name="saved-place" /> Saved places
+            <Icon name="saved-place" size={16} /> Saved places
           </Link>
           <Link role="menuitem" to="/account/payments">
-            <Icon name="wallet" /> Payments
+            <Icon name="wallet" size={16} /> Payments
           </Link>
           <Link role="menuitem" to="/legal">
-            <Icon name="document" /> Terms &amp; privacy
+            <Icon name="document" size={16} /> Terms &amp; privacy
           </Link>
           <button role="menuitem" type="button" onClick={() => setConfirm(true)}>
-            <Icon name="logout" /> Log out
+            <Icon name="logout" size={16} /> Log out
           </button>
         </div>
       ) : null}
@@ -123,7 +168,7 @@ function ProfileMenu() {
             </>
           }
         >
-          <p className="muted">You’ll need to verify your mobile number again to sign back in.</p>
+          <p className="muted">You will need to verify your mobile number again when signing back in.</p>
           {error ? <p className="field__error">{error}</p> : null}
         </Dialog>
       ) : null}
@@ -134,74 +179,45 @@ function ProfileMenu() {
 function Footer() {
   return (
     <footer className="footer">
-      <div className="footer__inner">
+      <div className="wrap footer__inner">
         <div className="footer__grid">
-          <div className="footer__about">
+          <div className="footer__brand">
             <Brand light />
-            <p>Outstation and intercity cabs across Tamil Nadu and beyond — fares shown before you book, verified chauffeurs and a team you can call.</p>
-            <a className="footer__call" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" size={22} />
-              <span>
-                <small>Talk to One Way Car Rental</small>
-                <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-              </span>
+            <p className="footer__tag">Premium Outstation Cabs &amp; Car Rentals</p>
+            <address>
+              {COMPANY_LEGAL_NAME}
+              <br />
+              Tamil Nadu, India
+            </address>
+            <a className="footer__phone num" href={`tel:${SUPPORT_PHONE}`}>
+              <Icon name="phone" size={16} /> {SUPPORT_PHONE_DISPLAY}
             </a>
           </div>
-          <nav className="footer__col" aria-label="Book">
-            <h2>Book</h2>
-            <ul>
-              <li>
-                <Link to="/book">Outstation one way</Link>
-              </li>
-              <li>
-                <Link to="/book">Round trip</Link>
-              </li>
-              <li>
-                <Link to="/book">Airport transfer</Link>
-              </li>
-              <li>
-                <Link to="/offers">Offers</Link>
-              </li>
-            </ul>
+          <nav aria-label="Our services">
+            <h2>Our services</h2>
+            <Link to={serviceHref('outstation', 'one-way')}>One-way drop taxi</Link>
+            <Link to={serviceHref('outstation', 'round-trip')}>Round trips</Link>
+            <Link to={serviceHref('airport')}>Airport transfers</Link>
+            <Link to={serviceHref('rental')}>Local hourly rental</Link>
+            <Link to={serviceHref('multicity')}>Multicity itineraries</Link>
           </nav>
-          <nav className="footer__col" aria-label="Your account">
-            <h2>Your account</h2>
-            <ul>
-              <li>
-                <Link to="/trips">My trips</Link>
-              </li>
-              <li>
-                <Link to="/account/places">Saved places</Link>
-              </li>
-              <li>
-                <Link to="/account/payments">Payments &amp; refunds</Link>
-              </li>
-              <li>
-                <Link to="/notifications">Notifications</Link>
-              </li>
-            </ul>
+          <nav aria-label="Bookings and help">
+            <h2>Bookings &amp; help</h2>
+            <Link to="/trips">My Bookings</Link>
+            <Link to="/account/payments">Payment options</Link>
+            <Link to="/offers">Current offers</Link>
+            <Link to="/support">24/7 Support</Link>
+            <Link to="/book#faq">FAQ</Link>
           </nav>
-          <nav className="footer__col" aria-label="Support">
-            <h2>Support</h2>
-            <ul>
-              <li>
-                <Link to="/support">Help &amp; tickets</Link>
-              </li>
-              <li>
-                <a href={`tel:${SUPPORT_PHONE}`}>Call {SUPPORT_PHONE_DISPLAY}</a>
-              </li>
-              <li>
-                <Link to="/legal">Terms &amp; privacy</Link>
-              </li>
-            </ul>
+          <nav aria-label="Company policies">
+            <h2>Company</h2>
+            <Link to="/legal">Terms &amp; Privacy</Link>
+            <Link to="/support">Cancellation policy</Link>
           </nav>
         </div>
-        <p className="footer__mark" aria-hidden="true">
-          One Way
-        </p>
-        <div className="footer__legal">
-          <span>© {new Date().getFullYear()} {COMPANY_LEGAL_NAME}</span>
-          <span>Cash or UPI to your driver · nothing is charged when you book</span>
+        <div className="footer__bottom">
+          <p>© {new Date().getFullYear()} {COMPANY_LEGAL_NAME}. All rights reserved.</p>
+          <p>Fares shown before you book · Pay your driver by cash or UPI</p>
         </div>
       </div>
     </footer>
@@ -209,22 +225,27 @@ function Footer() {
 }
 
 export function Shell() {
-  const { unreadCount } = useInbox();
-  const { profile } = useCustomerData();
-  const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
   const navigate = useNavigate();
-  const immersive = IMMERSIVE.some((re) => re.test(location.pathname));
+  const flow = FLOW.some((re) => re.test(location.pathname));
+  const bookActive = location.pathname === '/book' || location.pathname.startsWith('/book/');
+  const isBookingHome = location.pathname === '/' || location.pathname === '/book';
 
-  // New page → start at the top and move focus to the page (keyboard and screen-reader users).
   useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        window.setTimeout(() => el.scrollIntoView({ block: 'start' }), 60);
+        return;
+      }
+    }
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
-  }, [location.pathname]);
+  }, [location.pathname, location.hash]);
 
   return (
-    <div className={`shell ${immersive ? 'shell--immersive' : ''}`}>
+    <div className={`shell ${flow ? 'shell--flow' : 'shell--nav'}`}>
       <a
         className="skip-link"
         href="#main"
@@ -235,88 +256,62 @@ export function Shell() {
       >
         Skip to content
       </a>
-
-      <aside className="side" aria-label="Site">
-        <Brand />
-        <nav className="side__nav" aria-label="Main">
-          <p className="side__label">Menu</p>
-          {SIDE_NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} title={n.label} className={({ isActive }) => `side__link ${isActive ? 'is-active' : ''}`}>
-              <Icon name={n.icon} size={21} />
-              <span className="lbl-long">{n.label}</span>
-              {n.to === '/notifications' && unreadCount > 0 ? (
-                <em className="count" aria-label={`${unreadCount} unread`}>
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </em>
-              ) : null}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="side__foot">
-          <Link to="/support" className="side__link" title="Help and support" aria-label="Help and support">
-            <Icon name="support" size={21} />
-            <span className="lbl-long">Help &amp; tickets</span>
-          </Link>
-          <a className="side__call" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call One Way Car Rental support ${SUPPORT_PHONE_DISPLAY}`}>
-            <Icon name="phone" size={20} />
-            <span className="lbl-long">
-              <small>Talk to us</small>
-              <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-            </span>
-          </a>
-          <ProfileMenu />
+      {!online ? (
+        <div className="net-banner" role="status">
+          <Icon name="offline" size={15} /> You’re offline. Bookings and live updates resume when you reconnect.
         </div>
-      </aside>
-
-      <div className="shell__body">
-        {!online ? (
-          <div className="net-banner" role="status">
-            You’re offline. Bookings and live updates resume when you reconnect.
-          </div>
-        ) : recovered ? (
-          <div className="net-banner net-banner--ok" role="status">
-            Back online.
-          </div>
-        ) : null}
-
-        <header className="topbar">
-          <div className="topbar__inner">
-            <Brand />
-            <div className="topbar__mobile">
-              {!profile ? (
-                <Button variant="primary" size="sm" onClick={() => openLoginModal({ title: 'Sign in to One Way Car Rental' })}>
-                  Sign in
-                </Button>
-              ) : null}
-              <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
-                <Icon name="support" size={22} />
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <main id="main" tabIndex={-1} className="main">
-          <Suspense fallback={<PageLoader />}>
-            <Outlet />
-          </Suspense>
-        </main>
-
-        {!immersive ? <Footer /> : null}
-      </div>
-
-      {!immersive ? (
-        <nav className="tabbar" aria-label="Main">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive ? 'is-active' : ''}`}>
-              <span className="tabbar__icon">
-                <Icon name={n.icon} size={24} />
-                {n.to === '/notifications' && unreadCount > 0 ? <em className="count">{unreadCount > 9 ? '9+' : unreadCount}</em> : null}
-              </span>
-              <span>{n.short}</span>
-            </NavLink>
-          ))}
-        </nav>
+      ) : recovered ? (
+        <div className="net-banner net-banner--ok" role="status">
+          Back online.
+        </div>
       ) : null}
+
+      <header className="topbar">
+        <div className="wrap topbar__inner">
+          <Brand />
+          <nav className="topbar__nav" aria-label="Main">
+            <Link to="/book" className={`topbar__link ${bookActive ? 'is-active' : ''}`}>
+              <Icon name="car" size={17} /> Book a cab
+            </Link>
+            <NavLink to="/trips" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
+              <Icon name="trip-history" size={17} /> My trips
+            </NavLink>
+            <NavLink to="/offers" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
+              <Icon name="offers" size={17} /> Offers
+            </NavLink>
+          </nav>
+
+          <div className="topbar__actions">
+            <NotificationsLink />
+            <NavLink to="/support" className={({ isActive }) => `head-action ${isActive ? 'is-active' : ''}`}>
+              <Icon name="support" size={17} />
+              <span>24/7 Support</span>
+            </NavLink>
+            <ProfileMenu />
+          </div>
+
+          <div className="topbar__mobile">
+            <NotificationsLink compact />
+            <button
+              type="button"
+              className="head-action head-action--icon"
+              aria-label="Help and support"
+              onClick={() => navigate('/support')}
+            >
+              <Icon name="support" size={22} />
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <main id="main" tabIndex={-1} className="main">
+        <Suspense fallback={isBookingHome ? <DashboardMainSkeleton /> : <PageLoader />}>
+          <Outlet />
+        </Suspense>
+      </main>
+
+      <Footer />
+      {!flow ? <BottomNav /> : null}
     </div>
   );
 }

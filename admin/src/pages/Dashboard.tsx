@@ -15,7 +15,7 @@ import {
   Legend,
 } from "recharts";
 import { Booking, Driver, Vehicle, Customer, PenaltyRecord } from "../types";
-import { StatusBadge, PaymentBadge } from "../components/booking/BookingBadges";
+import { StatusBadge, PaymentBadge, BookingSourceBadge, bookingSourceRowCls } from "../components/booking/BookingBadges";
 import OperationsSection from "../components/dashboard/OperationsSection";
 import CreateBookingLauncher from "../components/CreateBookingLauncher";
 import { useNow } from "../hooks/useNow";
@@ -646,15 +646,18 @@ export default function Dashboard({
               {liveBookings.slice(0, 6).map((b, i) => (
                 <tr
                   key={i}
-                  className="table-row border-b border-[#F5F5F5] last:border-0"
+                  className={`table-row border-b border-[#F5F5F5] last:border-0 ${bookingSourceRowCls(b)}`}
                 >
                   <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5 flex-wrap">
                     <span
                       className="text-[12px] font-mono font-semibold"
                       style={{ color: "#E21B23" }}
                     >
-                      {b.id}
+                      {b.bookingId || b.id}
                     </span>
+                    <BookingSourceBadge booking={b} size="sm" />
+                  </div>
                   </td>
                   <td className="px-4 py-3 text-[12px] font-medium text-[#111]">
                     {b.customer}

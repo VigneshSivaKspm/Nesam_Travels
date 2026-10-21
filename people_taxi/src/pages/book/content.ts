@@ -177,3 +177,17 @@ export const QUICK_CITIES: GeoPlace[] = [
   place('city-salem', 'Salem', 'Salem, Tamil Nadu', 11.6643, 78.146),
   place('city-tirupati', 'Tirupati', 'Tirupati, Andhra Pradesh', 13.6288, 79.4192),
 ];
+
+
+export const AIRPORTS: GeoPlace[] = [
+  place('air-maa', 'Chennai International Airport (MAA)', 'Meenambakkam, Chennai, Tamil Nadu', 12.9941, 80.1709),
+  place('air-blr', 'Kempegowda International Airport (BLR)', 'Devanahalli, Bengaluru, Karnataka', 13.1986, 77.7066),
+  place('air-cjb', 'Coimbatore International Airport (CJB)', 'Peelamedu, Coimbatore, Tamil Nadu', 11.03, 77.0434),
+  place('air-mdu', 'Madurai Airport (IXM)', 'Madurai, Tamil Nadu', 9.8345, 78.0934),
+  place('air-trz', 'Tiruchirappalli International Airport (TRZ)', 'Trichy, Tamil Nadu', 10.7654, 78.7107),
+  place('air-cjy', 'Kozhikode Calicut Airport (CCJ)', 'Karipur, Kerala', 11.1369, 75.9553),
+  place('air-cok', 'Cochin International Airport (COK)', 'Nedumbassery, Kochi, Kerala', 10.1518, 76.4019),
+];
+
+export const isAirportPlace = (p: GeoPlace | null | undefined): boolean =>
+  !!p && (p.type === 'airport' || /airport|terminal|aerodrome|\bmaa\b|\bblr\b|\bcjb\b|\bixm\b|\btrz\b/i.test(`${p.name} ${p.address}`));

@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
-import { Badge, Button, Chip, Disclosure, EmptyState, Notice, PageHead, Segmented, TextField } from '../components/ui';
+import { Badge, Button, Chip, Disclosure, EmptyState, Notice, Segmented, TextField } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader, SupportBanner } from '../components/brand';
 import { SUPPORT_CATEGORIES, submitSupportTicket, subscribeToSupportTickets } from '../services/userService';
@@ -65,9 +65,8 @@ export function SupportScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader active="support" />
+      <AppHeader title="Help & Support" active="support" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-        <PageHead title="Help & Support" subtitle="Our office is here to help with your journey." onBack={() => navigation.goBack()} />
         <SupportBanner />
         <Button
           title="WhatsApp NESAM"
@@ -152,7 +151,7 @@ export function SupportScreen({ route, navigation }: Props) {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   faqList: { borderTopWidth: 1, borderTopColor: '#E3E6EB' },
   faqA: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#727D8B' },
   card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, backgroundColor: colors.white },

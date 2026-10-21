@@ -212,6 +212,13 @@ export default function ManualBookingModal({ customers, services, locations, cat
 
         <Section title="Trip">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Booking Website / Channel" hint="Website origin attribution">
+              <select value={form.channel} onChange={(e) => set("channel", e.target.value as ManualBookingForm["channel"])} className={inputCls}>
+                <option value="nesam">Nesam Travels (Default)</option>
+                <option value="onewaycarrentals">🟢 One Way Car Rental</option>
+                <option value="people_taxi">🔵 People Taxi</option>
+              </select>
+            </Field>
             <Field label="Service">
               <select value={form.serviceId} onChange={(e) => set("serviceId", e.target.value)} className={inputCls}>
                 <option value="">Auto (Airport / Local / Outstation)</option>

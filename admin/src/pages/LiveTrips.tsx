@@ -11,6 +11,7 @@ import { toDate } from "../services/paymentService";
 import { ConfirmDialog, ErrorBanner, Toast, useToast } from "../components/Feedback";
 import { cancelBooking } from "../services/bookingOpsService";
 import { tripSubStatusOf } from "../domain/bookingFlow";
+import { BookingSourceBadge, bookingSourceRowCls } from "../components/booking/BookingBadges";
 
 const when = (v: unknown) =>
   formatShortDateTime12(toDate(v)) || null;
@@ -74,6 +75,10 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
           active.map((a: any) => ({
             id: a.id,
             bookingId: a.bookingId || a.id,
+            source: a.source,
+            bookingSource: a.bookingSource || a.source,
+            brand: a.brand,
+            website: a.website,
             driver: a.driver || a.assignedDriverName || "Unassigned",
             vehicle: a.vehicle || a.assignedVehicleNumber || "—",
             pickup: a.pickup || a.pickupAddress || "—",
@@ -187,15 +192,18 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
               <div
                 key={t.id}
                 onClick={() => setSelectedTrip(t.id)}
-                className={`bg-white rounded-xl border-2 shadow-sm p-4 cursor-pointer transition-all hover:shadow-md ${selectedTrip === t.id ? "border-[#E21B23]" : "border-[#E5E5E5]"}`}
+                className={`bg-white rounded-xl border-2 shadow-sm p-4 cursor-pointer transition-all hover:shadow-md ${bookingSourceRowCls(t)} ${selectedTrip === t.id ? "border-[#E21B23]" : "border-[#E5E5E5]"}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
-                    <div
-                      className="text-[11px] font-mono font-bold"
-                      style={{ color: "#E21B23" }}
-                    >
-                      {t.bookingId}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <div
+                        className="text-[11px] font-mono font-bold"
+                        style={{ color: "#E21B23" }}
+                      >
+                        {t.bookingId}
+                      </div>
+                      <BookingSourceBadge booking={t} size="sm" />
                     </div>
                     <div className="text-[12px] font-semibold text-[#111] mt-0.5">
                       {t.driver}

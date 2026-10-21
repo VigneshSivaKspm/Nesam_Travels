@@ -40,7 +40,7 @@ export function WalletScreen() {
 
   if (fleet && ledger.length === 0 && payouts.length === 0) {
     return (
-      <NxScreen>
+      <NxScreen title="Wallet" subtitle="Fleet Driver Payouts">
         <NxPanel>
           <NxSectionHeading title="Settled by your fleet" caption="Driver wallet" right={<NxBadge label="Fleet driver" />} />
           <NxInfo>
@@ -53,7 +53,7 @@ export function WalletScreen() {
 
   const negative = wallet.available < 0;
   return (
-    <NxScreen>
+    <NxScreen title="Wallet" subtitle="Balance & Settlements">
       {walletError ? <NxInfo tone="red" style={{ marginTop: 0, marginBottom: 16 }}>{walletError}</NxInfo> : null}
       <NxColumns>
       <View>

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import * as Clipboard from 'expo-clipboard';
-import { Button, EmptyState, PageHead } from '../components/ui';
+import { Button, EmptyState } from '../components/ui';
 import { ScrollView } from '../components/layout';
 import { AppHeader } from '../components/brand';
 import { isCouponLive, subscribeToCoupons } from '../services/pricingService';
@@ -26,10 +26,8 @@ export function OffersScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <AppHeader />
+      <AppHeader title="Offers & Coupons" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
-        <PageHead title="Offers & coupons" subtitle="Copy a code and apply it when you review your booking." onBack={() => navigation.goBack()} />
-
         {coupons === null ? (
           <Text style={styles.loading}>Loading offers…</Text>
         ) : live.length === 0 ? (
@@ -72,7 +70,7 @@ export function OffersScreen() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl },
   loading: { fontFamily: fonts.medium, textAlign: 'center', marginTop: space.xl, color: colors.muted, fontSize: 13 },
   card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 10, padding: 16, backgroundColor: colors.white },
   tag: { alignSelf: 'flex-start', backgroundColor: '#FFF1F1', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 5, marginBottom: 10 },

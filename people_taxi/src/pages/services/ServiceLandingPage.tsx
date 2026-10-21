@@ -34,7 +34,7 @@ export function ServiceLandingPage() {
               provider: {
                 '@type': 'TaxiService',
                 name: 'People Taxi',
-                telephone: '+918531970197',
+                telephone: '+919025099990',
                 url: 'https://peopletaxi.in/',
               },
             },

@@ -7,7 +7,7 @@ import { AdminBookingError, normalizePhone, updateBookingContact, emailError } f
 import ManualBookingModal from "../components/ManualBookingModal";
 import { ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { Field, inputCls } from "../components/FormKit";
-import { AlertBadge, PaymentBadge, StatusBadge, FulfilmentBadge } from "../components/booking/BookingBadges";
+import { AlertBadge, PaymentBadge, StatusBadge, FulfilmentBadge, BookingSourceBadge, bookingSourceRowCls, getBookingSource } from "../components/booking/BookingBadges";
 import { ApproveDialog, AssignDriverModal, CancelBookingModal, RejectDialog } from "../components/booking/BookingActions";
 import { BOOKING_TABS, paymentOf, tabOf, unassignedSeverity, type BookingTab } from "../domain/bookingFlow";
 import { useCan } from "../components/AccessContext";
@@ -29,9 +29,10 @@ interface Filters {
   payment: string;
   assignment: "" | "assigned" | "unassigned";
   service: string;
+  channel: "" | "nesam" | "onewaycarrentals" | "people_taxi";
   sort: "pickup" | "created";
 }
-const NO_FILTERS: Filters = { search: "", date: "", category: "", driver: "", vendor: "", payment: "", assignment: "", service: "", sort: "pickup" };
+const NO_FILTERS: Filters = { search: "", date: "", category: "", driver: "", vendor: "", payment: "", assignment: "", service: "", channel: "", sort: "pickup" };
 
 interface ContactForm { customer: string; phone: string; email: string; notes: string }
 
@@ -125,6 +126,7 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
       if (f.payment && paymentOf(b).status !== f.payment) return false;
       if (f.assignment === "assigned" && !b.assignedDriverId) return false;
       if (f.assignment === "unassigned" && b.assignedDriverId) return false;
+      if (f.channel && getBookingSource(b) !== f.channel) return false;
       return true;
     });
     const t = (b: Booking) => (f.sort === "created" ? bookingTime(b.createdAt) : pickupOf(b)?.getTime() ?? 0);
@@ -138,11 +140,13 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
   const filtersActive = JSON.stringify({ ...f, sort: "" }) !== JSON.stringify({ ...NO_FILTERS, sort: "" });
 
   const exportCsv = () => {
-    const headers = ["Booking ID", "Status", "Customer", "Mobile", "Service", "Pickup", "Drop", "Pickup date", "Pickup time", "Vehicle", "Driver", "Vehicle no.", "Fare", "Paid", "Balance", "Payment status"];
+    const headers = ["Booking ID", "Channel", "Status", "Customer", "Mobile", "Service", "Pickup", "Drop", "Pickup date", "Pickup time", "Vehicle", "Driver", "Vehicle no.", "Fare", "Paid", "Balance", "Payment status"];
     const rows = filtered.map((b) => {
       const p = pickupOf(b);
       const pay = paymentOf(b);
-      return [b.bookingId || b.id, b.status, b.customer, b.phone || "", b.service, b.pickup, b.drop, p ? formatDate(p) : b.date, p ? formatTime12(p) : b.time, b.vehicleCategory || b.vehicle, b.assignedDriverName || b.driver || "", b.assignedVehicleNumber || "", fareNumber(b), pay.totalPaid, pay.balanceDue, pay.status];
+      const s = getBookingSource(b);
+      const channel = s === "onewaycarrentals" ? "One Way Car Rental" : s === "people_taxi" ? "People Taxi" : "Nesam Travels";
+      return [b.bookingId || b.id, channel, b.status, b.customer, b.phone || "", b.service, b.pickup, b.drop, p ? formatDate(p) : b.date, p ? formatTime12(p) : b.time, b.vehicleCategory || b.vehicle, b.assignedDriverName || b.driver || "", b.assignedVehicleNumber || "", fareNumber(b), pay.totalPaid, pay.balanceDue, pay.status];
     });
     const csv = [headers, ...rows].map((r) => r.map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -213,6 +217,7 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
         <select value={f.vendor} onChange={(e) => setF({ ...f, vendor: e.target.value })} aria-label="Vendor" className={inputCls}><option value="">All vendors</option>{vendorOptions.map(([id, n]) => <option key={id} value={id}>{n}</option>)}</select>
         <select value={f.payment} onChange={(e) => setF({ ...f, payment: e.target.value })} aria-label="Payment status" className={inputCls}><option value="">All payment statuses</option>{["Unpaid", "Partially Paid", "Paid", "Refund Pending", "Refunded"].map((s) => <option key={s}>{s}</option>)}</select>
         <select value={f.service} onChange={(e) => setF({ ...f, service: e.target.value })} aria-label="Service" className={inputCls}><option value="">All services</option>{serviceNames.map((s) => <option key={s}>{s}</option>)}</select>
+        <select value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value as Filters["channel"] })} aria-label="Booking Website / Source" className={inputCls}><option value="">All Websites / Portals</option><option value="nesam">Nesam Travels</option><option value="onewaycarrentals">🟢 One Way Car Rental</option><option value="people_taxi">🔵 People Taxi</option></select>
         {filtersActive && <button type="button" onClick={() => setF({ ...NO_FILTERS, sort: f.sort })} className="text-sm font-semibold text-[#E21B23] text-left hover:underline">Clear filters</button>}
       </div>
 
@@ -239,8 +244,8 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
                   const sev = severityOf(b);
                   const pay = paymentOf(b);
                   return (
-                    <tr key={b.id} className={`table-row border-b border-[#F0F0F0] align-top ${sev === "critical" ? "bg-red-50" : sev === "warning" ? "bg-amber-50" : ""}`}>
-                      <td className="px-3 py-3"><button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23] hover:underline">{b.bookingId || b.id}</button><div className="text-xs text-[#555]">{b.service}</div></td>
+                    <tr key={b.id} className={`table-row border-b border-[#F0F0F0] align-top ${bookingSourceRowCls(b)} ${sev === "critical" ? "bg-red-50" : sev === "warning" ? "bg-amber-50" : ""}`}>
+                      <td className="px-3 py-3"><div className="flex items-center gap-1.5 flex-wrap"><button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23] hover:underline">{b.bookingId || b.id}</button><BookingSourceBadge booking={b} size="sm" /></div><div className="text-xs text-[#555]">{b.service}</div></td>
                       <td className="px-3 py-3 text-sm"><div className="font-semibold text-[#111]">{b.customer}</div><div className="text-xs text-[#555]">{b.phone}</div></td>
                       <td className="px-3 py-3 text-sm max-w-[200px]"><div className="truncate" title={b.pickup}>{b.pickup}</div><div className="truncate text-[#555]" title={b.drop}>→ {b.drop}</div></td>
                       <td className="px-3 py-3 text-sm whitespace-nowrap"><div className="font-semibold text-[#111]">{p ? formatTime12(p) : b.time}</div><div className="text-xs text-[#555]">{p ? formatDate(p) : b.date}{p && tab !== "Completed" && tab !== "Cancelled" ? ` · ${relativeFromNow(p, now)}` : ""}</div></td>
@@ -265,9 +270,12 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
               const sev = severityOf(b);
               const pay = paymentOf(b);
               return (
-                <li key={b.id} className={`p-4 space-y-2 ${sev === "critical" ? "bg-red-50" : sev === "warning" ? "bg-amber-50" : ""}`}>
+                <li key={b.id} className={`p-4 space-y-2 ${bookingSourceRowCls(b)} ${sev === "critical" ? "bg-red-50" : sev === "warning" ? "bg-amber-50" : ""}`}>
                   <div className="flex items-start justify-between gap-2">
-                    <button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23]">{b.bookingId || b.id}</button>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23]">{b.bookingId || b.id}</button>
+                      <BookingSourceBadge booking={b} size="sm" />
+                    </div>
                     <StatusBadge status={b.status} />
                   </div>
                   <div className="text-sm"><span className="font-semibold">{b.customer}</span> · {b.phone}</div>

@@ -1,7 +1,8 @@
-// Home / booking step 1, in the customer reference layout: centred service title,
-// One Way / Round Trip tabs, the route + schedule form, popular routes from
-// Chennai, “The NESAM Way”, reviews, FAQs and the company footer. Pricing,
-// validation and booking stay with the real services (BookingDraft → server quote).
+// Home / booking step 1, in the modern mobile layout:
+// Header displays the logo with the dynamic page heading right to it (Airport Transfers, Round Trip, One Way, etc.),
+// One Way / Round Trip tabs, route + schedule form, and popular routes from Chennai.
+// All click interactions have modern tactile micro-animations.
+// Website footers, marketing copy, and FAQs are cleanly omitted from the mobile application.
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView as RNScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Button, Disclosure, Notice, Segmented, Tabs } from '../components/ui';
 import { ScrollView } from '../components/layout';
-import { AppHeader } from '../components/brand';
+import { AppHeader, PressableScale } from '../components/brand';
 import { Icon, type IconName } from '../components/Icon';
 import { PlaceSearchModal } from '../components/PlaceSearchModal';
 import { TimePickerSheet } from '../components/TimePickerSheet';
@@ -19,11 +20,7 @@ import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { LOCATION_ERROR_TEXT, reverseGeocode } from '../services/geoService';
 import {
-  COMPANY_LEGAL_NAME,
-  SCHEDULED_CANCELLATION_FEE,
-  SCHEDULED_FREE_CANCEL_BEFORE_MS,
   SCHEDULE_MAX_DAYS,
-  SCHEDULE_MIN_LEAD_MIN,
   SUPPORT_PHONE,
   SUPPORT_PHONE_DISPLAY,
 } from '../config/constants';
@@ -32,7 +29,7 @@ import { POPULAR_AIRPORTS, makeLocalDisposalPlace } from '../services/pricingSer
 import type { GeoPlace, TripType } from '../types';
 import { formatTime } from '../utils/format';
 import { haversineKm, isValidLatLng } from '../utils/geo';
-import { colors, fonts, space, type } from '../theme';
+import { colors, fonts, space } from '../theme';
 import { ROUTE_ART } from '../assets/images';
 import { useRideFocus } from '../navigation/MainNavigator';
 
@@ -48,7 +45,7 @@ const SERVICE_TITLE: Record<HomeService, string> = {
 
 const CHENNAI: GeoPlace = { id: 'city-chennai', name: 'Chennai', address: 'Chennai, Tamil Nadu', lat: 13.0827, lng: 80.2707, type: 'other' };
 
-/** The reference's six popular journeys from Chennai, with real city-centre coordinates. */
+/** Six popular journeys from Chennai, with real city-centre coordinates. */
 const POPULAR: { city: string; art: keyof typeof ROUTE_ART; place: GeoPlace }[] = [
   { city: 'Trichy', art: 'trichy', place: { id: 'city-trichy', name: 'Trichy', address: 'Tiruchirappalli, Tamil Nadu', lat: 10.7905, lng: 78.7047, type: 'other' } },
   { city: 'Madurai', art: 'madurai', place: { id: 'city-madurai', name: 'Madurai', address: 'Madurai, Tamil Nadu', lat: 9.9252, lng: 78.1198, type: 'other' } },
@@ -56,38 +53,6 @@ const POPULAR: { city: string; art: keyof typeof ROUTE_ART; place: GeoPlace }[] 
   { city: 'Puducherry', art: 'puducherry', place: { id: 'city-puducherry', name: 'Puducherry', address: 'Puducherry', lat: 11.9416, lng: 79.8083, type: 'other' } },
   { city: 'Coimbatore', art: 'coimbatore', place: { id: 'city-coimbatore', name: 'Coimbatore', address: 'Coimbatore, Tamil Nadu', lat: 11.0168, lng: 76.9558, type: 'other' } },
   { city: 'Rameswaram', art: 'rameswaram', place: { id: 'city-rameswaram', name: 'Rameswaram', address: 'Rameswaram, Tamil Nadu', lat: 9.2876, lng: 79.3129, type: 'other' } },
-];
-
-const BENEFITS: { icon: IconName; title: string; text: string }[] = [
-  { icon: 'receipt-text', title: 'Clear fares', text: 'Know your inclusions, applicable GST and extra rates before you book.' },
-  { icon: 'map-pin', title: 'Doorstep pickup', text: 'Choose the pickup address that works for your journey.' },
-  { icon: 'headphones', title: 'Trip support', text: 'A direct line to NESAM for booking and journey assistance.' },
-];
-
-const FREE_CANCEL_MIN = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 60000);
-
-/** Answers reflect how the live service works (server quote, cash/UPI payment, real cancellation rules). */
-const FAQS: { q: string; a: string }[] = [
-  {
-    q: 'What does my fare include?',
-    a: 'Your quote itemises cab charges, driver allowance where it applies and GST. Included kilometres and the extra kilometre rate are shown before you confirm.',
-  },
-  {
-    q: 'Are toll, parking and state tax included?',
-    a: 'Only when your fare breakup lists them as included. Otherwise toll, parking, permits and state tax are paid separately during the trip.',
-  },
-  {
-    q: 'Can I book now and pay later?',
-    a: 'Yes. Your booking is placed without an online payment, and you pay the trip fare by cash or UPI. Payments and refunds recorded by NESAM appear under Payments & Refunds.',
-  },
-  {
-    q: 'When will I get my driver details?',
-    a: 'NESAM reviews every booking first. The driver’s name, phone and vehicle number appear in My Bookings — and you are notified — as soon as a driver is assigned.',
-  },
-  {
-    q: 'How do cancellations and refunds work?',
-    a: `Cancel from My Bookings. It is free while your booking is under review or more than ${FREE_CANCEL_MIN} minutes before pickup; after that a ₹${SCHEDULED_CANCELLATION_FEE} fee applies once a partner is committed. Any refund is shown on the booking.`,
-  },
 ];
 
 const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -111,7 +76,6 @@ export function BookScreen() {
   const [problem, setProblem] = useState('');
   const [fieldError, setFieldError] = useState<Partial<Record<'pickup' | 'drop' | 'date' | 'time' | 'return', string>>>({});
   const scroller = useRef<RNScrollView>(null);
-  const faqY = useRef(0);
 
   const isAirport = service === 'airport';
   const isRental = service === 'rental';
@@ -142,16 +106,11 @@ export function BookScreen() {
       for (const p of [t.drop, t.pickup]) {
         if (!isValidLatLng(p) || seen.has(p.name)) continue;
         seen.add(p.name);
-        out.push({ ...p, id: `recent-${t.id}-${p.id}`, type: p.type === 'airport' ? 'airport' : 'recent' });
+        out.push(p);
       }
     }
-    return out.slice(0, 6);
+    return out;
   }, [trips]);
-
-  const clearErrors = () => {
-    setProblem('');
-    setFieldError({});
-  };
 
   const locateMe = async () => {
     const p = await locate();
@@ -160,62 +119,75 @@ export function BookScreen() {
     if (mounted.current) {
       pickupFromGps.current = true;
       update({ pickup: { ...place, type: 'current' } });
+      clearErrors();
+      setPicker(null);
     }
   };
 
-  // ── Which field is the airport ──────────────────────────────────────────────
-  const airportField: Field | null = isAirport ? (airportDirection === 'to' ? 'drop' : 'pickup') : null;
-  const setDirection = (dir: 'to' | 'from') => {
-    if (dir === airportDirection) return;
-    // The airport moves to the other end of the trip.
-    update((d) => ({ airportDirection: dir, pickup: d.drop, drop: d.pickup }));
-    clearErrors();
+  const clearErrors = () => {
+    setFieldError({});
+    setProblem('');
   };
 
+  // ── Trip switching ──────────────────────────────────────────────────────────
   const switchOutstation = (t: TripType) => {
     update({ tripType: t });
     clearErrors();
   };
 
-  // ── Dates and times ─────────────────────────────────────────────────────────
-  const minPickup = () => new Date(Date.now() + SCHEDULE_MIN_LEAD_MIN * 60000);
-  const maxPickup = () => new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
+  const setDirection = (d: 'to' | 'from') => {
+    update((prev) => {
+      if (prev.airportDirection === d) return {};
+      // Swap places so the airport stays in the airport slot.
+      const p = prev.pickup;
+      const drop = prev.drop;
+      return { airportDirection: d, pickup: drop, drop: p };
+    });
+    clearErrors();
+  };
 
+  const airportField: Field = isAirport ? (airportDirection === 'to' ? 'drop' : 'pickup') : 'pickup';
+
+  // ── Scheduling ──────────────────────────────────────────────────────────────
   const openDate = (target: 'pickup' | 'return') => {
-    const base = target === 'pickup' ? pickupDay ?? scheduledAt ?? minPickup() : returnDay ?? tripEndAt ?? scheduledAt ?? minPickup();
-    const min = target === 'pickup' ? minPickup() : scheduledAt ?? pickupDay ?? minPickup();
+    const current = (target === 'return' ? returnDay : pickupDay) ?? dayStart(new Date());
+    const min = target === 'return' && pickupDay ? pickupDay : dayStart(new Date());
+    const max = new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
     try {
       DateTimePickerAndroid.open({
-        value: base,
+        value: current < min ? min : current,
         mode: 'date',
-        minimumDate: dayStart(min),
-        maximumDate: maxPickup(),
+        minimumDate: min,
+        maximumDate: max,
         onChange: (event, date) => {
           if (event.type !== 'set' || !date) return;
-          const day = dayStart(date);
-          setFieldError((e) => ({ ...e, date: '', return: '' }));
+          const chosen = dayStart(date);
           if (target === 'pickup') {
-            setPendingPickupDay(day);
+            setPendingPickupDay(chosen);
             if (scheduledAt) {
-              const next = new Date(day);
-              next.setHours(scheduledAt.getHours(), scheduledAt.getMinutes(), 0, 0);
-              const p = scheduleProblem(next);
-              update({ scheduledAt: p ? null : next });
-              if (p) setFieldError((e) => ({ ...e, time: p }));
-              if (!p && tripEndAt && tripEndAt <= next) update({ tripEndAt: null });
-            } else {
-              setTimeTarget('pickup');
+              const adjusted = new Date(chosen);
+              adjusted.setHours(scheduledAt.getHours(), scheduledAt.getMinutes(), 0, 0);
+              update({ scheduledAt: adjusted });
+            }
+            if (returnDay && returnDay < chosen) {
+              setPendingReturnDay(chosen);
+              if (tripEndAt) {
+                const adjustedReturn = new Date(chosen);
+                adjustedReturn.setHours(tripEndAt.getHours(), tripEndAt.getMinutes(), 0, 0);
+                update({ tripEndAt: adjustedReturn });
+              }
             }
           } else {
-            setPendingReturnDay(day);
+            setPendingReturnDay(chosen);
             if (tripEndAt) {
-              const next = new Date(day);
-              next.setHours(tripEndAt.getHours(), tripEndAt.getMinutes(), 0, 0);
-              update({ tripEndAt: scheduledAt && next > scheduledAt ? next : null });
-            } else {
-              setTimeTarget('return');
+              const adjusted = new Date(chosen);
+              adjusted.setHours(tripEndAt.getHours(), tripEndAt.getMinutes(), 0, 0);
+              update({ tripEndAt: adjusted });
             }
           }
+          setFieldError((e) => ({ ...e, date: '', return: '' }));
+          // Move directly to time selection.
+          setTimeTarget(target);
         },
       });
     } catch {
@@ -325,12 +297,13 @@ export function BookScreen() {
         />
       ) : null}
 
-      <AppHeader />
+      <AppHeader title={title} />
 
       <ScrollView ref={scroller} kind="narrow" contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {liveRide ? (
-          <Pressable
-            style={({ pressed }) => [styles.live, pressed && { opacity: 0.85 }]}
+          <PressableScale
+            activeScale={0.96}
+            style={styles.live}
             onPress={() => {
               undismiss(liveRide.id);
               navigation.navigate('ActiveRide', { bookingId: liveRide.id });
@@ -345,16 +318,12 @@ export function BookScreen() {
                 {liveRide.pickup.name} → {liveRide.drop.name}
               </Text>
             </View>
-            <Icon name="chevron-right" size={18} color={colors.success} />
-          </Pressable>
+            <Icon name="chevron-right" size={18} color={colors.success} strokeWidth={2.2} />
+          </PressableScale>
         ) : null}
 
-        <Text style={styles.title} accessibilityRole="header">
-          {title}
-        </Text>
-
         {service === 'outstation' ? (
-          <View style={{ marginBottom: 19 }}>
+          <View style={{ marginBottom: 16 }}>
             <Tabs<TripType>
               options={[
                 { value: 'One Way', label: 'One Way' },
@@ -406,19 +375,20 @@ export function BookScreen() {
                   />
                 )}
                 {service === 'outstation' ? (
-                  <Pressable
+                  <PressableScale
                     onPress={() => {
                       update({ pickup: drop, drop: pickup });
                       clearErrors();
                     }}
+                    activeScale={0.86}
                     disabled={!pickup && !drop}
-                    style={({ pressed }) => [styles.swap, pressed && { backgroundColor: colors.subtle }]}
+                    style={styles.swap}
                     accessibilityRole="button"
                     accessibilityLabel="Swap pickup and drop"
                     hitSlop={6}
                   >
-                    <Icon name="arrow-up-down" size={17} color="#657184" />
-                  </Pressable>
+                    <Icon name="arrow-up-down" size={17} color="#657184" strokeWidth={2.0} />
+                  </PressableScale>
                 ) : null}
               </View>
 
@@ -466,7 +436,7 @@ export function BookScreen() {
                 <View style={styles.packageNote}>
                   <Text style={styles.formLabel}>Rental package</Text>
                   <View style={styles.packageBox}>
-                    <Icon name="clock-3" size={16} color="#7E8896" />
+                    <Icon name="clock-3" size={16} color="#7E8896" strokeWidth={2.0} />
                     <Text style={styles.packageText}>Hourly, within the city. Your quote shows the minimum hours and extra rates.</Text>
                   </View>
                 </View>
@@ -492,7 +462,7 @@ export function BookScreen() {
 
               <Button title="Search Cabs" iconRight="arrow-right" onPress={findCab} style={{ marginTop: 14 }} />
               <View style={styles.trust}>
-                <Icon name="shield-check" size={12} color="#8994A4" />
+                <Icon name="shield-check" size={13} color="#8994A4" strokeWidth={2.0} />
                 <Text style={styles.trustText}>Clear fares. Dedicated support.</Text>
               </View>
             </>
@@ -511,10 +481,11 @@ export function BookScreen() {
         </View>
         <RNScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail} style={styles.railWrap}>
           {POPULAR.map((r) => (
-            <Pressable
+            <PressableScale
               key={r.city}
+              activeScale={0.94}
               onPress={() => planRoute(r.place)}
-              style={({ pressed }) => [styles.routeCard, pressed && { borderColor: '#D5DAE1' }]}
+              style={styles.routeCard}
               accessibilityRole="button"
               accessibilityLabel={`Plan trip: Chennai to ${r.city}`}
             >
@@ -524,96 +495,17 @@ export function BookScreen() {
               <View style={styles.routeBody}>
                 <View style={styles.routeName}>
                   <Text style={styles.routeFrom}>Chennai</Text>
-                  <Icon name="arrow-right" size={14} color="#9199A5" />
+                  <Icon name="arrow-right" size={14} color="#9199A5" strokeWidth={2.0} />
                   <Text style={styles.routeTo}>{r.city}</Text>
                 </View>
                 <View style={styles.planTrip}>
                   <Text style={styles.planText}>Plan trip</Text>
-                  <Icon name="arrow-right" size={13} color={colors.primary} />
+                  <Icon name="arrow-right" size={13} color={colors.primary} strokeWidth={2.0} />
                 </View>
               </View>
-            </Pressable>
+            </PressableScale>
           ))}
         </RNScrollView>
-
-        {/* The NESAM Way */}
-        <View style={styles.why}>
-          <Text style={type.eyebrow}>The NESAM Way</Text>
-          <Text style={styles.sectionTitle} accessibilityRole="header">
-            Travel with clarity.
-          </Text>
-          <View style={{ paddingTop: 12 }}>
-            {BENEFITS.map((b, i) => (
-              <View key={b.title} style={[styles.benefit, i > 0 && styles.benefitLine]}>
-                <Icon name={b.icon} size={21} color="#A32B30" />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.benefitTitle}>{b.title}</Text>
-                  <Text style={styles.benefitText}>{b.text}</Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Reviews: nothing is published yet, so the reference's empty state is shown. */}
-        <View style={styles.section}>
-          <Text style={type.eyebrow}>From our travellers</Text>
-          <Text style={styles.sectionTitle} accessibilityRole="header">
-            Customer reviews
-          </Text>
-          <View style={styles.reviewCard}>
-            <View style={styles.reviewMark}>
-              <Icon name="message-circle" size={17} color="#A12D33" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.reviewTitle}>Your journey. Your words.</Text>
-              <Text style={styles.reviewText}>Travelled with NESAM? We would love to hear about your experience.</Text>
-              <Text style={styles.reviewSmall}>Customer reviews will appear here once published.</Text>
-              <Pressable onPress={() => navigation.navigate('Support')} accessibilityRole="link" style={styles.inlineLink} hitSlop={6}>
-                <Text style={styles.inlineLinkText}>Share feedback</Text>
-                <Icon name="arrow-up-right" size={16} color={colors.link} />
-              </Pressable>
-            </View>
-          </View>
-        </View>
-
-        {/* FAQs */}
-        <View
-          style={styles.section}
-          onLayout={(e) => {
-            faqY.current = e.nativeEvent.layout.y;
-          }}
-        >
-          <Text style={type.eyebrow}>Good to know</Text>
-          <Text style={[styles.sectionTitle, styles.faqTitle]} accessibilityRole="header">
-            A little help, before you go.
-          </Text>
-          <Text style={styles.caption}>The details that make planning easier.</Text>
-          <Pressable onPress={() => navigation.navigate('Support')} accessibilityRole="link" style={[styles.inlineLink, { marginTop: 6 }]} hitSlop={6}>
-            <Text style={[styles.inlineLinkText, { fontSize: 13 }]}>Talk to NESAM</Text>
-            <Icon name="arrow-up-right" size={16} color={colors.link} />
-          </Pressable>
-          <View style={styles.faqList}>
-            {FAQS.map((f, i) => (
-              <Disclosure key={f.q} title={f.q} variant="faq" initiallyOpen={i === 0}>
-                <Text style={styles.faqAnswer}>{f.a}</Text>
-              </Disclosure>
-            ))}
-          </View>
-        </View>
-
-        <Footer
-          onService={(s) => {
-            setService(s);
-            scroller.current?.scrollTo({ y: 0, animated: true });
-          }}
-          onOneWay={(t) => {
-            setService('outstation');
-            update({ tripType: t });
-            scroller.current?.scrollTo({ y: 0, animated: true });
-          }}
-          onFaq={() => scroller.current?.scrollTo({ y: Math.max(0, faqY.current - 12), animated: true })}
-        />
       </ScrollView>
     </SafeAreaView>
   );
@@ -639,9 +531,10 @@ function RouteField({
   roomForSwap?: boolean;
 }) {
   return (
-    <Pressable
+    <PressableScale
       onPress={onPress}
-      style={({ pressed }) => [styles.field, divider && styles.fieldDivider, pressed && { opacity: 0.75 }]}
+      activeScale={0.98}
+      style={[styles.field, divider && styles.fieldDivider]}
       accessibilityRole="button"
       accessibilityLabel={`${label}: ${value ?? 'not set'}`}
       accessibilityHint={error || 'Opens location search'}
@@ -655,19 +548,34 @@ function RouteField({
         {error ? <Text style={styles.fieldError}>{error}</Text> : null}
       </View>
       <View style={[styles.chev, roomForSwap && { marginRight: 32 }]}>
-        <Icon name="chevron-right" size={17} color="#90939A" />
+        <Icon name="chevron-right" size={17} color="#90939A" strokeWidth={2.2} />
       </View>
-    </Pressable>
+    </PressableScale>
   );
 }
 
-function PickerBox({ label, value, placeholder, icon, error, onPress }: { label: string; value: string; placeholder: string; icon: IconName; error?: string; onPress: () => void }) {
+function PickerBox({
+  label,
+  value,
+  placeholder,
+  icon,
+  error,
+  onPress,
+}: {
+  label: string;
+  value: string;
+  placeholder: string;
+  icon: IconName;
+  error?: string;
+  onPress: () => void;
+}) {
   return (
     <View style={{ flex: 1, minWidth: 0 }}>
       <Text style={styles.formLabel}>{label}</Text>
-      <Pressable
+      <PressableScale
         onPress={onPress}
-        style={({ pressed }) => [styles.pickerBox, !!error && styles.pickerError, pressed && { borderColor: '#B7BEC9' }]}
+        activeScale={0.96}
+        style={[styles.pickerBox, !!error && styles.pickerError]}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value || 'not set'}`}
         accessibilityHint={error || undefined}
@@ -675,8 +583,8 @@ function PickerBox({ label, value, placeholder, icon, error, onPress }: { label:
         <Text style={[styles.pickerValue, !value && styles.fieldPlaceholder]} numberOfLines={1}>
           {value || placeholder}
         </Text>
-        <Icon name={icon} size={15} color="#858B95" />
-      </Pressable>
+        <Icon name={icon} size={15} color="#858B95" strokeWidth={2.0} />
+      </PressableScale>
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
   );
@@ -705,61 +613,9 @@ function MulticityNotice({ onOneWay }: { onOneWay: () => void }) {
   );
 }
 
-function Footer({ onService, onOneWay, onFaq }: { onService: (s: HomeService) => void; onOneWay: (t: TripType) => void; onFaq: () => void }) {
-  const navigation = useNavigation();
-  const link = (label: string, onPress: () => void) => (
-    <Pressable key={label} onPress={onPress} accessibilityRole="link" style={styles.footLink} hitSlop={2}>
-      <Text style={styles.footLinkText}>{label}</Text>
-    </Pressable>
-  );
-  return (
-    <View style={styles.footer}>
-      <View style={styles.footWord}>
-        <Text style={styles.footBrand}>NESAM</Text>
-        <View style={styles.footBar} />
-      </View>
-      <Text style={styles.footTag}>Cabs & Car Rentals</Text>
-      <Pressable onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} accessibilityRole="link" accessibilityLabel={`Call NESAM on ${SUPPORT_PHONE_DISPLAY}`} style={styles.footPhone}>
-        <Text style={styles.footPhoneText}>{SUPPORT_PHONE_DISPLAY}</Text>
-      </Pressable>
-      <View style={styles.footGrid}>
-        <View style={styles.footCol}>
-          <Text style={styles.footHead}>Our services</Text>
-          {link('One Way', () => onOneWay('One Way'))}
-          {link('Round Trip', () => onOneWay('Round Trip'))}
-          {link('Airport Transfers', () => onService('airport'))}
-          {link('Multicity', () => onService('multicity'))}
-          {link('Local Rental', () => onService('rental'))}
-        </View>
-        <View style={styles.footCol}>
-          <Text style={styles.footHead}>Bookings & help</Text>
-          {link('My Bookings', () => navigation.navigate('Tabs', { screen: 'Trips' }))}
-          {link('Payments', () => navigation.navigate('PaymentHistory'))}
-          {link('Help & Support', () => navigation.navigate('Support'))}
-          {link('Frequently asked questions', onFaq)}
-        </View>
-      </View>
-      <View style={styles.footCol}>
-        <Text style={styles.footHead}>Company</Text>
-        {link('About NESAM', () => navigation.navigate('Settings'))}
-        {link('Offers & coupons', () => navigation.navigate('Offers'))}
-        {link('Terms, privacy & cancellation policy', () => navigation.navigate('LegalDocuments'))}
-      </View>
-      <View style={styles.footBottom}>
-        <Text style={styles.footCopy}>
-          © {new Date().getFullYear()} {COMPANY_LEGAL_NAME.toUpperCase()}
-        </Text>
-        <Text style={styles.footPay}>
-          Book now <Text style={{ color: '#727E8E' }}>·</Text> Pay by cash or UPI
-        </Text>
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  page: { paddingHorizontal: space.xl, paddingTop: space.xl },
+  page: { paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: 40 },
   live: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -770,13 +626,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    marginBottom: space.lg,
+    marginBottom: space.md,
   },
   liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.successStrong },
   liveTitle: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.success },
   liveRoute: { fontFamily: fonts.regular, fontSize: 12, color: '#3E5A4C', marginTop: 2 },
-  title: { fontFamily: fonts.semiBold, fontSize: 23, lineHeight: 32, letterSpacing: -0.6, color: colors.text, textAlign: 'center', marginBottom: 20 },
-  widget: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: colors.white },
+  widget: { borderWidth: 1, borderColor: colors.border, borderRadius: 12, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: colors.white },
   field: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, minHeight: 67, gap: 13 },
   fieldDivider: { borderTopWidth: 1, borderTopColor: colors.divider },
   pin: { width: 8, height: 8, borderWidth: 1 },
@@ -800,13 +655,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.white,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   formRow: { flexDirection: 'row', gap: 11, marginTop: 14 },
   pickerBox: {
     minHeight: 46,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 6,
+    borderRadius: 8,
     paddingHorizontal: 10,
     flexDirection: 'row',
     alignItems: 'center',
@@ -816,60 +676,28 @@ const styles = StyleSheet.create({
   pickerError: { borderColor: colors.primary, backgroundColor: '#FFFBFB' },
   pickerValue: { flex: 1, fontFamily: fonts.medium, fontSize: 13.5, color: colors.text, letterSpacing: -0.2 },
   packageNote: { marginTop: 14 },
-  packageBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FAFBFC' },
+  packageBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FAFBFC' },
   packageText: { flex: 1, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: '#55606F' },
   flight: { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 2 },
-  flightInput: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 11, fontFamily: fonts.medium, fontSize: 15, color: colors.value },
+  flightInput: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 8, paddingHorizontal: 11, fontFamily: fonts.medium, fontSize: 15, color: colors.value },
   flightHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 5 },
   trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 11 },
   trustText: { fontFamily: fonts.regular, fontSize: 9.5, color: '#7F8998' },
   multiSteps: { borderWidth: 1, borderColor: colors.divider, borderRadius: 8, paddingHorizontal: 12 },
   multiStep: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 46 },
   multiStepText: { fontFamily: fonts.medium, fontSize: 13.5, color: '#8A929E' },
-  popular: { marginTop: 25 },
-  popularTitle: { fontFamily: fonts.heading, fontSize: 21, lineHeight: 29, letterSpacing: -0.6, color: colors.text },
-  caption: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 19, color: '#74808F', marginTop: 4 },
-  railWrap: { marginHorizontal: -space.xl, marginTop: 13 },
+  popular: { marginTop: 24 },
+  popularTitle: { fontFamily: fonts.heading, fontSize: 20, lineHeight: 28, letterSpacing: -0.5, color: colors.text },
+  caption: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: '#74808F', marginTop: 3 },
+  railWrap: { marginHorizontal: -space.xl, marginTop: 12 },
   rail: { paddingHorizontal: space.xl, paddingBottom: 8, gap: 12 },
-  routeCard: { width: 249, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: colors.white, overflow: 'hidden' },
-  routeArt: { height: 110, margin: 5, marginBottom: 0, borderRadius: 4, backgroundColor: '#FFF5F2', overflow: 'hidden' },
+  routeCard: { width: 249, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 10, backgroundColor: colors.white, overflow: 'hidden' },
+  routeArt: { height: 110, margin: 5, marginBottom: 0, borderRadius: 6, backgroundColor: '#FFF5F2', overflow: 'hidden' },
   routeImg: { width: '100%', height: '100%' },
-  routeBody: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 14 },
+  routeBody: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 14 },
   routeName: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   routeFrom: { fontFamily: fonts.regular, fontSize: 14, color: '#3D4653', letterSpacing: -0.3 },
   routeTo: { fontFamily: fonts.semiBold, fontSize: 14, color: '#252D38', letterSpacing: -0.3, flexShrink: 1 },
   planTrip: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   planText: { fontFamily: fonts.medium, fontSize: 11, color: colors.primary },
-  why: { marginTop: 36, paddingTop: 25, borderTopWidth: 1, borderTopColor: '#E7E9ED' },
-  sectionTitle: { fontFamily: fonts.heading, fontSize: 23, lineHeight: 31, letterSpacing: -0.6, color: colors.ink, marginTop: 9 },
-  benefit: { flexDirection: 'row', gap: 17, paddingVertical: 16 },
-  benefitLine: { borderTopWidth: 1, borderTopColor: colors.divider },
-  benefitTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: '#29323D', letterSpacing: -0.2 },
-  benefitText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#6E7887', marginTop: 4 },
-  section: { marginTop: 36 },
-  reviewCard: { flexDirection: 'row', gap: 14, marginTop: 18, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: '#FAFBFC', paddingVertical: 20, paddingHorizontal: 18 },
-  reviewMark: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#EADBDD', backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
-  reviewTitle: { fontFamily: fonts.semiBold, fontSize: 15, lineHeight: 22.5, letterSpacing: -0.3, color: colors.ink },
-  reviewText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#687383', marginTop: 5 },
-  reviewSmall: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 17, color: '#808A97', marginTop: 11 },
-  inlineLink: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 30, marginTop: 8 },
-  inlineLinkText: { fontFamily: fonts.medium, fontSize: 12, color: colors.link },
-  faqTitle: { fontSize: 25, lineHeight: 35, maxWidth: 300 },
-  faqList: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#E3E6EB' },
-  faqAnswer: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22.8, color: '#727D8B' },
-  footer: { marginTop: 36, marginHorizontal: -space.xl, backgroundColor: colors.navy, paddingHorizontal: space.xl, paddingTop: 32, paddingBottom: 28 },
-  footWord: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
-  footBrand: { fontFamily: fonts.brand, fontSize: 27, lineHeight: 30, color: colors.white, letterSpacing: 2 },
-  footBar: { width: 16, height: 3, backgroundColor: '#DF4149', marginBottom: 6 },
-  footTag: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 17.6, color: '#B2BDCB', marginTop: 8 },
-  footPhone: { paddingVertical: 5, marginTop: 14, alignSelf: 'flex-start' },
-  footPhoneText: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 27, color: colors.white, letterSpacing: 0.2 },
-  footGrid: { flexDirection: 'row', gap: 20, marginTop: 22 },
-  footCol: { flex: 1, marginBottom: 22 },
-  footHead: { fontFamily: fonts.medium, fontSize: 13.5, color: colors.white, marginBottom: 8 },
-  footLink: { paddingVertical: 6, alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center' },
-  footLinkText: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 18.7, color: '#B9C2CE' },
-  footBottom: { borderTopWidth: 1, borderTopColor: '#343C47', paddingTop: 18, gap: 10 },
-  footCopy: { fontFamily: fonts.regular, fontSize: 8.5, lineHeight: 14.4, color: '#9DA9B9', letterSpacing: 0.3 },
-  footPay: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 18, color: '#9DA9B9' },
 });

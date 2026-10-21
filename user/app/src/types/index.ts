@@ -77,6 +77,7 @@ export interface RideCategory {
   name: string;
   description: string;
   seats: number;
+  luggageCapacity?: number;
   imageUrl?: string;
   /** Driver `vehicleType` values that can serve this category. */
   matchVehicleTypes: string[];
@@ -225,6 +226,9 @@ export interface TripRecord {
   /** Live position the assigned driver's app writes to the booking (rules: driverProgressOk). */
   driverLocation: DriverLocation | null;
   assignedVendorName: string;
+  source?: string;
+  bookingSource?: string;
+  brand?: string;
   rating: number | null;
   reviewComment: string;
   /** Display strings kept for admin/driver compatibility. */
