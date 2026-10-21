@@ -43,20 +43,24 @@ export const INDIAN_STATES = [
 ];
 
 /**
- * Wizard order (spec page 13): business + account details, then fleet
- * documentation, then review. Index == onboardingStep stored on the vendor doc.
- * Admin-flagged 'payout' maps to the first step and legacy 'documents' too.
+ * Wizard order: business + account details, then identity & business
+ * documents, then fleet documentation, then review & submit.
+ * Index == onboardingStep stored on the vendor doc.
+ * Admin-flagged 'payout' maps to step 0 (business); 'documents' maps to step 1.
  */
 export const ONBOARDING_STEPS: { key: OnboardingSection | 'review'; title: string; short: string }[] = [
   { key: 'business', title: 'Business & account details', short: 'Business' },
+  { key: 'documents', title: 'Identity & business docs', short: 'Documents' },
   { key: 'fleet', title: 'Fleet documentation', short: 'Fleet' },
   { key: 'review', title: 'Review & Submit', short: 'Submit' },
 ];
 
 /** The wizard step an admin-flagged section belongs to. */
 export function stepOfSection(section: OnboardingSection | 'review'): number {
-  if (section === 'fleet') return 1;
-  if (section === 'review') return 2;
+  if (section === 'documents') return 1;
+  if (section === 'fleet') return 2;
+  if (section === 'review') return 3;
+  // 'business' | 'payout' → step 0
   return 0;
 }
 

@@ -78,7 +78,7 @@ function Root() {
   if (vendor === undefined) return <FullScreenLoader label="Loading your account…" />;
 
   const phone = authUser.phoneNumber || vendor?.record.phone || '';
-  // No vendor account: registration is by one-time invitation (spec page 13).
+  // No vendor account yet → show self-registration entry screen.
   if (!vendor) return <RegistrationGate key={authUser.uid} phone={phone} onSignOut={signOut} />;
   if (status === 'INCOMPLETE' || status === 'CHANGES_REQUESTED' || (status === 'REJECTED' && reapplying)) {
     return <OnboardingWizard key={authUser.uid} record={vendor.record} phone={phone} onSignOut={signOut} />;

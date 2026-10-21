@@ -93,7 +93,7 @@ export function playTone(tone: NotificationSound, times = 1): void {
       setTimeout(() => {
         try {
           void player.seekTo(0);
-          player.play();
+          void Promise.resolve(player.play()).catch(() => undefined);
         } catch {
           /* a tone must never break the app */
         }

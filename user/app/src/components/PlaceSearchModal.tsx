@@ -1,23 +1,29 @@
-// Full-screen place picker: current location, saved places, recent places and
+// Full-screen place picker in the reference layout: page heading, search field,
+// “Use current location”, saved addresses, recent and suggested places, and
 // debounced Photon search (native port of user/web PlaceSearch.tsx).
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { FlatList, Frame } from './layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import type { GeoPlace, LatLng, LocationItem } from '../types';
 import { searchPlaces } from '../services/geoService';
 import { isValidLatLng } from '../utils/geo';
 import { isOnline } from '../utils/network';
-import { colors, fonts, radius, space, type } from '../theme';
+import { colors, fonts, space } from '../theme';
+import { Icon, type IconName } from './Icon';
+import { PageHead } from './ui';
 
 interface Props {
   visible: boolean;
   title: string;
+  subtitle?: string;
   onClose: () => void;
   onSelect: (place: GeoPlace) => void;
   savedPlaces?: LocationItem[];
   recentPlaces?: GeoPlace[];
+  /** Fixed suggestions (e.g. airports) shown before the user types. */
+  suggestions?: GeoPlace[];
+  suggestionsLabel?: string;
   near?: LatLng | null;
   onUseCurrentLocation?: () => void;
   /** Text to search for as soon as the picker opens (e.g. “airport”). */
@@ -27,15 +33,17 @@ interface Props {
 type Row =
   | { key: string; kind: 'current' }
   | { key: string; kind: 'header'; label: string }
-  | { key: string; kind: 'place'; place: LocationItem; icon: keyof typeof Ionicons.glyphMap };
+  | { key: string; kind: 'place'; place: LocationItem; icon: IconName; sub: string };
 
-const TYPE_ICON: Record<string, keyof typeof Ionicons.glyphMap> = {
-  home: 'home-outline',
-  work: 'briefcase-outline',
-  favorite: 'star-outline',
-  airport: 'airplane-outline',
-  recent: 'time-outline',
+const TYPE_ICON: Partial<Record<LocationItem['type'], IconName>> = {
+  home: 'house',
+  work: 'briefcase',
+  favorite: 'star',
+  airport: 'plane',
+  recent: 'clock-3',
 };
+
+const TYPE_LABEL: Partial<Record<LocationItem['type'], string>> = { home: 'Home', work: 'Work', favorite: 'Saved', airport: 'Airport' };
 
 export function PlaceSearchModal(props: Props) {
   // The body mounts fresh each time the picker opens, so it starts empty.
@@ -54,7 +62,19 @@ interface SearchState {
   error: string;
 }
 
-function PlaceSearchBody({ title, onClose, onSelect, savedPlaces = [], recentPlaces = [], near, onUseCurrentLocation, initialQuery = '' }: Props) {
+function PlaceSearchBody({
+  title,
+  subtitle = 'Search a city, area or landmark.',
+  onClose,
+  onSelect,
+  savedPlaces = [],
+  recentPlaces = [],
+  suggestions = [],
+  suggestionsLabel = 'Suggested',
+  near,
+  onUseCurrentLocation,
+  initialQuery = '',
+}: Props) {
   const [text, setText] = useState(initialQuery);
   // Results are tagged with the query they answer; anything else is stale.
   const [search, setSearch] = useState<SearchState>({ query: '', results: [], error: '' });
@@ -93,21 +113,30 @@ function PlaceSearchBody({ title, onClose, onSelect, savedPlaces = [], recentPla
 
   const rows = useMemo<Row[]>(() => {
     const out: Row[] = [];
-    if (!active) {
-      if (onUseCurrentLocation) out.push({ key: 'current', kind: 'current' });
-      if (savedPlaces.length) {
-        out.push({ key: 'h-saved', kind: 'header', label: 'Saved places' });
-        for (const p of savedPlaces) out.push({ key: `s-${p.id}`, kind: 'place', place: p, icon: TYPE_ICON[p.type] ?? 'location-outline' });
-      }
-      if (recentPlaces.length) {
-        out.push({ key: 'h-recent', kind: 'header', label: 'Recent' });
-        for (const p of recentPlaces) out.push({ key: `r-${p.id}`, kind: 'place', place: p, icon: 'time-outline' });
-      }
-    } else {
-      for (const p of results) out.push({ key: `q-${p.id}`, kind: 'place', place: p, icon: p.type === 'airport' ? 'airplane-outline' : 'location-outline' });
+    const lower = q.toLowerCase();
+    // Typing also filters the local lists, so a saved address or airport is one tap away.
+    const matches = (p: LocationItem) => !lower || `${p.name} ${p.address}`.toLowerCase().includes(lower);
+    if (!active && onUseCurrentLocation) out.push({ key: 'current', kind: 'current' });
+    const saved = savedPlaces.filter(matches);
+    if (saved.length) {
+      out.push({ key: 'h-saved', kind: 'header', label: 'Saved addresses' });
+      for (const p of saved) out.push({ key: `s-${p.id}`, kind: 'place', place: p, icon: TYPE_ICON[p.type] ?? 'map-pin', sub: TYPE_LABEL[p.type] ?? p.address });
+    }
+    const sugg = suggestions.filter(matches);
+    if (sugg.length) {
+      out.push({ key: 'h-sugg', kind: 'header', label: suggestionsLabel });
+      for (const p of sugg) out.push({ key: `g-${p.id}`, kind: 'place', place: p, icon: TYPE_ICON[p.type] ?? 'map-pin', sub: p.address });
+    }
+    if (!active && recentPlaces.length) {
+      out.push({ key: 'h-recent', kind: 'header', label: 'Recent' });
+      for (const p of recentPlaces) out.push({ key: `r-${p.id}`, kind: 'place', place: p, icon: 'clock-3', sub: p.address });
+    }
+    if (active && results.length) {
+      out.push({ key: 'h-results', kind: 'header', label: 'Search results' });
+      for (const p of results) out.push({ key: `q-${p.id}`, kind: 'place', place: p, icon: p.type === 'airport' ? 'plane' : 'map-pin', sub: p.address });
     }
     return out;
-  }, [active, results, savedPlaces, recentPlaces, onUseCurrentLocation]);
+  }, [active, q, results, savedPlaces, recentPlaces, suggestions, suggestionsLabel, onUseCurrentLocation]);
 
   const pick = (p: LocationItem) => {
     if (!isValidLatLng(p as Partial<LatLng>)) return;
@@ -117,117 +146,116 @@ function PlaceSearchBody({ title, onClose, onSelect, savedPlaces = [], recentPla
 
   return (
     <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
-<Frame>
-        <View style={styles.header}>
-          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close" style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={22} color={colors.ink} />
-          </Pressable>
-          <Text style={styles.headerTitle}>{title}</Text>
-        </View>
+      <Frame kind="narrow" style={styles.frame}>
+        <PageHead title={title} subtitle={subtitle} onBack={onClose} />
         <View style={styles.searchBox}>
-          <Ionicons name="search" size={18} color={colors.slate} />
+          <Icon name="search" size={18} color="#8D95A1" />
           <TextInput
             value={text}
             onChangeText={setText}
-            placeholder="Search area, landmark or address"
-            placeholderTextColor={colors.muted}
+            placeholder="City, area or landmark"
+            placeholderTextColor="#8D95A1"
             autoFocus
             style={styles.input}
             returnKeyType="search"
             autoCorrect={false}
+            accessibilityLabel={`Search ${title.toLowerCase()}`}
           />
           {loading ? <ActivityIndicator size="small" color={colors.primary} /> : null}
+          {text ? (
+            <Pressable onPress={() => setText('')} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear search">
+              <Icon name="x" size={16} color="#8D95A1" />
+            </Pressable>
+          ) : null}
         </View>
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? (
+          <Text style={styles.error} accessibilityLiveRegion="polite">
+            {error}
+          </Text>
+        ) : null}
         <FlatList
           data={rows}
+          kind="narrow"
           keyExtractor={(r) => r.key}
           keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: space.xxl }}
           renderItem={({ item }) => {
             if (item.kind === 'header') return <Text style={styles.group}>{item.label}</Text>;
             if (item.kind === 'current') {
               return (
                 <Pressable
-                  style={styles.row}
+                  style={({ pressed }) => [styles.current, pressed && { opacity: 0.7 }]}
                   onPress={() => {
                     onUseCurrentLocation?.();
                     onClose();
                   }}
                   accessibilityRole="button"
                 >
-                  <Ionicons name="locate" size={20} color={colors.primary} />
-                  <Text style={[styles.name, { color: colors.primary }]}>Use current location</Text>
+                  <Icon name="locate-fixed" size={19} color={colors.primary} />
+                  <Text style={styles.currentText}>Use current location</Text>
                 </Pressable>
               );
             }
             const usable = isValidLatLng(item.place as Partial<LatLng>);
             return (
-              <Pressable style={[styles.row, !usable && { opacity: 0.5 }]} onPress={() => pick(item.place)} accessibilityRole="button" disabled={!usable}>
-                <Ionicons name={item.icon} size={20} color={colors.slate} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.name} numberOfLines={1}>
+              <Pressable
+                style={({ pressed }) => [styles.row, !usable && { opacity: 0.5 }, pressed && { backgroundColor: colors.subtle }]}
+                onPress={() => pick(item.place)}
+                accessibilityRole="button"
+                accessibilityLabel={`${item.place.name}, ${item.sub}`}
+                disabled={!usable}
+              >
+                <Icon name={item.icon} size={18} color="#7E8896" />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.name} numberOfLines={2}>
                     {item.place.name}
                   </Text>
                   <Text style={styles.addr} numberOfLines={2}>
-                    {usable ? item.place.address : 'No map position — re-save this place from search.'}
+                    {usable ? item.sub : 'No map position — re-save this place from search.'}
                   </Text>
                 </View>
+                <Icon name="chevron-right" size={16} color="#9BA1AB" />
               </Pressable>
             );
           }}
-          ListEmptyComponent={
-            !active ? <Text style={styles.hint}>Type at least 3 letters to search.</Text> : null
-          }
+          ListEmptyComponent={!active ? <Text style={styles.hint}>Type at least 3 letters to search.</Text> : null}
         />
-    </Frame>
-</SafeAreaView>
+      </Frame>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.white },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-    backgroundColor: colors.white,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 18,
-    color: colors.ink,
-    flex: 1,
-  },
+  frame: { paddingHorizontal: space.xl, paddingTop: space.xl },
   searchBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: space.sm,
-    marginHorizontal: space.md,
-    marginTop: space.sm,
-    paddingHorizontal: space.md,
-    borderRadius: radius.md,
-    backgroundColor: '#F8FAFC',
+    gap: 10,
+    paddingHorizontal: 13,
+    borderRadius: 8,
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: colors.border,
     minHeight: 48,
   },
-  input: { flex: 1, fontFamily: fonts.medium, fontSize: 14, color: colors.ink },
-  error: { fontFamily: fonts.regular, color: colors.primary, marginHorizontal: space.md, marginTop: space.sm, fontSize: 12 },
-  group: { fontFamily: fonts.bold, fontSize: 11, color: colors.slate, textTransform: 'uppercase', paddingHorizontal: space.md, paddingTop: space.md, paddingBottom: space.xs, letterSpacing: 0.5 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.md, paddingVertical: space.md, minHeight: 52, borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
-  name: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
-  addr: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate, marginTop: 1 },
-  hint: { fontFamily: fonts.medium, fontSize: 12, textAlign: 'center', color: colors.slate, marginTop: space.xl },
+  input: { flex: 1, fontFamily: fonts.regular, fontSize: 14.5, color: colors.value, paddingVertical: 10 },
+  error: { fontFamily: fonts.medium, color: colors.primaryDark, marginTop: space.sm, fontSize: 12 },
+  current: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 64,
+    paddingHorizontal: 16,
+    marginTop: space.lg,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  currentText: { fontFamily: fonts.medium, fontSize: 13.5, color: colors.value },
+  group: { fontFamily: fonts.medium, fontSize: 9.5, color: '#7E8691', textTransform: 'uppercase', letterSpacing: 1, paddingTop: 24, paddingBottom: 6 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 13, paddingVertical: 15, minHeight: 64, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  name: { fontFamily: fonts.medium, fontSize: 13, color: colors.text },
+  addr: { fontFamily: fonts.regular, fontSize: 10.5, color: '#8A929E', marginTop: 3 },
+  hint: { fontFamily: fonts.regular, fontSize: 12, textAlign: 'center', color: colors.muted, marginTop: space.xl },
 });

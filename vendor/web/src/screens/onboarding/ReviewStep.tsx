@@ -9,7 +9,6 @@ import { Button, ErrorBanner } from '../../components/onboarding/ui';
 
 interface ReviewStepProps {
   record: VendorRecord;
-  preApproved: boolean;
   onEdit: (stepIndex: number) => void;
   onBack: () => void;
 }
@@ -21,13 +20,13 @@ const Row: React.FC<{ label: string; value?: React.ReactNode }> = ({ label, valu
   </div>
 );
 
-export const ReviewStep: React.FC<ReviewStepProps> = ({ record, preApproved, onEdit, onBack }) => {
+export const ReviewStep: React.FC<ReviewStepProps> = ({ record, onEdit, onBack }) => {
   const online = useOnlineStatus();
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const missing = missingSections(record);
-  const { business: b, fleet: f, payoutSummary: p } = record;
+  const { business: b, fleet: f, payoutSummary: p, documents: d } = record;
   const isResubmission = record.status !== 'INCOMPLETE';
 
   const Section: React.FC<{ id: OnboardingSection; children: React.ReactNode }> = ({ id, children }) => {
@@ -58,8 +57,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ record, preApproved, onE
     setSubmitting(true);
     setError('');
     try {
-      await submitForReview(record, preApproved);
-      // The vendors/{uid} listener re-routes to the pending screen / dashboard.
+      await submitForReview(record);
+      // The vendors/{uid} listener re-routes to the pending review screen.
     } catch (err) {
       setError(describeDataError(err));
       setSubmitting(false);
@@ -71,17 +70,29 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ record, preApproved, onE
       <Section id="business">
         <Row label="Owner name" value={b?.vendorName} />
         <Row label="Business name" value={b?.businessName} />
+        <Row label="Business email" value={b?.email} />
+        {b?.altPhone && <Row label="Alternate mobile" value={`+91 ${b.altPhone}`} />}
+        {b?.operatingCity && <Row label="Operating city / base" value={b.operatingCity} />}
+        {b?.estimatedFleetSize && <Row label="Estimated fleet size" value={`${b.estimatedFleetSize} vehicle(s)`} />}
       </Section>
 
       <Section id="payout">
         <Row label="Account holder" value={p?.accountHolderName} />
         <Row label="Account number" value={p ? `••••${p.bankLast4}` : ''} />
         <Row label="IFSC" value={p?.ifsc} />
-        <Row label="UPI ID" value={p?.upiId} />
+        <Row label="UPI ID" value={p?.upiId || '—'} />
       </Section>
 
+      {d && (
+        <Section id="documents">
+          <Row label="Business registration" value={`${d.businessRegistration.type} — ${d.businessRegistration.number}`} />
+          <Row label="Owner ID proof" value={`${d.identityProof.type} — ${d.identityProof.maskedNumber}`} />
+          <Row label="Uploaded files" value={`${(d.businessRegistration.files?.length || 0) + (d.identityProof.files?.length || 0)} document(s)`} />
+        </Section>
+      )}
+
       <Section id="fleet">
-        <Row label="Vehicles" value={f?.vehicles?.length ? String(f.vehicles.length) : ''} />
+        <Row label="Vehicles registered" value={f?.vehicles?.length ? String(f.vehicles.length) : ''} />
         {(f?.vehicles ?? []).map((v) => (
           <Row
             key={v.registrationNumber}
@@ -99,7 +110,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ record, preApproved, onE
           className="mt-0.5 w-4 h-4 accent-[#E21B23]"
         />
         I confirm that the information and documents provided are genuine, and I agree to NESAM's Fleet Partner Terms
-        of Service and Privacy Policy.
+        of Service, commission policy and verification requirements.
       </label>
 
       {missing.length > 0 && <ErrorBanner message="Complete the highlighted sections before submitting." />}
@@ -110,7 +121,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ record, preApproved, onE
           Back
         </Button>
         <Button onClick={handleSubmit} loading={submitting} disabled={!agreed || missing.length > 0 || !online}>
-          {submitting ? 'Submitting…' : isResubmission ? 'Resubmit for Review' : 'Submit Application'}
+          {submitting ? 'Submitting…' : isResubmission ? 'Resubmit for Review' : 'Submit for Review'}
         </Button>
       </div>
     </div>

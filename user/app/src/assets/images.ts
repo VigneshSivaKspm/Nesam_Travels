@@ -9,6 +9,30 @@ export const BRAND = {
   splashIcon: require('../../assets/splash-icon.png') as ImageSourcePropType,
 } as const;
 
+/** Artwork taken from the customer reference design (optimized local copies). */
+export const REFERENCE = {
+  emblem: require('../../assets/reference/brand/emblem.png') as ImageSourcePropType,
+} as const;
+
+/** White vehicle photos from the reference, keyed by its photo groups. */
+export const CAB_PHOTOS = {
+  sedan: require('../../assets/reference/vehicles/sedan.webp') as ImageSourcePropType,
+  ertiga: require('../../assets/reference/vehicles/ertiga.webp') as ImageSourcePropType,
+  carens: require('../../assets/reference/vehicles/carens.webp') as ImageSourcePropType,
+  innova: require('../../assets/reference/vehicles/innova.webp') as ImageSourcePropType,
+  crysta: require('../../assets/reference/vehicles/crysta.webp') as ImageSourcePropType,
+} as const;
+
+/** Red landmark illustrations for the popular routes (Trichy/Madurai are halves of one reference drawing). */
+export const ROUTE_ART = {
+  trichy: require('../../assets/reference/routes/trichy.webp') as ImageSourcePropType,
+  madurai: require('../../assets/reference/routes/madurai.webp') as ImageSourcePropType,
+  thanjavur: require('../../assets/reference/routes/thanjavur.webp') as ImageSourcePropType,
+  puducherry: require('../../assets/reference/routes/puducherry.webp') as ImageSourcePropType,
+  coimbatore: require('../../assets/reference/routes/coimbatore.webp') as ImageSourcePropType,
+  rameswaram: require('../../assets/reference/routes/rameswaram.webp') as ImageSourcePropType,
+} as const;
+
 export const HEROES = {
   mobile: require('../../assets/website-images/web/heroes/hero-mobile.webp') as ImageSourcePropType,
   desktop: require('../../assets/website-images/web/heroes/hero-desktop.webp') as ImageSourcePropType,
@@ -94,11 +118,11 @@ export const BACKGROUNDS = {
  */
 export function getVehicleImage(categoryName = ''): ImageSourcePropType {
   const norm = categoryName.toLowerCase();
-  if (norm.includes('crysta') || norm.includes('innova') || norm.includes('7+1') || norm.includes('mpv')) {
-    return VEHICLES.mpv;
-  }
-  if (norm.includes('suv') || norm.includes('6+1') || norm.includes('ertiga') || norm.includes('marazzo') || norm.includes('scorpio') || norm.includes('bolero')) {
-    return VEHICLES.suv;
+  if (norm.includes('crysta') || norm.includes('premium suv')) return CAB_PHOTOS.crysta;
+  if (norm.includes('innova')) return CAB_PHOTOS.innova;
+  if (norm.includes('carens') || norm.includes('7+1')) return CAB_PHOTOS.carens;
+  if (norm.includes('suv') || norm.includes('6+1') || norm.includes('ertiga') || norm.includes('marazzo') || norm.includes('scorpio') || norm.includes('bolero') || norm.includes('mpv')) {
+    return CAB_PHOTOS.ertiga;
   }
   if (norm.includes('premium')) {
     return VEHICLES.premiumSedan;
@@ -115,7 +139,7 @@ export function getVehicleImage(categoryName = ''): ImageSourcePropType {
   if (norm.includes('coach')) {
     return VEHICLES.touristCoach;
   }
-  return VEHICLES.sedan;
+  return CAB_PHOTOS.sedan;
 }
 
 /**

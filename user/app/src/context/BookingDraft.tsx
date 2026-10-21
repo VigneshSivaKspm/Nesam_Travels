@@ -2,7 +2,7 @@
 // (Plan journey → Choose your ride → Review & book), plus the live data every
 // step prices with: bookable categories, the global fare adjustment and coupons.
 // Subscribed once for the session so moving between steps never re-reads them.
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import type { Coupon, GeoPlace, RideCategory, RouteInfo, TripType } from '../types';
 import { useServerQuotes, type ServerQuoteState } from '../hooks/useServerQuotes';
 import { scheduleProblem } from '../utils/bookingRules';
@@ -23,10 +23,30 @@ export interface BookingDraft {
   /** Round trips: when the trip ends (billing counts Indian calendar dates from pickup to here). */
   tripEndAt: Date | null;
   categoryId: string;
+  /** Airport transfers: which way the customer travels (UI only; the airport place carries type 'airport'). */
+  airportDirection: 'to' | 'from';
+  /** Airport transfers: optional flight number, sent in the booking notes. */
+  flightNumber: string;
+}
+
+/** The services in the bottom navigation. Multicity has no booking contract on the server yet. */
+export type HomeService = 'airport' | 'multicity' | 'outstation' | 'rental';
+
+export const SERVICE_TRIP_TYPE: Record<Exclude<HomeService, 'multicity' | 'outstation'>, TripType> = {
+  airport: 'Airport Taxi',
+  rental: 'Local Rental',
+};
+
+export function serviceOfTripType(t: TripType): HomeService {
+  return t === 'Airport Taxi' ? 'airport' : t === 'Local Rental' ? 'rental' : 'outstation';
 }
 
 interface BookingDraftValue {
   draft: BookingDraft;
+  /** The service selected in the bottom navigation. */
+  service: HomeService;
+  /** Switch service; outstation restores the last One Way / Round Trip choice. */
+  setService: (s: HomeService) => void;
   /** Merge a change; pass a function to decide from the current draft. */
   update: (patch: Partial<BookingDraft> | ((d: BookingDraft) => Partial<BookingDraft>)) => void;
   /** Clears the destination, schedule and ride choice after a booking (pickup is kept). */
@@ -54,7 +74,18 @@ export function useBookingDraft(): BookingDraftValue {
 export const routeKeyOf = (pickup: GeoPlace | null, drop: GeoPlace | null) => (pickup && drop ? `${pickup.lat},${pickup.lng}>${drop.lat},${drop.lng}` : '');
 
 export function BookingDraftProvider({ children }: { children: React.ReactNode }) {
-  const [draft, setDraft] = useState<BookingDraft>({ pickup: null, drop: null, tripType: 'One Way', scheduledAt: null, tripEndAt: null, categoryId: '' });
+  const [draft, setDraft] = useState<BookingDraft>({
+    pickup: null,
+    drop: null,
+    tripType: 'One Way',
+    scheduledAt: null,
+    tripEndAt: null,
+    categoryId: '',
+    airportDirection: 'to',
+    flightNumber: '',
+  });
+  const [service, setServiceState] = useState<HomeService>('outstation');
+  const lastOutstation = useRef<TripType>('One Way');
   // A route is tagged with the endpoints it was computed for; any other is stale.
   const [routeState, setRouteState] = useState<{ key: string; info: RouteInfo } | null>(null);
   const [categories, setCategories] = useState<RideCategory[]>([]);
@@ -76,10 +107,25 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   useEffect(() => subscribeToCoupons(setCoupons), []);
 
   const update = useCallback(
-    (patch: Partial<BookingDraft> | ((d: BookingDraft) => Partial<BookingDraft>)) => setDraft((d) => ({ ...d, ...(typeof patch === 'function' ? patch(d) : patch) })),
+    (patch: Partial<BookingDraft> | ((d: BookingDraft) => Partial<BookingDraft>)) =>
+      setDraft((d) => {
+        const next = { ...d, ...(typeof patch === 'function' ? patch(d) : patch) };
+        if (next.tripType === 'One Way' || next.tripType === 'Round Trip') lastOutstation.current = next.tripType;
+        return next;
+      }),
     [],
   );
-  const reset = useCallback(() => setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way' })), []);
+  const setService = useCallback((s: HomeService) => {
+    setServiceState(s);
+    if (s === 'multicity') return;
+    const tripType = s === 'outstation' ? lastOutstation.current : SERVICE_TRIP_TYPE[s];
+    setDraft((d) => (d.tripType === tripType ? d : { ...d, tripType }));
+  }, []);
+  const reset = useCallback(() => {
+    lastOutstation.current = 'One Way';
+    setServiceState('outstation');
+    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to' }));
+  }, []);
   const setRoute = useCallback((key: string, info: RouteInfo) => setRouteState({ key, info }), []);
 
   const routeKey = routeKeyOf(draft.pickup, draft.drop);
@@ -101,8 +147,8 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const serverQuote = useServerQuotes(quoteRequest);
 
   const value = useMemo<BookingDraftValue>(
-    () => ({ draft, update, reset, route, setRoute, routeKey, categories, categoryStatus, adjustment, coupons, serverQuote }),
-    [draft, update, reset, route, setRoute, routeKey, categories, categoryStatus, adjustment, coupons, serverQuote],
+    () => ({ draft, service, setService, update, reset, route, setRoute, routeKey, categories, categoryStatus, adjustment, coupons, serverQuote }),
+    [draft, service, setService, update, reset, route, setRoute, routeKey, categories, categoryStatus, adjustment, coupons, serverQuote],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

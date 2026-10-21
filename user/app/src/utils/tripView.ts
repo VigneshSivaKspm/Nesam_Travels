@@ -83,3 +83,60 @@ export function paymentRows(trips: TripRecord[]): TripRecord[] {
     .filter((t) => t.status === 'Completed' || t.cancellationFee > 0 || (t.refund && t.refund.amount > 0) || (t.paid && t.paid.totalPaid > 0))
     .sort((a, b) => ((b.completedAt ?? b.cancelledAt ?? b.createdAt)?.getTime() ?? 0) - ((a.completedAt ?? a.cancelledAt ?? a.createdAt)?.getTime() ?? 0));
 }
+
+/** The tabs on My Bookings (reference): Ongoing is a live trip, kept apart from Upcoming. */
+export type BookingTab = 'Upcoming' | 'Ongoing' | 'Completed' | 'Cancelled';
+export const BOOKING_TABS: BookingTab[] = ['Upcoming', 'Ongoing', 'Completed', 'Cancelled'];
+export const bookingTabOf = (t: TripRecord): BookingTab => (t.status === 'Ongoing' ? 'Ongoing' : tabOfTrip(t));
+
+export type MilestoneState = 'done' | 'current' | 'todo';
+export interface Milestone {
+  key: 'confirmed' | 'assigned' | 'arrived' | 'started' | 'completed';
+  label: string;
+  state: MilestoneState;
+  /** One line of what is happening (or happened) at this step; '' when nothing to add. */
+  detail: string;
+  at: Date | null;
+}
+
+const PHASE_RANK: Record<TripRecord['phase'], number> = {
+  awaiting_review: 0,
+  arranging: 1,
+  partner_confirmed: 1,
+  driver_assigned: 2,
+  driver_en_route: 2,
+  driver_arrived: 3,
+  in_trip: 4,
+  completed: 5,
+  cancelled: -1,
+};
+
+/**
+ * The reference's five customer milestones, driven only by the real booking status and trip stage:
+ * Booking Confirmed → Driver Assigned → Driver Arrived → Trip Started → Trip Completed.
+ * "Confirmed" is NESAM's approval; before it the booking is awaiting review and the first step says so.
+ * Cancelled and rejected bookings have no timeline (callers show the cancellation instead).
+ */
+export function milestones(t: TripRecord): Milestone[] {
+  const rank = PHASE_RANK[t.phase];
+  const steps: { key: Milestone['key']; label: string; need: number; at: Date | null }[] = [
+    { key: 'confirmed', label: 'Booking Confirmed', need: 1, at: t.approvedAt ?? null },
+    { key: 'assigned', label: 'Driver Assigned', need: 2, at: t.assignedAt ?? null },
+    { key: 'arrived', label: 'Driver Arrived', need: 3, at: null },
+    { key: 'started', label: 'Trip Started', need: 4, at: t.startedAt ?? null },
+    { key: 'completed', label: 'Trip Completed', need: 5, at: t.completedAt ?? null },
+  ];
+  const firstOpen = steps.findIndex((s) => rank < s.need);
+  return steps.map((s, i) => {
+    const state: MilestoneState = rank >= s.need ? 'done' : i === firstOpen ? 'current' : 'todo';
+    let detail = '';
+    if (s.key === 'confirmed' && state !== 'done') detail = 'Awaiting NESAM review';
+    if (s.key === 'assigned') {
+      if (state === 'done') detail = t.driver?.name ? `${t.driver.name}${t.driver.vehicleNumber ? ` · ${t.driver.vehicleNumber}` : ''}` : '';
+      else if (state === 'current') detail = t.phase === 'partner_confirmed' ? 'Vendor assigned — driver details pending' : 'NESAM is arranging your vehicle';
+    }
+    if (s.key === 'arrived' && state === 'current' && t.phase === 'driver_en_route') detail = 'Your driver is on the way';
+    if (s.key === 'started' && state === 'current' && t.phase === 'driver_arrived') detail = 'Share your boarding OTP with the driver';
+    return { key: s.key, label: s.label, state, detail, at: s.at };
+  });
+}

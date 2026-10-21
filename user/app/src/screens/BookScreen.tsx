@@ -1,87 +1,124 @@
-// Booking Home — Step 1: Clean, modern, high-conversion mobile booking screen for NESAM CABS.
+// Home / booking step 1, in the customer reference layout: centred service title,
+// One Way / Round Trip tabs, the route + schedule form, popular routes from
+// Chennai, “The NESAM Way”, reviews, FAQs and the company footer. Pricing,
+// validation and booking stay with the real services (BookingDraft → server quote).
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Linking, Pressable, ScrollView as RNScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
-import { Ionicons } from '@expo/vector-icons';
-import { Notice } from '../components/ui';
+import { Button, Disclosure, Notice, Segmented, Tabs } from '../components/ui';
 import { ScrollView } from '../components/layout';
-import { MobileBrandHeader } from '../components/brand';
+import { AppHeader } from '../components/brand';
+import { Icon, type IconName } from '../components/Icon';
 import { PlaceSearchModal } from '../components/PlaceSearchModal';
+import { TimePickerSheet } from '../components/TimePickerSheet';
 import { useCustomerData } from '../context/CustomerData';
-import { useBookingDraft } from '../context/BookingDraft';
+import { useBookingDraft, type HomeService } from '../context/BookingDraft';
 import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { LOCATION_ERROR_TEXT, reverseGeocode } from '../services/geoService';
-import { SCHEDULE_MAX_DAYS, SCHEDULE_MIN_LEAD_MIN, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
+import {
+  COMPANY_LEGAL_NAME,
+  SCHEDULED_CANCELLATION_FEE,
+  SCHEDULED_FREE_CANCEL_BEFORE_MS,
+  SCHEDULE_MAX_DAYS,
+  SCHEDULE_MIN_LEAD_MIN,
+  SUPPORT_PHONE,
+  SUPPORT_PHONE_DISPLAY,
+} from '../config/constants';
 import { scheduleProblem } from '../utils/bookingRules';
 import { POPULAR_AIRPORTS, makeLocalDisposalPlace } from '../services/pricingService';
 import type { GeoPlace, TripType } from '../types';
-import { formatDate, formatTime } from '../utils/format';
+import { formatTime } from '../utils/format';
 import { haversineKm, isValidLatLng } from '../utils/geo';
-import { colors, fonts, radius, space } from '../theme';
-import { FEATURES, HEROES, ILLUSTRATIONS, getRouteImage } from '../assets/images';
+import { colors, fonts, space, type } from '../theme';
+import { ROUTE_ART } from '../assets/images';
+import { useRideFocus } from '../navigation/MainNavigator';
 
-type PickerTarget = { field: 'pickup' | 'drop'; query?: string } | null;
+type Field = 'pickup' | 'drop';
+type TimeTarget = 'pickup' | 'return' | null;
 
-const TRIP_TYPE_OPTIONS: { id: TripType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { id: 'One Way', label: 'One Way', icon: 'arrow-forward-outline' },
-  { id: 'Round Trip', label: 'Round Trip', icon: 'repeat-outline' },
-  { id: 'Local Rental', label: 'Local Rental', icon: 'time-outline' },
-  { id: 'Airport Taxi', label: 'Airport Taxi', icon: 'airplane-outline' },
+const SERVICE_TITLE: Record<HomeService, string> = {
+  airport: 'Airport Transfers',
+  multicity: 'Multicity',
+  outstation: 'One Way',
+  rental: 'Local Rental',
+};
+
+const CHENNAI: GeoPlace = { id: 'city-chennai', name: 'Chennai', address: 'Chennai, Tamil Nadu', lat: 13.0827, lng: 80.2707, type: 'other' };
+
+/** The reference's six popular journeys from Chennai, with real city-centre coordinates. */
+const POPULAR: { city: string; art: keyof typeof ROUTE_ART; place: GeoPlace }[] = [
+  { city: 'Trichy', art: 'trichy', place: { id: 'city-trichy', name: 'Trichy', address: 'Tiruchirappalli, Tamil Nadu', lat: 10.7905, lng: 78.7047, type: 'other' } },
+  { city: 'Madurai', art: 'madurai', place: { id: 'city-madurai', name: 'Madurai', address: 'Madurai, Tamil Nadu', lat: 9.9252, lng: 78.1198, type: 'other' } },
+  { city: 'Thanjavur', art: 'thanjavur', place: { id: 'city-thanjavur', name: 'Thanjavur', address: 'Thanjavur, Tamil Nadu', lat: 10.787, lng: 79.1378, type: 'other' } },
+  { city: 'Puducherry', art: 'puducherry', place: { id: 'city-puducherry', name: 'Puducherry', address: 'Puducherry', lat: 11.9416, lng: 79.8083, type: 'other' } },
+  { city: 'Coimbatore', art: 'coimbatore', place: { id: 'city-coimbatore', name: 'Coimbatore', address: 'Coimbatore, Tamil Nadu', lat: 11.0168, lng: 76.9558, type: 'other' } },
+  { city: 'Rameswaram', art: 'rameswaram', place: { id: 'city-rameswaram', name: 'Rameswaram', address: 'Rameswaram, Tamil Nadu', lat: 9.2876, lng: 79.3129, type: 'other' } },
 ];
 
-const POPULAR_ROUTES: { from: string; to: string; distance: string }[] = [
-  { from: 'Chennai', to: 'Puducherry', distance: '150 km' },
-  { from: 'Chennai', to: 'Bengaluru', distance: '350 km' },
-  { from: 'Chennai', to: 'Tirupati', distance: '135 km' },
-  { from: 'Coimbatore', to: 'Ooty', distance: '85 km' },
-  { from: 'Madurai', to: 'Rameshwaram', distance: '175 km' },
-  { from: 'Madurai', to: 'Kodaikanal', distance: '120 km' },
-  { from: 'Chennai', to: 'Tiruchirappalli', distance: '330 km' },
+const BENEFITS: { icon: IconName; title: string; text: string }[] = [
+  { icon: 'receipt-text', title: 'Clear fares', text: 'Know your inclusions, applicable GST and extra rates before you book.' },
+  { icon: 'map-pin', title: 'Doorstep pickup', text: 'Choose the pickup address that works for your journey.' },
+  { icon: 'headphones', title: 'Trip support', text: 'A direct line to NESAM for booking and journey assistance.' },
 ];
 
-const FEATURES_LIST = [
+const FREE_CANCEL_MIN = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 60000);
+
+/** Answers reflect how the live service works (server quote, cash/UPI payment, real cancellation rules). */
+const FAQS: { q: string; a: string }[] = [
   {
-    image: FEATURES.cleanAc,
-    title: 'Sanitized AC Cabs',
-    desc: 'Deep cleaned, sanitized and inspected before every outstation journey.',
+    q: 'What does my fare include?',
+    a: 'Your quote itemises cab charges, driver allowance where it applies and GST. Included kilometres and the extra kilometre rate are shown before you confirm.',
   },
   {
-    image: FEATURES.chauffeur,
-    title: 'Verified Highway Chauffeurs',
-    desc: 'Experienced drivers with police verification and commercial badge.',
+    q: 'Are toll, parking and state tax included?',
+    a: 'Only when your fare breakup lists them as included. Otherwise toll, parking, permits and state tax are paid separately during the trip.',
   },
   {
-    image: FEATURES.transparentFare,
-    title: 'Transparent Fixed Fares',
-    desc: 'No hidden surge pricing. Clear per-km outstation rates and driver allowances.',
+    q: 'Can I book now and pay later?',
+    a: 'Yes. Your booking is placed without an online payment, and you pay the trip fare by cash or UPI. Payments and refunds recorded by NESAM appear under Payments & Refunds.',
   },
   {
-    image: FEATURES.support,
-    title: '24×7 Active Trip Support',
-    desc: 'Live helpline and safety assistance available around the clock.',
+    q: 'When will I get my driver details?',
+    a: 'NESAM reviews every booking first. The driver’s name, phone and vehicle number appear in My Bookings — and you are notified — as soon as a driver is assigned.',
+  },
+  {
+    q: 'How do cancellations and refunds work?',
+    a: `Cancel from My Bookings. It is free while your booking is under review or more than ${FREE_CANCEL_MIN} minutes before pickup; after that a ₹${SCHEDULED_CANCELLATION_FEE} fee applies once a partner is committed. Any refund is shown on the booking.`,
   },
 ];
+
+const dayStart = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+const formatDay = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '-');
 
 export function BookScreen() {
   const navigation = useNavigation();
-  const { profile, trips, liveRide, savedPlaces } = useCustomerData();
-  const { draft, update } = useBookingDraft();
-  const { pickup, drop, tripType, scheduledAt } = draft;
+  const { trips, liveRide, savedPlaces } = useCustomerData();
+  const { draft, update, service, setService } = useBookingDraft();
+  const { undismiss } = useRideFocus();
+  const { pickup, drop, tripType, scheduledAt, tripEndAt, airportDirection } = draft;
   const { position, error: locError, permission, locating, locate } = useDeviceLocation(true);
   const { online } = useNetworkStatus();
-  const [picker, setPicker] = useState<PickerTarget>(null);
+  const [picker, setPicker] = useState<Field | null>(null);
+  const [timeTarget, setTimeTarget] = useState<TimeTarget>(null);
+  // A date picked before its time is kept here; once a time is chosen the draft's instant is the truth.
+  const [pendingPickupDay, setPendingPickupDay] = useState<Date | null>(null);
+  const [pendingReturnDay, setPendingReturnDay] = useState<Date | null>(null);
+  const pickupDay = scheduledAt ? dayStart(scheduledAt) : pendingPickupDay;
+  const returnDay = tripEndAt ? dayStart(tripEndAt) : pendingReturnDay;
   const [problem, setProblem] = useState('');
-  const [returnDate, setReturnDate] = useState<Date | null>(() => {
-    const base = scheduledAt ?? new Date();
-    const next = new Date(base);
-    next.setDate(next.getDate() + 1);
-    return next;
-  });
+  const [fieldError, setFieldError] = useState<Partial<Record<'pickup' | 'drop' | 'date' | 'time' | 'return', string>>>({});
+  const scroller = useRef<RNScrollView>(null);
+  const faqY = useRef(0);
 
-  // Automatically geocode device GPS to pickup unless already chosen
+  const isAirport = service === 'airport';
+  const isRental = service === 'rental';
+  const isMulti = service === 'multicity';
+  const isRound = service === 'outstation' && tripType === 'Round Trip';
+
+  // Fill the pickup from GPS once, unless the customer already chose one.
   const pickupFromGps = useRef(false);
   const mounted = useRef(true);
   useEffect(() => {
@@ -90,14 +127,13 @@ export function BookScreen() {
       mounted.current = false;
     };
   }, []);
-
   useEffect(() => {
-    if (!position || pickupFromGps.current || pickup) return;
+    if (!position || pickupFromGps.current || pickup || (isAirport && airportDirection === 'from')) return;
     pickupFromGps.current = true;
     void reverseGeocode(position).then((p) => {
       if (mounted.current) update((d) => (d.pickup ? {} : { pickup: { ...p, type: 'current' } }));
     });
-  }, [position, pickup, update]);
+  }, [position, pickup, update, isAirport, airportDirection]);
 
   const recentPlaces = useMemo(() => {
     const seen = new Set<string>();
@@ -106,11 +142,16 @@ export function BookScreen() {
       for (const p of [t.drop, t.pickup]) {
         if (!isValidLatLng(p) || seen.has(p.name)) continue;
         seen.add(p.name);
-        out.push({ ...p, id: `recent-${t.id}-${p.id}`, type: 'recent' });
+        out.push({ ...p, id: `recent-${t.id}-${p.id}`, type: p.type === 'airport' ? 'airport' : 'recent' });
       }
     }
-    return out.slice(0, 5);
+    return out.slice(0, 6);
   }, [trips]);
+
+  const clearErrors = () => {
+    setProblem('');
+    setFieldError({});
+  };
 
   const locateMe = async () => {
     const p = await locate();
@@ -122,1204 +163,713 @@ export function BookScreen() {
     }
   };
 
-  const openSchedulePicker = () => {
-    const min = new Date(Date.now() + SCHEDULE_MIN_LEAD_MIN * 60000);
-    const max = new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
-    const initial = scheduledAt ?? new Date(Date.now() + 60 * 60000);
+  // ── Which field is the airport ──────────────────────────────────────────────
+  const airportField: Field | null = isAirport ? (airportDirection === 'to' ? 'drop' : 'pickup') : null;
+  const setDirection = (dir: 'to' | 'from') => {
+    if (dir === airportDirection) return;
+    // The airport moves to the other end of the trip.
+    update((d) => ({ airportDirection: dir, pickup: d.drop, drop: d.pickup }));
+    clearErrors();
+  };
+
+  const switchOutstation = (t: TripType) => {
+    update({ tripType: t });
+    clearErrors();
+  };
+
+  // ── Dates and times ─────────────────────────────────────────────────────────
+  const minPickup = () => new Date(Date.now() + SCHEDULE_MIN_LEAD_MIN * 60000);
+  const maxPickup = () => new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
+
+  const openDate = (target: 'pickup' | 'return') => {
+    const base = target === 'pickup' ? pickupDay ?? scheduledAt ?? minPickup() : returnDay ?? tripEndAt ?? scheduledAt ?? minPickup();
+    const min = target === 'pickup' ? minPickup() : scheduledAt ?? pickupDay ?? minPickup();
     try {
       DateTimePickerAndroid.open({
-        value: initial,
+        value: base,
         mode: 'date',
-        minimumDate: min,
-        maximumDate: max,
+        minimumDate: dayStart(min),
+        maximumDate: maxPickup(),
         onChange: (event, date) => {
           if (event.type !== 'set' || !date) return;
-          DateTimePickerAndroid.open({
-            value: initial,
-            mode: 'time',
-            is24Hour: false,
-            onChange: (e2, time) => {
-              if (e2.type !== 'set' || !time) return;
-              const d = new Date(date);
-              d.setHours(time.getHours(), time.getMinutes(), 0, 0);
-              update({ scheduledAt: d });
-              if (returnDate && returnDate <= d) {
-                const next = new Date(d);
-                next.setDate(next.getDate() + 1);
-                setReturnDate(next);
-              }
-              setProblem(scheduleProblem(d));
-            },
-          });
+          const day = dayStart(date);
+          setFieldError((e) => ({ ...e, date: '', return: '' }));
+          if (target === 'pickup') {
+            setPendingPickupDay(day);
+            if (scheduledAt) {
+              const next = new Date(day);
+              next.setHours(scheduledAt.getHours(), scheduledAt.getMinutes(), 0, 0);
+              const p = scheduleProblem(next);
+              update({ scheduledAt: p ? null : next });
+              if (p) setFieldError((e) => ({ ...e, time: p }));
+              if (!p && tripEndAt && tripEndAt <= next) update({ tripEndAt: null });
+            } else {
+              setTimeTarget('pickup');
+            }
+          } else {
+            setPendingReturnDay(day);
+            if (tripEndAt) {
+              const next = new Date(day);
+              next.setHours(tripEndAt.getHours(), tripEndAt.getMinutes(), 0, 0);
+              update({ tripEndAt: scheduledAt && next > scheduledAt ? next : null });
+            } else {
+              setTimeTarget('return');
+            }
+          }
         },
       });
     } catch {
-      setProblem('Date & time selection is not available on this device.');
+      setProblem('Date selection is not available on this device. Please call NESAM to book.');
     }
   };
 
-  const openReturnPicker = () => {
-    const pickupInstant = scheduledAt ?? new Date();
-    const min = new Date(pickupInstant);
-    const max = new Date(Date.now() + SCHEDULE_MAX_DAYS * 86400000);
-    const initial = returnDate ?? new Date(pickupInstant.getTime() + 86400000);
-    try {
-      DateTimePickerAndroid.open({
-        value: initial,
-        mode: 'date',
-        minimumDate: min,
-        maximumDate: max,
-        onChange: (event, date) => {
-          if (event.type !== 'set' || !date) return;
-          setReturnDate(date);
-        },
-      });
-    } catch {
-      setProblem('Date picker is not available on this device.');
-    }
+  const openTime = (target: 'pickup' | 'return') => {
+    if (target === 'pickup' && !pickupDay) return openDate('pickup');
+    if (target === 'return' && !returnDay) return openDate('return');
+    setTimeTarget(target);
   };
 
-  // The end instant sent to the server: the chosen return date at 20:00 India time, never before the
-  // pickup. Only the DATE is billed (calendar days), the time just plans the vehicle's schedule.
-  useEffect(() => {
-    if (tripType !== 'Round Trip' || !returnDate || !scheduledAt) {
-      if (draft.tripEndAt) update({ tripEndAt: null });
-      return;
-    }
-    const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit' }).format(returnDate);
-    const target = Date.parse(`${day}T20:00:00+05:30`);
-    const dayEnd = Date.parse(`${day}T23:59:00+05:30`);
-    const end = new Date(Math.min(dayEnd, Math.max(target, scheduledAt.getTime() + 15 * 60000)));
-    if (draft.tripEndAt?.getTime() !== end.getTime()) update({ tripEndAt: end });
-  }, [tripType, returnDate, scheduledAt]); // eslint-disable-line react-hooks/exhaustive-deps
+  const returnProblem = (at: Date) => {
+    if (!scheduledAt) return 'Choose the pickup date and time first.';
+    if (at.getTime() <= scheduledAt.getTime()) return 'The return must be after the pickup time.';
+    if (at.getTime() - Date.now() > (SCHEDULE_MAX_DAYS + 7) * 86400000) return 'Choose an earlier return date.';
+    return '';
+  };
 
-  const roundTripDays = useMemo(() => {
-    if (tripType !== 'Round Trip') return 1;
-    const start = scheduledAt ?? new Date();
-    const end = returnDate ?? start;
-    const sDate = new Date(start.getFullYear(), start.getMonth(), start.getDate()).getTime();
-    const eDate = new Date(end.getFullYear(), end.getMonth(), end.getDate()).getTime();
-    const diffDays = Math.round((eDate - sDate) / 86400000);
-    return Math.max(1, diffDays + 1);
-  }, [tripType, scheduledAt, returnDate]);
-
+  // ── Search ──────────────────────────────────────────────────────────────────
   const findCab = () => {
     let targetDrop = drop;
-    if (tripType === 'Local Rental' && !targetDrop && pickup) {
+    if (isRental && pickup) {
       targetDrop = makeLocalDisposalPlace(pickup);
       update({ drop: targetDrop });
     }
-    const reason = !online
-      ? 'You are currently offline. Check your network to proceed.'
-      : !pickup
-        ? 'Please choose your pickup point.'
-        : !targetDrop
-          ? 'Please choose your destination.'
-          : haversineKm(pickup, targetDrop) < 0.2 && tripType !== 'Local Rental'
-            ? 'Pickup and destination cannot be the same place.'
-            : scheduleProblem(scheduledAt) || (tripType === 'Round Trip' && !draft.tripEndAt ? 'Choose your return date.' : '');
-    setProblem(reason);
-    if (!reason) {
-      navigation.navigate('ChooseRide');
+    const errs: typeof fieldError = {};
+    if (!pickup) errs.pickup = airportField === 'pickup' ? 'Choose the airport.' : 'Choose your pickup location.';
+    if (!targetDrop) errs.drop = airportField === 'drop' ? 'Choose the airport.' : 'Choose your drop location.';
+    if (isAirport && airportField === 'drop' && drop && drop.type !== 'airport') errs.drop = 'Choose an airport for an airport drop.';
+    if (isAirport && airportField === 'pickup' && pickup && pickup.type !== 'airport') errs.pickup = 'Choose the airport you are arriving at.';
+    if (pickup && targetDrop && !isRental && haversineKm(pickup, targetDrop) < 0.2) errs.drop = 'Pickup and drop cannot be the same place.';
+    if (!pickupDay) errs.date = 'Choose the pickup date.';
+    const sched = scheduleProblem(scheduledAt);
+    if (pickupDay && sched) errs.time = sched;
+    if (isRound) {
+      if (!tripEndAt) errs.return = 'Choose your return date and time.';
+      else if (returnProblem(tripEndAt)) errs.return = returnProblem(tripEndAt);
     }
+    setFieldError(errs);
+    const first = Object.values(errs).find(Boolean);
+    if (!online) {
+      setProblem('You are offline. Check your connection and try again.');
+      return;
+    }
+    setProblem(first ? 'Please check the highlighted details.' : '');
+    if (!first) navigation.navigate('ChooseRide');
   };
 
-  const selectPopularRoute = (routeItem: { from: string; to: string }) => {
-    update({
-      pickup: { id: 'p-' + routeItem.from, name: routeItem.from, address: routeItem.from + ', Tamil Nadu, India', lat: 13.0827, lng: 80.2707, type: 'other' },
-      drop: { id: 'd-' + routeItem.to, name: routeItem.to, address: routeItem.to + ', India', lat: 11.9416, lng: 79.8083, type: 'other' },
-    });
-    setProblem('');
+  const planRoute = (dest: GeoPlace) => {
+    setService('outstation');
+    update({ pickup: CHENNAI, drop: dest });
+    clearErrors();
+    scroller.current?.scrollTo({ y: 0, animated: true });
   };
 
-  const firstName = profile.name.split(' ')[0] || 'Traveler';
-  const locationHint = locError ? LOCATION_ERROR_TEXT[locError.kind] : permission === 'prompt' && !position ? 'Allow location access to set your pickup location automatically.' : '';
+  const locationHint = locError ? LOCATION_ERROR_TEXT[locError.kind] : permission === 'prompt' && !position ? 'Allow location access to fill your pickup automatically.' : '';
+  const title = service === 'outstation' ? tripType : SERVICE_TITLE[service];
+
+  // ── Field rendering ─────────────────────────────────────────────────────────
+  const fieldLabel = (f: Field) => (airportField === f ? 'Airport' : f === 'pickup' ? 'Pickup location' : 'Drop location');
+  const fieldPlaceholder = (f: Field) => (airportField === f ? 'Choose airport' : f === 'pickup' ? (locating ? 'Finding your location…' : 'Enter pickup location') : 'Enter drop location');
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
       <PlaceSearchModal
         visible={picker !== null}
-        title={picker?.field === 'pickup' ? 'Enter Pickup Location' : 'Where are you travelling to?'}
-        initialQuery={picker?.query}
+        title={picker ? fieldLabel(picker) : ''}
+        subtitle={picker && airportField === picker ? 'Choose an airport or search by name.' : undefined}
         onClose={() => setPicker(null)}
         onSelect={(p) => {
-          if (picker?.field === 'pickup') {
+          if (picker === 'pickup') {
             pickupFromGps.current = true;
             update({ pickup: p });
           } else {
             update({ drop: p });
           }
-          setProblem('');
+          clearErrors();
         }}
-        savedPlaces={savedPlaces}
-        recentPlaces={recentPlaces}
-        near={picker?.field === 'drop' ? (pickup ?? position) : position}
-        onUseCurrentLocation={picker?.field === 'pickup' ? () => void locateMe() : undefined}
+        savedPlaces={picker && airportField === picker ? [] : savedPlaces}
+        recentPlaces={picker && airportField === picker ? recentPlaces.filter((p) => p.type === 'airport') : recentPlaces.filter((p) => p.type !== 'airport')}
+        suggestions={picker && airportField === picker ? POPULAR_AIRPORTS : []}
+        suggestionsLabel="Airports"
+        near={picker === 'drop' ? (pickup ?? position) : position}
+        onUseCurrentLocation={picker === 'pickup' && airportField !== 'pickup' ? () => void locateMe() : undefined}
       />
+      {timeTarget ? (
+        <TimePickerSheet
+          visible
+          title={timeTarget === 'return' ? 'Return time' : 'Pickup time'}
+          day={(timeTarget === 'return' ? returnDay : pickupDay) ?? dayStart(new Date())}
+          value={timeTarget === 'return' ? tripEndAt : scheduledAt}
+          problemOf={timeTarget === 'return' ? returnProblem : (at) => scheduleProblem(at)}
+          onClose={() => setTimeTarget(null)}
+          onConfirm={(at) => {
+            if (timeTarget === 'return') {
+              update({ tripEndAt: at });
+              setPendingReturnDay(null);
+            } else {
+              update((d) => ({ scheduledAt: at, tripEndAt: d.tripEndAt && d.tripEndAt <= at ? null : d.tripEndAt }));
+              setPendingPickupDay(null);
+            }
+            setFieldError((e) => ({ ...e, time: '', return: '' }));
+            setTimeTarget(null);
+          }}
+        />
+      ) : null}
 
-      {/* Top Mobile Brand Header with NESAM CABS */}
-      <MobileBrandHeader />
+      <AppHeader />
 
-      <ScrollView
-        contentContainerStyle={styles.scrollPad}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Active Booking Banner */}
+      <ScrollView ref={scroller} kind="narrow" contentContainerStyle={styles.page} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         {liveRide ? (
           <Pressable
-            style={styles.liveBanner}
-            onPress={() => navigation.navigate('ActiveRide', { bookingId: liveRide.id })}
+            style={({ pressed }) => [styles.live, pressed && { opacity: 0.85 }]}
+            onPress={() => {
+              undismiss(liveRide.id);
+              navigation.navigate('ActiveRide', { bookingId: liveRide.id });
+            }}
             accessibilityRole="button"
+            accessibilityLabel={`Open your current trip, ${liveRide.pickup.name} to ${liveRide.drop.name}`}
           >
             <View style={styles.liveDot} />
-            <Text style={styles.liveText} numberOfLines={1}>
-              Active Booking: {liveRide.pickup.name} → {liveRide.drop.name}
-            </Text>
-            <Ionicons name="arrow-forward-circle" size={20} color={colors.white} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.liveTitle}>{liveRide.status === 'Ongoing' ? 'Trip in progress' : 'Your trip is coming up'}</Text>
+              <Text style={styles.liveRoute} numberOfLines={1}>
+                {liveRide.pickup.name} → {liveRide.drop.name}
+              </Text>
+            </View>
+            <Icon name="chevron-right" size={18} color={colors.success} />
           </Pressable>
         ) : null}
 
-        {/* Hero Card */}
-        <View style={styles.heroCard}>
-          <Image
-            source={HEROES.mobile}
-            style={styles.heroImage}
-            resizeMode="cover"
-            accessible={false}
-            importantForAccessibility="no"
-          />
-          <View style={styles.heroOverlay}>
-            <View style={styles.heroBadge}>
-              <Ionicons name="shield-checkmark" size={12} color={colors.white} />
-              <Text style={styles.heroBadgeText}>TAMIL NADU’S OUTSTATION NETWORK</Text>
-            </View>
-            <Text style={styles.heroTitle}>Safe Journey,{'\n'}Happy Memories</Text>
-            <Text style={styles.heroSubtitle}>
-              Verified Chauffeurs • Fixed Fares • 24×7 Support
-            </Text>
+        <Text style={styles.title} accessibilityRole="header">
+          {title}
+        </Text>
+
+        {service === 'outstation' ? (
+          <View style={{ marginBottom: 19 }}>
+            <Tabs<TripType>
+              options={[
+                { value: 'One Way', label: 'One Way' },
+                { value: 'Round Trip', label: 'Round Trip' },
+              ]}
+              value={tripType === 'Round Trip' ? 'Round Trip' : 'One Way'}
+              onChange={switchOutstation}
+            />
           </View>
-        </View>
+        ) : null}
 
-        {/* User Greeting */}
-        <View style={styles.greetingRow}>
-          <Text style={styles.welcomeSub}>Hello {firstName}</Text>
-          <Text style={styles.welcomeTitle}>Where would you like to travel?</Text>
-        </View>
-
-        {/* Unified Sleek Booking Card */}
-        <View style={styles.bookingCard}>
-          {/* Segmented Trip Type Toggle (All 4 supported types) */}
-          <View style={styles.tripTypeGrid}>
-            {TRIP_TYPE_OPTIONS.map((item) => {
-              const active = tripType === item.id;
-              return (
-                <Pressable
-                  key={item.id}
-                  style={[styles.gridSegmentBtn, active && styles.gridSegmentBtnActive]}
-                  onPress={() => {
-                    update({ tripType: item.id });
-                    if (item.id === 'Local Rental' && pickup && !drop) {
-                      update({ drop: makeLocalDisposalPlace(pickup) });
-                    }
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Select trip type: ${item.label}`}
-                >
-                  <Ionicons
-                    name={item.icon}
-                    size={15}
-                    color={active ? colors.white : colors.primary}
-                  />
-                  <Text style={[styles.gridSegmentText, active && styles.gridSegmentTextActive]}>
-                    {item.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Contextual Airport Assistant when Airport Taxi is selected */}
-          {tripType === 'Airport Taxi' ? (
-            <View style={styles.airportHelperBox}>
-              <View style={styles.helperHeader}>
-                <Ionicons name="airplane" size={14} color={colors.primary} />
-                <Text style={styles.helperTitle}>Airport Transfers • Quick Airport Select</Text>
-              </View>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickAirportRow}>
-                {POPULAR_AIRPORTS.slice(0, 5).map((air) => (
-                  <Pressable
-                    key={air.id}
-                    style={styles.airportChip}
-                    onPress={() => {
-                      if (pickup?.type === 'airport') {
-                        update({ drop: air });
-                      } else {
-                        update({ drop: air });
-                      }
-                      setProblem('');
-                    }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Choose ${air.name}`}
-                  >
-                    <Ionicons name="airplane-outline" size={12} color={colors.primary} />
-                    <Text style={styles.airportChipText}>{air.name.split(' ')[0]} ({air.id.replace('airport-', '').toUpperCase()})</Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
-              <View style={styles.airportDirectionRow}>
-                <Pressable
-                  style={[styles.dirBtn, drop?.type === 'airport' && styles.dirBtnActive]}
-                  onPress={() => {
-                    if (pickup?.type === 'airport' && drop) {
-                      update({ pickup: drop, drop: pickup });
-                    } else if (drop?.type !== 'airport') {
-                      update({ drop: POPULAR_AIRPORTS[0] });
-                    }
-                  }}
-                >
-                  <Ionicons name="arrow-up-circle-outline" size={14} color={drop?.type === 'airport' ? colors.primary : colors.slate} />
-                  <Text style={[styles.dirBtnText, drop?.type === 'airport' && styles.dirBtnTextActive]}>Drop to Airport</Text>
-                </Pressable>
-                <Pressable
-                  style={[styles.dirBtn, pickup?.type === 'airport' && styles.dirBtnActive]}
-                  onPress={() => {
-                    if (drop?.type === 'airport' && pickup) {
-                      update({ pickup: drop, drop: pickup });
-                    } else if (pickup?.type !== 'airport') {
-                      update({ pickup: POPULAR_AIRPORTS[0] });
-                    }
-                  }}
-                >
-                  <Ionicons name="arrow-down-circle-outline" size={14} color={pickup?.type === 'airport' ? colors.primary : colors.slate} />
-                  <Text style={[styles.dirBtnText, pickup?.type === 'airport' && styles.dirBtnTextActive]}>Pickup from Airport</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Contextual Local Rental Assistant when Local Rental is selected */}
-          {tripType === 'Local Rental' ? (
-            <View style={styles.rentalHelperBox}>
-              <View style={styles.helperHeader}>
-                <Ionicons name="time" size={14} color="#D97706" />
-                <Text style={styles.helperTitle}>Hourly Local City Rental Package</Text>
-              </View>
-              <Text style={styles.rentalSubtitle}>
-                Chauffeur and cab at your disposal for city use. Package base includes minimum hours & km.
-              </Text>
-              <View style={styles.quickChipsRow}>
-                <Pressable
-                  style={styles.rentalChip}
-                  onPress={() => {
-                    update({ drop: makeLocalDisposalPlace(pickup) });
-                    setProblem('');
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel="Use local city disposal destination"
-                >
-                  <Ionicons name="location-outline" size={12} color="#D97706" />
-                  <Text style={styles.rentalChipText}>Set Destination: Within City Disposal</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Route Section: Connected Pickup & Drop */}
-          <View style={styles.routeBox}>
-            {/* Pickup Row */}
-            <Pressable
-              style={styles.locationRow}
-              onPress={() => setPicker({ field: 'pickup' })}
-              accessibilityRole="button"
-              accessibilityLabel={`Pickup: ${pickup?.name ?? 'not set'}`}
-            >
-              <View style={styles.iconCircleGreen}>
-                <Ionicons name="location" size={16} color="#10B981" />
-              </View>
-              <View style={styles.locationTextWrap}>
-                <Text style={styles.inputMiniLabel}>PICKUP LOCATION</Text>
-                <Text style={[styles.locationName, !pickup && styles.placeholderText]} numberOfLines={1}>
-                  {pickup?.name ?? (locating ? 'Locating your current address…' : 'Enter pickup city or landmark')}
-                </Text>
-                {pickup && pickup.address !== pickup.name ? (
-                  <Text style={styles.locationAddress} numberOfLines={1}>
-                    {pickup.address}
-                  </Text>
-                ) : null}
-              </View>
-              <Pressable
-                onPress={() => void locateMe()}
-                hitSlop={12}
-                style={styles.gpsActionBtn}
-                accessibilityRole="button"
-                accessibilityLabel="Use current location"
-              >
-                <Ionicons name="locate" size={18} color={colors.primary} />
-              </Pressable>
-            </Pressable>
-
-            {/* Middle Divider with Swap Button */}
-            <View style={styles.dividerRow}>
-              <View style={styles.dividerLine} />
-              <Pressable
-                onPress={() => pickup && drop && update({ pickup: drop, drop: pickup })}
-                disabled={!pickup || !drop}
-                style={[styles.swapCircle, (!pickup || !drop) && { opacity: 0.4 }]}
-                accessibilityRole="button"
-                accessibilityLabel="Swap pickup and drop"
-              >
-                <Ionicons name="swap-vertical" size={16} color={colors.primary} />
-              </Pressable>
-              <View style={styles.dividerLine} />
-            </View>
-
-            {/* Drop Row */}
-            <Pressable
-              style={styles.locationRow}
-              onPress={() => setPicker({ field: 'drop' })}
-              accessibilityRole="button"
-              accessibilityLabel={`Drop: ${drop?.name ?? 'not set'}`}
-            >
-              <View style={styles.iconCircleRed}>
-                <Ionicons name="flag" size={16} color={colors.primary} />
-              </View>
-              <View style={styles.locationTextWrap}>
-                <Text style={styles.inputMiniLabel}>DESTINATION</Text>
-                <Text style={[styles.locationName, !drop && styles.placeholderText]} numberOfLines={1}>
-                  {drop?.name ?? 'Where are you travelling to?'}
-                </Text>
-                {drop && drop.address !== drop.name ? (
-                  <Text style={styles.locationAddress} numberOfLines={1}>
-                    {drop.address}
-                  </Text>
-                ) : null}
-              </View>
-              {drop ? (
-                <Pressable
-                  onPress={() => update({ drop: null })}
-                  hitSlop={12}
-                  style={styles.gpsActionBtn}
-                  accessibilityRole="button"
-                  accessibilityLabel="Clear destination"
-                >
-                  <Ionicons name="close-circle" size={18} color={colors.slate} />
-                </Pressable>
-              ) : (
-                <View style={styles.gpsActionBtn}>
-                  <Ionicons name="search" size={18} color={colors.slate} />
-                </View>
-              )}
-            </Pressable>
-          </View>
-
-          {/* Schedule Section */}
-          <View style={styles.scheduleSection}>
-            <Pressable
-              style={styles.scheduleItem}
-              onPress={openSchedulePicker}
-              accessibilityRole="button"
-              accessibilityLabel="Select pickup date and time"
-            >
-              <View style={styles.scheduleIconWrap}>
-                <Ionicons name="calendar-outline" size={18} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.scheduleItemLabel}>PICKUP DATE & TIME</Text>
-                <Text style={styles.scheduleItemValue} numberOfLines={1}>
-                  {scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)}` : 'Select date & time'}
-                </Text>
-              </View>
-              <Ionicons name="chevron-down" size={16} color={colors.slate} />
-            </Pressable>
-
-            {/* Return Date if Round Trip */}
-            {tripType === 'Round Trip' ? (
-              <View style={styles.returnTripContainer}>
-                <Pressable
-                  style={styles.scheduleItem}
-                  onPress={openReturnPicker}
-                  accessibilityRole="button"
-                  accessibilityLabel="Select return date"
-                >
-                  <View style={[styles.scheduleIconWrap, { backgroundColor: '#FEF3C7' }]}>
-                    <Ionicons name="calendar" size={18} color="#D97706" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.scheduleItemLabel}>RETURN DATE</Text>
-                    <Text style={styles.scheduleItemValue} numberOfLines={1}>
-                      {returnDate ? formatDate(returnDate) : 'Select return date'}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-down" size={16} color={colors.slate} />
-                </Pressable>
-                <View style={styles.roundTripInfoPill}>
-                  <Ionicons name="information-circle" size={14} color="#B45309" />
-                  <Text style={styles.roundTripInfoText}>
-                    {roundTripDays} Calendar {roundTripDays === 1 ? 'Day' : 'Days'} • Min {roundTripDays * 250} km
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-          </View>
-
-          {/* Direct Prominent "SEARCH CABS" Button */}
-          <Pressable
-            onPress={findCab}
-            style={({ pressed }) => [styles.searchCabsBtn, pressed && styles.searchCabsBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Search Cabs"
-          >
-            <Text style={styles.searchCabsBtnText}>SEARCH CABS</Text>
-            <Ionicons name="arrow-forward" size={20} color={colors.white} />
-          </Pressable>
-        </View>
-
-        {/* Validation Notices */}
-        {problem ? <Notice message={problem} tone="warning" style={{ marginTop: space.sm }} /> : null}
-        {locationHint && !pickup ? <Notice tone="info" message={locationHint} style={{ marginTop: space.sm }} /> : null}
-
-        {/* Popular Outstation Routes Section */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionTitleRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Popular Routes</Text>
-              <Text style={styles.sectionSubtitle}>Tap any destination to plan your trip</Text>
-            </View>
-            <View style={styles.routeCountBadge}>
-              <Text style={styles.routeCountText}>{POPULAR_ROUTES.length} Routes</Text>
-            </View>
-          </View>
-
-          {/* Horizontal Destination Cards */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.routeCardsScroll}
-          >
-            {POPULAR_ROUTES.map((item, idx) => {
-              const routeImg = getRouteImage(item.from, item.to);
-              return (
-                <Pressable
-                  key={idx}
-                  style={({ pressed }) => [styles.routeCard, pressed && { opacity: 0.85 }]}
-                  onPress={() => selectPopularRoute(item)}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${item.from} to ${item.to}, distance ${item.distance}`}
-                >
-                  <View style={styles.routeImageContainer}>
-                    <Image
-                      source={routeImg}
-                      style={styles.routeImage}
-                      resizeMode="cover"
-                      accessible={false}
-                      importantForAccessibility="no"
-                    />
-                    <View style={styles.routeDistanceBadge}>
-                      <Ionicons name="speedometer-outline" size={11} color={colors.white} />
-                      <Text style={styles.routeDistanceText}>{item.distance}</Text>
-                    </View>
-                  </View>
-                  <View style={styles.routeCardBody}>
-                    <Text style={styles.routeCardName} numberOfLines={1}>
-                      {item.from} → {item.to}
-                    </Text>
-                    <Text style={styles.routeCardSub}>Fixed Outstation Rates</Text>
-                  </View>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Why Travel With NESAM Features */}
-        <View style={styles.sectionWrap}>
-          <View style={styles.sectionTitleRow}>
-            <View>
-              <Text style={styles.sectionTitle}>Why Travel With NESAM</Text>
-              <Text style={styles.sectionSubtitle}>Guaranteed comfort & transparent service</Text>
-            </View>
-          </View>
-
-          <View style={styles.featuresList}>
-            {FEATURES_LIST.map((f, i) => (
-              <View key={i} style={styles.featureItem}>
-                <Image
-                  source={f.image}
-                  style={styles.featureThumb}
-                  resizeMode="cover"
-                  accessible={false}
-                  importantForAccessibility="no"
+        <View style={styles.widget}>
+          {isMulti ? (
+            <MulticityNotice onOneWay={() => setService('outstation')} />
+          ) : (
+            <>
+              {isAirport ? (
+                <Segmented
+                  style={{ marginTop: 15 }}
+                  options={[
+                    { value: 'to', label: 'To airport' },
+                    { value: 'from', label: 'From airport' },
+                  ]}
+                  value={airportDirection}
+                  onChange={setDirection}
                 />
-                <View style={styles.featureTextCol}>
-                  <Text style={styles.featureTitle}>{f.title}</Text>
-                  <Text style={styles.featureDesc}>{f.desc}</Text>
+              ) : null}
+
+              <View>
+                <RouteField
+                  pin="start"
+                  label={fieldLabel('pickup')}
+                  value={pickup?.name}
+                  placeholder={fieldPlaceholder('pickup')}
+                  error={fieldError.pickup}
+                  onPress={() => setPicker('pickup')}
+                  roomForSwap={service === 'outstation'}
+                />
+                {isRental ? null : (
+                  <RouteField
+                    pin="end"
+                    label={fieldLabel('drop')}
+                    value={drop?.name}
+                    placeholder={fieldPlaceholder('drop')}
+                    error={fieldError.drop}
+                    onPress={() => setPicker('drop')}
+                    divider
+                    roomForSwap={service === 'outstation'}
+                  />
+                )}
+                {service === 'outstation' ? (
+                  <Pressable
+                    onPress={() => {
+                      update({ pickup: drop, drop: pickup });
+                      clearErrors();
+                    }}
+                    disabled={!pickup && !drop}
+                    style={({ pressed }) => [styles.swap, pressed && { backgroundColor: colors.subtle }]}
+                    accessibilityRole="button"
+                    accessibilityLabel="Swap pickup and drop"
+                    hitSlop={6}
+                  >
+                    <Icon name="arrow-up-down" size={17} color="#657184" />
+                  </Pressable>
+                ) : null}
+              </View>
+
+              <View style={styles.formRow}>
+                <PickerBox
+                  label="Pickup date"
+                  value={pickupDay ? formatDay(pickupDay) : ''}
+                  placeholder="Select date"
+                  icon="calendar-days"
+                  error={fieldError.date}
+                  onPress={() => openDate('pickup')}
+                />
+                <PickerBox
+                  label="Pickup time"
+                  value={scheduledAt ? formatTime(scheduledAt).replace(/^0/, '') : ''}
+                  placeholder="Select time"
+                  icon="chevron-down"
+                  error={fieldError.time}
+                  onPress={() => openTime('pickup')}
+                />
+              </View>
+
+              {isRound ? (
+                <View style={styles.formRow}>
+                  <PickerBox
+                    label="Return date"
+                    value={returnDay ? formatDay(returnDay) : ''}
+                    placeholder="Select date"
+                    icon="calendar-days"
+                    error={fieldError.return && !returnDay ? fieldError.return : ''}
+                    onPress={() => openDate('return')}
+                  />
+                  <PickerBox
+                    label="Return time"
+                    value={tripEndAt ? formatTime(tripEndAt).replace(/^0/, '') : ''}
+                    placeholder="Select time"
+                    icon="chevron-down"
+                    error={fieldError.return && returnDay ? fieldError.return : ''}
+                    onPress={() => openTime('return')}
+                  />
+                </View>
+              ) : null}
+
+              {isRental ? (
+                <View style={styles.packageNote}>
+                  <Text style={styles.formLabel}>Rental package</Text>
+                  <View style={styles.packageBox}>
+                    <Icon name="clock-3" size={16} color="#7E8896" />
+                    <Text style={styles.packageText}>Hourly, within the city. Your quote shows the minimum hours and extra rates.</Text>
+                  </View>
+                </View>
+              ) : null}
+
+              {isAirport ? (
+                <View style={styles.flight}>
+                  <Disclosure title="Flight details (optional)" initiallyOpen={!!draft.flightNumber}>
+                    <Text style={styles.formLabel}>Flight number</Text>
+                    <TextInput
+                      value={draft.flightNumber}
+                      onChangeText={(v) => update({ flightNumber: v.toUpperCase().replace(/[^A-Z0-9 -]/g, '').slice(0, 10) })}
+                      placeholder="e.g. 6E 562"
+                      placeholderTextColor={colors.faint}
+                      autoCapitalize="characters"
+                      style={styles.flightInput}
+                      accessibilityLabel="Flight number (optional)"
+                    />
+                    <Text style={styles.flightHint}>Shared with NESAM in your booking notes to help plan the pickup.</Text>
+                  </Disclosure>
+                </View>
+              ) : null}
+
+              <Button title="Search Cabs" iconRight="arrow-right" onPress={findCab} style={{ marginTop: 14 }} />
+              <View style={styles.trust}>
+                <Icon name="shield-check" size={12} color="#8994A4" />
+                <Text style={styles.trustText}>Clear fares. Dedicated support.</Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {problem ? <Notice message={problem} tone={online ? 'warning' : 'error'} style={{ marginTop: space.md }} /> : null}
+        {locationHint && !pickup && !isMulti ? <Notice tone="info" message={locationHint} style={{ marginTop: space.md }} /> : null}
+
+        {/* Popular routes */}
+        <View style={styles.popular}>
+          <Text style={styles.popularTitle} accessibilityRole="header">
+            Popular routes
+          </Text>
+          <Text style={styles.caption}>A few favourites from Chennai.</Text>
+        </View>
+        <RNScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail} style={styles.railWrap}>
+          {POPULAR.map((r) => (
+            <Pressable
+              key={r.city}
+              onPress={() => planRoute(r.place)}
+              style={({ pressed }) => [styles.routeCard, pressed && { borderColor: '#D5DAE1' }]}
+              accessibilityRole="button"
+              accessibilityLabel={`Plan trip: Chennai to ${r.city}`}
+            >
+              <View style={styles.routeArt}>
+                <Image source={ROUTE_ART[r.art]} style={styles.routeImg} resizeMode="contain" accessible={false} />
+              </View>
+              <View style={styles.routeBody}>
+                <View style={styles.routeName}>
+                  <Text style={styles.routeFrom}>Chennai</Text>
+                  <Icon name="arrow-right" size={14} color="#9199A5" />
+                  <Text style={styles.routeTo}>{r.city}</Text>
+                </View>
+                <View style={styles.planTrip}>
+                  <Text style={styles.planText}>Plan trip</Text>
+                  <Icon name="arrow-right" size={13} color={colors.primary} />
+                </View>
+              </View>
+            </Pressable>
+          ))}
+        </RNScrollView>
+
+        {/* The NESAM Way */}
+        <View style={styles.why}>
+          <Text style={type.eyebrow}>The NESAM Way</Text>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            Travel with clarity.
+          </Text>
+          <View style={{ paddingTop: 12 }}>
+            {BENEFITS.map((b, i) => (
+              <View key={b.title} style={[styles.benefit, i > 0 && styles.benefitLine]}>
+                <Icon name={b.icon} size={21} color="#A32B30" />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.benefitTitle}>{b.title}</Text>
+                  <Text style={styles.benefitText}>{b.text}</Text>
                 </View>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Support & Booking Help Card */}
-        <View style={styles.supportCard}>
-          <Image
-            source={ILLUSTRATIONS.support}
-            style={styles.supportIllustration}
-            resizeMode="contain"
-            accessible={false}
-            importantForAccessibility="no"
-          />
-          <View style={styles.supportContent}>
-            <Text style={styles.supportTitle}>Need Help With Your Booking?</Text>
-            <Text style={styles.supportSubtitle}>
-              Our 24×7 Tamil Nadu operations desk is ready to help you plan custom itineraries and multi-day tours.
-            </Text>
-            <Pressable
-              style={styles.supportCallBtn}
-              onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)}
-              accessibilityRole="button"
-              accessibilityLabel={`Call support desk at ${SUPPORT_PHONE_DISPLAY}`}
-            >
-              <Ionicons name="call" size={15} color={colors.white} />
-              <Text style={styles.supportCallBtnText}>Call Support: {SUPPORT_PHONE_DISPLAY}</Text>
-            </Pressable>
+        {/* Reviews: nothing is published yet, so the reference's empty state is shown. */}
+        <View style={styles.section}>
+          <Text style={type.eyebrow}>From our travellers</Text>
+          <Text style={styles.sectionTitle} accessibilityRole="header">
+            Customer reviews
+          </Text>
+          <View style={styles.reviewCard}>
+            <View style={styles.reviewMark}>
+              <Icon name="message-circle" size={17} color="#A12D33" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.reviewTitle}>Your journey. Your words.</Text>
+              <Text style={styles.reviewText}>Travelled with NESAM? We would love to hear about your experience.</Text>
+              <Text style={styles.reviewSmall}>Customer reviews will appear here once published.</Text>
+              <Pressable onPress={() => navigation.navigate('Support')} accessibilityRole="link" style={styles.inlineLink} hitSlop={6}>
+                <Text style={styles.inlineLinkText}>Share feedback</Text>
+                <Icon name="arrow-up-right" size={16} color={colors.link} />
+              </Pressable>
+            </View>
           </View>
         </View>
 
-        {/* Bottom spacing */}
-        <View style={{ height: space.xl }} />
+        {/* FAQs */}
+        <View
+          style={styles.section}
+          onLayout={(e) => {
+            faqY.current = e.nativeEvent.layout.y;
+          }}
+        >
+          <Text style={type.eyebrow}>Good to know</Text>
+          <Text style={[styles.sectionTitle, styles.faqTitle]} accessibilityRole="header">
+            A little help, before you go.
+          </Text>
+          <Text style={styles.caption}>The details that make planning easier.</Text>
+          <Pressable onPress={() => navigation.navigate('Support')} accessibilityRole="link" style={[styles.inlineLink, { marginTop: 6 }]} hitSlop={6}>
+            <Text style={[styles.inlineLinkText, { fontSize: 13 }]}>Talk to NESAM</Text>
+            <Icon name="arrow-up-right" size={16} color={colors.link} />
+          </Pressable>
+          <View style={styles.faqList}>
+            {FAQS.map((f, i) => (
+              <Disclosure key={f.q} title={f.q} variant="faq" initiallyOpen={i === 0}>
+                <Text style={styles.faqAnswer}>{f.a}</Text>
+              </Disclosure>
+            ))}
+          </View>
+        </View>
+
+        <Footer
+          onService={(s) => {
+            setService(s);
+            scroller.current?.scrollTo({ y: 0, animated: true });
+          }}
+          onOneWay={(t) => {
+            setService('outstation');
+            update({ tripType: t });
+            scroller.current?.scrollTo({ y: 0, animated: true });
+          }}
+          onFaq={() => scroller.current?.scrollTo({ y: Math.max(0, faqY.current - 12), animated: true })}
+        />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
+function RouteField({
+  pin,
+  label,
+  value,
+  placeholder,
+  error,
+  onPress,
+  divider,
+  roomForSwap,
+}: {
+  pin: 'start' | 'end';
+  label: string;
+  value?: string;
+  placeholder: string;
+  error?: string;
+  onPress: () => void;
+  divider?: boolean;
+  roomForSwap?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [styles.field, divider && styles.fieldDivider, pressed && { opacity: 0.75 }]}
+      accessibilityRole="button"
+      accessibilityLabel={`${label}: ${value ?? 'not set'}`}
+      accessibilityHint={error || 'Opens location search'}
+    >
+      <View style={[styles.pin, pin === 'end' ? styles.pinEnd : styles.pinStart, !!error && { borderColor: colors.primary }]} />
+      <View style={{ flex: 1, minWidth: 0, marginRight: roomForSwap ? 30 : 0 }}>
+        <Text style={styles.formLabelTight}>{label}</Text>
+        <Text style={[styles.fieldValue, !value && styles.fieldPlaceholder]} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+      </View>
+      <View style={[styles.chev, roomForSwap && { marginRight: 32 }]}>
+        <Icon name="chevron-right" size={17} color="#90939A" />
+      </View>
+    </Pressable>
+  );
+}
+
+function PickerBox({ label, value, placeholder, icon, error, onPress }: { label: string; value: string; placeholder: string; icon: IconName; error?: string; onPress: () => void }) {
+  return (
+    <View style={{ flex: 1, minWidth: 0 }}>
+      <Text style={styles.formLabel}>{label}</Text>
+      <Pressable
+        onPress={onPress}
+        style={({ pressed }) => [styles.pickerBox, !!error && styles.pickerError, pressed && { borderColor: '#B7BEC9' }]}
+        accessibilityRole="button"
+        accessibilityLabel={`${label}: ${value || 'not set'}`}
+        accessibilityHint={error || undefined}
+      >
+        <Text style={[styles.pickerValue, !value && styles.fieldPlaceholder]} numberOfLines={1}>
+          {value || placeholder}
+        </Text>
+        <Icon name={icon} size={15} color="#858B95" />
+      </Pressable>
+      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
+    </View>
+  );
+}
+
+/** Multicity has no booking contract on the server yet, so it is booked through the office. */
+function MulticityNotice({ onOneWay }: { onOneWay: () => void }) {
+  return (
+    <View style={{ paddingTop: 16 }}>
+      <View style={styles.multiSteps} accessible accessibilityLabel="Pickup, up to four stops and a final drop">
+        {['Pickup location', 'Stops along the way', 'Final drop'].map((t, i) => (
+          <View key={t} style={[styles.multiStep, i > 0 && styles.fieldDivider]}>
+            <View style={[styles.pin, i === 2 ? styles.pinEnd : styles.pinStart]} />
+            <Text style={styles.multiStepText}>{t}</Text>
+          </View>
+        ))}
+      </View>
+      <Notice
+        tone="info"
+        message="Multicity trips with several stops are arranged by our office for now. Call us with your stops and dates, or book each leg as a one-way trip."
+        style={{ marginTop: 14 }}
+      />
+      <Button title={`Call NESAM · ${SUPPORT_PHONE_DISPLAY}`} icon="phone" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
+      <Button title="Book a one-way trip" variant="secondary" onPress={onOneWay} style={{ marginTop: 10 }} />
+    </View>
+  );
+}
+
+function Footer({ onService, onOneWay, onFaq }: { onService: (s: HomeService) => void; onOneWay: (t: TripType) => void; onFaq: () => void }) {
+  const navigation = useNavigation();
+  const link = (label: string, onPress: () => void) => (
+    <Pressable key={label} onPress={onPress} accessibilityRole="link" style={styles.footLink} hitSlop={2}>
+      <Text style={styles.footLinkText}>{label}</Text>
+    </Pressable>
+  );
+  return (
+    <View style={styles.footer}>
+      <View style={styles.footWord}>
+        <Text style={styles.footBrand}>NESAM</Text>
+        <View style={styles.footBar} />
+      </View>
+      <Text style={styles.footTag}>Cabs & Car Rentals</Text>
+      <Pressable onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} accessibilityRole="link" accessibilityLabel={`Call NESAM on ${SUPPORT_PHONE_DISPLAY}`} style={styles.footPhone}>
+        <Text style={styles.footPhoneText}>{SUPPORT_PHONE_DISPLAY}</Text>
+      </Pressable>
+      <View style={styles.footGrid}>
+        <View style={styles.footCol}>
+          <Text style={styles.footHead}>Our services</Text>
+          {link('One Way', () => onOneWay('One Way'))}
+          {link('Round Trip', () => onOneWay('Round Trip'))}
+          {link('Airport Transfers', () => onService('airport'))}
+          {link('Multicity', () => onService('multicity'))}
+          {link('Local Rental', () => onService('rental'))}
+        </View>
+        <View style={styles.footCol}>
+          <Text style={styles.footHead}>Bookings & help</Text>
+          {link('My Bookings', () => navigation.navigate('Tabs', { screen: 'Trips' }))}
+          {link('Payments', () => navigation.navigate('PaymentHistory'))}
+          {link('Help & Support', () => navigation.navigate('Support'))}
+          {link('Frequently asked questions', onFaq)}
+        </View>
+      </View>
+      <View style={styles.footCol}>
+        <Text style={styles.footHead}>Company</Text>
+        {link('About NESAM', () => navigation.navigate('Settings'))}
+        {link('Offers & coupons', () => navigation.navigate('Offers'))}
+        {link('Terms, privacy & cancellation policy', () => navigation.navigate('LegalDocuments'))}
+      </View>
+      <View style={styles.footBottom}>
+        <Text style={styles.footCopy}>
+          © {new Date().getFullYear()} {COMPANY_LEGAL_NAME.toUpperCase()}
+        </Text>
+        <Text style={styles.footPay}>
+          Book now <Text style={{ color: '#727E8E' }}>·</Text> Pay by cash or UPI
+        </Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  scrollPad: {
-    paddingHorizontal: space.md,
-    paddingTop: space.sm,
-    paddingBottom: space.xl,
-  },
-  liveBanner: {
+  root: { flex: 1, backgroundColor: colors.white },
+  page: { paddingHorizontal: space.xl, paddingTop: space.xl },
+  live: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#0F172A',
-    borderRadius: radius.md,
-    paddingVertical: 10,
+    gap: 12,
+    borderWidth: 1,
+    borderColor: colors.successBorder,
+    backgroundColor: colors.successSoft,
+    borderRadius: 10,
     paddingHorizontal: 14,
-    marginBottom: space.sm,
+    paddingVertical: 12,
+    marginBottom: space.lg,
   },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#10B981',
-  },
-  liveText: {
-    fontFamily: fonts.semiBold,
-    color: colors.white,
-    fontSize: 13,
-    flex: 1,
-  },
-  greetingRow: {
-    marginTop: space.xs,
-    marginBottom: space.md,
-  },
-  welcomeSub: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    color: colors.slate,
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-  },
-  welcomeTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 22,
-    color: colors.ink,
-    marginTop: 2,
-    lineHeight: 28,
-  },
-  bookingCard: {
-    backgroundColor: colors.card,
-    borderRadius: radius.lg,
-    padding: space.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    elevation: 3,
-  },
-  tripTypeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: space.sm,
-  },
-  gridSegmentBtn: {
-    flexGrow: 1,
-    flexBasis: '48%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  gridSegmentBtnActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  gridSegmentText: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  gridSegmentTextActive: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-  },
-  tripTypeSegment: {
-    flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: radius.pill,
-    padding: 3,
-    marginBottom: space.md,
-  },
-  segmentBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radius.pill,
-  },
-  segmentBtnActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  segmentText: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  segmentTextActive: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-  },
-  airportHelperBox: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    padding: space.sm,
-    marginBottom: space.md,
-    gap: 8,
-  },
-  rentalHelperBox: {
-    backgroundColor: '#FFFBEB',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-    padding: space.sm,
-    marginBottom: space.md,
-    gap: 6,
-  },
-  helperHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  helperTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 12,
-    color: colors.ink,
-    letterSpacing: 0.3,
-  },
-  rentalSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.slate,
-    lineHeight: 16,
-  },
-  quickAirportRow: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  airportChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.white,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#93C5FD',
-  },
-  airportChipText: {
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: colors.ink,
-  },
-  airportDirectionRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 2,
-  },
-  dirBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    borderRadius: radius.sm,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  dirBtnActive: {
-    borderColor: colors.primary,
-    backgroundColor: '#F0F9FF',
-  },
-  dirBtnText: {
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: colors.slate,
-  },
-  dirBtnTextActive: {
-    color: colors.primary,
-    fontFamily: fonts.bold,
-  },
-  quickChipsRow: {
-    flexDirection: 'row',
-    marginTop: 2,
-  },
-  rentalChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: colors.white,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  rentalChipText: {
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: '#92400E',
-  },
-  routeBox: {
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: space.xs,
-    paddingHorizontal: space.sm,
-    marginBottom: space.md,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingVertical: 8,
-  },
-  iconCircleGreen: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#DCFCE7',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  iconCircleRed: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  locationTextWrap: {
-    flex: 1,
-  },
-  inputMiniLabel: {
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    color: colors.slate,
-    letterSpacing: 0.5,
-  },
-  locationName: {
-    fontFamily: fonts.semiBold,
-    fontSize: 15,
-    color: colors.ink,
-    marginTop: 1,
-  },
-  placeholderText: {
-    fontFamily: fonts.regular,
-    color: '#94A3B8',
-  },
-  locationAddress: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.slate,
-    marginTop: 1,
-  },
-  gpsActionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dividerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: space.xs,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E2E8F0',
-  },
-  swapCircle: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: colors.white,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: space.xs,
-  },
-  scheduleSection: {
-    marginBottom: space.md,
-    gap: 8,
-  },
-  scheduleItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingVertical: 10,
-    paddingHorizontal: space.sm,
-  },
-  scheduleIconWrap: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scheduleItemLabel: {
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    color: colors.slate,
-    letterSpacing: 0.5,
-  },
-  scheduleItemValue: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.ink,
-    marginTop: 1,
-  },
-  returnTripContainer: {
-    gap: 6,
-  },
-  roundTripInfoPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#FFFBEB',
-    borderRadius: radius.sm,
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#FDE68A',
-  },
-  roundTripInfoText: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: '#B45309',
-  },
-  searchCabsBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: colors.primary,
-    height: 52,
-    borderRadius: radius.md,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  searchCabsBtnPressed: {
-    backgroundColor: '#B71C1C',
-  },
-  searchCabsBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.white,
-    letterSpacing: 0.5,
-  },
-  sectionWrap: {
-    marginTop: space.lg,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: space.sm,
-  },
-  sectionTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.ink,
-  },
-  sectionSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.slate,
-  },
-  heroCard: {
-    borderRadius: radius.lg,
-    overflow: 'hidden',
-    marginBottom: space.sm,
-    backgroundColor: '#0F172A',
-    height: 150,
-    position: 'relative',
-    borderWidth: 1,
-    borderColor: '#1E293B',
-  },
-  heroImage: {
-    width: '100%',
-    height: '100%',
+  liveDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: colors.successStrong },
+  liveTitle: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.success },
+  liveRoute: { fontFamily: fonts.regular, fontSize: 12, color: '#3E5A4C', marginTop: 2 },
+  title: { fontFamily: fonts.semiBold, fontSize: 23, lineHeight: 32, letterSpacing: -0.6, color: colors.text, textAlign: 'center', marginBottom: 20 },
+  widget: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingBottom: 14, backgroundColor: colors.white },
+  field: { flexDirection: 'row', alignItems: 'center', paddingVertical: 10, minHeight: 67, gap: 13 },
+  fieldDivider: { borderTopWidth: 1, borderTopColor: colors.divider },
+  pin: { width: 8, height: 8, borderWidth: 1 },
+  pinStart: { borderRadius: 4, borderColor: '#7D838D' },
+  pinEnd: { borderRadius: 3, borderColor: colors.primary },
+  formLabelTight: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 15.4, color: '#7E8691' },
+  formLabel: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 16.5, color: '#697587', marginBottom: 5 },
+  fieldValue: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 24.8, color: colors.value, letterSpacing: -0.3, marginTop: 3 },
+  fieldPlaceholder: { color: '#99A1AD', fontFamily: fonts.regular },
+  fieldError: { fontFamily: fonts.medium, fontSize: 11.5, color: colors.primaryDark, marginTop: 3 },
+  chev: { paddingHorizontal: 3, paddingVertical: 8 },
+  swap: {
     position: 'absolute',
-    opacity: 0.5,
-  },
-  heroOverlay: {
-    flex: 1,
-    padding: space.md,
-    justifyContent: 'center',
-    backgroundColor: 'rgba(15, 23, 42, 0.35)',
-  },
-  heroBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: 'rgba(227, 30, 36, 0.9)',
-    alignSelf: 'flex-start',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-    borderRadius: radius.full,
-    marginBottom: 6,
-  },
-  heroBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    color: colors.white,
-    letterSpacing: 0.6,
-  },
-  heroTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.white,
-    lineHeight: 25,
-  },
-  heroSubtitle: {
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: '#E2E8F0',
-    marginTop: 3,
-  },
-  routeCountBadge: {
-    backgroundColor: '#F1F5F9',
-    paddingVertical: 2,
-    paddingHorizontal: 8,
-    borderRadius: radius.full,
+    right: 0,
+    top: 50,
+    width: 34,
+    height: 34,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  routeCountText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: colors.slate,
-  },
-  routeCardsScroll: {
-    paddingVertical: space.xs,
-    gap: 12,
-    marginBottom: space.sm,
-  },
-  routeCard: {
-    width: 200,
+    borderColor: '#E4E8EE',
     backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    overflow: 'hidden',
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 6,
-    elevation: 2,
-  },
-  routeImageContainer: {
-    width: '100%',
-    height: 110,
-    backgroundColor: '#0F172A',
-    position: 'relative',
-  },
-  routeImage: {
-    width: '100%',
-    height: '100%',
-  },
-  routeDistanceBadge: {
-    position: 'absolute',
-    bottom: 6,
-    right: 6,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderRadius: radius.sm,
-  },
-  routeDistanceText: {
-    fontFamily: fonts.semiBold,
-    fontSize: 10,
-    color: colors.white,
-  },
-  routeCardBody: {
-    padding: 10,
-  },
-  routeCardName: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  routeCardSub: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.slate,
-    marginTop: 2,
-  },
-  featuresList: {
-    gap: 10,
-  },
-  featureItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: space.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  featureThumb: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.md,
-  },
-  featureTextCol: {
-    flex: 1,
-  },
-  featureTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: colors.ink,
-  },
-  featureDesc: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.slate,
-    marginTop: 2,
-    lineHeight: 15,
-  },
-  supportCard: {
-    marginTop: space.lg,
-    backgroundColor: '#FFF7ED',
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#FFEDD5',
-    padding: space.md,
-    alignItems: 'center',
-  },
-  supportIllustration: {
-    width: 120,
-    height: 90,
-    marginBottom: space.xs,
-  },
-  supportContent: {
-    alignItems: 'center',
-    width: '100%',
-  },
-  supportTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: '#9A3412',
-    textAlign: 'center',
-  },
-  supportSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: '#7C2D12',
-    textAlign: 'center',
-    marginTop: 4,
-    lineHeight: 17,
-  },
-  supportCallBtn: {
-    marginTop: space.sm,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  formRow: { flexDirection: 'row', gap: 11, marginTop: 14 },
+  pickerBox: {
+    minHeight: 46,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 6,
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    width: '100%',
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: colors.white,
   },
-  supportCallBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: colors.white,
-  },
+  pickerError: { borderColor: colors.primary, backgroundColor: '#FFFBFB' },
+  pickerValue: { flex: 1, fontFamily: fonts.medium, fontSize: 13.5, color: colors.text, letterSpacing: -0.2 },
+  packageNote: { marginTop: 14 },
+  packageBox: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#FAFBFC' },
+  packageText: { flex: 1, fontFamily: fonts.regular, fontSize: 12, lineHeight: 17, color: '#55606F' },
+  flight: { marginTop: 14, borderTopWidth: 1, borderTopColor: colors.divider, paddingTop: 2 },
+  flightInput: { minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 11, fontFamily: fonts.medium, fontSize: 15, color: colors.value },
+  flightHint: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 5 },
+  trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: 11 },
+  trustText: { fontFamily: fonts.regular, fontSize: 9.5, color: '#7F8998' },
+  multiSteps: { borderWidth: 1, borderColor: colors.divider, borderRadius: 8, paddingHorizontal: 12 },
+  multiStep: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 46 },
+  multiStepText: { fontFamily: fonts.medium, fontSize: 13.5, color: '#8A929E' },
+  popular: { marginTop: 25 },
+  popularTitle: { fontFamily: fonts.heading, fontSize: 21, lineHeight: 29, letterSpacing: -0.6, color: colors.text },
+  caption: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 19, color: '#74808F', marginTop: 4 },
+  railWrap: { marginHorizontal: -space.xl, marginTop: 13 },
+  rail: { paddingHorizontal: space.xl, paddingBottom: 8, gap: 12 },
+  routeCard: { width: 249, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: colors.white, overflow: 'hidden' },
+  routeArt: { height: 110, margin: 5, marginBottom: 0, borderRadius: 4, backgroundColor: '#FFF5F2', overflow: 'hidden' },
+  routeImg: { width: '100%', height: '100%' },
+  routeBody: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 14 },
+  routeName: { flexDirection: 'row', alignItems: 'center', gap: 7 },
+  routeFrom: { fontFamily: fonts.regular, fontSize: 14, color: '#3D4653', letterSpacing: -0.3 },
+  routeTo: { fontFamily: fonts.semiBold, fontSize: 14, color: '#252D38', letterSpacing: -0.3, flexShrink: 1 },
+  planTrip: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
+  planText: { fontFamily: fonts.medium, fontSize: 11, color: colors.primary },
+  why: { marginTop: 36, paddingTop: 25, borderTopWidth: 1, borderTopColor: '#E7E9ED' },
+  sectionTitle: { fontFamily: fonts.heading, fontSize: 23, lineHeight: 31, letterSpacing: -0.6, color: colors.ink, marginTop: 9 },
+  benefit: { flexDirection: 'row', gap: 17, paddingVertical: 16 },
+  benefitLine: { borderTopWidth: 1, borderTopColor: colors.divider },
+  benefitTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: '#29323D', letterSpacing: -0.2 },
+  benefitText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#6E7887', marginTop: 4 },
+  section: { marginTop: 36 },
+  reviewCard: { flexDirection: 'row', gap: 14, marginTop: 18, borderWidth: 1, borderColor: '#E5E7EB', borderRadius: 8, backgroundColor: '#FAFBFC', paddingVertical: 20, paddingHorizontal: 18 },
+  reviewMark: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: '#EADBDD', backgroundColor: colors.white, alignItems: 'center', justifyContent: 'center' },
+  reviewTitle: { fontFamily: fonts.semiBold, fontSize: 15, lineHeight: 22.5, letterSpacing: -0.3, color: colors.ink },
+  reviewText: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#687383', marginTop: 5 },
+  reviewSmall: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 17, color: '#808A97', marginTop: 11 },
+  inlineLink: { flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start', minHeight: 30, marginTop: 8 },
+  inlineLinkText: { fontFamily: fonts.medium, fontSize: 12, color: colors.link },
+  faqTitle: { fontSize: 25, lineHeight: 35, maxWidth: 300 },
+  faqList: { marginTop: 18, borderTopWidth: 1, borderTopColor: '#E3E6EB' },
+  faqAnswer: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22.8, color: '#727D8B' },
+  footer: { marginTop: 36, marginHorizontal: -space.xl, backgroundColor: colors.navy, paddingHorizontal: space.xl, paddingTop: 32, paddingBottom: 28 },
+  footWord: { flexDirection: 'row', alignItems: 'flex-end', gap: 6 },
+  footBrand: { fontFamily: fonts.brand, fontSize: 27, lineHeight: 30, color: colors.white, letterSpacing: 2 },
+  footBar: { width: 16, height: 3, backgroundColor: '#DF4149', marginBottom: 6 },
+  footTag: { fontFamily: fonts.regular, fontSize: 11, lineHeight: 17.6, color: '#B2BDCB', marginTop: 8 },
+  footPhone: { paddingVertical: 5, marginTop: 14, alignSelf: 'flex-start' },
+  footPhoneText: { fontFamily: fonts.medium, fontSize: 16, lineHeight: 27, color: colors.white, letterSpacing: 0.2 },
+  footGrid: { flexDirection: 'row', gap: 20, marginTop: 22 },
+  footCol: { flex: 1, marginBottom: 22 },
+  footHead: { fontFamily: fonts.medium, fontSize: 13.5, color: colors.white, marginBottom: 8 },
+  footLink: { paddingVertical: 6, alignSelf: 'flex-start', minHeight: 32, justifyContent: 'center' },
+  footLinkText: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 18.7, color: '#B9C2CE' },
+  footBottom: { borderTopWidth: 1, borderTopColor: '#343C47', paddingTop: 18, gap: 10 },
+  footCopy: { fontFamily: fonts.regular, fontSize: 8.5, lineHeight: 14.4, color: '#9DA9B9', letterSpacing: 0.3 },
+  footPay: { fontFamily: fonts.regular, fontSize: 10, lineHeight: 18, color: '#9DA9B9' },
 });

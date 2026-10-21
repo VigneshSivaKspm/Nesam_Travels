@@ -1,82 +1,96 @@
-// NESAM brand tokens (match the Web panels: red #E31E24, near-black #111111).
+// NESAM customer design tokens, taken from the final effective styles of the
+// customer reference (Nesam_Customer_App_Outstation_UX.html): Inter text,
+// Manrope/“Nesam UI” section headings, brand red #C62828, slate text, pale borders.
 export const colors = {
-  primary: '#E31E24',
-  primaryDark: '#C41820',
-  primarySoft: '#FEF2F2',
-  primaryBorder: '#FBD5D5',
-  ink: '#111111',
-  text: '#1F2937',
-  muted: '#6B7280',
-  faint: '#9CA3AF',
-  border: '#E5E7EB',
-  divider: '#F0F0F0',
-  bg: '#F7F7F7',
-  surface: '#F8FAFC',
+  primary: '#C62828',
+  primaryDark: '#A71F1F',
+  /** Pressed / active nav red. */
+  primaryActive: '#BC2428',
+  primarySoft: '#FFF5F2',
+  primaryBorder: '#F0CFCB',
+  /** Eyebrow labels and inline links. */
+  eyebrow: '#A1272B',
+  link: '#B92329',
+  ink: '#222B36',
+  text: '#20252D',
+  /** Field values and card titles. */
+  value: '#28313E',
+  muted: '#697587',
+  label: '#7E8691',
+  faint: '#99A1AD',
+  border: '#E2E6EC',
+  divider: '#ECEFF3',
+  bg: '#FFFFFF',
+  surface: '#F6F8FB',
+  subtle: '#F5F6F8',
   card: '#FFFFFF',
-  success: '#15803D',
-  successSoft: '#ECFDF5',
-  successBorder: '#A7F3D0',
-  warning: '#B45309',
-  warningSoft: '#FFFBEB',
-  warningBorder: '#FDE68A',
-  danger: '#D92D20',
-  info: '#1D4ED8',
-  infoSoft: '#EFF6FF',
+  success: '#2A7555',
+  successSoft: '#EEF7F2',
+  successBorder: '#D7EBDD',
+  successStrong: '#278050',
+  warning: '#A8650E',
+  warningSoft: '#FFF6E7',
+  warningBorder: '#F3DFB8',
+  danger: '#C62828',
+  info: '#0969B9',
+  infoSoft: '#EAF5FF',
   white: '#FFFFFF',
-  /** Page background of the redesigned customer screens. */
   page: '#FFFFFF',
-  /** Secondary text in the redesigned screens (cool grey). */
-  slate: '#64748B',
-  /** Card headings such as “Upcoming trip”. */
-  navy: '#1E2B58',
-  overlay: 'rgba(17,17,17,0.55)',
+  slate: '#697587',
+  /** Footer / dark surfaces. */
+  navy: '#19212C',
+  overlay: 'rgba(25,33,44,0.52)',
 } as const;
 
-export const radius = { sm: 8, md: 12, lg: 16, xl: 20, pill: 999, full: 9999 } as const;
-export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
+export const radius = { xs: 5, sm: 6, md: 7, lg: 10, xl: 13, pill: 999, full: 9999 } as const;
+export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 20, xxl: 32 } as const;
 
 export const shadows = {
   sm: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 3,
-    elevation: 1,
+    shadowColor: '#28364B',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 5,
+    elevation: 0,
   },
   md: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 10,
-    elevation: 3,
+    shadowColor: '#28364B',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.07,
+    shadowRadius: 16,
+    elevation: 2,
   },
   lg: {
-    shadowColor: '#0F172A',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.12,
-    shadowRadius: 20,
-    elevation: 6,
+    shadowColor: '#19212C',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.14,
+    shadowRadius: 28,
+    elevation: 8,
   },
 } as const;
 
+/** Inter for all UI text; Manrope ExtraBold for section headings and the header wordmark. */
 export const fonts = {
-  regular: 'Poppins_400Regular',
-  medium: 'Poppins_500Medium',
-  semiBold: 'Poppins_600SemiBold',
-  bold: 'Poppins_700Bold',
-  extraBold: 'Poppins_800ExtraBold',
-  black: 'Poppins_900Black',
+  regular: 'Inter_400Regular',
+  medium: 'Inter_500Medium',
+  semiBold: 'Inter_600SemiBold',
+  bold: 'Inter_700Bold',
+  extraBold: 'Inter_800ExtraBold',
+  black: 'Inter_800ExtraBold',
+  heading: 'Manrope_800ExtraBold',
+  /** The reference's embedded wordmark face (footer “NESAM”). */
+  brand: 'NesamBrand',
 } as const;
 
 export const type = {
-  display: { fontFamily: fonts.extraBold, fontSize: 30, fontWeight: '800' as const, color: colors.ink, letterSpacing: -0.5 },
-  h1: { fontFamily: fonts.extraBold, fontSize: 24, fontWeight: '800' as const, color: colors.ink, letterSpacing: -0.3 },
-  h2: { fontFamily: fonts.bold, fontSize: 20, fontWeight: '700' as const, color: colors.ink, letterSpacing: -0.2 },
-  h3: { fontFamily: fonts.bold, fontSize: 16, fontWeight: '700' as const, color: colors.ink },
-  body: { fontFamily: fonts.regular, fontSize: 15, color: colors.text, lineHeight: 22 },
-  bodyMedium: { fontFamily: fonts.medium, fontSize: 15, fontWeight: '600' as const, color: colors.text, lineHeight: 22 },
-  small: { fontFamily: fonts.regular, fontSize: 13, color: colors.muted, lineHeight: 18 },
-  tiny: { fontFamily: fonts.medium, fontSize: 12, fontWeight: '600' as const, color: colors.muted, lineHeight: 16 },
-  label: { fontFamily: fonts.bold, fontSize: 14, fontWeight: '700' as const, color: colors.text },
+  display: { fontFamily: fonts.semiBold, fontSize: 23, color: colors.ink, letterSpacing: -0.6, lineHeight: 30 },
+  h1: { fontFamily: fonts.semiBold, fontSize: 23, color: colors.ink, letterSpacing: -0.6, lineHeight: 30 },
+  h2: { fontFamily: fonts.heading, fontSize: 21, color: colors.ink, letterSpacing: -0.6, lineHeight: 29 },
+  h3: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.ink, letterSpacing: -0.3, lineHeight: 22 },
+  body: { fontFamily: fonts.regular, fontSize: 14, color: colors.text, lineHeight: 21 },
+  bodyMedium: { fontFamily: fonts.medium, fontSize: 14, color: colors.text, lineHeight: 21 },
+  small: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, lineHeight: 19 },
+  tiny: { fontFamily: fonts.medium, fontSize: 11, color: colors.muted, lineHeight: 16 },
+  label: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, lineHeight: 16 },
+  eyebrow: { fontFamily: fonts.semiBold, fontSize: 10, color: colors.eyebrow, letterSpacing: 1.4, lineHeight: 15, textTransform: 'uppercase' as const },
 } as const;
-

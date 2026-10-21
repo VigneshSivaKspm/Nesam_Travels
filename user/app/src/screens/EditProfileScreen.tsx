@@ -1,15 +1,17 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
-import { Button, Card, Chip, Notice, TextField } from '../components/ui';
-import { SubHeader } from '../components/brand';
+import { Button, Chip, Notice, PageHead, TextField } from '../components/ui';
+import { ScrollView } from '../components/layout';
+import { AppHeader } from '../components/brand';
+import { Icon } from '../components/Icon';
 import { updateCustomerProfile } from '../services/userService';
 import { formatPhone, isValidEmail, isValidIndianMobile, isValidName, localMobile } from '../utils/format';
 import { describeError } from '../utils/retry';
-import { colors, fonts, radius, space, type } from '../theme';
+import { colors, fonts, space } from '../theme';
 
 const LANGUAGES = ['English', 'தமிழ் (Tamil)', 'हिन्दी (Hindi)'];
 
@@ -71,25 +73,26 @@ export function EditProfileScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <SubHeader title="Edit Profile" subtitle="Update your contact and preferences" onBack={() => navigation.goBack()} />
-
-      <ScrollView contentContainerStyle={styles.scrollPad} showsVerticalScrollIndicator={false}>
-        <Card style={styles.formCard}>
+      <AppHeader />
+      <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <PageHead title="My Profile" subtitle="Keep your contact details up to date." onBack={() => navigation.goBack()} />
+        <View style={styles.card}>
+          <TextField label="Full name" required value={name} onChangeText={setName} autoComplete="name" />
           <TextField
             label="Mobile number"
             value={formatPhone(profile.phone)}
             editable={false}
-            hint="Your registered login number cannot be changed here. Contact support to migrate."
+            hint="Your sign-in number. To change it, contact NESAM support."
+            right={<Icon name="lock-keyhole" size={15} color="#9AA2AE" />}
           />
-          <TextField label="Full name" required value={name} onChangeText={setName} autoComplete="name" />
           <TextField
-            label="Email address (optional)"
+            label="Email (optional)"
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
-            hint="Used for booking confirmations and tax invoices."
+            hint="Used for booking confirmations and receipts."
           />
           <TextField
             label="Emergency contact (optional)"
@@ -98,43 +101,26 @@ export function EditProfileScreen({ navigation }: Props) {
             onChangeText={(v) => setEmergency(v.replace(/\D/g, '').slice(0, 10))}
             keyboardType="phone-pad"
             maxLength={10}
-            hint="Receives instant alerts if SOS is triggered during a ride."
+            hint="Receives an alert if SOS is triggered during a trip."
           />
-          <Text style={styles.label}>Preferred Language</Text>
+          <Text style={styles.label}>Preferred language</Text>
           <View style={styles.langRow}>
             {LANGUAGES.map((l) => (
               <Chip key={l} label={l} active={language === l} onPress={() => setLanguage(l)} />
             ))}
           </View>
-          <Notice message={error} style={{ marginTop: space.md }} />
-          <Button title={busy ? 'Saving…' : 'Save Changes'} loading={busy} disabled={!dirty} onPress={() => void save()} style={{ marginTop: space.lg }} />
-        </Card>
+          <Notice message={error} style={{ marginTop: space.lg }} />
+          <Button title="Save changes" loading={busy} disabled={!dirty} onPress={() => void save()} style={{ marginTop: space.lg }} />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
-  scrollPad: { padding: space.md, paddingBottom: space.xxl },
-  formCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  label: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
-    color: colors.ink,
-    marginBottom: space.sm,
-    marginTop: space.sm,
-  },
-  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: space.sm },
+  root: { flex: 1, backgroundColor: colors.white },
+  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, backgroundColor: colors.white },
+  label: { fontFamily: fonts.regular, fontSize: 11.5, color: '#697587', marginBottom: 8 },
+  langRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
 });

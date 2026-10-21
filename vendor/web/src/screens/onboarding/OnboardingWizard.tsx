@@ -2,12 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Check, LogOut, MessageSquareWarning } from "lucide-react";
 import type { VendorRecord } from "../../types";
 import { ONBOARDING_STEPS, SECTION_LABELS, stepOfSection } from "../../config/onboarding";
-import {
-  getVendorInvite,
-  getVendorKyc,
-  type VendorInvite,
-  type VendorKyc,
-} from "../../services/onboardingService";
+import { getVendorKyc, type VendorKyc } from "../../services/onboardingService";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import {
   FullScreenLoader,
@@ -15,6 +10,7 @@ import {
   RED,
 } from "../../components/onboarding/ui";
 import { BusinessAccountStep } from "./BusinessAccountStep";
+import { DocumentsStep } from "./DocumentsStep";
 import { FleetStep } from "./FleetStep";
 import { ReviewStep } from "./ReviewStep";
 
@@ -52,27 +48,27 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
 }) => {
   const online = useOnlineStatus();
   const [step, setStep] = useState(() => initialStep(record));
-  const [invite, setInvite] = useState<VendorInvite | null>(null);
   const [kyc, setKyc] = useState<VendorKyc | null>(null);
-  const [prefillLoading, setPrefillLoading] = useState(true);
+  const [prefillLoading, setPrefillLoading] = useState(!!record);
 
-  // One-time prefill: admin invite (new vendors) + private KYC (resuming vendors).
+  // Load private KYC details for resuming vendors (so bank/ID fields pre-fill).
   useEffect(() => {
-    let alive = true;
-    Promise.all([
-      getVendorInvite(phone),
-      record ? getVendorKyc().catch(() => null) : Promise.resolve(null),
-    ]).then(([inv, k]) => {
-      if (!alive) return;
-      setInvite(inv);
-      setKyc(k);
+    if (!record) {
       setPrefillLoading(false);
-    });
+      return;
+    }
+    let alive = true;
+    getVendorKyc()
+      .catch(() => null)
+      .then((k) => {
+        if (!alive) return;
+        setKyc(k);
+        setPrefillLoading(false);
+      });
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [record]);
 
   // Scroll to top on step change (long forms on mobile).
   useEffect(() => {
@@ -96,7 +92,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
     (record.status === "CHANGES_REQUESTED" || record.status === "REJECTED")
       ? record
       : null;
-  const current = ONBOARDING_STEPS[step];
+  const current = ONBOARDING_STEPS[step] || ONBOARDING_STEPS[0];
 
   const renderStep = () => {
     if (!record) return <FullScreenLoader label="Saving…" />;
@@ -104,12 +100,13 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
       case 0:
         return <BusinessAccountStep record={record} kyc={kyc} onKycChange={setKyc} onNext={next} />;
       case 1:
+        return <DocumentsStep record={record} kyc={kyc} onKycChange={setKyc} onNext={next} onBack={back} />;
+      case 2:
         return <FleetStep record={record} onNext={next} onBack={back} />;
       default:
         return (
           <ReviewStep
             record={record}
-            preApproved={!!invite?.preApproved}
             onEdit={goTo}
             onBack={back}
           />
@@ -129,6 +126,7 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
               src="/icons/logo.png"
               alt="NESAM Fleet Partner"
               className="w-8 h-8 rounded-lg object-contain bg-white border border-[#E5E5E5] p-1 shadow-sm"
+              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
             />
             <div>
               <div className="text-[13px] font-bold text-[#111] leading-tight">
@@ -219,13 +217,11 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
                 <p className="whitespace-pre-wrap">{correction.review.note}</p>
               )}
               {!!correction.review?.flaggedSections.length && (
-                <p>
+                <p className="text-[11px] text-amber-800 font-semibold">
                   Please update:{" "}
-                  <span className="font-semibold">
-                    {correction.review.flaggedSections
-                      .map((s) => SECTION_LABELS[s])
-                      .join(", ")}
-                  </span>
+                  {correction.review.flaggedSections
+                    .map((f) => SECTION_LABELS[f])
+                    .join(", ")}
                   . Then resubmit from the final step.
                 </p>
               )}
@@ -233,22 +229,23 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
           </div>
         )}
 
-        <section className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-5 sm:p-6">
-          <div className="mb-5">
-            <div className="text-[11px] font-semibold uppercase tracking-wider text-[#999]">
+        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6 sm:p-7 space-y-4">
+          <div>
+            <div className="text-[11px] font-bold uppercase tracking-wider text-[#999]">
               Step {step + 1} of {ONBOARDING_STEPS.length}
             </div>
-            <h1 className="text-[17px] font-bold text-[#111] mt-0.5">
+            <h1 className="text-[18px] sm:text-[20px] font-extrabold text-[#111] mt-0.5">
               {current.title}
             </h1>
           </div>
-          {renderStep()}
-        </section>
 
-        <p className="text-center text-[11px] text-[#BBB]">
-          Your progress is saved after each step — you can sign out and continue
-          later.
-        </p>
+          {renderStep()}
+        </div>
+
+        <div className="text-center text-[11px] text-[#999]">
+          Your progress is saved automatically after each step — you can sign
+          out and continue later.
+        </div>
       </main>
     </div>
   );

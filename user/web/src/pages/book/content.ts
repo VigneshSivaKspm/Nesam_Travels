@@ -177,3 +177,39 @@ export const QUICK_CITIES: GeoPlace[] = [
   place('city-salem', 'Salem', 'Salem, Tamil Nadu', 11.6643, 78.146),
   place('city-tirupati', 'Tirupati', 'Tirupati, Andhra Pradesh', 13.6288, 79.4192),
 ];
+
+// ── Booking home (reference layout) ─────────────────────────────────────────
+
+export interface PopularRoute {
+  id: string;
+  from: string;
+  to: string;
+  pickup: GeoPlace;
+  drop: GeoPlace;
+  /** Red landmark artwork for the destination. */
+  art: string;
+}
+
+const CHENNAI = place('pop-chennai', 'Chennai', 'Chennai, Tamil Nadu', 13.0827, 80.2707);
+
+/** "A few favourites from Chennai": choosing one fills the booking form (the date and time stay the rider's choice). */
+export const POPULAR_ROUTES: PopularRoute[] = [
+  { id: 'trichy', from: 'Chennai', to: 'Trichy', pickup: CHENNAI, drop: place('pop-trichy', 'Trichy', 'Tiruchirappalli, Tamil Nadu', 10.7905, 78.7047), art: '/nesam/routes/trichy.webp' },
+  { id: 'madurai', from: 'Chennai', to: 'Madurai', pickup: CHENNAI, drop: place('pop-madurai', 'Madurai', 'Madurai, Tamil Nadu', 9.9252, 78.1198), art: '/nesam/routes/madurai.webp' },
+  { id: 'thanjavur', from: 'Chennai', to: 'Thanjavur', pickup: CHENNAI, drop: place('pop-thanjavur', 'Thanjavur', 'Thanjavur, Tamil Nadu', 10.787, 79.1378), art: '/nesam/routes/thanjavur.webp' },
+  { id: 'puducherry', from: 'Chennai', to: 'Puducherry', pickup: CHENNAI, drop: place('pop-puducherry', 'Puducherry', 'Puducherry', 11.9416, 79.8083), art: '/nesam/routes/puducherry.webp' },
+  { id: 'coimbatore', from: 'Chennai', to: 'Coimbatore', pickup: CHENNAI, drop: place('pop-coimbatore', 'Coimbatore', 'Coimbatore, Tamil Nadu', 11.0168, 76.9558), art: '/nesam/routes/coimbatore.webp' },
+  { id: 'rameswaram', from: 'Chennai', to: 'Rameswaram', pickup: CHENNAI, drop: place('pop-rameswaram', 'Rameswaram', 'Rameswaram, Tamil Nadu', 9.2876, 79.3129), art: '/nesam/routes/rameswaram.webp' },
+];
+
+const airport = (id: string, name: string, address: string, lat: number, lng: number): GeoPlace => ({ id: `airport-${id}`, name, address, lat, lng, type: 'airport' });
+
+export const AIRPORTS: GeoPlace[] = [
+  airport('maa', 'Chennai International Airport (MAA)', 'Meenambakkam, Chennai, Tamil Nadu', 12.9941, 80.1709),
+  airport('ixm', 'Madurai Airport (IXM)', 'Madurai, Tamil Nadu', 9.8345, 78.0934),
+  airport('cjb', 'Coimbatore International Airport (CJB)', 'Peelamedu, Coimbatore, Tamil Nadu', 11.03, 77.0434),
+  airport('trz', 'Tiruchirappalli International Airport (TRZ)', 'Tiruchirappalli, Tamil Nadu', 10.7654, 78.7097),
+  airport('blr', 'Kempegowda International Airport (BLR)', 'Devanahalli, Bengaluru, Karnataka', 13.1986, 77.7066),
+];
+
+export const isAirportPlace = (p: GeoPlace | null | undefined) => !!p && (p.type === 'airport' || /\bairport\b/i.test(`${p.name} ${p.address}`));

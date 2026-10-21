@@ -1,6 +1,6 @@
 import { lazy, useEffect, useRef, type ReactNode } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { CustomerDataProvider, useCustomerData } from '@core/context/CustomerData';
+import { CustomerDataProvider, useCustomerData } from '@/state/CustomerData';
 import { Shell } from '@/components/Shell';
 import { EmptyState, LinkButton, PageLoader } from '@/components/ui';
 import { AuthProvider, useAuth } from '@/state/Auth';
@@ -17,6 +17,8 @@ import { LoginModal } from '@/components/LoginModal';
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<never>>>, name: K) =>
   lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
 const BookPage = lazy(() => import('@/pages/book/BookPage').then((m) => ({ default: m.BookPage })));
+const DonePage = page(() => import('@/pages/book/DonePage'), 'DonePage');
+const AboutPage = page(() => import('@/pages/AboutPage'), 'AboutPage');
 const RidePage = page(() => import('@/pages/ride/RidePage'), 'RidePage');
 const TripsPage = page(() => import('@/pages/TripsPage'), 'TripsPage');
 const NotificationsPage = page(() => import('@/pages/NotificationsPage'), 'NotificationsPage');
@@ -111,6 +113,7 @@ export function AppRoutes() {
         <Route path="/book" element={<BookPage step="plan" />} />
         <Route path="/book/ride" element={<BookPage step="choose" />} />
         <Route path="/book/confirm" element={<BookPage step="review" />} />
+        <Route path="/book/done/:id" element={<DonePage />} />
         <Route path="/ride/:id" element={<RidePage />} />
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/trips/:id" element={<RidePage />} />
@@ -122,6 +125,7 @@ export function AppRoutes() {
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/routes/:routeId" element={<RouteLandingPage />} />
         <Route path="/services/:serviceId" element={<ServiceLandingPage />} />
         <Route path="*" element={<NotFound />} />

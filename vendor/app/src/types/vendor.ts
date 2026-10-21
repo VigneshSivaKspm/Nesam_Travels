@@ -184,6 +184,9 @@ export interface BusinessInfo {
     state: string;
     pincode: string;
   };
+  operatingCity?: string;
+  operatingAreas?: string[];
+  estimatedFleetSize?: number;
 }
 
 export type BusinessRegType = 'GST' | 'BUSINESS_REGISTRATION' | 'TRADE_LICENSE';

@@ -1,23 +1,21 @@
-// Welcome → mobile number → OTP. Native port of the PhoneLogin part of
-// user/web/src/screens/AuthFlow.tsx.
+// Welcome → mobile number → OTP, in the reference's page style. Real Firebase phone
+// authentication; nothing here simulates a login or an OTP.
 import React, { useEffect, useRef, useState } from 'react';
-import { BackHandler, Image, StyleSheet, Text, TextInput, View } from 'react-native';
+import { BackHandler, StyleSheet, Text, TextInput, View } from 'react-native';
 import type { ConfirmationResult } from 'firebase/auth';
-import { Button, Card, LinkText, Notice, Screen, TextField } from '../../components/ui';
+import { Button, LinkText, Notice, Screen, TextField } from '../../components/ui';
+import { AppHeader } from '../../components/brand';
+import { Icon } from '../../components/Icon';
 import { useRecaptchaVerifier } from '../../components/RecaptchaVerifier';
 import { confirmOtpCode, describePhoneAuthError, sendOtpToPhone } from '../../services/authService';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { formatPhone, isValidIndianMobile } from '../../utils/format';
-import { colors, fonts, radius, space, type } from '../../theme';
-import { useResponsive } from '../../theme/responsive';
+import { colors, fonts, space } from '../../theme';
 import { setAuthIntent, type AuthIntent } from './authIntent';
-
-import { BRAND, ILLUSTRATIONS } from '../../assets/images';
 
 const RESEND_COOLDOWN_S = 30;
 
 export function AuthScreen() {
-  const { isDesktop } = useResponsive();
   const [step, setStep] = useState<'welcome' | 'phone' | 'otp'>('welcome');
   const [intent, setIntent] = useState<AuthIntent>('login');
   const [mobile, setMobile] = useState('');
@@ -102,188 +100,133 @@ export function AuthScreen() {
     return undefined;
   };
 
-  const header = (subtitle: string) => (
-    <View style={styles.brand}>
-      <Image source={BRAND.logo} style={styles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <Text style={[styles.title, { color: colors.primary }]}>NESAM</Text>
-        <Text style={[styles.title, { color: colors.ink }]}>CABS</Text>
-      </View>
+  const frame = (title: string, subtitle: string, body: React.ReactNode) => (
+    <Screen bg={colors.white} header={<AppHeader actions={false} />} kind="narrow">
+      <Text style={styles.title} accessibilityRole="header">
+        {title}
+      </Text>
       <Text style={styles.subtitle}>{subtitle}</Text>
-    </View>
+      <View style={styles.card}>{body}</View>
+    </Screen>
   );
 
   if (step === 'welcome') {
-    return (
-      <Screen bg={colors.page}>
-        <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
-          {header('Safe Journey, Happy Memories')}
-          <Image
-            source={ILLUSTRATIONS.welcome}
-            style={styles.authIllustration}
-            resizeMode="contain"
-            accessible={false}
-            importantForAccessibility="no"
-          />
-          <Card style={styles.authCard}>
-            <Button title="Login with Phone" onPress={() => start('login')} />
-            <Text style={styles.helper}>I already have a passenger account</Text>
-            <Button title="Create New Account" variant="dark" onPress={() => start('signup')} style={{ marginTop: space.lg }} />
-            <Text style={styles.helper}>New to NESAM Cabs</Text>
-          </Card>
-          <Text style={styles.legal}>By continuing you agree to NESAM’s Terms & Conditions and Privacy Policy.</Text>
+    return frame(
+      'Welcome to NESAM',
+      'Cabs & car rentals for outstation, airport and local journeys.',
+      <>
+        <Button title="Sign in with mobile" iconRight="arrow-right" onPress={() => start('login')} />
+        <Text style={styles.helper}>I already have a NESAM account</Text>
+        <Button title="Create new account" variant="secondary" onPress={() => start('signup')} style={{ marginTop: space.xl }} />
+        <Text style={styles.helper}>New to NESAM</Text>
+        <View style={styles.trust}>
+          <Icon name="shield-check" size={13} color="#8994A4" />
+          <Text style={styles.trustText}>Clear fares. Dedicated support.</Text>
         </View>
-      </Screen>
+      </>,
     );
   }
 
   if (step === 'phone') {
-    return (
-      <Screen bg={colors.page}>
-        <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
-          {header(intent === 'signup' ? 'Create your passenger account' : 'Sign in with your mobile number')}
-          <Image
-            source={ILLUSTRATIONS.phoneVerification}
-            style={styles.authIllustrationPhone}
-            resizeMode="contain"
-            accessible={false}
-            importantForAccessibility="no"
-          />
-          <Card style={styles.authCard}>
-            <TextField
-              label={intent === 'signup' ? 'Mobile number' : 'Registered mobile number'}
-              prefix="+91"
-              value={mobile}
-              onChangeText={(v) => {
-                setMobile(v.replace(/\D/g, '').slice(0, 10));
-                setError('');
-              }}
-              keyboardType="phone-pad"
-              autoComplete="tel-national"
-              textContentType="telephoneNumber"
-              maxLength={10}
-              placeholder="98765 43210"
-              autoFocus
-              returnKeyType="done"
-              onSubmitEditing={() => void sendOtp()}
-              hint={intent === 'signup' ? 'This number becomes your login and primary contact for trips.' : undefined}
-            />
-            <Notice message={error} />
-            <Button title={sending ? 'Sending OTP…' : 'Send Verification OTP'} loading={sending} disabled={mobile.length !== 10 || !online} onPress={() => void sendOtp()} />
-            <View style={styles.backRow}>
-              <LinkText onPress={() => !sending && setStep('welcome')}>← Back</LinkText>
-            </View>
-          </Card>
+    return frame(
+      intent === 'signup' ? 'Create your account' : 'Sign in',
+      intent === 'signup' ? 'Your mobile number becomes your sign-in and trip contact.' : 'Enter your registered mobile number.',
+      <>
+        <TextField
+          label={intent === 'signup' ? 'Mobile number' : 'Registered mobile number'}
+          prefix="+91"
+          value={mobile}
+          onChangeText={(v) => {
+            setMobile(v.replace(/\D/g, '').slice(0, 10));
+            setError('');
+          }}
+          keyboardType="phone-pad"
+          autoComplete="tel-national"
+          textContentType="telephoneNumber"
+          maxLength={10}
+          placeholder="98765 43210"
+          autoFocus
+          returnKeyType="done"
+          onSubmitEditing={() => void sendOtp()}
+        />
+        <Notice message={error} />
+        <Button title="Send OTP" iconRight="arrow-right" loading={sending} disabled={mobile.length !== 10 || !online} onPress={() => void sendOtp()} />
+        {!online ? <Text style={styles.offline}>You’re offline. Connect to the internet to receive your OTP.</Text> : null}
+        <View style={styles.backRow}>
+          <LinkText onPress={() => !sending && setStep('welcome')}>← Back</LinkText>
         </View>
-      </Screen>
+      </>,
     );
   }
 
-  return (
-    <Screen bg={colors.page}>
-      <View style={[styles.authContainer, isDesktop && styles.desktopAuthContainer]}>
-        {header('Verify your mobile number')}
-        <Image
-          source={ILLUSTRATIONS.phoneVerification}
-          style={styles.authIllustrationPhone}
-          resizeMode="contain"
-          accessible={false}
-          importantForAccessibility="no"
-        />
-        <Card style={styles.authCard}>
-          <Text style={[type.body, { marginBottom: space.md, textAlign: 'center' }]}>
-            Enter the 6-digit OTP sent to <Text style={{ fontFamily: fonts.extraBold, fontWeight: '800' }}>{formatPhone(mobile)}</Text>
-          </Text>
-          <TextInput
-            ref={otpRef}
-            value={otp}
-            onChangeText={(v) => {
-              const digits = v.replace(/\D/g, '').slice(0, 6);
-              setOtp(digits);
-              setError('');
-              if (digits.length === 6) void verify(digits);
-            }}
-            keyboardType="number-pad"
-            autoComplete="sms-otp"
-            textContentType="oneTimeCode"
-            maxLength={6}
-            editable={!verifying}
-            placeholder="••••••"
-            placeholderTextColor={colors.faint}
-            style={[styles.otp, !!error && { borderColor: colors.primary }]}
-            accessibilityLabel="6-digit OTP"
-          />
-          <Notice message={error} />
-          <Button title={verifying ? 'Verifying…' : 'Verify & Continue'} loading={verifying} disabled={otp.length !== 6} onPress={() => void verify(otp)} />
-          <View style={styles.resendRow}>
-            {cooldown > 0 ? (
-              <Text style={type.small}>Resend code in {cooldown}s</Text>
-            ) : (
-              <LinkText onPress={() => void sendOtp()}>{sending ? 'Resending…' : 'Resend code'}</LinkText>
-            )}
-            <LinkText
-              onPress={() => {
-                if (verifying) return;
-                setStep('phone');
-                setOtp('');
-                setError('');
-              }}
-            >
-              Change number
-            </LinkText>
-          </View>
-        </Card>
+  return frame(
+    'Verify your number',
+    `Enter the 6-digit OTP sent to ${formatPhone(mobile)}.`,
+    <>
+      <TextInput
+        ref={otpRef}
+        value={otp}
+        onChangeText={(v) => {
+          const digits = v.replace(/\D/g, '').slice(0, 6);
+          setOtp(digits);
+          setError('');
+          if (digits.length === 6) void verify(digits);
+        }}
+        keyboardType="number-pad"
+        autoComplete="sms-otp"
+        textContentType="oneTimeCode"
+        maxLength={6}
+        editable={!verifying}
+        placeholder="••••••"
+        placeholderTextColor={colors.faint}
+        style={[styles.otp, !!error && { borderColor: colors.primary }]}
+        accessibilityLabel="6-digit OTP"
+      />
+      <Notice message={error} />
+      <Button title="Verify & continue" loading={verifying} disabled={otp.length !== 6} onPress={() => void verify(otp)} />
+      <View style={styles.resendRow}>
+        {cooldown > 0 ? (
+          <Text style={styles.cool}>Resend code in {cooldown}s</Text>
+        ) : (
+          <LinkText onPress={() => void sendOtp()}>{sending ? 'Resending…' : 'Resend code'}</LinkText>
+        )}
+        <LinkText
+          onPress={() => {
+            if (verifying) return;
+            setStep('phone');
+            setOtp('');
+            setError('');
+          }}
+        >
+          Change number
+        </LinkText>
       </View>
-    </Screen>
+    </>,
   );
 }
 
 const styles = StyleSheet.create({
-  authContainer: { width: '100%' },
-  desktopAuthContainer: { maxWidth: 480, width: '100%', alignSelf: 'center', marginTop: space.xl },
-  authIllustration: {
-    width: '100%',
-    height: 130,
-    marginBottom: space.sm,
-    alignSelf: 'center',
-  },
-  authIllustrationPhone: {
-    width: '100%',
-    height: 100,
-    marginBottom: space.xs,
-    alignSelf: 'center',
-  },
-  authCard: {
-    padding: space.lg,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-  },
-  brand: { alignItems: 'center', marginTop: space.xs, marginBottom: space.sm },
-  logo: { width: 72, height: 72, borderRadius: 18, marginBottom: space.xs },
-  title: { fontFamily: fonts.black, fontSize: 24, letterSpacing: 0.5, textAlign: 'center' },
-  subtitle: { fontFamily: fonts.medium, fontSize: 13, color: colors.slate, marginTop: 4, textAlign: 'center' },
-  helper: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate, textAlign: 'center', marginTop: 6 },
-  legal: { fontFamily: fonts.regular, fontSize: 11, textAlign: 'center', marginTop: space.lg, paddingHorizontal: space.lg, color: colors.muted, lineHeight: 16 },
+  title: { fontFamily: fonts.semiBold, fontSize: 23, lineHeight: 30, letterSpacing: -0.6, color: colors.ink, textAlign: 'center', marginTop: space.xl },
+  subtitle: { fontFamily: fonts.regular, fontSize: 12.5, lineHeight: 19, color: '#6D7785', textAlign: 'center', marginTop: 8, marginBottom: space.xl, paddingHorizontal: space.lg },
+  card: { borderWidth: 1, borderColor: colors.border, borderRadius: 10, paddingHorizontal: 16, paddingTop: 20, paddingBottom: 18, backgroundColor: colors.white },
+  helper: { fontFamily: fonts.regular, fontSize: 11.5, color: '#6D7785', textAlign: 'center', marginTop: 8 },
+  trust: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, marginTop: space.xl },
+  trustText: { fontFamily: fonts.regular, fontSize: 9.5, color: '#7F8998' },
+  offline: { fontFamily: fonts.regular, fontSize: 11.5, color: '#6D7785', textAlign: 'center', marginTop: 10 },
   backRow: { marginTop: space.lg, alignItems: 'center' },
+  cool: { fontFamily: fonts.regular, fontSize: 12, color: '#6D7785' },
   otp: {
     borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: radius.md,
-    fontFamily: fonts.bold,
+    borderColor: colors.border,
+    borderRadius: 6,
+    fontFamily: fonts.semiBold,
     fontSize: 28,
     letterSpacing: 10,
     textAlign: 'center',
     paddingVertical: 12,
     color: colors.ink,
-    backgroundColor: '#F8FAFC',
-    marginBottom: space.md,
+    backgroundColor: colors.white,
+    marginBottom: space.lg,
   },
   resendRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: space.lg },
 });

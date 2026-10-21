@@ -25,7 +25,7 @@ export function FareLines({ lines, total, tolls = 0, estimated = false }: { line
   const na = lines.filter((l) => l.treatment === 'not_applicable');
   return (
     <View>
-      <Text style={styles.group}>INCLUDED IN THE {estimated ? 'ESTIMATE' : 'FARE'}</Text>
+      <Text style={styles.group}>Included in the {estimated ? "estimate" : "fare"}</Text>
       {included.map((l) => (
         <View key={l.key} style={styles.row}>
           <View style={{ flex: 1 }}>
@@ -51,7 +51,7 @@ export function FareLines({ lines, total, tolls = 0, estimated = false }: { line
 
       {extra.length ? (
         <>
-          <Text style={[styles.group, { marginTop: space.md }]}>PAYABLE SEPARATELY (NOT IN THE TOTAL)</Text>
+          <Text style={[styles.group, { marginTop: space.md }]}>Payable separately (not in the total)</Text>
           {extra.map((l) => (
             <View key={l.key} style={styles.row}>
               <View style={{ flex: 1 }}>
@@ -72,12 +72,12 @@ export function FareLines({ lines, total, tolls = 0, estimated = false }: { line
 }
 
 const styles = StyleSheet.create({
-  group: { fontFamily: fonts.extraBold, fontSize: 11, fontWeight: '800', color: colors.muted, letterSpacing: 0.6, marginBottom: 4 },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 4, gap: 12 },
+  group: { fontFamily: fonts.medium, fontSize: 10, color: colors.label, letterSpacing: 1, marginBottom: 4, textTransform: 'uppercase' },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 6, gap: 12 },
   labelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' },
-  label: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, fontWeight: '600' },
-  detail: { fontFamily: fonts.regular, fontSize: 12, color: colors.muted, marginTop: 1 },
-  value: { fontFamily: fonts.bold, fontSize: 14, fontWeight: '700', color: colors.ink },
-  total: { borderTopWidth: 1, borderTopColor: colors.border, marginTop: 6, paddingTop: 8 },
-  totalText: { fontFamily: fonts.extraBold, fontSize: 16, fontWeight: '800', color: colors.ink },
+  label: { fontFamily: fonts.regular, fontSize: 13, color: colors.text },
+  detail: { fontFamily: fonts.regular, fontSize: 10.5, color: '#8A929E', marginTop: 2 },
+  value: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.ink },
+  total: { borderTopWidth: 1, borderTopColor: colors.divider, marginTop: 6, paddingTop: 12 },
+  totalText: { fontFamily: fonts.semiBold, fontSize: 16, color: colors.ink },
 });

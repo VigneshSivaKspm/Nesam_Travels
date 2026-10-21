@@ -69,16 +69,16 @@ export function AccountStatusScreen({ record, onSignOut, onReapply }: { record: 
         <Hero
           icon="time"
           color={colors.warning}
-          title="Verification pending"
-          body={`Thanks for applying, ${record.business?.vendorName?.split(' ')[0] || 'partner'}! Our team is reviewing the details and documents for ${businessName}. Usually 24–48 business hours.`}
+          title="Application Under Review"
+          body={`Thanks for applying, ${record.business?.vendorName?.split(' ')[0] || 'partner'}! Our team is reviewing the application and documents for ${businessName}. Admin approval is required before Bookings, Drivers, Vehicles and Wallet become operational.`}
         />
         <View style={styles.steps}>
-          <Step done label="Application submitted" sub={submitted} />
-          <Step active label="Documents under review" sub="Usually within 24–48 business hours" />
-          <Step label="Account activated" sub="You’ll be taken to your dashboard automatically" />
+          <Step done label="Application submitted" sub={submitted || 'Details received'} />
+          <Step active label="Application & documents under review" sub="Usually reviewed within 24–48 business hours" />
+          <Step label="Admin approval & activation" sub="Your app unlocks automatically once approved" />
         </View>
         <View style={styles.locked}>
-          <Text style={type.tiny}>UNLOCKS AFTER APPROVAL</Text>
+          <Text style={type.tiny}>LOCKED UNTIL ADMIN APPROVAL</Text>
           {LOCKED.map((l) => (
             <View key={l} style={styles.lockRow}>
               <Ionicons name="lock-closed" size={12} color={colors.faint} />
@@ -86,7 +86,7 @@ export function AccountStatusScreen({ record, onSignOut, onReapply }: { record: 
             </View>
           ))}
         </View>
-        <Text style={[type.tiny, { textAlign: 'center', marginTop: space.md, color: colors.success }]}>This screen updates automatically when your status changes</Text>
+        <Text style={[type.tiny, { textAlign: 'center', marginTop: space.md, color: colors.success }]}>This screen updates automatically as soon as admin approves</Text>
         <Footer onSignOut={onSignOut} />
       </Card>
     </Screen>

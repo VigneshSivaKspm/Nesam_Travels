@@ -1,18 +1,20 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import type { GeoPlace, LocationItem } from '@core/types';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useNavigate } from 'react-router-dom';
+import type { GeoPlace, LatLng, LocationItem } from '@core/types';
+import { isValidLatLng } from '@core/utils/geo';
+import { useCustomerData } from '@/state/CustomerData';
 import { deleteSavedPlace, savePlace } from '@core/services/userService';
 import { describeError } from '@core/utils/retry';
 import { Button, Dialog, EmptyState, Notice, PageHead, Segmented, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { PlaceSuggestions } from '@/components/PlaceSuggestions';
 import { useDeviceLocation } from '@/lib/hooks';
-import { useAuth } from '@/state/Auth';
+import { useBooking } from '@/state/Booking';
+import { AccountLayout, SignInPrompt } from '@/components/AccountLayout';
 import { useSeo } from '@/lib/seo';
 
 type Kind = 'home' | 'work' | 'favorite';
-const ICON: Record<string, string> = { home: 'home', work: 'briefcase', favorite: 'favourite' };
+const ICON: Record<string, string> = { home: 'home', work: 'briefcase', favorite: 'star' };
 
 function AddPlaceDialog({ onClose }: { onClose: () => void }) {
   const { profile, savedPlaces } = useCustomerData();
@@ -101,7 +103,8 @@ function AddPlaceDialog({ onClose }: { onClose: () => void }) {
 export function SavedPlacesPage() {
   useSeo({ title: 'Saved Places', noindex: true });
   const { savedPlaces, profile } = useCustomerData();
-  const { openLoginModal } = useAuth();
+  const { update } = useBooking();
+  const navigate = useNavigate();
   const [adding, setAdding] = useState(false);
   const [removing, setRemoving] = useState<LocationItem | null>(null);
   const [busy, setBusy] = useState(false);
@@ -109,34 +112,12 @@ export function SavedPlacesPage() {
 
   if (!profile) {
     return (
-      <>
-        <PageHead
-          eyebrow="Account"
-          title="Saved places"
-          back={
-            <Link to="/account" className="back-link">
-              <Icon name="arrow-left" size={18} /> Account
-            </Link>
-          }
-        >
-          Home, work and the places you go often — one tap when booking.
+      <AccountLayout>
+        <PageHead backTo="/account" title="Saved addresses">
+          Your regular pickup and drop places — one tap when booking.
         </PageHead>
-        <div className="page">
-          <div className="card card--center">
-            <EmptyState
-              art="welcome"
-              title="Sign in to view saved places"
-              action={
-                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to saved places' })}>
-                  Sign in
-                </Button>
-              }
-            >
-              Sign in with your mobile number to save your home, work and favorite locations for quick booking.
-            </EmptyState>
-          </div>
-        </div>
-      </>
+        <SignInPrompt title="Sign in to view saved addresses" text="Sign in with your mobile number to save home, work and favourite places for quick booking." />
+      </AccountLayout>
     );
   }
 
@@ -158,31 +139,26 @@ export function SavedPlacesPage() {
   const sorted = [...savedPlaces].sort((a, b) => order(a) - order(b) || a.name.localeCompare(b.name));
 
   return (
-    <>
+    <AccountLayout>
       <PageHead
-        eyebrow="Account"
-        title="Saved places"
-        back={
-          <Link to="/account" className="back-link">
-            <Icon name="arrow-left" size={18} /> Account
-          </Link>
-        }
+        backTo="/account"
+        title="Saved addresses"
         actions={
-          <Button icon="add" onClick={() => setAdding(true)}>
-            Add place
+          <Button icon="add" size="sm" onClick={() => setAdding(true)}>
+            Add address
           </Button>
         }
       >
-        Home, work and the places you go often — one tap when booking.
+        Your regular pickup and drop places — one tap when booking.
       </PageHead>
-      <div className="page">
+      <div className="stack">
         {error ? <Notice tone="error">{error}</Notice> : null}
 
         {sorted.length === 0 ? (
           <div className="card card--center">
             <EmptyState
-              art="no-saved-places"
-              title="No saved places yet"
+              icon="saved-place"
+              title="No saved addresses yet"
               action={
                 <Button icon="add" onClick={() => setAdding(true)}>
                   Add your first place
@@ -197,14 +173,27 @@ export function SavedPlacesPage() {
             {sorted.map((p) => (
               <li key={p.id} className="saved">
                 <span className="saved__icon">
-                  <Icon name={ICON[p.type] ?? 'saved-place'} size={22} />
+                  <Icon name={ICON[p.type] ?? 'saved-place'} size={18} />
                 </span>
                 <span className="saved__text">
                   <strong>{p.name}</strong>
-                  <small className="muted">{p.address}</small>
+                  <small>{p.address}</small>
                 </span>
+                {isValidLatLng(p as Partial<LatLng>) ? (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    trailing="arrow-up-right"
+                    onClick={() => {
+                      update({ pickup: p as GeoPlace });
+                      navigate('/book');
+                    }}
+                  >
+                    Book from here
+                  </Button>
+                ) : null}
                 <button type="button" className="icon-btn" aria-label={`Remove ${p.name}`} onClick={() => setRemoving(p)}>
-                  <Icon name="trash" size={20} />
+                  <Icon name="trash" size={18} />
                 </button>
               </li>
             ))}
@@ -232,6 +221,6 @@ export function SavedPlacesPage() {
           <p className="muted">“{removing.name}” will be removed from your saved places.</p>
         </Dialog>
       ) : null}
-    </>
+    </AccountLayout>
   );
 }

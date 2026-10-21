@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { SupportTicket } from '@core/types';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/CustomerData';
 import { SUPPORT_CATEGORIES, submitSupportTicket, subscribeToSupportTickets } from '@core/services/userService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { describeError } from '@core/utils/retry';

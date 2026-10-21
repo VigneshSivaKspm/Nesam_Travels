@@ -97,9 +97,9 @@ export const AccountStatusScreen: React.FC<AccountStatusScreenProps> = ({ record
 
   // PENDING_APPROVAL
   const steps = [
-    { label: 'Application submitted', sub: formatDate(record.submittedAt), state: 'done' as const },
-    { label: 'Documents under review', sub: 'Usually within 24–48 business hours', state: 'active' as const },
-    { label: 'Account activated', sub: 'You will be taken to your dashboard automatically', state: 'todo' as const },
+    { label: 'Application submitted', sub: formatDate(record.submittedAt) || 'Application received', state: 'done' as const },
+    { label: 'Application & documents under review', sub: 'Usually within 24–48 business hours', state: 'active' as const },
+    { label: 'Admin approval & activation', sub: 'You will be taken to your dashboard automatically', state: 'todo' as const },
   ];
 
   return shell(
@@ -107,10 +107,10 @@ export const AccountStatusScreen: React.FC<AccountStatusScreenProps> = ({ record
       <div className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-amber-50">
         <Clock className="w-7 h-7 text-amber-500" />
       </div>
-      <h1 className="text-[18px] font-bold text-[#111] text-center">Verification pending</h1>
+      <h1 className="text-[18px] font-bold text-[#111] text-center">Application Under Review</h1>
       <p className="text-[13px] text-[#666] mt-2 text-center">
         Thanks for applying, {record.business?.vendorName?.split(' ')[0] || 'partner'}! Our team is reviewing the
-        details and documents for <span className="font-semibold text-[#111]">{businessName}</span>.
+        application and documents for <span className="font-semibold text-[#111]">{businessName}</span>. Admin approval is required before Bookings, Marketplace, Drivers, Vehicles, and Wallet become operational.
       </p>
 
       <ol className="mt-6 space-y-4">
@@ -132,7 +132,7 @@ export const AccountStatusScreen: React.FC<AccountStatusScreenProps> = ({ record
       </ol>
 
       <div className="mt-6 rounded-xl bg-[#F9F9F9] border border-[#EEE] p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wider text-[#999] mb-2.5">Unlocks after approval</div>
+        <div className="text-[11px] font-semibold uppercase tracking-wider text-[#999] mb-2.5">Unlocks after admin approval</div>
         <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {LOCKED_FEATURES.map(({ icon: Icon, label }) => (
             <li key={label} className="flex items-center gap-2 text-[12px] text-[#888]">
@@ -146,7 +146,7 @@ export const AccountStatusScreen: React.FC<AccountStatusScreenProps> = ({ record
 
       <div className="mt-5 flex items-center justify-center gap-2 text-[11px] font-semibold text-emerald-600">
         <Radio className="w-3.5 h-3.5 animate-pulse" />
-        This page updates automatically when your status changes
+        This page updates automatically when admin approves
       </div>
     </div>,
   );

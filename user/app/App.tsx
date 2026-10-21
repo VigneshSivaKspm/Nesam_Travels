@@ -20,21 +20,16 @@ import { subscribeToCustomerProfile } from './src/services/userService';
 import type { UserProfile } from './src/types';
 import { describeError } from './src/utils/retry';
 import { Text, TextInput } from 'react-native';
-import { colors } from './src/theme';
-import {
-  useFonts,
-  Poppins_400Regular,
-  Poppins_500Medium,
-  Poppins_600SemiBold,
-  Poppins_700Bold,
-  Poppins_800ExtraBold,
-  Poppins_900Black,
-} from '@expo-google-fonts/poppins';
+import { colors, fonts } from './src/theme';
+import { useFonts } from 'expo-font';
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from '@expo-google-fonts/inter';
+import { Manrope_800ExtraBold } from '@expo-google-fonts/manrope';
 
 void SplashScreen.preventAutoHideAsync().catch(() => undefined);
 
-// Ensure default Poppins font family across all Text and TextInput elements
-const defaultFont = { fontFamily: 'Poppins_400Regular' };
+// Inter is the reference's text face. Tamil text has no Inter glyphs, so the
+// platform falls back to its Tamil font (Noto Sans Tamil on Android) per glyph.
+const defaultFont = { fontFamily: fonts.regular };
 // @ts-ignore
 if ((Text as any).defaultProps == null) {
   // @ts-ignore
@@ -66,10 +61,10 @@ const navTheme = {
   colors: { ...DefaultTheme.colors, primary: colors.primary, background: colors.bg, card: colors.card, text: colors.ink, border: colors.border },
   fonts: {
     ...DefaultTheme.fonts,
-    regular: { fontFamily: 'Poppins_400Regular', fontWeight: '400' as const },
-    medium: { fontFamily: 'Poppins_500Medium', fontWeight: '500' as const },
-    bold: { fontFamily: 'Poppins_700Bold', fontWeight: '700' as const },
-    heavy: { fontFamily: 'Poppins_900Black', fontWeight: '900' as const },
+    regular: { fontFamily: fonts.regular, fontWeight: '400' as const },
+    medium: { fontFamily: fonts.medium, fontWeight: '500' as const },
+    bold: { fontFamily: fonts.semiBold, fontWeight: '600' as const },
+    heavy: { fontFamily: fonts.bold, fontWeight: '700' as const },
   },
 };
 
@@ -81,14 +76,17 @@ interface ProfileState {
 }
 
 function Root() {
-  const [fontsLoaded] = useFonts({
-    Poppins_400Regular,
-    Poppins_500Medium,
-    Poppins_600SemiBold,
-    Poppins_700Bold,
-    Poppins_800ExtraBold,
-    Poppins_900Black,
+  const [fontsLoaded, fontError] = useFonts({
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
+    Manrope_800ExtraBold,
+    [fonts.brand]: require('./assets/reference/fonts/NesamBrand.ttf'),
   });
+  // A font that fails to load must not hold the app on the splash screen: the system face is used instead.
+  const fontsReady = fontsLoaded || !!fontError;
 
   // undefined = still resolving; null = signed out / no profile doc yet.
   const [authUser, setAuthUser] = useState<User | null | undefined>(undefined);
@@ -113,12 +111,12 @@ function Root() {
   const profile = current?.profile;
   const profileError = current?.error ?? '';
 
-  const resolved = fontsLoaded && authUser !== undefined && (!authUser || profile !== undefined || !!profileError);
+  const resolved = fontsReady && authUser !== undefined && (!authUser || profile !== undefined || !!profileError);
   useEffect(() => {
     if (resolved) void SplashScreen.hideAsync().catch(() => undefined);
   }, [resolved]);
 
-  if (!fontsLoaded || authUser === undefined) return <FullScreenLoader />;
+  if (!fontsReady || authUser === undefined) return <FullScreenLoader />;
   if (!authUser) return <AuthScreen />;
   if (profile === undefined && profileError) {
     return <LoadErrorScreen message={profileError} onRetry={() => setAttempt((k) => k + 1)} onSignOut={() => void signOutUser()} />;

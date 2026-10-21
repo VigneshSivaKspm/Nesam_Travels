@@ -1,9 +1,9 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { BottomTabBar, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { navigationRef } from './navigationRef';
-import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
+import { BottomNav } from '../components/brand';
 import { useCustomerData } from '../context/CustomerData';
 import { BookScreen } from '../screens/BookScreen';
 import { TripsScreen } from '../screens/TripsScreen';
@@ -18,13 +18,13 @@ import { ChooseRideScreen } from '../screens/ChooseRideScreen';
 import { ConfirmBookingScreen } from '../screens/ConfirmBookingScreen';
 import { PaymentHistoryScreen } from '../screens/PaymentHistoryScreen';
 import { LegalDocumentsScreen } from '../screens/LegalDocumentsScreen';
+import { SettingsScreen } from '../screens/SettingsScreen';
 import { BookingDraftProvider } from '../context/BookingDraft';
 import { NotificationPopups } from '../components/NotificationPopups';
 import { useInbox } from '../context/Inbox';
 import { markNotificationRead } from '../services/partnerNotifications';
 import { onPushOpened } from '../services/notificationService';
 import { colors, fonts } from '../theme';
-import { useResponsive } from '../theme/responsive';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<TabParamList>();
@@ -37,48 +37,19 @@ interface RideFocus {
 const RideFocusCtx = createContext<RideFocus>({ dismiss: () => undefined, undismiss: () => undefined });
 export const useRideFocus = () => useContext(RideFocusCtx);
 
-const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
-  Book: 'car-outline',
-  Trips: 'receipt-outline',
-  Alerts: 'notifications-outline',
-  Account: 'person-circle-outline',
-};
-
+// The reference's five-item navigation replaces the stock tab bar: the four services all
+// open the Book tab; My Bookings and Notifications are reached from Account and the header,
+// and highlight Account like the reference does for every non-home page.
 function Tabs() {
-  const { unreadCount } = useInbox();
   return (
     <Tab.Navigator
-      tabBar={(props) => <BottomTabBar {...props} />}
-      screenOptions={({ route }) => ({
-        headerShown: false,
-        tabBarPosition: 'bottom',
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.muted,
-        tabBarStyle: {
-          minHeight: 62,
-          paddingTop: 6,
-          paddingBottom: 8,
-          backgroundColor: colors.white,
-          borderTopColor: '#E2E8F0',
-          borderTopWidth: 1,
-          elevation: 10,
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -2 },
-          shadowOpacity: 0.05,
-          shadowRadius: 6,
-        },
-        tabBarLabelStyle: {
-          fontFamily: fonts.bold,
-          fontSize: 11,
-          fontWeight: '700',
-        },
-        tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={22} />,
-      })}
+      tabBar={(props) => <BottomNav active={props.state.routes[props.state.index]?.name === 'Book' ? undefined : 'account'} />}
+      screenOptions={{ headerShown: false, tabBarPosition: 'bottom' }}
     >
-      <Tab.Screen name="Book" component={BookScreen} options={{ title: 'Book Cab' }} />
+      <Tab.Screen name="Book" component={BookScreen} options={{ title: 'Book a cab' }} />
       <Tab.Screen name="Trips" component={TripsScreen} options={{ title: 'My Bookings' }} />
-      <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ title: 'Alerts', tabBarBadge: unreadCount > 0 ? unreadCount : undefined }} />
-      <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Profile' }} />
+      <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+      <Tab.Screen name="Account" component={AccountScreen} options={{ title: 'Account' }} />
     </Tab.Navigator>
   );
 }
@@ -169,6 +140,7 @@ export function MainNavigator() {
         <Stack.Screen name="ConfirmBooking" component={ConfirmBookingScreen} />
         <Stack.Screen name="PaymentHistory" component={PaymentHistoryScreen} />
         <Stack.Screen name="LegalDocuments" component={LegalDocumentsScreen} />
+        <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
       <RideAutoFocus dismissed={dismissed} />
       <InboxOverlays />

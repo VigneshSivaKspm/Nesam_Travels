@@ -1,28 +1,31 @@
-// Home / Work / favourite places (port of user/web SavedPlacesScreen.tsx).
+// Saved addresses (Home / Work / favourites): add, edit label, use as pickup, delete.
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
 import { useCustomerData } from '../context/CustomerData';
-import { Button, Card, EmptyState, Notice, Segmented, TextField } from '../components/ui';
-import { SubHeader } from '../components/brand';
+import { useBookingDraft } from '../context/BookingDraft';
+import { Button, EmptyState, Notice, PageHead, Segmented, TextButton, TextField } from '../components/ui';
+import { ScrollView } from '../components/layout';
+import { AppHeader } from '../components/brand';
+import { Icon, type IconName } from '../components/Icon';
 import { PlaceSearchModal } from '../components/PlaceSearchModal';
 import { deleteSavedPlace, savePlace } from '../services/userService';
 import { useDeviceLocation } from '../hooks/useDeviceLocation';
 import type { GeoPlace, LocationItem } from '../types';
+import { isValidLatLng } from '../utils/geo';
 import { describeError } from '../utils/retry';
-import { colors, fonts, radius, space } from '../theme';
-import { ILLUSTRATIONS } from '../assets/images';
+import { colors, fonts, space } from '../theme';
 
 type SaveType = 'home' | 'work' | 'favorite';
-const ICON: Record<string, keyof typeof Ionicons.glyphMap> = { home: 'home-outline', work: 'briefcase-outline', favorite: 'star-outline' };
+const ICON: Record<string, IconName> = { home: 'house', work: 'briefcase', favorite: 'star' };
 
 export function SavedPlacesScreen() {
   const navigation = useNavigation();
   const { profile, savedPlaces } = useCustomerData();
+  const { update, setService } = useBookingDraft();
   const { position } = useDeviceLocation(false);
-  const [adding, setAdding] = useState(false);
+  const [adding, setAdding] = useState<LocationItem | 'new' | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [picked, setPicked] = useState<GeoPlace | null>(null);
   const [label, setLabel] = useState('');
@@ -32,23 +35,33 @@ export function SavedPlacesScreen() {
   const [error, setError] = useState('');
 
   const reset = () => {
-    setAdding(false);
+    setAdding(null);
     setPicked(null);
     setLabel('');
     setKind('favorite');
+    setError('');
   };
 
-  const add = async () => {
-    if (!picked) return setError('Search for the place to save.');
+  const startEdit = (p: LocationItem) => {
+    setAdding(p);
+    setPicked(isValidLatLng(p as { lat?: number; lng?: number }) ? (p as GeoPlace) : null);
+    setLabel(p.type === 'favorite' ? p.name : '');
+    setKind((['home', 'work'].includes(p.type) ? p.type : 'favorite') as SaveType);
+  };
+
+  const save = async () => {
+    if (!picked) return setError('Search for the address to save.');
+    const editing = adding && adding !== 'new' ? adding : null;
     const name = kind === 'home' ? 'Home' : kind === 'work' ? 'Work' : label.trim() || picked.name;
-    const existing = kind !== 'favorite' ? savedPlaces.find((p) => p.type === kind) : undefined;
+    // Home and Work are single slots: saving one replaces the existing one.
+    const existing = editing ?? (kind !== 'favorite' ? savedPlaces.find((p) => p.type === kind) : undefined);
     setBusy(true);
     setError('');
     try {
       await savePlace({ ...picked, id: existing?.id ?? '', name, address: picked.address, type: kind }, profile.uid);
       reset();
     } catch (e) {
-      setError(describeError(e, 'Couldn’t save this place.'));
+      setError(describeError(e, 'Couldn’t save this address.'));
     } finally {
       setBusy(false);
     }
@@ -56,7 +69,7 @@ export function SavedPlacesScreen() {
   };
 
   const remove = (p: LocationItem) =>
-    Alert.alert('Remove place?', `“${p.name}” will be removed from your saved places.`, [
+    Alert.alert('Remove address?', `“${p.name}” will be removed from your saved addresses.`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Remove',
@@ -65,159 +78,102 @@ export function SavedPlacesScreen() {
           setDeleting(p.id);
           setError('');
           deleteSavedPlace(p.id)
-            .catch((e: unknown) => setError(describeError(e, 'Couldn’t remove this place.')))
+            .catch((e: unknown) => setError(describeError(e, 'Couldn’t remove this address.')))
             .finally(() => setDeleting(null));
         },
       },
     ]);
 
+  const pickupFrom = (p: LocationItem) => {
+    if (!isValidLatLng(p as { lat?: number; lng?: number })) return;
+    setService('outstation');
+    update({ pickup: p as GeoPlace });
+    navigation.navigate('Tabs', { screen: 'Book' });
+  };
+
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <SubHeader
-        title="Saved Places"
-        subtitle="Frequent destinations for one-tap booking"
-        onBack={() => navigation.goBack()}
-        rightAction={
-          !adding ? (
-            <Pressable onPress={() => setAdding(true)} style={styles.addBtn} accessibilityRole="button">
-              <Ionicons name="add" size={16} color={colors.white} />
-              <Text style={styles.addBtnText}>Add</Text>
-            </Pressable>
-          ) : null
-        }
-      />
-
-      <ScrollView contentContainerStyle={styles.scrollPad} showsVerticalScrollIndicator={false}>
-        <PlaceSearchModal visible={searchOpen} title="Find a place" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
+      <AppHeader />
+      <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <PlaceSearchModal visible={searchOpen} title="Find an address" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
+        <PageHead title="Saved addresses" subtitle="Your regular pickup & drop places." onBack={() => navigation.goBack()} />
         <Notice message={error} />
 
         {adding ? (
-          <Card style={styles.addCard}>
-            <Text style={styles.cardHeader}>Add Saved Place</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>{adding === 'new' ? 'Add address' : 'Edit address'}</Text>
             <Segmented
               options={[
                 { value: 'home', label: 'Home' },
                 { value: 'work', label: 'Work' },
-                { value: 'favorite', label: 'Favourite' },
+                { value: 'favorite', label: 'Other' },
               ]}
               value={kind}
               onChange={setKind}
             />
-            <Pressable style={styles.pick} onPress={() => setSearchOpen(true)} accessibilityRole="button">
-              <Ionicons name="search" size={20} color={colors.primary} />
-              <Text style={styles.pickText} numberOfLines={2}>
-                {picked ? `${picked.name} — ${picked.address}` : 'Search address, street or landmark…'}
+            <Pressable style={styles.pick} onPress={() => setSearchOpen(true)} accessibilityRole="button" accessibilityLabel="Search for the address">
+              <Icon name="search" size={18} color="#8D95A1" />
+              <Text style={[styles.pickText, !picked && { color: '#99A1AD' }]} numberOfLines={2}>
+                {picked ? `${picked.name} — ${picked.address}` : 'City, area or landmark'}
               </Text>
             </Pressable>
-            {kind === 'favorite' ? (
-              <TextField label="Custom Label (optional)" value={label} onChangeText={(v) => setLabel(v.slice(0, 40))} placeholder="e.g. Vacation Home, Hospital, College" />
-            ) : null}
+            {kind === 'favorite' ? <TextField label="Label (optional)" value={label} onChangeText={(v) => setLabel(v.slice(0, 40))} placeholder="e.g. Hospital, College" /> : null}
             <View style={styles.row}>
               <Button title="Cancel" variant="secondary" onPress={reset} disabled={busy} style={{ flex: 1 }} />
-              <Button title={busy ? 'Saving…' : 'Save Place'} loading={busy} disabled={!picked} onPress={() => void add()} style={{ flex: 1 }} />
+              <Button title="Save" loading={busy} disabled={!picked} onPress={() => void save()} style={{ flex: 1 }} />
             </View>
-          </Card>
+          </View>
         ) : null}
 
         {savedPlaces.length === 0 && !adding ? (
-          <EmptyState
-            image={ILLUSTRATIONS.noSavedPlaces}
-            title="No saved places yet"
-            message="Add Home and Work for seamless one-tap booking."
-            action={<Button title="Add First Place" onPress={() => setAdding(true)} />}
-          />
+          <EmptyState icon="map-pin" title="No saved addresses yet" message="Add Home and Work for one-tap booking." />
         ) : (
-          <View style={styles.grid}>
-            {savedPlaces.map((p) => (
-              <Card key={p.id} style={styles.item}>
-                <View style={styles.iconBox}>
-                  <Ionicons name={ICON[p.type] ?? 'location-outline'} size={22} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.placeName}>{p.name}</Text>
-                  <Text style={styles.placeAddr} numberOfLines={2}>
+          <View style={styles.list}>
+            {savedPlaces.map((p) => {
+              const usable = isValidLatLng(p as { lat?: number; lng?: number });
+              return (
+                <View key={p.id} style={styles.item}>
+                  <View style={styles.itemHead}>
+                    <Icon name={ICON[p.type] ?? 'map-pin'} size={18} color={colors.ink} />
+                    <Text style={styles.name}>{p.name}</Text>
+                  </View>
+                  <Text style={styles.addr} numberOfLines={2}>
                     {p.address}
                   </Text>
-                  {p.lat == null || p.lng == null ? <Text style={styles.warn}>No map coordinates — re-add it to use for booking.</Text> : null}
+                  {!usable ? <Text style={styles.warn}>No map position — edit it to use it for booking.</Text> : null}
+                  <View style={styles.actions}>
+                    <TextButton title="Use as pickup" icon="arrow-up-right" size={11} disabled={!usable} onPress={() => pickupFrom(p)} accessibilityLabel={`Use ${p.name} as pickup`} />
+                    <TextButton title="Edit" icon="pencil" size={11} onPress={() => startEdit(p)} accessibilityLabel={`Edit ${p.name}`} />
+                    <View style={{ flex: 1 }} />
+                    <TextButton title={deleting === p.id ? 'Removing…' : 'Delete'} icon="trash-2" size={11} color="#8A929E" disabled={deleting === p.id} onPress={() => remove(p)} accessibilityLabel={`Delete ${p.name}`} />
+                  </View>
                 </View>
-                <Button small variant="ghost" title={deleting === p.id ? '…' : 'Remove'} disabled={deleting === p.id} onPress={() => remove(p)} />
-              </Card>
-            ))}
+              );
+            })}
           </View>
         )}
+
+        {!adding ? (
+          <Button title="Add address" icon="plus" variant="secondary" onPress={() => setAdding('new')} style={{ marginTop: 12 }} />
+        ) : null}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
-  scrollPad: { padding: space.md, paddingBottom: space.xxl },
-  addBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  addBtnText: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-    fontSize: 12,
-  },
-  addCard: {
-    marginBottom: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    padding: space.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  cardHeader: { fontFamily: fonts.bold, fontSize: 16, color: colors.ink, marginBottom: space.sm },
-  pick: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    padding: space.md,
-    marginVertical: space.sm,
-    minHeight: 48,
-    backgroundColor: '#F8FAFC',
-  },
-  pickText: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.ink,
-    flex: 1,
-  },
-  row: { flexDirection: 'row', gap: space.sm, marginTop: space.sm },
-  grid: { gap: space.sm },
-  item: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    padding: space.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  iconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
-  placeName: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink },
-  placeAddr: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate, marginTop: 1 },
-  warn: { fontFamily: fonts.medium, fontSize: 11, color: colors.warning, marginTop: 2 },
+  root: { flex: 1, backgroundColor: colors.white },
+  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, marginBottom: 14, backgroundColor: colors.white },
+  cardTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, marginBottom: 12 },
+  pick: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 12, marginVertical: 14, minHeight: 48 },
+  pickText: { fontFamily: fonts.regular, fontSize: 13.5, color: colors.value, flex: 1, paddingVertical: 8 },
+  row: { flexDirection: 'row', gap: 10 },
+  list: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, paddingHorizontal: 18, backgroundColor: colors.white },
+  item: { paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  itemHead: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  name: { fontFamily: fonts.regular, fontSize: 15, color: colors.ink },
+  addr: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: '#6D7785', marginTop: 8 },
+  warn: { fontFamily: fonts.medium, fontSize: 11, color: colors.warning, marginTop: 4 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 10 },
 });

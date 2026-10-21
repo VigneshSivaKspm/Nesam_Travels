@@ -1,17 +1,19 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { FlatList, ScrollView, Content } from '../components/layout';
+import { FlatList, ScrollView } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { useInbox } from '../context/Inbox';
-import { EmptyState, LinkText, Notice, Button } from '../components/ui';
+import { EmptyState, Notice, PageHead, TextButton } from '../components/ui';
+import { AppHeader } from '../components/brand';
 import { markAllNotificationsRead, markNotificationRead } from '../services/userService';
 import { CATEGORIES, CATEGORY_LABEL, TONE_COLORS, toneOf } from '../utils/notificationModel';
 import type { NotificationCategory } from '../types/notifications';
 import { describeError } from '../utils/retry';
-import { colors, fonts, radius, space, type } from '../theme';
-import { ILLUSTRATIONS } from '../assets/images';
+import { colors, fonts, space } from '../theme';
 
 export function NotificationsScreen() {
+  const navigation = useNavigation();
   const { notifications } = useInbox();
   const [filter, setFilter] = useState<NotificationCategory | 'all'>('all');
   const [error, setError] = useState('');
@@ -31,60 +33,41 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <View style={styles.mobileHeader}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>Alerts & Updates</Text>
-          <Text style={styles.headerSubtitle}>Booking updates, chauffeur alerts & notices</Text>
-        </View>
-        {unread.length > 0 ? (
-          <Pressable onPress={() => void markAll()} style={styles.markAllBtn}>
-            <Text style={styles.markAllText}>Mark all read</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
+      <AppHeader active="alerts" />
       <View style={styles.container}>
-
-        <View style={styles.tabsWrap}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
-            {tabs.map((c) => {
-              const count = (c === 'all' ? unread : unread.filter((n) => n.category === c)).length;
-              const active = filter === c;
-              return (
-                <Pressable
-                  key={c}
-                  onPress={() => setFilter(c)}
-                  style={({ pressed, hovered }: any) => [
-                    styles.tab,
-                    active && styles.tabOn,
-                    hovered && !active && styles.tabHovered,
-                    pressed && { opacity: 0.8 },
-                  ]}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                >
-                  <Text style={[styles.tabText, active && styles.tabTextOn]}>
-                    {c === 'all' ? 'All Alerts' : CATEGORY_LABEL[c]}
-                    {count ? ` (${count})` : ''}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </ScrollView>
+        <View style={styles.head}>
+          <PageHead
+            title="Notifications"
+            subtitle="Booking and payment updates."
+            onBack={() => navigation.navigate('Tabs', { screen: 'Account' })}
+            right={unread.length > 0 ? <TextButton title="Mark all read" icon="check-check" size={11} onPress={() => void markAll()} /> : undefined}
+          />
+          {tabs.length > 1 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs} style={{ flexGrow: 0 }}>
+              {tabs.map((c) => {
+                const count = (c === 'all' ? unread : unread.filter((n) => n.category === c)).length;
+                const active = filter === c;
+                return (
+                  <Pressable key={c} onPress={() => setFilter(c)} style={[styles.tab, active && styles.tabOn]} accessibilityRole="button" accessibilityState={{ selected: active }}>
+                    <Text style={[styles.tabText, active && styles.tabTextOn]}>
+                      {c === 'all' ? 'All' : CATEGORY_LABEL[c]}
+                      {count ? ` · ${count}` : ''}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          ) : null}
         </View>
 
         <FlatList
           data={shown}
+          kind="narrow"
           keyExtractor={(n) => n.id}
-          contentContainerStyle={{ padding: space.md, paddingTop: space.xs, paddingBottom: space.xxl }}
+          contentContainerStyle={{ paddingHorizontal: space.xl, paddingTop: space.md, paddingBottom: space.xxl }}
+          showsVerticalScrollIndicator={false}
           ListHeaderComponent={<Notice message={error} />}
-          ListEmptyComponent={
-            <EmptyState
-              image={ILLUSTRATIONS.noNotifications}
-              title="You’re all caught up"
-              message="Ride updates and offers from NESAM appear here."
-            />
-          }
+          ListEmptyComponent={<EmptyState icon="bell" title="No notifications yet" message="Your trip updates will appear here." />}
           renderItem={({ item: n }) => {
             const tone = TONE_COLORS[toneOf(n)];
             return (
@@ -92,18 +75,14 @@ export function NotificationsScreen() {
                 onPress={() => {
                   if (!n.read) markNotificationRead(n.id).catch(() => undefined);
                 }}
-                style={({ pressed, hovered }: any) => [
-                  styles.item,
-                  { borderColor: n.read ? '#E2E8F0' : tone.border, backgroundColor: n.read ? colors.white : tone.bg },
-                  hovered && { borderColor: tone.bar },
-                  pressed && { opacity: 0.85 },
-                ]}
+                style={({ pressed }) => [styles.item, !n.read && { borderColor: tone.border, backgroundColor: tone.bg }, pressed && { opacity: 0.85 }]}
                 accessibilityRole="button"
+                accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.title}. ${n.message}`}
                 accessibilityHint={n.read ? undefined : 'Marks as read'}
               >
-                <View style={[styles.dot, { backgroundColor: n.read ? '#CBD5E1' : tone.bar }]} />
-                <View style={{ flex: 1 }}>
-                  <Text style={[styles.cat, { color: n.read ? colors.slate : tone.text }]}>{CATEGORY_LABEL[n.category].toUpperCase()}</Text>
+                <View style={[styles.dot, { backgroundColor: n.read ? '#D5DAE1' : tone.bar }]} />
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={[styles.cat, !n.read && { color: tone.text }]}>{CATEGORY_LABEL[n.category]}</Text>
                   <View style={styles.titleRow}>
                     <Text style={styles.itemTitle}>{n.title}</Text>
                     <Text style={styles.timeText}>{n.time}</Text>
@@ -120,73 +99,19 @@ export function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
+  root: { flex: 1, backgroundColor: colors.white },
   container: { flex: 1 },
-  tabsWrap: { paddingHorizontal: space.md, paddingBottom: space.sm, paddingTop: space.sm },
-  tabs: { gap: space.sm },
-  tab: {
-    paddingHorizontal: space.md,
-    paddingVertical: 7,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-  },
-  tabOn: { backgroundColor: colors.primary, borderColor: colors.primary },
-  tabHovered: { backgroundColor: '#F1F5F9', borderColor: colors.slate },
-  tabText: { fontFamily: fonts.medium, fontSize: 13, color: colors.slate },
-  tabTextOn: { fontFamily: fonts.bold, color: colors.white },
-  item: {
-    flexDirection: 'row',
-    gap: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: space.md,
-    marginBottom: space.sm,
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
+  head: { paddingHorizontal: space.xl, paddingTop: space.xl, width: '100%', maxWidth: 780, alignSelf: 'center' },
+  tabs: { gap: 8, paddingBottom: 4 },
+  tab: { paddingHorizontal: 13, minHeight: 34, justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#E3E7EC', backgroundColor: colors.white },
+  tabOn: { backgroundColor: '#FFF1F1', borderColor: '#F3C3C3' },
+  tabText: { fontFamily: fonts.medium, fontSize: 11.5, color: colors.text },
+  tabTextOn: { color: colors.primary },
+  item: { flexDirection: 'row', gap: 12, borderRadius: 10, borderWidth: 1, borderColor: '#E3E7EC', padding: 14, marginBottom: 10, backgroundColor: colors.white },
   dot: { width: 8, height: 8, borderRadius: 4, marginTop: 6 },
-  cat: { fontFamily: fonts.bold, fontSize: 10, marginBottom: 2, letterSpacing: 0.5 },
-  titleRow: { flexDirection: 'row', gap: space.sm, alignItems: 'center' },
-  itemTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, flex: 1 },
-  timeText: { fontFamily: fonts.regular, fontSize: 11, color: colors.slate },
-  itemMessage: { fontFamily: fonts.regular, marginTop: 4, color: colors.slate, fontSize: 13, lineHeight: 18 },
-  mobileHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    backgroundColor: colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
-  },
-  headerTitle: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.ink,
-  },
-  headerSubtitle: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.slate,
-    marginTop: 1,
-  },
-  markAllBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#F1F5F9',
-    borderRadius: radius.full,
-  },
-  markAllText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: colors.primary,
-  },
+  cat: { fontFamily: fonts.medium, fontSize: 10, color: '#7A8494', marginBottom: 3, letterSpacing: 0.4, textTransform: 'uppercase' },
+  titleRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
+  itemTitle: { fontFamily: fonts.semiBold, fontSize: 13.5, lineHeight: 19, color: colors.ink, flex: 1 },
+  timeText: { fontFamily: fonts.regular, fontSize: 10.5, color: '#7A8494' },
+  itemMessage: { fontFamily: fonts.regular, marginTop: 4, color: '#55606F', fontSize: 12, lineHeight: 18 },
 });

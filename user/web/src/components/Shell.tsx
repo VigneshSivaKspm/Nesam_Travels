@@ -1,55 +1,50 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
-import { formatPhone } from '@core/utils/format';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useCustomerData } from '@/state/CustomerData';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { useInbox } from '@/state/Inbox';
 import { useAuth } from '@/state/Auth';
+import { useBooking } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
-import { Avatar, Button, Dialog, PageLoader } from './ui';
+import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
+import { CONTACT } from '@/lib/contact';
+import { PageLoader } from './ui';
 import { Icon } from './Icon';
 
-export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
+export function Brand({ light = false, to = '/book' }: { light?: boolean; to?: string }) {
   return (
-    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="NESAM Cabs — book a ride">
-      <img src="/brand/logo.png" alt="NESAM Cabs Logo" width={40} height={40} />
-      <span className="brand__word">
-        <b>NESAM</b>
-        {compact ? null : <small>Cabs</small>}
+    <Link to={to} className={`brand ${light ? 'brand--light' : ''}`} aria-label="NESAM Cabs & Car Rentals — booking home">
+      <span className="brand__logo">
+        <img src="/nesam/emblem.webp" alt="" width={40} height={40} />
+      </span>
+      <span className="brand__text">
+        <span className="brand__word">NESAM</span>
+        <span className="brand__sub">Cabs &amp; Car Rentals</span>
       </span>
     </Link>
   );
 }
 
-const NAV = [
-  { to: '/book', label: 'Book a ride', short: 'Book', icon: 'car' },
-  { to: '/trips', label: 'My trips', short: 'Trips', icon: 'trip-history' },
-  { to: '/notifications', label: 'Notifications', short: 'Alerts', icon: 'notifications' },
-  { to: '/account', label: 'Account', short: 'Account', icon: 'profile' },
-] as const;
+/** Booking steps, booking confirmation and trip details carry their own Back/Home bar on phones. */
+const FLOW = [/^\/book\/(ride|confirm|done\/[^/]+)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
 
-/** Desktop header links. Account lives in the profile menu there; the phone tab bar keeps all four. */
-const TOP_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
-
-/** Booking steps and the live ride are full-screen workspaces (panel + map), so the footer and tab bar step aside. */
-const IMMERSIVE = [/^\/book\/(ride|confirm)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
-
-function ProfileMenu() {
-  const { profile } = useCustomerData();
-  const { signOut, openLoginModal } = useAuth();
+function AppDownload() {
   const [open, setOpen] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const [error, setError] = useState('');
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
   const location = useLocation();
-
   useEffect(() => setOpen(false), [location.pathname]);
   useEffect(() => {
     if (!open) return undefined;
     const down = (e: MouseEvent) => {
       if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
     };
-    const key = (e: KeyboardEvent) => e.key === 'Escape' && setOpen(false);
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpen(false);
+        trigger.current?.focus();
+      }
+    };
     document.addEventListener('mousedown', down);
     document.addEventListener('keydown', key);
     return () => {
@@ -57,174 +52,148 @@ function ProfileMenu() {
       document.removeEventListener('keydown', key);
     };
   }, [open]);
-
-  if (!profile) {
-    return (
-      <Button
-        variant="primary"
-        size="sm"
-        onClick={() => openLoginModal({ title: 'Sign in to NESAM' })}
-      >
-        <Icon name="profile" size={16} /> Sign in
-      </Button>
-    );
-  }
-
-  const first = profile.name.split(' ')[0] || 'Account';
   return (
-    <div className="menu" ref={root}>
-      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <Avatar name={profile.name} photoUrl={profile.photoUrl} size={38} />
-        <span className="menu__name">{first}</span>
-        <Icon name="chevron-down" size={16} />
+    <div className="app-dl" ref={root}>
+      <button ref={trigger} type="button" className="app-dl__trigger" aria-haspopup="dialog" aria-expanded={open} aria-controls="app-dl-panel" onClick={() => setOpen((o) => !o)}>
+        <Icon name="travel-app" size={17} />
+        <span>Get the NESAM App</span>
+        <Icon name="chevron-down" size={13} />
       </button>
       {open ? (
-        <div className="menu__panel" role="menu">
-          <div className="menu__who">
-            <strong className="truncate">{profile.name}</strong>
-            <span className="muted small">{formatPhone(profile.phone)}</span>
-          </div>
-          <Link role="menuitem" to="/account">
-            <Icon name="profile" /> Account
-          </Link>
-          <Link role="menuitem" to="/account/places">
-            <Icon name="saved-place" /> Saved places
-          </Link>
-          <Link role="menuitem" to="/account/payments">
-            <Icon name="wallet" /> Payments
-          </Link>
-          <Link role="menuitem" to="/legal">
-            <Icon name="document" /> Terms &amp; privacy
-          </Link>
-          <button role="menuitem" type="button" onClick={() => setConfirm(true)}>
-            <Icon name="logout" /> Log out
+        <section className="app-dl__panel" id="app-dl-panel" role="dialog" aria-labelledby="app-dl-title">
+          <button type="button" className="app-dl__close" aria-label="Close" onClick={() => setOpen(false)}>
+            <Icon name="close" size={15} />
           </button>
-        </div>
-      ) : null}
-      {confirm ? (
-        <Dialog
-          title="Log out of NESAM?"
-          onClose={() => setConfirm(false)}
-          footer={
-            <>
-              <Button variant="secondary" onClick={() => setConfirm(false)}>
-                Stay signed in
-              </Button>
-              <Button
-                variant="primary"
-                onClick={() =>
-                  signOut().catch(() => {
-                    setError('We couldn’t log you out. Please try again.');
-                  })
-                }
-              >
-                Log out
-              </Button>
-            </>
-          }
-        >
-          <p className="muted">You’ll need to verify your mobile number again to sign back in.</p>
-          {error ? <p className="field__error">{error}</p> : null}
-        </Dialog>
+          <span className="app-dl__mark">
+            <Icon name="travel-app" size={22} />
+          </span>
+          <h2 id="app-dl-title">NESAM in your pocket</h2>
+          <p>Bookings and trip updates, together.</p>
+          <div className="app-dl__stores">
+            <div>
+              <strong>Google Play</strong>
+              <span>Coming soon</span>
+            </div>
+            <div>
+              <strong>App Store</strong>
+              <span>Coming soon</span>
+            </div>
+          </div>
+        </section>
       ) : null}
     </div>
+  );
+}
+
+function NotificationsLink({ compact = false }: { compact?: boolean }) {
+  const { unreadCount } = useInbox();
+  return (
+    <NavLink to="/notifications" className={({ isActive }) => `head-action ${compact ? 'head-action--icon' : ''} ${isActive ? 'is-active' : ''}`} aria-label={compact ? `Notifications${unreadCount ? `, ${unreadCount} unread` : ''}` : undefined}>
+      <span className="head-action__icon">
+        <Icon name="notifications" size={compact ? 22 : 17} />
+        {unreadCount > 0 ? (
+          <em className="count" aria-hidden={compact || undefined}>
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </em>
+        ) : null}
+      </span>
+      {compact ? null : <span>Notifications{unreadCount > 0 ? <span className="sr-only">, {unreadCount} unread</span> : null}</span>}
+    </NavLink>
+  );
+}
+
+const ACCOUNT_PATHS = /^\/(account|trips|notifications|offers|support|legal|about)(\/|$)/;
+
+/** Phone navigation: the four services and Account (the reference's final order). */
+function BottomNav() {
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const { draft } = useBooking();
+  const onHome = location.pathname === '/book' || location.pathname === '/';
+  const current: ServiceId | null = onHome ? (parseService(params.get('service')) ?? serviceOfTrip(draft.tripType)) : null;
+  const accountActive = ACCOUNT_PATHS.test(location.pathname) && !location.pathname.startsWith('/notifications') && !location.pathname.startsWith('/support');
+  return (
+    <nav className="bottom-nav" aria-label="Services and account">
+      {SERVICES.map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+          <span className="bottom-nav__symbol">
+            <Icon name={s.icon} size={24} />
+          </span>
+          <span className="bottom-nav__label">{s.label}</span>
+        </Link>
+      ))}
+      <Link to="/account" className={`bottom-nav__item ${accountActive ? 'is-active' : ''}`} aria-current={accountActive ? 'page' : undefined}>
+        <span className="bottom-nav__symbol">
+          <Icon name="travel-account" size={24} />
+        </span>
+        <span className="bottom-nav__label">Account</span>
+      </Link>
+    </nav>
   );
 }
 
 function Footer() {
   return (
     <footer className="footer">
-      <div className="footer__inner">
+      <div className="footer__inner wrap">
         <div className="footer__grid">
-          <div className="footer__about">
-            <Brand light />
-            <p>Outstation and intercity cabs across Tamil Nadu and beyond — fares shown before you book, verified chauffeurs and a team you can call.</p>
-            <a className="footer__call" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" size={22} />
-              <span>
-                <small>Talk to NESAM</small>
-                <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-              </span>
+          <div className="footer__brand">
+            <span className="footer__word">
+              NESAM<span aria-hidden="true" />
+            </span>
+            <p className="footer__tag">Cabs &amp; Car Rentals</p>
+            <address>
+              {COMPANY_LEGAL_NAME}
+              <br />
+              {CONTACT.addressLine}
+            </address>
+            <a className="footer__phone num" href={`tel:${SUPPORT_PHONE}`}>
+              {SUPPORT_PHONE_DISPLAY}
+            </a>
+            <a href={`mailto:${CONTACT.email}`}>{CONTACT.email}</a>
+            <a className="footer__map" href={CONTACT.mapsUrl} target="_blank" rel="noopener noreferrer">
+              Get directions <Icon name="arrow-up-right" size={13} />
             </a>
           </div>
-          <nav className="footer__col" aria-label="Popular Routes">
-            <h2>Popular Routes</h2>
-            <ul>
-              <li>
-                <Link to="/routes/chennai-to-pondicherry">Chennai to Pondicherry Taxi</Link>
-              </li>
-              <li>
-                <Link to="/routes/chennai-to-bangalore">Chennai to Bangalore Cab</Link>
-              </li>
-              <li>
-                <Link to="/routes/coimbatore-to-ooty">Coimbatore to Ooty Taxi</Link>
-              </li>
-              <li>
-                <Link to="/routes/madurai-to-rameshwaram">Madurai to Rameshwaram Cab</Link>
-              </li>
-              <li>
-                <Link to="/routes/bangalore-to-mysore">Bangalore to Mysore Cab</Link>
-              </li>
-            </ul>
+          <nav aria-label="Our services">
+            <h2>Our services</h2>
+            <Link to="/services/one-way-drop-taxi">One Way</Link>
+            <Link to="/services/outstation-round-trip">Round Trip</Link>
+            <Link to="/services/airport-taxi">Airport Transfers</Link>
+            <Link to={serviceHref('multicity')}>Multicity</Link>
+            <Link to="/services/local-rental">Local Rental</Link>
+            <Link to="/services/pilgrimage-tours">Temple &amp; Pilgrimage Tours</Link>
           </nav>
-          <nav className="footer__col" aria-label="Services">
-            <h2>Services</h2>
-            <ul>
-              <li>
-                <Link to="/services/one-way-drop-taxi">One-Way Drop Taxi</Link>
-              </li>
-              <li>
-                <Link to="/services/outstation-round-trip">Outstation Round Trips</Link>
-              </li>
-              <li>
-                <Link to="/services/airport-taxi">Airport Taxi Transfers</Link>
-              </li>
-              <li>
-                <Link to="/services/local-rental">Hourly City Rentals</Link>
-              </li>
-              <li>
-                <Link to="/services/pilgrimage-tours">Temple Pilgrimage Tours</Link>
-              </li>
-            </ul>
+          <nav aria-label="Bookings and help">
+            <h2>Bookings &amp; help</h2>
+            <Link to="/trips">My Bookings</Link>
+            <Link to="/account/payments">Payments</Link>
+            <Link to="/offers">Offers</Link>
+            <Link to="/support">Help &amp; Support</Link>
+            <Link to="/book#faq">Frequently asked questions</Link>
           </nav>
-          <nav className="footer__col" aria-label="Your account">
-            <h2>Your account</h2>
-            <ul>
-              <li>
-                <Link to="/trips">My trips</Link>
-              </li>
-              <li>
-                <Link to="/account/places">Saved places</Link>
-              </li>
-              <li>
-                <Link to="/account/payments">Payments &amp; refunds</Link>
-              </li>
-              <li>
-                <Link to="/notifications">Notifications</Link>
-              </li>
-            </ul>
+          <nav aria-label="Company">
+            <h2>Company</h2>
+            <Link to="/about">About NESAM</Link>
+            <Link to="/support?topic=cancellation">Cancellation &amp; Refunds</Link>
+            <Link to="/legal">Terms &amp; Privacy</Link>
           </nav>
-          <nav className="footer__col" aria-label="Support">
-            <h2>Support</h2>
-            <ul>
-              <li>
-                <Link to="/support">Help &amp; tickets</Link>
-              </li>
-              <li>
-                <Link to="/offers">Special Offers</Link>
-              </li>
-              <li>
-                <a href={`tel:${SUPPORT_PHONE}`}>Call {SUPPORT_PHONE_DISPLAY}</a>
-              </li>
-              <li>
-                <Link to="/legal">Terms &amp; privacy</Link>
-              </li>
-            </ul>
+          <nav aria-label="Popular routes" className="footer__routes">
+            <h2>Popular routes</h2>
+            <Link to="/routes/chennai-to-pondicherry">Chennai to Pondicherry</Link>
+            <Link to="/routes/chennai-to-bangalore">Chennai to Bangalore</Link>
+            <Link to="/routes/coimbatore-to-ooty">Coimbatore to Ooty</Link>
+            <Link to="/routes/madurai-to-rameshwaram">Madurai to Rameshwaram</Link>
+            <Link to="/routes/bangalore-to-mysore">Bangalore to Mysore</Link>
           </nav>
         </div>
-        <div className="footer__legal">
-          <span>© {new Date().getFullYear()} {COMPANY_LEGAL_NAME}</span>
-          <span>Cash or UPI to your driver · nothing is charged when you book</span>
+        <div className="footer__bottom">
+          <p>
+            © {new Date().getFullYear()} {COMPANY_LEGAL_NAME.toUpperCase()}
+          </p>
+          <p>
+            Fares shown before you book <span aria-hidden="true">·</span> Pay your driver by cash or UPI
+          </p>
         </div>
       </div>
     </footer>
@@ -232,22 +201,31 @@ function Footer() {
 }
 
 export function Shell() {
-  const { unreadCount } = useInbox();
   const { profile } = useCustomerData();
   const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
   const navigate = useNavigate();
-  const immersive = IMMERSIVE.some((re) => re.test(location.pathname));
+  const flow = FLOW.some((re) => re.test(location.pathname));
+  const bookActive = location.pathname === '/book' || location.pathname.startsWith('/book/');
+  const accountActive = ACCOUNT_PATHS.test(location.pathname) && !location.pathname.startsWith('/notifications') && !location.pathname.startsWith('/support');
 
   // New page → start at the top and move focus to the page (keyboard and screen-reader users).
+  // A hash (e.g. /book#faq) scrolls to that section instead.
   useEffect(() => {
+    if (location.hash) {
+      const el = document.getElementById(location.hash.slice(1));
+      if (el) {
+        window.setTimeout(() => el.scrollIntoView({ block: 'start' }), 60);
+        return;
+      }
+    }
     window.scrollTo({ top: 0 });
     document.getElementById('main')?.focus({ preventScroll: true });
-  }, [location.pathname]);
+  }, [location.pathname, location.hash]);
 
   return (
-    <div className={`shell ${immersive ? 'shell--immersive' : ''}`}>
+    <div className={`shell ${flow ? 'shell--flow' : 'shell--nav'}`}>
       <a
         className="skip-link"
         href="#main"
@@ -260,7 +238,7 @@ export function Shell() {
       </a>
       {!online ? (
         <div className="net-banner" role="status">
-          You’re offline. Bookings and live updates resume when you reconnect.
+          <Icon name="offline" size={15} /> You’re offline. Bookings and live updates resume when you reconnect.
         </div>
       ) : recovered ? (
         <div className="net-banner net-banner--ok" role="status">
@@ -271,41 +249,33 @@ export function Shell() {
       <header className="topbar">
         <div className="topbar__inner">
           <Brand />
-          <nav className="topnav" aria-label="Main">
-            {TOP_NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => `topnav__link ${isActive ? 'is-active' : ''}`}>
-                <Icon name={n.icon} size={19} />
-                <span className="lbl-long">{n.label}</span>
-                {n.to === '/notifications' && unreadCount > 0 ? (
-                  <em className="count" aria-label={`${unreadCount} unread`}>
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </em>
-                ) : null}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="topbar__right">
-            <Link to="/support" className="help-link" aria-label="Help and support">
-              <Icon name="support" size={20} />
-              <span className="help-link__text">Help</span>
+          <nav className="topbar__nav" aria-label="Main">
+            <Link to="/book" className={`topbar__book ${bookActive ? 'is-active' : ''}`} aria-current={bookActive ? 'page' : undefined}>
+              <Icon name="car" size={16} /> Book a cab
             </Link>
-            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call NESAM support ${SUPPORT_PHONE_DISPLAY}`}>
-              <Icon name="phone" size={18} />
-              <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
-            </a>
-            <ProfileMenu />
+          </nav>
+          <div className="topbar__actions">
+            <AppDownload />
+            <NotificationsLink />
+            <NavLink to="/support" className={({ isActive }) => `head-action ${isActive ? 'is-active' : ''}`}>
+              <Icon name="support" size={17} />
+              <span>24/7 Support</span>
+            </NavLink>
+            {profile ? (
+              <Link to="/account" className={`head-action head-action--account ${accountActive ? 'is-active' : ''}`}>
+                <Icon name="profile" size={17} />
+                <span className="truncate">Account</span>
+              </Link>
+            ) : (
+              <button type="button" className="head-action head-action--account" onClick={() => openLoginModal({ title: 'Continue with mobile' })}>
+                <Icon name="profile" size={17} />
+                <span>Sign in</span>
+              </button>
+            )}
           </div>
           <div className="topbar__mobile">
-            {!profile ? (
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => openLoginModal({ title: 'Sign in to NESAM' })}
-              >
-                Sign in
-              </Button>
-            ) : null}
-            <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
+            <NotificationsLink compact />
+            <button type="button" className="head-action head-action--icon" aria-label="Help and support" onClick={() => navigate('/support')}>
               <Icon name="support" size={22} />
             </button>
           </div>
@@ -318,21 +288,8 @@ export function Shell() {
         </Suspense>
       </main>
 
-      {!immersive ? <Footer /> : null}
-
-      {!immersive ? (
-        <nav className="tabbar" aria-label="Main">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive ? 'is-active' : ''}`}>
-              <span className="tabbar__icon">
-                <Icon name={n.icon} size={24} />
-                {n.to === '/notifications' && unreadCount > 0 ? <em className="count">{unreadCount > 9 ? '9+' : unreadCount}</em> : null}
-              </span>
-              <span>{n.short}</span>
-            </NavLink>
-          ))}
-        </nav>
-      ) : null}
+      <Footer />
+      {!flow ? <BottomNav /> : null}
     </div>
   );
 }

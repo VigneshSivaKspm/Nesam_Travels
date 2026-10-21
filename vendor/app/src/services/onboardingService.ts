@@ -6,6 +6,7 @@ import {
   getDoc,
   onSnapshot,
   serverTimestamp,
+  setDoc,
   updateDoc,
   writeBatch,
   type DocumentData,
@@ -214,46 +215,77 @@ const nextStep = (record: VendorRecord | null, completedIndex: number) =>
 const EMPTY_ADDRESS = { line1: '', line2: '', city: '', state: '', pincode: '' };
 
 /**
- * Step 1 (spec page 13: "business/account details"). The vendors/{uid} draft
- * already exists — redeemVendorInvitation created it — so this only updates it.
- * Full bank details go to vendor_kyc; the vendor document keeps the masked summary.
+ * Step 1 (business/account details). Supports both new self-registered vendors
+ * (record may be null for a brief window before the listener fires) and
+ * vendors resuming an existing application. Uses setDoc+merge so it works
+ * whether or not the document already has all fields.
+ * Full bank details go to vendor_kyc; the vendor document keeps a masked summary.
  */
 export async function saveBusinessAccountStep(
   record: VendorRecord | null,
-  business: Pick<BusinessInfo, 'vendorName' | 'businessName'>,
+  business: Pick<BusinessInfo, 'vendorName' | 'businessName'> & {
+    email?: string;
+    altPhone?: string;
+    operatingCity?: string;
+    operatingAreas?: string[];
+    estimatedFleetSize?: number;
+  },
   payout: PayoutDetails,
 ): Promise<void> {
   const uid = requireUid();
-  if (!record) throw new Error('Your invitation has not been applied to this account yet. Open your invitation link again.');
   const summary: PayoutSummary = {
     accountHolderName: payout.accountHolderName,
     bankLast4: payout.accountNumber.slice(-4),
     ifsc: payout.ifsc,
     upiId: payout.upiId,
   };
-  const prev = record.business;
+  const prev = record?.business;
   const batch = writeBatch(db);
   batch.set(doc(db, VENDOR_KYC_COLLECTION, uid), { payout, updatedAt: serverTimestamp() }, { merge: true });
-  batch.update(doc(db, VENDORS, uid), {
-    business: {
-      vendorName: business.vendorName,
-      businessName: business.businessName,
-      email: prev?.email ?? '',
-      altPhone: prev?.altPhone ?? '',
-      address: prev?.address ?? EMPTY_ADDRESS,
+  batch.set(
+    doc(db, VENDORS, uid),
+    {
+      business: {
+        vendorName: business.vendorName,
+        businessName: business.businessName,
+        email: business.email ?? prev?.email ?? '',
+        altPhone: business.altPhone ?? prev?.altPhone ?? '',
+        address: prev?.address ?? EMPTY_ADDRESS,
+        operatingCity: business.operatingCity ?? '',
+        operatingAreas: business.operatingAreas ?? [],
+        estimatedFleetSize: business.estimatedFleetSize ?? 1,
+      },
+      companyName: business.businessName,
+      name: business.businessName,
+      contactPerson: business.vendorName,
+      owner: business.vendorName,
+      payoutSummary: summary,
+      onboardingStep: nextStep(record, 0),
+      updatedAt: serverTimestamp(),
     },
-    companyName: business.businessName,
-    name: business.businessName,
-    contactPerson: business.vendorName,
-    owner: business.vendorName,
-    payoutSummary: summary,
-    onboardingStep: nextStep(record, 0),
-    updatedAt: serverTimestamp(),
-  });
+    { merge: true },
+  );
   await withTimeout(batch.commit());
 }
 
-/** Step 2 (spec page 13: "fleet documentation"). */
+/** Step 2 (identity & business documents). Saves vendor_kyc identity number + public document metadata. */
+export async function saveDocumentsStep(record: VendorRecord, documents: import('../types/vendor').VendorDocuments, identityNumber: string): Promise<void> {
+  const uid = requireUid();
+  const batch = writeBatch(db);
+  batch.set(doc(db, VENDOR_KYC_COLLECTION, uid), { identityProof: { type: documents.identityProof.type, number: identityNumber }, updatedAt: serverTimestamp() }, { merge: true });
+  batch.set(
+    doc(db, VENDORS, uid),
+    {
+      documents,
+      onboardingStep: nextStep(record, 1),
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
+  await withTimeout(batch.commit());
+}
+
+/** Step 3 (spec page 13: "fleet documentation"). */
 export async function saveFleetStep(record: VendorRecord, fleet: FleetDetails): Promise<void> {
   const uid = requireUid();
   await withTimeout(
@@ -261,7 +293,7 @@ export async function saveFleetStep(record: VendorRecord, fleet: FleetDetails): 
       fleet,
       fleetSize: fleet.fleetSize,
       totalFleetSize: fleet.fleetSize,
-      onboardingStep: nextStep(record, 1),
+      onboardingStep: nextStep(record, 2),
       updatedAt: serverTimestamp(),
     }),
   );
@@ -272,11 +304,43 @@ export function missingSections(record: VendorRecord): OnboardingSection[] {
   const missing: OnboardingSection[] = [];
   if (!record.business?.businessName || !record.business?.vendorName) missing.push('business');
   if (!record.payoutSummary?.bankLast4) missing.push('payout');
+  // documents step adds identity/business docs (not hard-required for legacy resubmissions)
   if (!fleetIsComplete(record.fleet)) missing.push('fleet');
   return missing;
 }
 
-// ── Registration request → one-time invitation ──────────────────────────────
+// ── Self-registration (replaces the invitation-gate flow) ───────────────────
+
+/**
+ * Creates the vendors/{uid} document with status INCOMPLETE so the real-time
+ * listener in App.tsx immediately routes the user to the OnboardingWizard.
+ * Safe to call multiple times — setDoc with merge: true is idempotent.
+ */
+export async function createVendorApplication(phone: string): Promise<void> {
+  const uid = requireUid();
+  await withTimeout(
+    setDoc(
+      doc(db, VENDORS, uid),
+      {
+        uid,
+        phone,
+        status: 'INCOMPLETE',
+        onboardingStep: 0,
+        business: null,
+        documents: null,
+        fleet: null,
+        payoutSummary: null,
+        review: null,
+        submittedAt: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true },
+    ),
+  );
+}
+
+// ── Registration request → one-time invitation (legacy; kept for back-compat) ─
 
 export type RegistrationState = 'requested' | 'invited' | 'registered';
 
@@ -303,21 +367,19 @@ export async function getRegistrationRequest(): Promise<{ status: string } | nul
 }
 
 /**
- * Final step. Flips status to PENDING_APPROVAL (or straight to APPROVED when
- * an admin pre-approved this phone number via vendor_invites — the Firestore
- * rules verify that invite server-side).
+ * Final step. Always flips status to PENDING_APPROVAL — the admin must
+ * explicitly approve from the admin panel (no more invite-based pre-approval).
  */
-export async function submitForReview(record: VendorRecord, preApproved: boolean): Promise<void> {
+export async function submitForReview(record: VendorRecord): Promise<void> {
   const uid = requireUid();
   const missing = missingSections(record);
   if (missing.length) throw new Error('Please complete every section before submitting.');
   if (!EDITABLE_STATUSES.includes(record.status)) {
     throw new Error('This application has already been submitted.');
   }
-  const status: VendorStatus = preApproved && record.status === 'INCOMPLETE' ? 'APPROVED' : 'PENDING_APPROVAL';
   await withTimeout(
     updateDoc(doc(db, VENDORS, uid), {
-      status,
+      status: 'PENDING_APPROVAL' as VendorStatus,
       onboardingStep: 4,
       submittedAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

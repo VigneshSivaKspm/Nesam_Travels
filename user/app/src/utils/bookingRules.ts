@@ -33,3 +33,23 @@ export function inclusionLine(c: RideCategory, outstation: boolean): string {
   if (extra > 0) parts.push(`Extra km ${formatINR(extra)}`);
   return parts.join(' · ');
 }
+
+/** The server keeps at most this many characters of a booking's notes (functions/src/shared.ts `text`). */
+export const NOTES_MAX = 300;
+
+/**
+ * One notes string for the booking server: the structured extras the app collects (flight number,
+ * a different travelling passenger) come first so a cut-off only ever shortens the customer's own words.
+ */
+export function composeBookingNotes(p: { flight?: string; passengerName?: string; passengerMobile?: string; notes?: string }): string {
+  const parts: string[] = [];
+  const flight = (p.flight ?? '').trim();
+  if (flight) parts.push(`Flight: ${flight}`);
+  const name = (p.passengerName ?? '').trim();
+  const mobile = (p.passengerMobile ?? '').replace(/\s+/g, '');
+  if (name || mobile) parts.push(`Travelling passenger: ${[name, mobile].filter(Boolean).join(', ')}`);
+  const head = parts.join(' | ');
+  const note = (p.notes ?? '').trim();
+  const joined = head && note ? `${head} | ${note}` : head || note;
+  return joined.slice(0, NOTES_MAX);
+}

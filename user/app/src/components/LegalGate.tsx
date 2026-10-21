@@ -8,7 +8,7 @@ import { db } from '../config/firebase';
 import { ActionError, callFunction } from '../services/callables';
 import { Button, Notice } from './ui';
 import { Checkbox } from './Checkbox';
-import { colors, fonts, radius, space, type } from '../theme';
+import { colors, fonts, space, type } from '../theme';
 
 interface RequiredDoc {
   key: string;
@@ -110,12 +110,12 @@ export function LegalGate({ role, children }: { role: 'driver' | 'vendor' | 'cus
 }
 
 const styles = StyleSheet.create({
-  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg },
-  root: { flex: 1, backgroundColor: colors.bg },
-  head: { padding: space.lg, gap: space.xs, borderBottomWidth: 1, borderBottomColor: colors.border, backgroundColor: colors.card },
-  body: { padding: space.lg, gap: space.md },
-  doc: { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: space.md },
-  docTitle: { fontFamily: fonts.extraBold, fontSize: 15, fontWeight: '800', color: colors.ink },
-  docBody: { fontFamily: fonts.regular, marginTop: space.sm, fontSize: 13, lineHeight: 19, color: colors.text },
-  foot: { padding: space.lg, gap: space.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.card },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
+  root: { flex: 1, backgroundColor: colors.white },
+  head: { padding: space.xl, gap: space.xs, borderBottomWidth: 1, borderBottomColor: colors.divider, backgroundColor: colors.white },
+  body: { padding: space.xl, gap: space.md },
+  doc: { backgroundColor: colors.white, borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 10, padding: space.lg },
+  docTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink },
+  docBody: { fontFamily: fonts.regular, marginTop: space.sm, fontSize: 12.5, lineHeight: 20, color: '#55606F' },
+  foot: { padding: space.xl, gap: space.sm, borderTopWidth: 1, borderTopColor: '#E5E8ED', backgroundColor: colors.white },
 });

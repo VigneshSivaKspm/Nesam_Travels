@@ -1,27 +1,71 @@
-// Vendor onboarding wizard (spec page 13): business + account details, then
-// fleet documentation (each vehicle detected from its registration number, with
-// RC, insurance, FC, permit and a front photo), then Admin approval.
-// Progress is saved to vendors/{uid} after every step, so the application can be
-// resumed on any device; admin-flagged sections are highlighted.
+// Vendor onboarding wizard — 4 steps:
+//   0 Business & account details  (owner name, business name, contact, city, fleet estimate, bank)
+//   1 Identity & business docs    (GST/trade-licence + Aadhaar/PAN/Passport)
+//   2 Fleet documentation         (per-vehicle RC, insurance, FC, permit, photo)
+//   3 Review & Submit             (summary + T&C toggle)
+//
+// Progress is persisted to vendors/{uid} after every step so the application
+// can be resumed on any device; admin-flagged sections are highlighted in orange.
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  BackHandler,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import type { FleetVehicleDoc, OnboardingSection, PayoutDetails, StoredFile, VendorRecord } from '../../types/vendor';
-import { ONBOARDING_STEPS, SECTION_LABELS, stepOfSection } from '../../config/onboarding';
+import type {
+  BusinessRegType,
+  FleetVehicleDoc,
+  IdentityProofType,
+  OnboardingSection,
+  PayoutDetails,
+  StoredFile,
+  VendorDocuments,
+  VendorRecord,
+} from '../../types/vendor';
+import { ONBOARDING_STEPS, SECTION_LABELS, stepOfSection, BUSINESS_REG_TYPES, IDENTITY_PROOF_TYPES, INDIAN_STATES } from '../../config/onboarding';
 import {
   EDITABLE_STATUSES,
-  getVendorInvite,
   getVendorKyc,
   missingSections,
   saveBusinessAccountStep,
+  saveDocumentsStep,
   saveFleetStep,
   submitForReview,
-  type VendorInvite,
   type VendorKyc,
 } from '../../services/onboardingService';
-import { digitsOnly, hasErrors, normalizeSpaces, validateAccountNumber, validateBusinessName, validateIfsc, validatePersonName, validateUpi } from '../../utils/validation';
-import { buildFleetDetails, emptyVehicle, indiaToday, isPlate, normalizePlate, validateVehicle, type VehicleErrors } from '../../utils/fleet';
+import {
+  digitsOnly,
+  hasErrors,
+  normalizeSpaces,
+  validateAccountNumber,
+  validateAadhaar,
+  validateAltPhone,
+  validateBusinessName,
+  validateEmail,
+  validateFleetSize,
+  validateIfsc,
+  validatePan,
+  validatePassport,
+  validatePersonName,
+  validateRegistrationNumber,
+  validateUpi,
+} from '../../utils/validation';
+import {
+  buildFleetDetails,
+  emptyVehicle,
+  indiaToday,
+  isPlate,
+  normalizePlate,
+  validateVehicle,
+  type VehicleErrors,
+} from '../../utils/fleet';
 import { applyDetection, lookupVehicle, type VehicleLookupResult } from '../../services/vehicleLookup';
 import { describeDataError } from '../../utils/retry';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
@@ -51,24 +95,26 @@ function initialStep(record: VendorRecord | null): number {
 export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardProps) {
   const { online } = useNetworkStatus();
   const [step, setStep] = useState(() => initialStep(record));
-  const [invite, setInvite] = useState<VendorInvite | null>(null);
   const [kyc, setKyc] = useState<VendorKyc | null>(null);
-  const [prefillLoading, setPrefillLoading] = useState(true);
+  const [prefillLoading, setPrefillLoading] = useState(!!record);
   const hasRecord = !!record;
 
-  // One-time prefill: admin pre-approval (by phone) + private account details (resuming vendors).
+  // Load private KYC details for resuming vendors (so bank fields pre-fill).
   useEffect(() => {
-    let alive = true;
-    Promise.all([getVendorInvite(phone), hasRecord ? getVendorKyc().catch(() => null) : Promise.resolve(null)]).then(([inv, k]) => {
-      if (!alive) return;
-      setInvite(inv);
-      setKyc(k);
+    if (!hasRecord) {
       setPrefillLoading(false);
-    });
-    return () => {
-      alive = false;
-    };
-  }, [phone, hasRecord]);
+      return;
+    }
+    let alive = true;
+    getVendorKyc()
+      .catch(() => null)
+      .then((k) => {
+        if (!alive) return;
+        setKyc(k);
+        setPrefillLoading(false);
+      });
+    return () => { alive = false; };
+  }, [hasRecord]);
 
   const maxReachable = Math.max(record?.onboardingStep ?? 0, step);
   const next = useCallback(() => setStep((s) => Math.min(s + 1, ONBOARDING_STEPS.length - 1)), []);
@@ -77,26 +123,25 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
   // Android back steps backwards through the wizard.
   useEffect(() => {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      if (step > 0) {
-        back();
-        return true;
-      }
+      if (step > 0) { back(); return true; }
       return false;
     });
     return () => sub.remove();
   }, [step, back]);
 
   if (prefillLoading) return <FullScreenLoader label="Preparing your application…" />;
+  // If record is still null (createVendorApplication just called), wait.
+  if (!record) return <FullScreenLoader label="Setting up your application…" />;
 
   const correction = record && (record.status === 'CHANGES_REQUESTED' || record.status === 'REJECTED') ? record : null;
   const current = ONBOARDING_STEPS[step]!;
   const flagged = correction?.review?.flaggedSections ?? [];
 
   let body: React.ReactNode;
-  if (!record) body = <FullScreenLoader label="Saving…" />;
-  else if (step === 0) body = <BusinessAccountStep record={record} kyc={kyc} onKycChange={setKyc} onNext={next} />;
-  else if (step === 1) body = <FleetStep record={record} onNext={next} onBack={back} />;
-  else body = <ReviewStep record={record} preApproved={!!invite?.preApproved} onEdit={(i) => i <= maxReachable && setStep(i)} onBack={back} />;
+  if (step === 0) body = <BusinessAccountStep record={record} kyc={kyc} onKycChange={setKyc} phone={phone} onNext={next} />;
+  else if (step === 1) body = <DocumentsStep record={record} kyc={kyc} onKycChange={setKyc} onNext={next} onBack={back} />;
+  else if (step === 2) body = <FleetStep record={record} onNext={next} onBack={back} />;
+  else body = <ReviewStep record={record} onEdit={(i) => i <= maxReachable && setStep(i)} onBack={back} />;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -108,25 +153,33 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
         <Button small variant="ghost" title="Sign out" onPress={onSignOut} />
       </View>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {/* Step indicator */}
         <View style={styles.stepper}>
           {ONBOARDING_STEPS.map((s, i) => {
             const done = i < step || (record?.onboardingStep ?? 0) > i;
             const active = i === step;
             const isFlagged = flagged.some((f) => stepOfSection(f) === i);
             return (
-              <Pressable key={s.key} onPress={() => i <= maxReachable && setStep(i)} disabled={i > maxReachable} style={styles.stepItem} accessibilityRole="button" accessibilityLabel={`Step ${i + 1}: ${s.title}`}>
+              <Pressable
+                key={s.key}
+                onPress={() => i <= maxReachable && setStep(i)}
+                disabled={i > maxReachable}
+                style={styles.stepItem}
+                accessibilityRole="button"
+                accessibilityLabel={`Step ${i + 1}: ${s.title}`}
+              >
                 <View style={[styles.stepDot, active && styles.stepActive, !active && isFlagged && styles.stepFlagged, !active && !isFlagged && done && styles.stepDone]}>
-                  {done && !active && !isFlagged ? <Ionicons name="checkmark" size={14} color={colors.success} /> : <Text style={[styles.stepNum, active && { color: colors.white }]}>{i + 1}</Text>}
+                  {done && !active && !isFlagged
+                    ? <Ionicons name="checkmark" size={14} color={colors.success} />
+                    : <Text style={[styles.stepNum, active && { color: colors.white }]}>{i + 1}</Text>}
                 </View>
-                <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>
-                  {s.short}
-                </Text>
+                <Text style={[styles.stepLabel, active && { color: colors.ink }]} numberOfLines={1}>{s.short}</Text>
               </Pressable>
             );
           })}
         </View>
 
-        {!online ? <Notice tone="warning" message="You’re offline. Uploads and saves will fail until you reconnect." /> : null}
+        {!online ? <Notice tone="warning" message="You're offline. Uploads and saves will fail until you reconnect." /> : null}
         {notice && step === 0 ? <Notice tone="info" message={notice} /> : null}
         {correction ? (
           <Notice
@@ -150,14 +203,26 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
   );
 }
 
-// ── Step 1: business + account details ──────────────────────────────────────
+// ── Step 0: business & account details ──────────────────────────────────────
 
-function BusinessAccountStep({ record, kyc, onKycChange, onNext }: { record: VendorRecord; kyc: VendorKyc | null; onKycChange: (k: VendorKyc) => void; onNext: () => void }) {
-  const b = record.business;
+function BusinessAccountStep({
+  record, kyc, onKycChange, phone, onNext,
+}: {
+  record: VendorRecord;
+  kyc: VendorKyc | null;
+  onKycChange: (k: VendorKyc) => void;
+  phone: string;
+  onNext: () => void;
+}) {
+  const b = record.business as (typeof record.business & { operatingCity?: string; estimatedFleetSize?: number }) | null;
   const saved = kyc?.payout;
   const [form, setForm] = useState({
     vendorName: b?.vendorName ?? '',
     businessName: b?.businessName ?? '',
+    email: b?.email ?? '',
+    altPhone: b?.altPhone ?? '',
+    operatingCity: b?.operatingCity ?? '',
+    estimatedFleetSize: b?.estimatedFleetSize ? String(b.estimatedFleetSize) : '',
     accountHolderName: saved?.accountHolderName ?? b?.vendorName ?? '',
     accountNumber: saved?.accountNumber ?? '',
     confirmAccountNumber: saved?.accountNumber ?? '',
@@ -168,18 +233,23 @@ function BusinessAccountStep({ record, kyc, onKycChange, onNext }: { record: Ven
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
-  const errors = useMemo(
-    () => ({
-      vendorName: validatePersonName(form.vendorName, 'Owner name'),
-      businessName: validateBusinessName(form.businessName),
-      accountHolderName: validatePersonName(form.accountHolderName, 'Account holder name'),
-      accountNumber: validateAccountNumber(form.accountNumber),
-      confirmAccountNumber: !form.confirmAccountNumber ? 'Please re-enter the account number.' : form.confirmAccountNumber !== form.accountNumber ? 'Account numbers do not match.' : '',
-      ifsc: validateIfsc(form.ifsc),
-      upiId: validateUpi(form.upiId),
-    }),
-    [form],
-  );
+  const errors = useMemo(() => ({
+    vendorName: validatePersonName(form.vendorName, 'Owner name'),
+    businessName: validateBusinessName(form.businessName),
+    email: validateEmail(form.email),
+    altPhone: validateAltPhone(form.altPhone, phone),
+    operatingCity: form.operatingCity.trim().length < 2 ? 'Operating city is required.' : '',
+    estimatedFleetSize: validateFleetSize(form.estimatedFleetSize),
+    accountHolderName: validatePersonName(form.accountHolderName, 'Account holder name'),
+    accountNumber: validateAccountNumber(form.accountNumber),
+    confirmAccountNumber: !form.confirmAccountNumber
+      ? 'Please re-enter the account number.'
+      : form.confirmAccountNumber !== form.accountNumber
+        ? 'Account numbers do not match.'
+        : '',
+    ifsc: validateIfsc(form.ifsc),
+    upiId: validateUpi(form.upiId),
+  }), [form, phone]);
   const set = (key: keyof typeof form) => (value: string) => setForm((f) => ({ ...f, [key]: value }));
   const err = (key: keyof typeof errors) => (submitted ? errors[key] : '');
 
@@ -195,7 +265,18 @@ function BusinessAccountStep({ record, kyc, onKycChange, onNext }: { record: Ven
     setSaving(true);
     setSaveError('');
     try {
-      await saveBusinessAccountStep(record, { vendorName: normalizeSpaces(form.vendorName), businessName: normalizeSpaces(form.businessName) }, payout);
+      await saveBusinessAccountStep(
+        record,
+        {
+          vendorName: normalizeSpaces(form.vendorName),
+          businessName: normalizeSpaces(form.businessName),
+          email: form.email.trim().toLowerCase(),
+          altPhone: digitsOnly(form.altPhone),
+          operatingCity: normalizeSpaces(form.operatingCity),
+          estimatedFleetSize: Number(form.estimatedFleetSize),
+        },
+        payout,
+      );
       onKycChange({ identityNumber: kyc?.identityNumber ?? '', payout });
       onNext();
     } catch (e) {
@@ -208,11 +289,32 @@ function BusinessAccountStep({ record, kyc, onKycChange, onNext }: { record: Ven
   return (
     <View>
       <Text style={[type.h3, { marginBottom: space.sm }]}>Business details</Text>
-      <TextField label="Owner name" required value={form.vendorName} onChangeText={set('vendorName')} error={err('vendorName')} placeholder="Ravi Kumar" autoComplete="name" />
+      <TextField label="Owner / contact person name" required value={form.vendorName} onChangeText={set('vendorName')} error={err('vendorName')} placeholder="Ravi Kumar" autoComplete="name" />
       <TextField label="Business / agency name" required value={form.businessName} onChangeText={set('businessName')} error={err('businessName')} placeholder="Sri Balaji Travels" />
+      <TextField label="Business email" required value={form.email} onChangeText={set('email')} error={err('email')} placeholder="office@sribalajitravels.com" keyboardType="email-address" autoCapitalize="none" autoComplete="email" />
+      <TextField
+        label="Alternate mobile number"
+        value={form.altPhone}
+        onChangeText={(v) => set('altPhone')(digitsOnly(v).slice(0, 10))}
+        error={err('altPhone')}
+        keyboardType="number-pad"
+        placeholder="Optional — 10-digit mobile"
+        hint="Must differ from your login number"
+      />
+      <TextField label="Operating city / base" required value={form.operatingCity} onChangeText={set('operatingCity')} error={err('operatingCity')} placeholder="Chennai" hint="Primary city from which your fleet operates" />
+      <TextField
+        label="Approximate fleet size"
+        required
+        value={form.estimatedFleetSize}
+        onChangeText={(v) => set('estimatedFleetSize')(digitsOnly(v).slice(0, 4))}
+        error={err('estimatedFleetSize')}
+        keyboardType="number-pad"
+        placeholder="e.g. 5"
+        hint="Total vehicles you plan to register — you'll document each one in the Fleet step"
+      />
 
-      <Text style={[type.h3, { marginVertical: space.sm }]}>Account details</Text>
-      <TextField label="Bank account holder name" required value={form.accountHolderName} onChangeText={set('accountHolderName')} error={err('accountHolderName')} hint="Exactly as printed on your passbook / cheque" />
+      <Text style={[type.h3, { marginVertical: space.sm }]}>Bank account for settlements</Text>
+      <TextField label="Account holder name" required value={form.accountHolderName} onChangeText={set('accountHolderName')} error={err('accountHolderName')} hint="Exactly as printed on your passbook / cheque" />
       <TextField label="Account number" required value={form.accountNumber} onChangeText={(v) => set('accountNumber')(digitsOnly(v).slice(0, 18))} error={err('accountNumber')} keyboardType="number-pad" secureTextEntry autoComplete="off" />
       <TextField
         label="Confirm account number"
@@ -232,6 +334,165 @@ function BusinessAccountStep({ record, kyc, onKycChange, onNext }: { record: Ven
       {submitted && hasErrors(errors) ? <Notice message="Please fix the highlighted fields." /> : null}
       <Notice message={saveError} onRetry={saveError ? () => void submit() : undefined} />
       <Button title={saving ? 'Saving…' : 'Save & continue'} loading={saving} onPress={() => void submit()} />
+    </View>
+  );
+}
+
+// ── Step 1: identity & business documents ────────────────────────────────────
+
+function DocumentsStep({
+  record, kyc, onKycChange, onNext, onBack,
+}: {
+  record: VendorRecord;
+  kyc: VendorKyc | null;
+  onKycChange: (k: VendorKyc) => void;
+  onNext: () => void;
+  onBack: () => void;
+}) {
+  const saved = record.documents;
+  const [bizType, setBizType] = useState<BusinessRegType>(saved?.businessRegistration.type ?? 'GST');
+  const [bizNumber, setBizNumber] = useState(saved?.businessRegistration.number ?? '');
+  const [bizFiles, setBizFiles] = useState<StoredFile[]>(saved?.businessRegistration.files ?? []);
+  const [idType, setIdType] = useState<IdentityProofType>(saved?.identityProof.type ?? 'AADHAAR');
+  const [idNumber, setIdNumber] = useState(kyc?.identityNumber ?? '');
+  const [idFiles, setIdFiles] = useState<StoredFile[]>(saved?.identityProof.files ?? []);
+  const [bizBusy, setBizBusy] = useState(false);
+  const [idBusy, setIdBusy] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
+  const bizDef = BUSINESS_REG_TYPES.find((x) => x.value === bizType)!;
+  const idDef = IDENTITY_PROOF_TYPES.find((x) => x.value === idType)!;
+
+  const validateIdNumber = (val: string): string => {
+    if (idType === 'AADHAAR') return validateAadhaar(val);
+    if (idType === 'PAN') return validatePan(val);
+    return validatePassport(val);
+  };
+
+  const errors = useMemo(() => ({
+    bizNumber: validateRegistrationNumber(bizNumber),
+    bizFiles: bizFiles.length === 0 ? 'Upload at least one document.' : '',
+    idNumber: validateIdNumber(idNumber),
+    idFiles: idFiles.length === 0 ? 'Upload at least one document.' : '',
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }), [bizNumber, bizFiles, idType, idNumber, idFiles]);
+  const err = (key: keyof typeof errors) => (submitted ? errors[key] : '');
+
+  const maskedIdNumber = (): string => {
+    const v = idNumber.replace(/\s/g, '');
+    if (v.length <= 4) return v;
+    return '•'.repeat(Math.min(v.length - 4, 8)) + v.slice(-4);
+  };
+
+  const submit = async () => {
+    setSubmitted(true);
+    if (hasErrors(errors) || saving || bizBusy || idBusy) return;
+    const documents: VendorDocuments = {
+      businessRegistration: { type: bizType, number: bizNumber.trim().toUpperCase(), files: bizFiles },
+      identityProof: { type: idType, maskedNumber: maskedIdNumber(), files: idFiles },
+    };
+    setSaving(true);
+    setSaveError('');
+    try {
+      await saveDocumentsStep(record, documents, idNumber.trim());
+      onKycChange({ identityNumber: idNumber.trim(), payout: kyc?.payout ?? null });
+      onNext();
+    } catch (e) {
+      setSaveError(describeDataError(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const uploading = bizBusy || idBusy;
+
+  return (
+    <View>
+      {/* Business registration */}
+      <Text style={[type.h3, { marginBottom: space.sm }]}>Business registration</Text>
+      <Text style={[type.small, { color: colors.muted, marginBottom: space.sm }]}>
+        Upload a GST certificate, business registration or trade license.
+      </Text>
+      <Text style={[type.label, { marginBottom: 6 }]}>
+        Document type<Text style={{ color: colors.primary }}> *</Text>
+      </Text>
+      <View style={styles.chips}>
+        {BUSINESS_REG_TYPES.map((t) => (
+          <Chip key={t.value} label={t.label} active={bizType === t.value} onPress={() => setBizType(t.value)} />
+        ))}
+      </View>
+      <TextField
+        label={`${bizDef.label} number`}
+        required
+        value={bizNumber}
+        onChangeText={(v) => setBizNumber(v.toUpperCase().replace(/\s/g, ''))}
+        error={err('bizNumber')}
+        placeholder={bizDef.placeholder}
+        autoCapitalize="characters"
+        autoCorrect={false}
+      />
+      <FileUploadField
+        label={`${bizDef.label} (document)`}
+        required
+        category="business_registration"
+        files={bizFiles}
+        onChange={setBizFiles}
+        persistedPaths={new Set(bizFiles.map((f) => f.path))}
+        onBusyChange={setBizBusy}
+        error={err('bizFiles')}
+        max={3}
+      />
+
+      {/* Identity proof */}
+      <Text style={[type.h3, { marginVertical: space.sm }]}>Owner identity proof</Text>
+      <Text style={[type.small, { color: colors.muted, marginBottom: space.sm }]}>
+        A government-issued ID for the owner / contact person.
+      </Text>
+      <Text style={[type.label, { marginBottom: 6 }]}>
+        ID type<Text style={{ color: colors.primary }}> *</Text>
+      </Text>
+      <View style={styles.chips}>
+        {IDENTITY_PROOF_TYPES.map((t) => (
+          <Chip key={t.value} label={t.label} active={idType === t.value} onPress={() => { setIdType(t.value); setIdNumber(''); }} />
+        ))}
+      </View>
+      <TextField
+        label={`${idDef.label} number`}
+        required
+        value={idNumber}
+        onChangeText={(v) => {
+          if (idType === 'AADHAAR') setIdNumber(digitsOnly(v).slice(0, 12));
+          else if (idType === 'PAN') setIdNumber(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10));
+          else setIdNumber(v.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8));
+        }}
+        error={err('idNumber')}
+        placeholder={idDef.placeholder}
+        autoCapitalize="characters"
+        autoCorrect={false}
+        secureTextEntry={idType === 'AADHAAR'}
+        hint={idType === 'AADHAAR' ? 'Stored securely — only the last 4 digits are shown' : undefined}
+      />
+      <FileUploadField
+        label={`${idDef.label} (front & back)`}
+        required
+        category="identity_proof"
+        files={idFiles}
+        onChange={setIdFiles}
+        persistedPaths={new Set(idFiles.map((f) => f.path))}
+        onBusyChange={setIdBusy}
+        error={err('idFiles')}
+        max={2}
+      />
+
+      {submitted && hasErrors(errors) ? <Notice message="Please fix the highlighted fields." /> : null}
+      {uploading ? <Notice tone="info" message="Upload in progress — please wait before saving." /> : null}
+      <Notice message={saveError} onRetry={saveError ? () => void submit() : undefined} />
+      <View style={styles.nav}>
+        <Button title="Back" variant="secondary" onPress={onBack} disabled={saving} style={{ flex: 1 }} />
+        <Button title={saving ? 'Saving…' : 'Save & continue'} loading={saving} disabled={uploading} onPress={() => void submit()} style={{ flex: 2 }} />
+      </View>
     </View>
   );
 }
@@ -289,7 +550,6 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
     }
   }, []);
 
-  // Detect on its own once a full plate is typed (from idle only: errors are retried by the button).
   useEffect(() => {
     if (!adding || !isPlate(draft.registrationNumber) || detectedFor === plate || detection.state !== 'idle') return undefined;
     const t = setTimeout(() => void detect(draft.registrationNumber), DETECT_DELAY_MS);
@@ -306,7 +566,8 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
     } else setDraft((d) => ({ ...d, registrationNumber: upper }));
   };
 
-  const setFiles = (key: 'rcFiles' | 'insuranceFiles' | 'fitnessFiles' | 'permitFiles' | 'frontPhotoFiles') => (files: StoredFile[]) => setDraft((d) => ({ ...d, [key]: files }));
+  const setFiles = (key: 'rcFiles' | 'insuranceFiles' | 'fitnessFiles' | 'permitFiles' | 'frontPhotoFiles') => (files: StoredFile[]) =>
+    setDraft((d) => ({ ...d, [key]: files }));
 
   const addVehicle = () => {
     const e = validateVehicle(draft, {
@@ -327,14 +588,8 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
 
   const submit = async () => {
     setStepError('');
-    if (!vehicles.length) {
-      setStepError('Add at least one vehicle with its documents.');
-      return;
-    }
-    if (adding && draft.registrationNumber.trim()) {
-      setStepError('Finish adding the vehicle you started, or clear it, before continuing.');
-      return;
-    }
+    if (!vehicles.length) { setStepError('Add at least one vehicle with its documents.'); return; }
+    if (adding && draft.registrationNumber.trim()) { setStepError('Finish adding the vehicle you started, or clear it, before continuing.'); return; }
     if (uploading || saving) return;
     setSaving(true);
     setSaveError('');
@@ -357,15 +612,18 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
           <View style={{ flex: 1 }}>
             <Text style={type.h3}>{v.registrationNumber}</Text>
             <Text style={type.small}>{[v.make, v.model].filter(Boolean).join(' ') || v.category}</Text>
-            <Text style={type.tiny}>
-              {[v.category, v.seatClass ? `${v.seatClass} seats` : '', v.fuelType].filter(Boolean).join(' • ')}
-            </Text>
+            <Text style={type.tiny}>{[v.category, v.seatClass ? `${v.seatClass} seats` : '', v.fuelType].filter(Boolean).join(' • ')}</Text>
             <Text style={type.tiny}>
               Insurance {displayDate(v.insuranceUpto)} · FC {displayDate(v.fitnessUpto)} · Permit {displayDate(v.permitUpto)}
             </Text>
           </View>
           <Badge label={v.source === 'vahan' ? 'Register verified' : 'Manual check'} tone={v.source === 'vahan' ? 'success' : 'warning'} />
-          <Text style={styles.remove} onPress={() => setVehicles((list) => list.filter((x) => x.registrationNumber !== v.registrationNumber))} accessibilityRole="button" accessibilityLabel={`Remove ${v.registrationNumber}`}>
+          <Text
+            style={styles.remove}
+            onPress={() => setVehicles((list) => list.filter((x) => x.registrationNumber !== v.registrationNumber))}
+            accessibilityRole="button"
+            accessibilityLabel={`Remove ${v.registrationNumber}`}
+          >
             Remove
           </Text>
         </View>
@@ -413,9 +671,7 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
           {manual ? (
             <>
               <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose the vehicle type — NESAM will verify the vehicle from your documents." />
-              <Text style={[type.label, { marginBottom: 6 }]}>
-                Vehicle type<Text style={{ color: colors.primary }}> *</Text>
-              </Text>
+              <Text style={[type.label, { marginBottom: 6 }]}>Vehicle type<Text style={{ color: colors.primary }}> *</Text></Text>
               <View style={styles.chips}>
                 {VEHICLE_TYPE_CHOICES.map((t) => (
                   <Chip key={t} label={t === 'Premium SUV' ? 'Innova Crysta' : t} active={draft.category === t} onPress={() => setDraft((d) => ({ ...d, category: t }))} />
@@ -436,7 +692,14 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
           <FileUploadField label="Vehicle front (with plate)" required hint="Clear photo showing the number plate · JPG/PNG/WEBP" category="vehicle_photos" files={draft.frontPhotoFiles} onChange={setFiles('frontPhotoFiles')} persistedPaths={persisted} onBusyChange={onFront} error={errors.frontPhotoFiles} max={1} />
           {Object.keys(errors).length ? <Notice message="Please fix the highlighted fields." /> : null}
           <View style={styles.nav}>
-            {vehicles.length ? <Button title="Cancel" variant="secondary" onPress={() => { setAdding(false); setDraft(emptyVehicle()); setErrors({}); setDetection({ state: 'idle' }); setDetectedFor(''); }} style={{ flex: 1 }} /> : null}
+            {vehicles.length ? (
+              <Button
+                title="Cancel"
+                variant="secondary"
+                onPress={() => { setAdding(false); setDraft(emptyVehicle()); setErrors({}); setDetection({ state: 'idle' }); setDetectedFor(''); }}
+                style={{ flex: 1 }}
+              />
+            ) : null}
             <Button title={uploading ? 'Uploading…' : 'Add vehicle'} disabled={uploading} onPress={addVehicle} style={{ flex: 2 }} />
           </View>
         </View>
@@ -454,15 +717,15 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
   );
 }
 
-// ── Step 3: review ──────────────────────────────────────────────────────────
+// ── Step 3: review & submit ──────────────────────────────────────────────────
 
-function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRecord; preApproved: boolean; onEdit: (i: number) => void; onBack: () => void }) {
+function ReviewStep({ record, onEdit, onBack }: { record: VendorRecord; onEdit: (i: number) => void; onBack: () => void }) {
   const { online } = useNetworkStatus();
   const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const missing = missingSections(record);
-  const { business: b, fleet: f, payoutSummary: p } = record;
+  const { business: b, fleet: f, payoutSummary: p, documents: d } = record;
   const isResubmission = record.status !== 'INCOMPLETE';
   const flaggedNow = isResubmission ? (record.review?.flaggedSections ?? []) : [];
 
@@ -475,8 +738,8 @@ function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRec
     setSubmitting(true);
     setError('');
     try {
-      await submitForReview(record, preApproved);
-      // The vendors/{uid} listener re-routes to the status screen / dashboard.
+      await submitForReview(record);
+      // The vendors/{uid} listener re-routes to AccountStatusScreen (PENDING_APPROVAL).
     } catch (e) {
       setError(describeDataError(e));
       setSubmitting(false);
@@ -488,6 +751,10 @@ function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRec
       <ReviewSection id="business" missing={missing} flagged={flaggedNow} onEdit={onEdit}>
         <Row label="Owner name" value={b?.vendorName ?? ''} />
         <Row label="Business name" value={b?.businessName ?? ''} />
+        <Row label="Email" value={b?.email ?? ''} />
+        {(b as any)?.altPhone ? <Row label="Alt phone" value={`+91 ${(b as any).altPhone}`} /> : null}
+        {(b as any)?.operatingCity ? <Row label="Operating city" value={(b as any).operatingCity} /> : null}
+        {(b as any)?.estimatedFleetSize ? <Row label="Est. fleet size" value={String((b as any).estimatedFleetSize)} /> : null}
       </ReviewSection>
       <ReviewSection id="payout" missing={missing} flagged={flaggedNow} onEdit={onEdit}>
         <Row label="Account holder" value={p?.accountHolderName ?? ''} />
@@ -495,12 +762,24 @@ function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRec
         <Row label="IFSC" value={p?.ifsc ?? ''} />
         <Row label="UPI" value={p?.upiId || '—'} />
       </ReviewSection>
+      {d ? (
+        <ReviewSection id="documents" missing={missing} flagged={flaggedNow} onEdit={onEdit}>
+          <Row label="Business registration" value={`${d.businessRegistration.type} — ${d.businessRegistration.number}`} />
+          <Row label="Identity proof" value={`${d.identityProof.type} — ${d.identityProof.maskedNumber}`} />
+          <Row label="Documents uploaded" value={`${d.businessRegistration.files.length + d.identityProof.files.length} file(s)`} />
+        </ReviewSection>
+      ) : null}
       <ReviewSection id="fleet" missing={missing} flagged={flaggedNow} onEdit={onEdit}>
         <Row label="Vehicles" value={f?.vehicles?.length ? `${f.vehicles.length}` : ''} />
         {(f?.vehicles ?? []).map((v) => (
-          <Row key={v.registrationNumber} label={v.registrationNumber} value={`${[v.make, v.model].filter(Boolean).join(' ') || v.category} · ${v.source === 'vahan' ? 'register verified' : 'manual check'}`} />
+          <Row
+            key={v.registrationNumber}
+            label={v.registrationNumber}
+            value={`${[v.make, v.model].filter(Boolean).join(' ') || v.category} · ${v.source === 'vahan' ? 'register verified' : 'manual check'}`}
+          />
         ))}
       </ReviewSection>
+
       <Pressable style={styles.agree} onPress={() => setAgreed((a) => !a)} accessibilityRole="checkbox" accessibilityState={{ checked: agreed }}>
         <Switch value={agreed} onValueChange={setAgreed} trackColor={{ true: colors.primary, false: colors.border }} />
         <Text style={[type.small, { flex: 1 }]}>
@@ -508,12 +787,12 @@ function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRec
         </Text>
       </Pressable>
       {missing.length ? <Notice message={`Complete: ${[...new Set(missing.map((m) => SECTION_LABELS[m]))].join(', ')}.`} /> : null}
-      {!online ? <Notice tone="warning" message="You’re offline — reconnect to submit." /> : null}
+      {!online ? <Notice tone="warning" message="You're offline — reconnect to submit." /> : null}
       <Notice message={error} />
       <View style={styles.nav}>
         <Button title="Back" variant="secondary" onPress={onBack} disabled={submitting} style={{ flex: 1 }} />
         <Button
-          title={submitting ? 'Submitting…' : isResubmission ? 'Resubmit for review' : preApproved ? 'Submit & activate' : 'Submit for review'}
+          title={submitting ? 'Submitting…' : isResubmission ? 'Resubmit for review' : 'Submit for review'}
           loading={submitting}
           disabled={!!missing.length || !agreed || !online}
           onPress={() => void submit()}
@@ -525,11 +804,7 @@ function ReviewStep({ record, preApproved, onEdit, onBack }: { record: VendorRec
 }
 
 function ReviewSection({
-  id,
-  missing,
-  flagged,
-  onEdit,
-  children,
+  id, missing, flagged, onEdit, children,
 }: {
   id: OnboardingSection;
   missing: OnboardingSection[];
@@ -543,9 +818,7 @@ function ReviewSection({
     <View style={[styles.section, isMissing && { borderColor: colors.primaryBorder, backgroundColor: colors.primarySoft }, !isMissing && isFlagged && { borderColor: colors.warningBorder }]}>
       <View style={styles.sectionHead}>
         <Text style={type.h3}>{SECTION_LABELS[id]}</Text>
-        <Text style={styles.edit} onPress={() => onEdit(stepOfSection(id))} accessibilityRole="button">
-          Edit
-        </Text>
+        <Text style={styles.edit} onPress={() => onEdit(stepOfSection(id))} accessibilityRole="button">Edit</Text>
       </View>
       {isMissing ? <Text style={styles.err}>This section is incomplete.</Text> : children}
     </View>
@@ -564,7 +837,7 @@ const styles = StyleSheet.create({
   stepFlagged: { borderColor: colors.warning, backgroundColor: colors.warningSoft },
   stepNum: { fontSize: 12, fontWeight: '800', color: colors.muted },
   stepLabel: { fontSize: 10, fontWeight: '700', color: colors.muted },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: space.sm },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.sm },
   err: { color: colors.primaryDark, fontSize: 12, marginBottom: space.sm },
   section: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: space.md, marginBottom: space.md },
   sectionHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },

@@ -211,26 +211,6 @@ export default function Vendors() {
         </div>
       )}
 
-      {openRequests.length > 0 && (
-        <div className="bg-white border border-[#E5E5E5] rounded-xl shadow-sm p-4 space-y-2" data-testid="registration-requests">
-          <div className="text-[13px] font-bold text-[#111]">Registration requests ({openRequests.length})</div>
-          <p className="text-[11px] text-[#999]">A verified mobile asked to register as a vendor. Issue a one-time invitation link to let them continue.</p>
-          {openRequests.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 text-[12px] border-t border-[#F0F0F0] pt-2">
-              <span className="font-semibold text-[#111]">{r.phone}</span>
-              <span className="text-[#999]">requested {fmtDate(r.createdAt)}</span>
-              {r.status === "Invited" && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">Invitation issued</span>}
-              <button
-                onClick={() => setShowInvite({ phone10: (r.phone ?? "").replace(/^\+91/, ""), requestId: r.id })}
-                className="ml-auto px-3 py-1.5 text-[11px] font-semibold text-white rounded-lg hover:opacity-90"
-                style={{ background: "#E21B23" }}
-              >
-                {r.status === "Invited" ? "Issue a new link" : "Issue invitation"}
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
 
       {/* Tabs */}
       <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-[#E5E5E5] p-1 w-fit shadow-sm">
@@ -254,9 +234,6 @@ export default function Vendors() {
           placeholder="Search business, owner, phone, email…"
           className="flex-1 min-w-48 px-4 py-2 text-[13px] bg-[#F5F5F5] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] placeholder-[#999]"
         />
-        <button onClick={() => setShowInvite({})} className="ml-auto px-4 py-2 text-[12px] font-semibold text-white rounded-lg hover:opacity-90" style={{ background: "#E21B23" }}>
-          + Invite Vendor
-        </button>
       </div>
 
       {/* Table */}
@@ -324,7 +301,6 @@ export default function Vendors() {
           That vendor no longer exists.
         </div>
       )}
-      {showInvite && <InviteVendorModal initial={showInvite} onClose={() => setShowInvite(null)} />}
     </div>
   );
 }
@@ -542,19 +518,21 @@ function VendorReviewDrawer({ vendor, onClose }: { vendor: VendorDoc; onClose: (
             <Row label="Login phone" value={vendor.phone} />
             {(b?.email || vendor.email) && <Row label="Email" value={b?.email ?? vendor.email} />}
             {b?.altPhone && <Row label="Alternate phone" value={`+91 ${b.altPhone}`} />}
+            {(b as any)?.operatingCity && <Row label="Operating City / Base" value={(b as any).operatingCity} />}
+            {(b as any)?.estimatedFleetSize && <Row label="Est. Fleet Size" value={`${(b as any).estimatedFleetSize} vehicle(s)`} />}
             {b?.address?.line1 && <Row label="Address" value={[b.address.line1, b.address.line2, b.address.city, b.address.state, b.address.pincode].filter(Boolean).join(", ")} />}
           </Card>
 
           {d && (
-            <Card title="Documents (earlier application)" section="documents" flagged={vendor.review?.flaggedSections}>
-              <Row label={DOC_TYPE_LABEL[d.businessRegistration.type ?? ""] ?? "Registration"} value={d.businessRegistration.number} />
+            <Card title="Identity & Business Documents" section="documents" flagged={vendor.review?.flaggedSections}>
+              <Row label={DOC_TYPE_LABEL[d.businessRegistration?.type ?? ""] ?? "Business Registration"} value={d.businessRegistration?.number} />
               <Row
-                label={`${DOC_TYPE_LABEL[d.identityProof.type ?? ""] ?? "ID"} number`}
-                value={kycState === "ok" && kyc?.identityNumber ? kyc.identityNumber : d.identityProof.maskedNumber}
+                label={`${DOC_TYPE_LABEL[d.identityProof?.type ?? ""] ?? "Owner ID"} number`}
+                value={kycState === "ok" && kyc?.identityNumber ? kyc.identityNumber : d.identityProof?.maskedNumber}
               />
               <div className="grid gap-3 mt-3">
-                <FileGroup label="Business registration" files={d.businessRegistration.files} />
-                <FileGroup label="Identity proof" files={d.identityProof.files} />
+                <FileGroup label={DOC_TYPE_LABEL[d.businessRegistration?.type ?? ""] ?? "Business registration"} files={d.businessRegistration?.files} />
+                <FileGroup label={DOC_TYPE_LABEL[d.identityProof?.type ?? ""] ?? "Identity proof"} files={d.identityProof?.files} />
               </div>
             </Card>
           )}

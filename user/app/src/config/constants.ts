@@ -20,6 +20,8 @@ export const DEFAULT_CENTER = { lat: 10.0104, lng: 77.4768 };
 // ── Contacts ────────────────────────────────────────────────────────────────
 export const SUPPORT_PHONE = '+918531970197';
 export const SUPPORT_PHONE_DISPLAY = '85319 70197';
+/** WhatsApp line the booking screen has always used for trip enquiries (international format, no +). */
+export const SUPPORT_WHATSAPP = '919025099990';
 export const EMERGENCY_NUMBER = '112';
 
 // ── Pricing policy ──────────────────────────────────────────────────────────

@@ -1,128 +1,126 @@
-import { useState } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCallback, useEffect, useRef } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { useCustomerData } from '@/state/CustomerData';
 import { useBooking } from '@/state/Booking';
-import { usePageTitle } from '@/lib/hooks';
 import { useSeo } from '@/lib/seo';
 import { Icon } from '@/components/Icon';
-import { PlanStep, type PlanIntent, type PlanUi } from './PlanStep';
+import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
+import { BookingForm } from './BookingForm';
 import { ChooseStep } from './ChooseStep';
 import { ReviewStep } from './ReviewStep';
-import { AssuranceSection, Banners, DestinationsSection, FaqSection, FleetSection, HowSection, RoutesSection, ServicesSection, TrustStrip } from './HomeSections';
-import { IMG, type Corridor, type Destination, type Service } from './content';
+import { AppSection, FaqSection, HeroCopy, PopularRoutes, ReviewsSection, WhySection } from './HomeSections';
+import type { PopularRoute } from './content';
 
 export type BookStep = 'plan' | 'choose' | 'review';
 
-/** A ride in progress, or one waiting for a rating, surfaced above the hero. */
+const OUTSTATION_KEY = 'nesam.outstation.trip';
+const readOutstation = (): 'One Way' | 'Round Trip' => {
+  try {
+    return sessionStorage.getItem(OUTSTATION_KEY) === 'Round Trip' ? 'Round Trip' : 'One Way';
+  } catch {
+    return 'One Way';
+  }
+};
+
+/** A ride in progress, or one waiting for a rating, surfaced above the booking form. */
 function RideBanner() {
   const { liveRide, unratedTrip } = useCustomerData();
-  if (liveRide) {
-    return (
-      <div className="ride-banner">
-        <div className="ride-banner__inner">
-          <span className="ride-banner__pulse" aria-hidden="true" />
-          <p>
-            <strong>{liveRide.status === 'Ongoing' ? 'Trip in progress' : 'Upcoming booking'}</strong>
-            <span className="truncate"> · to {liveRide.drop.name}</span>
-          </p>
-          <Link className="btn btn--sm ride-banner__btn" to={`/ride/${liveRide.id}`}>
-            View booking <Icon name="arrow-right" size={16} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
-  if (unratedTrip) {
-    return (
-      <div className="ride-banner ride-banner--soft">
-        <div className="ride-banner__inner">
-          <Icon name="star" size={18} />
-          <p>
-            <strong>How was your ride?</strong>
-            <span className="truncate"> · rate your trip to {unratedTrip.drop.name}</span>
-          </p>
-          <Link className="btn btn--sm ride-banner__btn" to={`/ride/${unratedTrip.id}`}>
-            Rate trip <Icon name="arrow-right" size={16} />
-          </Link>
-        </div>
-      </div>
-    );
-  }
-  return null;
+  const trip = liveRide ?? unratedTrip;
+  if (!trip) return null;
+  const live = !!liveRide;
+  return (
+    <div className={`ride-banner ${live ? '' : 'ride-banner--soft'}`}>
+      <span className="ride-banner__icon" aria-hidden="true">
+        <Icon name={live ? 'car' : 'star'} size={18} />
+      </span>
+      <p>
+        <strong>{live ? (trip.status === 'Ongoing' ? 'Trip in progress' : 'Your upcoming booking') : 'How was your trip?'}</strong>
+        <span className="truncate">
+          {' '}
+          · {trip.pickup.name} → {trip.drop.name}
+        </span>
+      </p>
+      <Link className="ride-banner__link" to={`/ride/${trip.id}`}>
+        {live ? 'View booking' : 'Rate trip'} <Icon name="arrow-right" size={14} />
+      </Link>
+    </div>
+  );
 }
 
 function Home() {
-  const { update, draft } = useBooking();
-  const [ui, setUi] = useState<PlanUi>({ active: null, pin: null });
-  const [intent, setIntent] = useState<PlanIntent | null>(null);
+  const { draft, update } = useBooking();
+  const [params, setParams] = useSearchParams();
+  const fromUrl = parseService(params.get('service'));
+  const tripParam = params.get('trip');
+  const service: ServiceId = fromUrl ?? serviceOfTrip(draft.tripType);
+  const outstationTrip: 'One Way' | 'Round Trip' = draft.tripType === 'Round Trip' ? 'Round Trip' : draft.tripType === 'One Way' ? 'One Way' : readOutstation();
+  const lastOutstation = useRef(outstationTrip);
 
-  const toConsole = () => document.getElementById('book-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  const ask = (field: PlanIntent['field'], text = '') => setIntent({ n: Date.now(), field, text });
+  // Keep the draft's trip type in step with the chosen service (deep links included).
+  useEffect(() => {
+    const wanted =
+      service === 'airport'
+        ? 'Airport Taxi'
+        : service === 'rental'
+          ? 'Local Rental'
+          : service === 'outstation'
+            ? tripParam === 'round-trip'
+              ? 'Round Trip'
+              : tripParam === 'one-way'
+                ? 'One Way'
+                : draft.tripType === 'One Way' || draft.tripType === 'Round Trip'
+                  ? draft.tripType
+                  : lastOutstation.current
+            : null;
+    if (!wanted || wanted === draft.tripType) return;
+    update((d) => ({
+      tripType: wanted,
+      // The rental placeholder destination never carries over to another service.
+      drop: d.drop?.id === 'place-local-disposal' && wanted !== 'Local Rental' ? null : d.drop,
+      tripEndAt: wanted === 'Round Trip' ? d.tripEndAt : null,
+    }));
+  }, [service, tripParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const onRoute = (c: Corridor) => {
-    update({ pickup: c.pickup, drop: c.drop });
-    toConsole();
+  const onService = useCallback(
+    (s: ServiceId) => {
+      setParams({ service: s }, { replace: true });
+    },
+    [setParams],
+  );
+  const onOutstationTrip = (t: 'One Way' | 'Round Trip') => {
+    lastOutstation.current = t;
+    try {
+      sessionStorage.setItem(OUTSTATION_KEY, t);
+    } catch {
+      /* private mode */
+    }
+    update({ tripType: t, tripEndAt: t === 'Round Trip' ? draft.tripEndAt : null });
+    setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
   };
-  const onDestination = (d: Destination) => {
-    update({ drop: d.place });
-    toConsole();
-    if (!draft.pickup) ask('pickup');
-  };
-  const onService = (s: Service) => {
-    if (s.action.tripType) update({ tripType: s.action.tripType });
-    toConsole();
-    if (s.action.search) ask('drop', s.action.search);
-    else if (!draft.drop) ask('drop');
+
+  const onRoute = (r: PopularRoute) => {
+    update({ pickup: r.pickup, drop: r.drop, tripType: outstationTrip });
+    setParams({ service: 'outstation' }, { replace: true });
+    const el = document.getElementById('book-console');
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    window.setTimeout(() => document.getElementById('bf-date')?.focus({ preventScroll: true }), 400);
   };
 
   return (
-    <>
-      <RideBanner />
-      <section className="hero" aria-labelledby="hero-title">
-        <div className="hero__media">
-          <picture>
-            <source media="(max-width: 720px)" srcSet={IMG('heroes/hero-mobile')} />
-            <img src={IMG('heroes/hero-desktop')} alt="NESAM Cabs outstation and intercity cab service across Tamil Nadu" width={1774} height={887} fetchPriority="high" />
-          </picture>
-          <span className="hero__shade" />
+    <div className="home">
+      <div className="wrap home__wrap">
+        <RideBanner />
+        <div className="home-hero">
+          <HeroCopy />
+          <BookingForm service={service} onService={onService} outstationTrip={outstationTrip} onOutstationTrip={onOutstationTrip} />
         </div>
-        <div className="hero__inner">
-          <div className="hero__copy">
-            <p className="hero__eyebrow">
-              <Icon name="route" size={16} /> Outstation &amp; intercity cabs
-            </p>
-            <h1 id="hero-title">Outstation rides, priced before you book.</h1>
-            <p className="hero__lead">Verified chauffeurs, clean air-conditioned cars and the fare for every vehicle upfront — across Tamil Nadu and beyond.</p>
-            <ul className="hero__points">
-              <li>
-                <Icon name="check" size={18} /> Fares shown upfront
-              </li>
-              <li>
-                <Icon name="check" size={18} /> Verified chauffeurs
-              </li>
-              <li>
-                <Icon name="check" size={18} /> Pay your driver in cash or UPI
-              </li>
-            </ul>
-          </div>
-        </div>
-        <div className="hero__console">
-          <PlanStep ui={ui} setUi={setUi} intent={intent} />
-        </div>
-      </section>
-
-      <div className="hero-after">
-        <TrustStrip />
-        <ServicesSection onPick={onService} />
-        <RoutesSection onRoute={onRoute} />
-        <DestinationsSection onPick={onDestination} />
-        <FleetSection onPick={toConsole} />
-        <HowSection />
-        <AssuranceSection />
-        <Banners />
+        <PopularRoutes onPick={onRoute} />
+        <WhySection />
+        <ReviewsSection />
         <FaqSection />
+        <AppSection />
       </div>
-    </>
+    </div>
   );
 }
 
@@ -137,14 +135,14 @@ export function BookPage({ step }: { step: BookStep }) {
         }
       : step === 'choose'
         ? {
-            title: 'Choose Vehicle & Upfront Fares · NESAM Cabs',
-            description: 'Select your vehicle category and check exact upfront fare with verified chauffeurs.',
+            title: 'Choose your cab · NESAM Cabs',
+            description: 'Compare every vehicle category with its fare before you book.',
             canonical: '/book/ride',
             noindex: true,
           }
         : {
-            title: 'Review and Confirm Booking · NESAM Cabs',
-            description: 'Review ride details and scheduled pickup. Pay your driver directly in Cash or via UPI.',
+            title: 'Review & book · NESAM Cabs',
+            description: 'Review your trip, contact details and fare, then submit your booking request.',
             canonical: '/book/confirm',
             noindex: true,
           },

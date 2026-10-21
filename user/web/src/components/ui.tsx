@@ -1,8 +1,8 @@
 import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
-import { Link, type LinkProps } from 'react-router-dom';
+import { Link, useNavigate, type LinkProps } from 'react-router-dom';
 import { Icon } from './Icon';
 
-type Variant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger';
+type Variant = 'primary' | 'secondary' | 'dark' | 'ghost' | 'danger' | 'text';
 type Size = 'sm' | 'md' | 'lg';
 
 const btnClass = (variant: Variant, size: Size, block?: boolean, extra?: string) =>
@@ -18,33 +18,62 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   block?: boolean;
   loading?: boolean;
   icon?: string;
+  /** Icon after the label (e.g. an arrow). */
+  trailing?: string;
 }
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
-  { variant = 'primary', size = 'md', block, loading, icon, className, children, disabled, type = 'button', ...rest },
+  { variant = 'primary', size = 'md', block, loading, icon, trailing, className, children, disabled, type = 'button', ...rest },
   ref,
 ) {
   return (
     <button ref={ref} type={type} className={btnClass(variant, size, block, className)} disabled={disabled || loading} aria-busy={loading || undefined} {...rest}>
-      {loading ? <Spinner /> : icon ? <Icon name={icon} /> : null}
+      {loading ? <Spinner /> : icon ? <Icon name={icon} size={size === 'sm' ? 15 : 17} /> : null}
       {children}
+      {trailing && !loading ? <Icon name={trailing} size={size === 'sm' ? 15 : 17} /> : null}
     </button>
   );
 });
 
-export function LinkButton({ variant = 'secondary', size = 'md', block, icon, className, children, ...rest }: LinkProps & { variant?: Variant; size?: Size; block?: boolean; icon?: string }) {
+export function LinkButton({
+  variant = 'secondary',
+  size = 'md',
+  block,
+  icon,
+  trailing,
+  className,
+  children,
+  ...rest
+}: LinkProps & { variant?: Variant; size?: Size; block?: boolean; icon?: string; trailing?: string }) {
   return (
     <Link className={btnClass(variant, size, block, className)} {...rest}>
-      {icon ? <Icon name={icon} /> : null}
+      {icon ? <Icon name={icon} size={size === 'sm' ? 15 : 17} /> : null}
       {children}
+      {trailing ? <Icon name={trailing} size={size === 'sm' ? 15 : 17} /> : null}
     </Link>
   );
 }
 
-export function IconButton({ icon, label, outline, className = '', ...rest }: { icon: string; label: string; outline?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
+export function IconButton({ icon, label, outline, size = 18, className = '', ...rest }: { icon: string; label: string; outline?: boolean; size?: number } & ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button type="button" aria-label={label} title={label} className={`icon-btn ${outline ? 'icon-btn--outline' : ''} ${className}`} {...rest}>
-      <Icon name={icon} />
+      <Icon name={icon} size={size} />
+    </button>
+  );
+}
+
+/** The square back control used at the start of every page title. */
+export function BackButton({ to, onClick, label = 'Back' }: { to?: string; onClick?: () => void; label?: string }) {
+  const navigate = useNavigate();
+  const go = () => {
+    if (onClick) return onClick();
+    // Prefer real history (browser Back semantics); fall back to the parent page on a deep link.
+    if ((window.history.state as { idx?: number } | null)?.idx) navigate(-1);
+    else navigate(to ?? '/book');
+  };
+  return (
+    <button type="button" className="back-btn" aria-label={label} title={label} onClick={go}>
+      <Icon name="arrow-left" size={17} />
     </button>
   );
 }
@@ -63,7 +92,7 @@ export function FieldShell({ label, hint, error, children, className = '' }: Fie
   const id = useId();
   const describedBy = error ? `${id}-err` : hint ? `${id}-hint` : undefined;
   return (
-    <div className={`field ${className}`}>
+    <div className={`field ${error ? 'is-invalid' : ''} ${className}`}>
       <label className="field__label" htmlFor={id}>
         {label}
       </label>
@@ -121,10 +150,10 @@ export function TextArea({ label, hint, error, className = '', ...rest }: TextAr
   );
 }
 
-export function Checkbox({ checked, onChange, children }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode }) {
+export function Checkbox({ checked, onChange, children, invalid, describedBy, id }: { checked: boolean; onChange: (v: boolean) => void; children: ReactNode; invalid?: boolean; describedBy?: string; id?: string }) {
   return (
-    <label className="check">
-      <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+    <label className={`check ${invalid ? 'is-invalid' : ''}`}>
+      <input id={id} type="checkbox" checked={checked} aria-invalid={invalid || undefined} aria-describedby={describedBy} onChange={(e) => onChange(e.target.checked)} />
       <span>{children}</span>
     </label>
   );
@@ -144,32 +173,87 @@ export function Segmented<T extends string>({ value, options, onChange, label }:
   );
 }
 
+/** Underlined text tabs (the reference's journey tabs). Real tab semantics with arrow-key movement. */
+export function Tabs<T extends string>({
+  value,
+  options,
+  onChange,
+  label,
+  className = '',
+  variant = 'line',
+}: {
+  value: T;
+  options: { value: T; label: ReactNode; count?: number }[];
+  onChange: (v: T) => void;
+  label: string;
+  className?: string;
+  variant?: 'line' | 'boxed';
+}) {
+  const refs = useRef<(HTMLButtonElement | null)[]>([]);
+  const move = (i: number) => {
+    const n = (i + options.length) % options.length;
+    onChange(options[n]!.value);
+    refs.current[n]?.focus();
+  };
+  return (
+    <div className={`tabs tabs--${variant} ${className}`} role="tablist" aria-label={label}>
+      {options.map((o, i) => (
+        <button
+          key={o.value}
+          ref={(el) => {
+            refs.current[i] = el;
+          }}
+          type="button"
+          role="tab"
+          aria-selected={value === o.value}
+          tabIndex={value === o.value ? 0 : -1}
+          className={`tab ${value === o.value ? 'is-active' : ''}`}
+          onClick={() => onChange(o.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight') move(i + 1);
+            else if (e.key === 'ArrowLeft') move(i - 1);
+          }}
+        >
+          {o.label}
+          {o.count != null ? <span className="tab__count">{o.count}</span> : null}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ── Feedback ──────────────────────────────────────────────────────────────
 
 export function Notice({ tone = 'info', children, action }: { tone?: 'info' | 'warning' | 'error' | 'success'; children: ReactNode; action?: ReactNode }) {
   const icon = tone === 'error' ? 'error' : tone === 'warning' ? 'warning' : tone === 'success' ? 'success' : 'information';
   return (
     <div className={`notice notice--${tone}`} role={tone === 'error' ? 'alert' : 'status'}>
-      <Icon name={icon} size={20} />
+      <Icon name={icon} size={17} />
       <div className="notice__body">
-        {children}
-        {action}
+        <div>{children}</div>
+        {action ? <div className="notice__action">{action}</div> : null}
       </div>
     </div>
   );
 }
 
-export function Badge({ tone, dot, children }: { tone?: 'red' | 'green' | 'amber' | 'blue'; dot?: boolean; children: ReactNode }) {
+export function Badge({ tone, dot, children }: { tone?: 'red' | 'green' | 'amber' | 'blue' | 'neutral'; dot?: boolean; children: ReactNode }) {
   return <span className={['badge', tone && `badge--${tone}`, dot && 'badge--dot'].filter(Boolean).join(' ')}>{children}</span>;
 }
 
-export function EmptyState({ art, title, children, action }: { art?: string; title: string; children?: ReactNode; action?: ReactNode }) {
+export function EmptyState({ art, title, children, action, icon }: { art?: string; title: string; children?: ReactNode; action?: ReactNode; icon?: string }) {
   return (
     <div className="empty">
-      {art ? <img src={`/art/${art}.webp`} alt="" width={220} height={220} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} /> : null}
+      {icon ? (
+        <span className="empty__icon" aria-hidden="true">
+          <Icon name={icon} size={24} />
+        </span>
+      ) : art ? (
+        <img src={`/art/${art}.webp`} alt="" width={160} height={160} loading="lazy" onError={(e) => (e.currentTarget.style.display = 'none')} />
+      ) : null}
       <h2>{title}</h2>
       {children ? <p>{children}</p> : null}
-      {action}
+      {action ? <div className="empty__action">{action}</div> : null}
     </div>
   );
 }
@@ -190,7 +274,7 @@ export function Avatar({ name, photoUrl, size = 44 }: { name: string; photoUrl?:
     name
       .split(/\s+/)
       .filter(Boolean)
-      .slice(0, 2)
+      .slice(0, 1)
       .map((p) => p[0]!.toUpperCase())
       .join('') || '?';
   if (photoUrl) {
@@ -203,11 +287,32 @@ export function Avatar({ name, photoUrl, size = 44 }: { name: string; photoUrl?:
   );
 }
 
-// ── Dialog (modal; centred on desktop, bottom sheet on phones) ─────────────
+// ── Dialog: centred on desktop; a bottom sheet (or a full page) on phones ───
 
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Dialog({ title, onClose, children, footer, dismissible = true, wide = false }: { title: string; onClose: () => void; children: ReactNode; footer?: ReactNode; dismissible?: boolean; wide?: boolean }) {
+export function Dialog({
+  title,
+  onClose,
+  children,
+  footer,
+  dismissible = true,
+  wide = false,
+  subtitle,
+  variant = 'sheet',
+  className = '',
+}: {
+  title: string;
+  onClose: () => void;
+  children: ReactNode;
+  footer?: ReactNode;
+  dismissible?: boolean;
+  wide?: boolean;
+  subtitle?: ReactNode;
+  /** sheet: bottom sheet on phones · page: full screen on phones (location search). */
+  variant?: 'sheet' | 'page';
+  className?: string;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const titleId = useId();
 
@@ -220,7 +325,8 @@ export function Dialog({ title, onClose, children, footer, dismissible = true, w
     document.body.style.overflow = 'hidden';
     return () => {
       document.body.style.overflow = overflow;
-      previous?.focus?.();
+      // Return focus to whatever opened the dialog (if it is still on the page).
+      if (previous && document.contains(previous)) previous.focus?.();
     };
   }, []);
 
@@ -245,11 +351,14 @@ export function Dialog({ title, onClose, children, footer, dismissible = true, w
   };
 
   return (
-    <div className="overlay" onMouseDown={(e) => e.target === e.currentTarget && dismissible && onClose()} onKeyDown={onKey}>
-      <div className={`dialog ${wide ? 'dialog--wide' : ''}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
+    <div className={`overlay overlay--${variant}`} onMouseDown={(e) => e.target === e.currentTarget && dismissible && onClose()} onKeyDown={onKey}>
+      <div className={`dialog dialog--${variant} ${wide ? 'dialog--wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
         <div className="dialog__head">
-          <h2 id={titleId}>{title}</h2>
-          {dismissible ? <IconButton icon="close" label="Close" onClick={onClose} /> : null}
+          <div>
+            <h2 id={titleId}>{title}</h2>
+            {subtitle ? <p className="dialog__sub">{subtitle}</p> : null}
+          </div>
+          {dismissible ? <IconButton icon="close" label="Close" outline onClick={onClose} /> : null}
         </div>
         <div className="dialog__body">{children}</div>
         {footer ? <div className="dialog__foot">{footer}</div> : null}
@@ -258,20 +367,118 @@ export function Dialog({ title, onClose, children, footer, dismissible = true, w
   );
 }
 
-// ── Page header: a full-width band that opens every page outside the booking flow ──
+// ── Page title: square back control, title and a one-line subtitle ─────────
 
-export function PageHead({ eyebrow, title, children, actions, back }: { eyebrow?: string; title: ReactNode; children?: ReactNode; actions?: ReactNode; back?: ReactNode }) {
+export function PageHead({
+  eyebrow,
+  title,
+  children,
+  actions,
+  back,
+  backTo,
+}: {
+  eyebrow?: string;
+  title: ReactNode;
+  children?: ReactNode;
+  actions?: ReactNode;
+  /** Custom back control (rare). */
+  back?: ReactNode;
+  /** Where Back goes when there is no history (deep link). Omit for no back control. */
+  backTo?: string;
+}) {
   return (
-    <div className="page-head">
-      <div className="page-head__inner">
-        <div className="page-head__text">
-          {back}
-          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h1>{title}</h1>
-          {children ? <p>{children}</p> : null}
-        </div>
-        {actions ? <div className="page-head__actions">{actions}</div> : null}
+    <header className="page-head">
+      {back ?? (backTo ? <BackButton to={backTo} /> : null)}
+      <div className="page-head__text">
+        {eyebrow ? <p className="eyebrow eyebrow--muted">{eyebrow}</p> : null}
+        <h1>{title}</h1>
+        {children ? <p className="page-head__sub">{children}</p> : null}
       </div>
+      {actions ? <div className="page-head__actions">{actions}</div> : null}
+    </header>
+  );
+}
+
+/** Three short bars under the title of the booking flow. */
+export function FlowSteps({ current }: { current: 1 | 2 | 3 }) {
+  return (
+    <div className="flow-steps" role="img" aria-label={`Step ${current} of 3`}>
+      {[1, 2, 3].map((n) => (
+        <span key={n} className={n <= current ? 'is-on' : ''} />
+      ))}
     </div>
   );
+}
+
+/** A plain white card. */
+export function Card({ title, action, children, className = '', as: Tag = 'section', id }: { title?: ReactNode; action?: ReactNode; children: ReactNode; className?: string; as?: 'section' | 'div' | 'article'; id?: string }) {
+  const headId = useId();
+  return (
+    <Tag className={`card ${className}`} aria-labelledby={title ? headId : undefined} id={id}>
+      {title || action ? (
+        <header className="card__head">
+          {title ? <h2 id={headId}>{title}</h2> : <span />}
+          {action}
+        </header>
+      ) : null}
+      {children}
+    </Tag>
+  );
+}
+
+/** A tappable row with an icon tile, title, supporting line and chevron (account lists, help). */
+export function ListRow({
+  icon,
+  title,
+  text,
+  to,
+  href,
+  onClick,
+  trailing,
+  tone,
+  external,
+}: {
+  icon: string;
+  title: ReactNode;
+  text?: ReactNode;
+  to?: string;
+  href?: string;
+  onClick?: () => void;
+  trailing?: ReactNode;
+  tone?: 'red' | 'danger';
+  external?: boolean;
+}) {
+  const inner = (
+    <>
+      <span className="list-row__icon">
+        <Icon name={icon} size={18} />
+      </span>
+      <span className="list-row__text">
+        <strong>{title}</strong>
+        {text ? <small>{text}</small> : null}
+      </span>
+      {trailing}
+      {to || href || onClick ? <Icon name="chevron-right" size={16} className="list-row__chev" /> : null}
+    </>
+  );
+  const cls = `list-row ${tone ? `list-row--${tone}` : ''}`;
+  if (to)
+    return (
+      <Link className={cls} to={to}>
+        {inner}
+      </Link>
+    );
+  if (href)
+    return (
+      <a className={cls} href={href} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
+        {inner}
+      </a>
+    );
+  if (onClick)
+    return (
+      <button type="button" className={cls} onClick={onClick}>
+        {inner}
+      </button>
+    );
+  return <div className={cls}>{inner}</div>;
 }

@@ -8,6 +8,7 @@ import { db } from '@/platform/firebase';
 import { callFunction } from '@core/services/callables';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Badge, Button, EmptyState, Notice, PageHead, PageLoader } from '@/components/ui';
+import { AccountLayout } from '@/components/AccountLayout';
 import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
 
@@ -52,20 +53,12 @@ export function LegalPage() {
   }, [attempt]);
 
   return (
-    <>
-      <PageHead
-        eyebrow="Account"
-        title="Terms and privacy"
-        back={
-          <Link to="/account" className="back-link">
-            <Icon name="arrow-left" size={18} /> Account
-          </Link>
-        }
-      >
-        The agreements and policies that apply when you ride with NESAM.
+    <AccountLayout>
+      <PageHead backTo="/account" title="Terms & privacy">
+        The agreements and policies that apply when you travel with NESAM.
       </PageHead>
 
-      <div className="page split">
+      <div className="split">
         <div className="stack">
           {error ? (
             <Notice
@@ -83,7 +76,7 @@ export function LegalPage() {
           {rows && rows.length === 0 ? (
             <div className="card card--center">
               <EmptyState
-                art="account-review"
+                icon="document"
                 title="No documents online yet"
                 action={
                   <a className="btn btn--primary" href={`tel:${SUPPORT_PHONE}`}>
@@ -115,15 +108,17 @@ export function LegalPage() {
 
         <aside className="split__aside">
           <div className="aside-card">
-            <img src="/art/support.webp" alt="" width={220} height={220} />
             <h2>Questions about these terms?</h2>
             <p className="muted">Our team can walk you through cancellation, payment and privacy terms.</p>
             <a className="btn btn--secondary btn--block" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" /> Call {SUPPORT_PHONE_DISPLAY}
+              <Icon name="phone" size={17} /> Call {SUPPORT_PHONE_DISPLAY}
             </a>
+            <Link className="btn btn--text" to="/about">
+              About NESAM <Icon name="arrow-right" size={14} />
+            </Link>
           </div>
         </aside>
       </div>
-    </>
+    </AccountLayout>
   );
 }

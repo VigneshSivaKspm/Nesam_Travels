@@ -6,6 +6,7 @@ import { CATEGORIES, CATEGORY_LABEL, toneOf } from '@core/utils/notificationMode
 import type { NotificationCategory, PartnerNotification } from '@core/types/notifications';
 import { describeError } from '@core/utils/retry';
 import { Button, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
+import { AccountLayout, SignInPrompt } from '@/components/AccountLayout';
 import { Icon } from '@/components/Icon';
 import { pathForPage, useInbox } from '@/state/Inbox';
 import { useAuth } from '@/state/Auth';
@@ -25,43 +26,29 @@ const ICON: Record<NotificationCategory, string> = {
 export function NotificationsPage() {
   useSeo({ title: 'Notifications', noindex: true });
   const navigate = useNavigate();
-  const { state, openLoginModal } = useAuth();
+  const { state } = useAuth();
   const { notifications, loaded } = useInbox();
   const [filter, setFilter] = useState<Filter>('all');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
-  if (state.status !== 'ready') {
-    return (
-      <>
-        <PageHead eyebrow="Updates & alerts" title="Notifications">
-          Ride status, driver arrivals and fare updates.
-        </PageHead>
-        <div className="page">
-          <div className="card card--center">
-            <EmptyState
-              art="welcome"
-              title="Sign in to view notifications"
-              action={
-                <Button variant="primary" onClick={() => openLoginModal({ title: 'Sign in to view notifications' })}>
-                  Sign in
-                </Button>
-              }
-            >
-              Sign in with your mobile number to view updates about your rides.
-            </EmptyState>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  const unread = notifications.filter((n) => !n.read);
+  const unread = useMemo(() => notifications.filter((n) => !n.read), [notifications]);
   const present = CATEGORIES.filter((c) => notifications.some((n) => n.category === c));
   const shown = useMemo(
     () => (filter === 'all' ? notifications : filter === 'unread' ? unread : notifications.filter((n) => n.category === filter)),
     [notifications, unread, filter],
   );
+
+  if (state.status !== 'ready') {
+    return (
+      <AccountLayout>
+        <PageHead backTo="/account" title="Notifications">
+          Booking, driver and payment updates.
+        </PageHead>
+        <SignInPrompt title="Sign in to view notifications" text="Sign in with your mobile number to view updates about your bookings." />
+      </AccountLayout>
+    );
+  }
 
   const filters: { id: Filter; label: string; count: number }[] = [
     { id: 'all', label: 'All', count: notifications.length },
@@ -89,26 +76,26 @@ export function NotificationsPage() {
   };
 
   return (
-    <>
+    <AccountLayout>
       <PageHead
-        eyebrow="Inbox"
+        backTo="/account"
         title={
           <>
-            Notifications {unread.length > 0 ? <span className="count count--lg" aria-label={`${unread.length} unread`}>{unread.length}</span> : null}
+            Notifications {unread.length > 0 ? <span className="count count--soft" aria-label={`${unread.length} unread`}>{unread.length}</span> : null}
           </>
         }
         actions={
           unread.length > 0 ? (
-            <Button variant="secondary" icon="check" loading={busy} onClick={() => void markAll()}>
+            <Button variant="secondary" size="sm" icon="check-check" loading={busy} onClick={() => void markAll()}>
               Mark all as read
             </Button>
           ) : undefined
         }
       >
-        {unread.length > 0 ? `You have ${unread.length} unread ${unread.length === 1 ? 'update' : 'updates'}.` : 'Updates about your rides, payments and offers.'}
+        {unread.length > 0 ? `You have ${unread.length} unread ${unread.length === 1 ? 'update' : 'updates'}.` : 'Booking, driver and payment updates.'}
       </PageHead>
 
-      <div className="page">
+      <div className="notif-page">
         {error ? <Notice tone="error">{error}</Notice> : null}
 
         {!loaded ? (
@@ -120,15 +107,15 @@ export function NotificationsPage() {
         ) : notifications.length === 0 ? (
           <div className="card card--center">
             <EmptyState
-              art="no-notifications"
+              icon="notifications"
               title="You’re all caught up"
               action={
-                <LinkButton variant="primary" to="/book" icon="car">
-                  Book a ride
+                <LinkButton variant="primary" to="/book" icon="add">
+                  Book a cab
                 </LinkButton>
               }
             >
-              Ride updates, driver alerts and offers from NESAM will appear here as they happen.
+              Booking updates, driver details and offers from NESAM will appear here as they happen.
             </EmptyState>
           </div>
         ) : (
@@ -161,7 +148,7 @@ export function NotificationsPage() {
                     <li key={n.id}>
                       <button type="button" className={`notif ${n.read ? '' : 'is-unread'}`} onClick={() => open(n)}>
                         <span className={`notif__icon tone-${toneOf(n)}`}>
-                          <Icon name={ICON[n.category]} size={22} />
+                          <Icon name={ICON[n.category]} size={18} />
                         </span>
                         <span className="notif__body">
                           <span className="notif__head">
@@ -185,6 +172,6 @@ export function NotificationsPage() {
           </div>
         )}
       </div>
-    </>
+    </AccountLayout>
   );
 }

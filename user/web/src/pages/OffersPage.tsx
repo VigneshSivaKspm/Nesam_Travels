@@ -3,6 +3,7 @@ import type { Coupon } from '@core/types';
 import { isCouponLive, subscribeToCoupons } from '@core/services/pricingService';
 import { formatINR } from '@core/utils/format';
 import { Button, EmptyState, LinkButton, PageHead } from '@/components/ui';
+import { AccountLayout } from '@/components/AccountLayout';
 import { Icon } from '@/components/Icon';
 import { copyToClipboard } from '@/lib/share';
 import { useSeo } from '@/lib/seo';
@@ -30,11 +31,11 @@ export function OffersPage() {
   const live = useMemo(() => (coupons ?? []).filter((c) => isCouponLive(c)), [coupons]);
 
   return (
-    <>
-      <PageHead eyebrow="Savings" title="Offers">
-        Promo codes you can use on your next booking. Codes are checked against your trip at checkout.
+    <AccountLayout>
+      <PageHead backTo="/account" title="Offers">
+        Promo codes for your next booking. The booking server checks every code against your trip.
       </PageHead>
-      <div className="page">
+      <div>
         {coupons === null ? (
           <div className="offer-grid">
             {[0, 1, 2].map((i) => (
@@ -44,11 +45,11 @@ export function OffersPage() {
         ) : live.length === 0 ? (
           <div className="card card--center">
             <EmptyState
-              art="no-offers"
+              icon="offers"
               title="No offers right now"
               action={
-                <LinkButton variant="primary" to="/book">
-                  Book a ride
+                <LinkButton variant="primary" to="/book" icon="add">
+                  Book a cab
                 </LinkButton>
               }
             >
@@ -87,19 +88,19 @@ export function OffersPage() {
                 </div>
                 <Button
                   block
-                  variant="dark"
+                  variant="primary"
                   onClick={() => {
                     update({ promoCode: c.code });
                     navigate('/book');
                   }}
                 >
-                  <Icon name="car" /> Use on a ride
+                  <Icon name="car" size={17} /> Use on a booking
                 </Button>
               </li>
             ))}
           </ul>
         )}
       </div>
-    </>
+    </AccountLayout>
   );
 }

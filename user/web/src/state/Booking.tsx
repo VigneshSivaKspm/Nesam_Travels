@@ -22,7 +22,7 @@ import { loadDraft, saveDraft, type BookingDraft } from '@/lib/draft';
 import { useServerQuotes, type ServerQuoteState } from '@core/hooks/useServerQuotes';
 import type { ServerCategoryQuote } from '@core/services/quoteService';
 import { scheduleProblem } from '@core/utils/bookingRules';
-import { useCustomerData } from '@core/context/CustomerData';
+import { useCustomerData } from '@/state/CustomerData';
 
 export type { BookingDraft };
 
@@ -84,7 +84,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     (patch) => setDraft((d) => ({ ...d, ...(typeof patch === 'function' ? patch(d) : patch) })),
     [],
   );
-  const reset = useCallback(() => setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', promoCode: '', notes: '' })), []);
+  const reset = useCallback(() => setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', promoCode: '', notes: '', forOther: false, passengerName: '', passengerMobile: '', flight: '' })), []);
   // A repeat booking always needs a fresh future pickup: the old schedule is never carried over.
   const startFrom = useCallback<BookingValue['startFrom']>((pickup, drop) => setDraft((d) => ({ ...d, pickup, drop, scheduledAt: null, tripEndAt: null, promoCode: '' })), []);
 

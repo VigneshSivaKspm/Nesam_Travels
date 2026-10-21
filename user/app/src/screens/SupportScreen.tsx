@@ -1,30 +1,30 @@
-// FAQs, raise a ticket, my tickets (port of user/web SupportScreen.tsx).
+// Help & Support: call the office, FAQs, raise a ticket and see my tickets (real
+// support_tickets collection). Reached from the header, Account and a booking's “Request a change”.
 import React, { useEffect, useState } from 'react';
-import { Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
-import { Badge, Button, Card, Chip, EmptyState, Notice, Segmented, TextField } from '../components/ui';
-import { SubHeader } from '../components/brand';
+import { Badge, Button, Chip, Disclosure, EmptyState, Notice, PageHead, Segmented, TextField } from '../components/ui';
+import { ScrollView } from '../components/layout';
+import { AppHeader, SupportBanner } from '../components/brand';
 import { SUPPORT_CATEGORIES, submitSupportTicket, subscribeToSupportTickets } from '../services/userService';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
+import { SUPPORT_WHATSAPP } from '../config/constants';
 import type { SupportTicket } from '../types';
 import { describeError } from '../utils/retry';
-import { colors, fonts, radius, space } from '../theme';
-import { ILLUSTRATIONS } from '../assets/images';
+import { colors, fonts, space } from '../theme';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Support'>;
 type Tab = 'faqs' | 'ticket' | 'mine';
 
 const FAQS = [
-  { q: 'How do I cancel my booking?', a: 'Open the ride from My Bookings and tap “Cancel ride”. The screen shows whether a cancellation fee applies before you confirm.' },
-  { q: 'When are driver details shared?', a: 'As soon as a driver is assigned — name, phone, vehicle number and rating appear on your ride screen.' },
-  { q: 'What is the boarding code?', a: 'A 4-digit OTP shown on your booking screen. Share it with your driver only once you are in the car; the trip cannot start without it.' },
-  { q: 'How are tolls charged?', a: 'Tolls, parking and state entry permits paid by the chauffeur are added to your final receipt against actual receipts.' },
-  { q: 'What payment modes are accepted?', a: 'We accept Cash and Direct UPI payments to the chauffeur at the completion of your journey.' },
-  { q: 'Can I book an outstation trip in advance?', a: 'Yes! Select "Outstation" during booking, choose your scheduled date and time, and our partner network will assign a verified vehicle.' },
+  { q: 'How do I cancel my booking?', a: 'Open the booking from My Bookings and tap “Cancel booking”. The sheet shows whether a cancellation fee applies before you confirm.' },
+  { q: 'When are driver details shared?', a: 'As soon as a driver is assigned — name, phone, vehicle number and rating appear on your booking.' },
+  { q: 'What is the boarding code?', a: 'A 4-digit code shown on your booking. Share it with your driver only once you are in the car; the trip cannot start without it.' },
+  { q: 'How are tolls charged?', a: 'Tolls, parking and state entry permits paid by the driver are added to your final receipt against actual receipts.' },
+  { q: 'What payment modes are accepted?', a: 'Cash or UPI, paid to your driver at the end of your journey.' },
+  { q: 'Can I book an outstation trip in advance?', a: 'Yes. Choose Outstation, set your pickup date and time, and NESAM will arrange a verified vehicle.' },
 ];
 
 export function SupportScreen({ route, navigation }: Props) {
@@ -56,7 +56,7 @@ export function SupportScreen({ route, navigation }: Props) {
       setSubmitted(true);
       setTab('mine');
     } catch (e) {
-      setError(describeError(e, 'We couldn’t submit your ticket. Please try again or call support.'));
+      setError(describeError(e, 'We couldn’t submit your request. Please try again or call NESAM.'));
     } finally {
       setSending(false);
     }
@@ -65,109 +65,82 @@ export function SupportScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <SubHeader
-        title="Help & Support"
-        subtitle="24×7 Customer Care & FAQs"
-        onBack={() => navigation.goBack()}
-        rightAction={
-          <Pressable onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={styles.callHelplineBtn}>
-            <Ionicons name="call" size={13} color={colors.primary} />
-            <Text style={styles.callHelplineText}>Call Desk</Text>
-          </Pressable>
-        }
-      />
+      <AppHeader active="support" />
+      <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <PageHead title="Help & Support" subtitle="Our office is here to help with your journey." onBack={() => navigation.goBack()} />
+        <SupportBanner />
+        <Button
+          title="WhatsApp NESAM"
+          icon="message-circle"
+          variant="secondary"
+          onPress={() => void Linking.openURL(`https://wa.me/${SUPPORT_WHATSAPP}`)}
+          style={{ marginBottom: space.lg }}
+        />
 
-      <ScrollView contentContainerStyle={styles.scrollPad} showsVerticalScrollIndicator={false}>
         <Segmented
           options={[
             { value: 'faqs', label: 'FAQs' },
-            { value: 'ticket', label: 'Raise Ticket' },
-            { value: 'mine', label: `My Tickets (${tickets.length})` },
+            { value: 'ticket', label: 'Help request' },
+            { value: 'mine', label: `My requests${tickets.length ? ` (${tickets.length})` : ''}` },
           ]}
           value={tab}
           onChange={setTab}
         />
-        <View style={{ height: space.md }} />
+        <View style={{ height: space.lg }} />
 
         {tab === 'faqs' ? (
-          <View style={{ width: '100%' }}>
-            <Card style={styles.helplineCard}>
-              <Text style={styles.helplineTitle}>24/7 Passenger Support</Text>
-              <Text style={styles.helplineSubtitle}>
-                Need immediate help with your advance booking or driver schedule? Our operations desk is available around the clock.
-              </Text>
-              <Button
-                title={`Call Desk: ${SUPPORT_PHONE_DISPLAY}`}
-                onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)}
-                style={{ marginTop: space.md }}
-              />
-              <Button
-                title="Raise a Support Ticket"
-                variant="secondary"
-                onPress={() => setTab('ticket')}
-                style={{ marginTop: space.sm }}
-              />
-            </Card>
-
-            <View style={{ marginTop: space.md }}>
-              {FAQS.map((f) => (
-                <Card key={f.q} style={styles.faqCard}>
-                  <Text style={styles.faqQ}>{f.q}</Text>
-                  <Text style={styles.faqA}>{f.a}</Text>
-                </Card>
-              ))}
-            </View>
+          <View style={styles.faqList}>
+            {FAQS.map((f) => (
+              <Disclosure key={f.q} title={f.q} variant="faq">
+                <Text style={styles.faqA}>{f.a}</Text>
+              </Disclosure>
+            ))}
           </View>
         ) : null}
 
         {tab === 'ticket' ? (
-          <Card style={styles.ticketFormCard}>
-            <Text style={styles.formTitle}>Submit a Support Request</Text>
-            <Text style={styles.formSubtitle}>Our customer service team typically responds within 2 business hours.</Text>
-
-            <Text style={styles.fieldLabel}>Issue Category</Text>
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Send a help request</Text>
+            <Text style={styles.label}>Topic</Text>
             <View style={styles.chips}>
               {SUPPORT_CATEGORIES.map((c) => (
                 <Chip key={c} label={c} active={category === c} onPress={() => setCategory(c)} />
               ))}
             </View>
             <TextField label="Booking ID (optional)" value={bookingId} onChangeText={setBookingId} autoCapitalize="characters" placeholder="e.g. NT260928-ABCDE" />
-            <Text style={styles.fieldLabel}>Describe the Issue</Text>
+            <Text style={styles.label}>Your message</Text>
             <TextInput
               value={description}
               onChangeText={(v) => setDescription(v.slice(0, 2000))}
               multiline
-              placeholder="Explain what happened during your journey or with billing…"
+              placeholder="Tell us what happened"
               placeholderTextColor={colors.faint}
               style={styles.textarea}
+              accessibilityLabel="Your message"
             />
             <Notice message={error} />
-            <Button title={sending ? 'Submitting…' : 'Submit Ticket'} loading={sending} onPress={() => void submit()} style={{ marginTop: space.md }} />
-          </Card>
+            <Button title="Send request" icon="send" variant="secondary" loading={sending} onPress={() => void submit()} />
+            <Text style={styles.safety}>For immediate safety concerns, contact local emergency services (112) and call NESAM.</Text>
+          </View>
         ) : null}
 
         {tab === 'mine' ? (
-          <View style={styles.ticketsList}>
-            {submitted ? <Notice tone="success" message="Ticket submitted successfully. Our team will review and get back to you shortly." /> : null}
+          <View>
+            {submitted ? <Notice tone="success" message="Request sent. Our team will review it and get back to you shortly." /> : null}
             <Notice message={listError} />
             {tickets.length === 0 ? (
-              <EmptyState
-                image={ILLUSTRATIONS.support}
-                title="No tickets yet"
-                message="Tickets you raise appear here with real-time status updates."
-                action={<Button title="Raise a Ticket" onPress={() => setTab('ticket')} />}
-              />
+              <EmptyState icon="headphones" title="No requests yet" message="Requests you send appear here with their status." action={<Button title="Send a help request" onPress={() => setTab('ticket')} />} />
             ) : (
               tickets.map((t) => (
-                <Card key={t.id} style={styles.ticketCard}>
+                <View key={t.id} style={[styles.card, { marginBottom: 12 }]}>
                   <View style={styles.ticketHead}>
                     <Text style={styles.ticketCategory}>{t.category}</Text>
                     <Badge label={t.status} tone={t.status === 'Resolved' || t.status === 'Closed' ? 'success' : 'warning'} />
                   </View>
-                  {t.bookingId ? <Text style={styles.ticketBooking}>Booking ID: {t.bookingId}</Text> : null}
+                  {t.bookingId ? <Text style={styles.ticketMeta}>Booking ID: {t.bookingId}</Text> : null}
                   <Text style={styles.ticketDesc}>{t.description}</Text>
-                  <Text style={styles.ticketTime}>Submitted on {t.createdAt}</Text>
-                </Card>
+                  <Text style={styles.ticketMeta}>Sent {t.createdAt}</Text>
+                </View>
               ))
             )}
           </View>
@@ -178,100 +151,18 @@ export function SupportScreen({ route, navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#F8FAFC' },
-  scrollPad: { padding: space.md, paddingBottom: space.xxl },
-  callHelplineBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
-    borderRadius: radius.full,
-    paddingVertical: 5,
-    paddingHorizontal: 12,
-  },
-  callHelplineText: {
-    fontFamily: fonts.bold,
-    fontSize: 11,
-    color: colors.primary,
-  },
-  helplineCard: {
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  helplineTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.ink, marginBottom: 4 },
-  helplineSubtitle: { fontFamily: fonts.regular, fontSize: 13, color: colors.slate, lineHeight: 18 },
-  faqCard: {
-    marginBottom: space.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    padding: space.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  faqQ: { fontFamily: fonts.bold, fontSize: 14, color: colors.ink },
-  faqA: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate, marginTop: 4, lineHeight: 18 },
-  ticketFormCard: {
-    width: '100%',
-    padding: space.md,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  formTitle: { fontFamily: fonts.bold, fontSize: 17, color: colors.ink },
-  formSubtitle: { fontFamily: fonts.regular, fontSize: 12, color: colors.slate, marginTop: 2 },
-  fieldLabel: { fontFamily: fonts.bold, fontSize: 12, color: colors.ink, marginBottom: space.xs, marginTop: space.sm },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: space.xs, marginBottom: space.xs },
-  textarea: {
-    fontFamily: fonts.regular,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    padding: space.md,
-    minHeight: 100,
-    textAlignVertical: 'top',
-    color: colors.ink,
-    fontSize: 14,
-    backgroundColor: '#F8FAFC',
-    marginBottom: space.sm,
-  },
-  ticketsList: { width: '100%' },
-  ticketCard: {
-    marginBottom: space.sm,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    backgroundColor: colors.white,
-    padding: space.md,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 3,
-  },
-  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.sm },
-  ticketCategory: { fontFamily: fonts.bold, fontSize: 15, color: colors.ink, flex: 1 },
-  ticketBooking: { fontFamily: fonts.medium, fontSize: 12, color: colors.slate, marginTop: 4 },
-  ticketDesc: { fontFamily: fonts.regular, fontSize: 13, color: colors.ink, marginTop: 6, lineHeight: 18 },
-  ticketTime: { fontFamily: fonts.regular, fontSize: 11, color: colors.muted, marginTop: 6 },
+  root: { flex: 1, backgroundColor: colors.white },
+  page: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: space.xxl },
+  faqList: { borderTopWidth: 1, borderTopColor: '#E3E6EB' },
+  faqA: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 22, color: '#727D8B' },
+  card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, backgroundColor: colors.white },
+  cardTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, marginBottom: 14 },
+  label: { fontFamily: fonts.regular, fontSize: 11.5, color: '#697587', marginBottom: 8 },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: space.lg },
+  textarea: { fontFamily: fonts.regular, borderWidth: 1, borderColor: colors.border, borderRadius: 6, padding: 12, minHeight: 100, textAlignVertical: 'top', color: colors.value, fontSize: 14, marginBottom: space.md },
+  safety: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 18, color: '#6D7785', marginTop: 14 },
+  ticketHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  ticketCategory: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, flex: 1 },
+  ticketMeta: { fontFamily: fonts.regular, fontSize: 11.5, color: '#7A8494', marginTop: 6 },
+  ticketDesc: { fontFamily: fonts.regular, fontSize: 13, color: colors.text, marginTop: 8, lineHeight: 19 },
 });

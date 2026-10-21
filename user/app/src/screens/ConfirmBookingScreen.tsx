@@ -1,14 +1,13 @@
-// Review & book — step 3 of 3: Payment method, promo code, passenger contact,
-// driver instructions, fare summary and atomic server booking creation.
-// Mobile-first layout with no desktop headers or sidebars.
+// Review & book — step 3 of 3, in the customer reference layout. Real rules stay in charge:
+// the booking server's fare, cash/UPI payment, WhatsApp contact validation, coupon checks,
+// the terms gate and duplicate-submit protection.
 import React, { useRef, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { Ionicons } from '@expo/vector-icons';
-import { Button, Notice, TextField } from '../components/ui';
-import { ScrollView } from '../components/layout';
-import { StepHeader, getVehicleImage } from '../components/brand';
+import { Button, Disclosure, FlowFooter, Notice, RadioCard, Sheet, TextButton, TextField } from '../components/ui';
+import { Content, ScrollView } from '../components/layout';
+import { AppHeader, SubHeader } from '../components/brand';
 import { Checkbox } from '../components/Checkbox';
 import { FareLines } from '../components/FareLines';
 import { useCustomerData } from '../context/CustomerData';
@@ -18,66 +17,62 @@ import { calculateFare, isOutstation, serviceName, validateCoupon } from '../ser
 import { createRideRequest } from '../services/rideService';
 import { buildFareBreakup } from '../utils/fareBreakup';
 import type { AppliedCoupon, FareBreakdown, PaymentMethod } from '../types';
-import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '../utils/format';
+import { formatINR, formatPhone, formatTime, isValidIndianMobile } from '../utils/format';
 import { describeError } from '../utils/retry';
-import { colors, fonts, radius, space } from '../theme';
-import { scheduleProblem, whatsappProblem } from '../utils/bookingRules';
-
-const PAYMENT_OPTIONS: {
-  id: PaymentMethod;
-  label: string;
-  hint: string;
-  icon: 'phone-portrait-outline' | 'cash-outline';
-  badge?: string;
-}[] = [
-  {
-    id: 'UPI',
-    label: 'UPI / Online Advance',
-    hint: 'GPay / PhonePe / Paytm / QR • Priority Dispatch',
-    icon: 'phone-portrait-outline',
-    badge: 'RECOMMENDED',
-  },
-  {
-    id: 'Cash',
-    label: 'Cash on Drop',
-    hint: 'Pay chauffeur directly upon destination arrival',
-    icon: 'cash-outline',
-  },
-];
+import { colors, fonts, space } from '../theme';
+import { NOTES_MAX, composeBookingNotes, scheduleProblem, whatsappProblem } from '../utils/bookingRules';
+import {
+  SCHEDULED_CANCELLATION_FEE,
+  SCHEDULED_FREE_CANCEL_BEFORE_MS,
+} from '../config/constants';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const FREE_CANCEL_MIN = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 60000);
+
+/** Only methods the booking server accepts today (createBooking: Cash or UPI). */
+const PAYMENT_OPTIONS: { id: PaymentMethod; title: string; subtitle: string }[] = [
+  { id: 'Cash', title: 'Book now, pay later', subtitle: 'Pay the fare in cash to your driver' },
+  { id: 'UPI', title: 'Book now, pay by UPI', subtitle: 'Pay by UPI after your trip' },
+];
+
+const dayText = (d: Date) => `${d.getDate()} ${d.toLocaleDateString('en-IN', { month: 'short' })}`;
 
 export function ConfirmBookingScreen() {
   const navigation = useNavigation();
   const { profile, trips } = useCustomerData();
   const { draft, reset, route, categories, adjustment, coupons, serverQuote: serverQuoteState } = useBookingDraft();
-  const { pickup, drop, tripType, scheduledAt, categoryId } = draft;
+  const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId, flightNumber } = draft;
   const { online } = useNetworkStatus();
 
-  const [payment, setPayment] = useState<PaymentMethod>('UPI');
+  const [payment, setPayment] = useState<PaymentMethod>('Cash');
   const [promoInput, setPromoInput] = useState('');
   const [appliedCode, setAppliedCode] = useState<string | null>(null);
   const [promoError, setPromoError] = useState('');
   const [notes, setNotes] = useState('');
+  const [someoneElse, setSomeoneElse] = useState(false);
+  const [guestName, setGuestName] = useState('');
+  const [guestMobile, setGuestMobile] = useState('');
   const [waSame, setWaSame] = useState(true);
   const [waCode, setWaCode] = useState('+91');
   const [waNumber, setWaNumber] = useState('');
   const [email, setEmail] = useState('');
-  const [showFareLines, setShowFareLines] = useState(true);
+  const [fareOpen, setFareOpen] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [serverQuote, setServerQuote] = useState<{ key: string; fare: FareBreakdown } | null>(null);
   const submittingRef = useRef(false);
 
+  const goHome = () => navigation.navigate('Tabs', { screen: 'Book' });
   const category = categories.find((c) => c.id === categoryId) ?? categories[0] ?? null;
   if (!pickup || !drop || !route || !category) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
+        <AppHeader />
         <View style={styles.pad}>
-          <StepHeader title="Review & Confirm" step={3} onBack={() => navigation.goBack()} />
-          <Notice message="Your trip parameters changed. Please return to step 2 to choose your cab." />
-          <Button title="Back to Choose Cab" variant="secondary" onPress={() => navigation.goBack()} style={{ marginTop: space.md }} />
+          <SubHeader plain title="Review & book" onBack={() => navigation.goBack()} />
+          <Notice message="Your trip details changed. Please go back and choose your cab again." />
+          <Button title="Back to Choose your cab" variant="secondary" onPress={() => navigation.goBack()} />
         </View>
       </SafeAreaView>
     );
@@ -118,12 +113,13 @@ export function ConfirmBookingScreen() {
 
   const emailError = email.trim() && !EMAIL_RE.test(email.trim()) ? 'Enter a valid email address or leave blank.' : '';
   const waError = whatsappProblem(waSame, waCode, waNumber);
+  const guestError = someoneElse && (guestName.trim().length < 2 ? 'Enter the passenger’s name.' : !isValidIndianMobile(guestMobile.replace(/\D/g, '').slice(-10)) ? 'Enter the passenger’s 10-digit mobile number.' : '');
   const blocker = !online
-    ? 'You are offline. Please reconnect to confirm booking.'
+    ? 'You are offline. Please reconnect to confirm your booking.'
     : scheduleProblem(scheduledAt)
       || (!authoritative && serverQuote?.key !== priceKey ? (serverQuoteState.status === 'loading' ? 'Confirming your fare with NESAM…' : serverQuoteState.error || 'We need to confirm your fare before you can submit.') : '')
-      || (waError || emailError ? 'Check your contact details.' : '')
-      || (!termsAccepted ? 'Accept the booking terms to submit your request.' : '');
+      || (waError || emailError || guestError ? 'Check your contact details.' : '')
+      || (!termsAccepted ? 'Accept the fare, extra charges and cancellation policy to book.' : '');
 
   const applyPromo = () => {
     const res = checkCoupon(promoInput);
@@ -152,7 +148,12 @@ export function ConfirmBookingScreen() {
         tripType,
         paymentMethod: payment,
         couponCode: coupon?.code ?? '',
-        notes,
+        notes: composeBookingNotes({
+          flight: tripType === 'Airport Taxi' ? flightNumber : '',
+          passengerName: someoneElse ? guestName : '',
+          passengerMobile: someoneElse ? guestMobile : '',
+          notes,
+        }),
         scheduledAt,
         whatsapp: waSame
           ? { sameAsMobile: true }
@@ -164,7 +165,7 @@ export function ConfirmBookingScreen() {
       reset();
       navigation.reset({
         index: 1,
-        routes: [{ name: 'Tabs' }, { name: 'ActiveRide', params: { bookingId: res.id, unconfirmed: res.unconfirmed } }],
+        routes: [{ name: 'Tabs' }, { name: 'ActiveRide', params: { bookingId: res.id, unconfirmed: res.unconfirmed, justBooked: true } }],
       });
     } catch (e) {
       const currentFare = (e as { details?: { fare?: FareBreakdown } }).details?.fare;
@@ -173,8 +174,8 @@ export function ConfirmBookingScreen() {
       }
       setSubmitError(
         currentFare
-          ? `The current fare is ${formatINR(currentFare.total)}. Please review and tap Confirm to book.`
-          : describeError(e, 'Could not complete your booking request. Please try again or call our 24/7 helpline.'),
+          ? `The current fare is ${formatINR(currentFare.total)}. Please review and tap Book & Confirm.`
+          : describeError(e, 'Could not complete your booking. Please try again or call NESAM.'),
       );
     } finally {
       submittingRef.current = false;
@@ -183,640 +184,195 @@ export function ConfirmBookingScreen() {
   };
 
   const fareBreakup = buildFareBreakup(category, quote, outstation);
-  const vehicleImage = getVehicleImage(category.name);
+  const includedKm = authoritativeEntry?.includedKm ?? (category.fare.baseKm > 0 ? category.fare.baseKm : 0);
+  const whenText = scheduledAt ? `${dayText(scheduledAt)} · ${formatTime(scheduledAt).replace(/^0/, '')}` : 'Pickup time not chosen';
+  const endText = tripType === 'Round Trip' && tripEndAt ? ` – Return ${dayText(tripEndAt)} · ${formatTime(tripEndAt).replace(/^0/, '')}` : '';
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      {/* Mobile Step Header */}
-      <StepHeader title="Review & Confirm Booking" step={3} onBack={() => navigation.goBack()} />
+      <AppHeader />
+      <ScrollView kind="narrow" contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+        <SubHeader plain title="Review & book" onBack={() => navigation.goBack()} />
 
-      <ScrollView contentContainerStyle={styles.scrollPad} keyboardShouldPersistTaps="handled">
-        {/* Trip Summary Card */}
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryTopRow}>
-            <Image source={vehicleImage} style={styles.carThumb} resizeMode="contain" />
+        {/* Trip and total */}
+        <View style={styles.card}>
+          <Text style={styles.route} accessibilityRole="header">
+            {pickup.name}
+            <Text style={styles.arrow}>{'  →  '}</Text>
+            {tripType === 'Local Rental' ? 'Local Rental' : drop.name}
+          </Text>
+          <Text style={styles.when}>{`${whenText}${endText}`}</Text>
+          <View style={styles.catRow}>
+            <Text style={styles.cat}>{`${category.name} · ${category.seats} passengers`}</Text>
+            {includedKm > 0 ? <Text style={styles.incl}>{`${includedKm} km included`}</Text> : null}
+          </View>
+          <View style={styles.totalRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.carNameText}>{category.name}</Text>
-              <Text style={styles.carSubText}>
-                {category.seats} Passengers · {tripType} · AC Cab
-              </Text>
+              <Text style={styles.totalLabel}>Total fare</Text>
+              <Text style={styles.gstNote}>GST included</Text>
             </View>
-            <View style={styles.verifiedBadge}>
-              <Ionicons name="shield-checkmark" size={14} color="#059669" />
-              <Text style={styles.verifiedText}>Verified</Text>
-            </View>
+            <Text style={styles.total}>{formatINR(quote.total)}</Text>
           </View>
-
-          <View style={styles.routeDivider} />
-
-          {/* Pickup & Destination stops */}
-          <View style={styles.stopRow}>
-            <View style={[styles.stopDot, { backgroundColor: '#10B981' }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stopLabel}>PICKUP LOCATION</Text>
-              <Text style={styles.stopName} numberOfLines={2}>
-                {pickup.name}
-              </Text>
-              {pickup.address && pickup.address !== pickup.name ? (
-                <Text style={styles.stopAddress} numberOfLines={1}>
-                  {pickup.address}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          <View style={styles.stopRow}>
-            <View style={[styles.stopDot, { backgroundColor: colors.primary }]} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles.stopLabel}>DESTINATION</Text>
-              <Text style={styles.stopName} numberOfLines={2}>
-                {drop.name}
-              </Text>
-              {drop.address && drop.address !== drop.name ? (
-                <Text style={styles.stopAddress} numberOfLines={1}>
-                  {drop.address}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-
-          {/* Schedule & Distance pill row */}
-          <View style={styles.itineraryPillsRow}>
-            <View style={styles.itineraryPill}>
-              <Ionicons name="calendar-outline" size={14} color={colors.primary} />
-              <Text style={styles.itineraryPillText}>
-                {scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)}` : 'Pickup time not chosen'}
-              </Text>
-            </View>
-            <View style={styles.itineraryPill}>
-              <Ionicons name="speedometer-outline" size={14} color={colors.slate} />
-              <Text style={styles.itineraryPillText}>{formatDistance(route.distanceKm)}</Text>
-            </View>
-            <View style={styles.itineraryPill}>
-              <Ionicons name="time-outline" size={14} color={colors.slate} />
-              <Text style={styles.itineraryPillText}>~{formatDuration(route.durationMin)}</Text>
-            </View>
-          </View>
+          <TextButton title="View fare details" onPress={() => setFareOpen(true)} size={12} style={{ alignSelf: 'flex-start', marginTop: 6 }} />
         </View>
 
-        {/* Payment Method Selector */}
+        {/* Booking contact */}
         <View style={styles.card}>
-          <Text style={styles.cardHeader}>Select Payment Mode</Text>
-          <View style={styles.payList} accessibilityRole="radiogroup">
-            {PAYMENT_OPTIONS.map((p) => {
-              const on = payment === p.id;
-              return (
-                <Pressable
-                  key={p.id}
-                  onPress={() => setPayment(p.id)}
-                  style={[styles.payOption, on && styles.payOptionActive]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                >
-                  <View style={[styles.payIconBox, on && styles.payIconBoxActive]}>
-                    <Ionicons name={p.icon} size={22} color={on ? colors.primary : colors.ink} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={[styles.payOptionLabel, on && { color: colors.primary }]}>{p.label}</Text>
-                      {p.badge ? (
-                        <View style={styles.recommendedBadge}>
-                          <Text style={styles.recommendedBadgeText}>{p.badge}</Text>
-                        </View>
-                      ) : null}
-                    </View>
-                    <Text style={styles.payOptionHint}>{p.hint}</Text>
-                  </View>
-                  <Ionicons
-                    name={on ? 'checkmark-circle' : 'ellipse-outline'}
-                    size={22}
-                    color={on ? colors.primary : '#CBD5E1'}
-                  />
-                </Pressable>
-              );
-            })}
+          <Text style={styles.cardTitle}>Booking contact</Text>
+          <Line label="Passenger name" value={profile.name} />
+          <Line label="Mobile number" value={formatPhone(profile.phone)} />
+          <Line label="WhatsApp number" value={waSame ? formatPhone(profile.phone) : waNumber ? `${waCode} ${waNumber}` : 'Not provided'} />
+
+          <View style={styles.checks}>
+            <Checkbox checked={someoneElse} onChange={setSomeoneElse} label="Book for someone else" />
           </View>
+          {someoneElse ? (
+            <View style={{ marginTop: space.sm }}>
+              <TextField label="Passenger name" value={guestName} onChangeText={(v) => setGuestName(v.slice(0, 60))} placeholder="Name of the person travelling" autoComplete="name" />
+              <TextField
+                label="Passenger mobile number"
+                value={guestMobile}
+                onChangeText={(v) => setGuestMobile(v.replace(/[^\d+ ]/g, '').slice(0, 14))}
+                keyboardType="phone-pad"
+                prefix="+91"
+                placeholder="10-digit mobile number"
+                error={guestName || guestMobile ? guestError || undefined : undefined}
+                hint="Shared with NESAM and your driver in the booking notes."
+              />
+            </View>
+          ) : null}
+          <Checkbox checked={!waSame} onChange={(v) => setWaSame(!v)} label="Send WhatsApp updates to a different number" />
+          {!waSame ? (
+            <View style={styles.waRow}>
+              <View style={{ width: 84 }}>
+                <TextField label="Code" value={waCode} onChangeText={(v) => setWaCode(v.replace(/[^\d+]/g, '').slice(0, 4))} keyboardType="phone-pad" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <TextField label="WhatsApp number" value={waNumber} onChangeText={setWaNumber} keyboardType="phone-pad" placeholder="WhatsApp number" error={waError || undefined} />
+              </View>
+            </View>
+          ) : null}
+          <View style={styles.rule} />
+          <Disclosure title="Email for receipt (optional)">
+            <TextField label="Email address" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoCorrect={false} placeholder="name@example.com" error={emailError || undefined} />
+          </Disclosure>
+          <Disclosure title="Pickup landmark / instructions" initiallyOpen={!!notes}>
+            <TextInput
+              style={styles.notes}
+              placeholder="Landmark, luggage or accessibility needs"
+              placeholderTextColor={colors.faint}
+              value={notes}
+              onChangeText={(v) => setNotes(v.slice(0, NOTES_MAX - 120))}
+              multiline
+              maxLength={NOTES_MAX - 120}
+              accessibilityLabel="Pickup landmark or instructions"
+            />
+            <Text style={styles.small}>Special requests are subject to office confirmation.</Text>
+          </Disclosure>
         </View>
 
-        {/* Promo Code Card */}
+        {/* Promo code (existing feature) */}
         <View style={styles.card}>
-          <Text style={styles.cardHeader}>Have a Promo Code?</Text>
-          <View style={styles.promoInputRow}>
+          <Text style={styles.cardTitle}>Promo code</Text>
+          <View style={styles.promoRow}>
             <TextInput
               style={styles.promoInput}
-              placeholder="e.g. FIRST50, NESAM10"
-              placeholderTextColor={colors.slate}
+              placeholder="Enter code"
+              placeholderTextColor={colors.faint}
               value={promoInput}
               onChangeText={(t) => {
                 setPromoInput(t);
                 setPromoError('');
               }}
               autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Promo code"
             />
-            <Pressable
-              onPress={applyPromo}
-              disabled={!promoInput.trim()}
-              style={[styles.applyBtn, !promoInput.trim() && { opacity: 0.5 }]}
-            >
-              <Text style={styles.applyBtnText}>Apply</Text>
-            </Pressable>
+            <Button small title="Apply" onPress={applyPromo} disabled={!promoInput.trim()} style={{ minHeight: 46, paddingHorizontal: 18 }} />
           </View>
-          {promoMsg ? (
-            <Text style={[styles.promoFeedback, { color: promoMsg.ok ? '#059669' : colors.primary }]}>
-              {promoMsg.text}
-            </Text>
-          ) : null}
+          {promoMsg ? <Text style={[styles.promoFeedback, { color: promoMsg.ok ? colors.success : colors.primaryDark }]}>{promoMsg.text}</Text> : null}
+          {coupon ? <TextButton title="Remove code" icon="x" size={11} onPress={() => { setAppliedCode(null); setPromoInput(''); }} style={{ alignSelf: 'flex-start' }} /> : null}
         </View>
 
-        {/* Detailed Fare Breakup */}
-        <View style={styles.card}>
-          <Pressable
-            style={styles.fareHeaderRow}
-            onPress={() => setShowFareLines((v) => !v)}
-            accessibilityRole="button"
-          >
-            <View>
-              <Text style={styles.cardHeader}>Fare Breakdown</Text>
-              <Text style={styles.fareSubText}>All taxes & driver allowance included</Text>
-            </View>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={styles.headerTotalFare}>{formatINR(quote.total)}</Text>
-              <Ionicons name={showFareLines ? 'chevron-up' : 'chevron-down'} size={18} color={colors.slate} />
-            </View>
-          </Pressable>
-
-          {showFareLines && fareBreakup ? (
-            <View style={{ marginTop: space.sm }}>
-              <FareLines lines={fareBreakup.lines} total={quote.total} estimated />
-              <View style={styles.farePolicyBox}>
-                <Ionicons name="information-circle-outline" size={16} color="#0284C7" />
-                <Text style={styles.farePolicyText}>
-                  Tolls, inter-state entry tax and parking charges are payable directly to the chauffeur against receipts.
-                </Text>
-              </View>
-            </View>
-          ) : null}
+        {/* Payment */}
+        <Text style={styles.heading}>Choose payment</Text>
+        <View accessibilityRole="radiogroup">
+          {PAYMENT_OPTIONS.map((p) => (
+            <RadioCard key={p.id} selected={payment === p.id} onPress={() => setPayment(p.id)} title={p.title} subtitle={p.subtitle} right={<Text style={styles.payNow}>{'₹0\n'}<Text style={styles.payNowSub}>now</Text></Text>} />
+          ))}
         </View>
+        <Text style={styles.small}>Online advance payment isn’t available yet. Toll, parking and state tax are extra, paid separately against receipts.</Text>
 
-        {/* Passenger Information */}
-        <View style={styles.card}>
-          <Text style={styles.cardHeader}>Rider Details & Communication</Text>
-          <View style={styles.riderRow}>
-            <View style={styles.riderAvatar}>
-              <Ionicons name="person" size={18} color={colors.primary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.riderName}>{profile.name}</Text>
-              <Text style={styles.riderPhone}>{profile.phone}</Text>
-            </View>
-          </View>
+        <View style={styles.rule} />
+        <Disclosure title="Cancellation policy">
+          <Text style={styles.policy}>
+            {`Free cancellation while your booking is under review or more than ${FREE_CANCEL_MIN} minutes before pickup. Closer to pickup, once a partner is committed, a ₹${SCHEDULED_CANCELLATION_FEE} cancellation fee applies. The trip cannot be cancelled once it has started. Any refund appears on your booking.`}
+          </Text>
+        </Disclosure>
+        <View style={styles.rule} />
 
-          <View style={styles.checkboxRow}>
-            <Checkbox
-              checked={waSame}
-              onChange={setWaSame}
-              label="Send driver details, car number & live trip updates via WhatsApp"
-            />
-          </View>
+        <Checkbox checked={termsAccepted} onChange={setTermsAccepted} label="I accept the fare, extra charges and cancellation policy, and understand NESAM reviews this booking before arranging a vehicle." />
 
-          {!waSame ? (
-            <View style={{ marginTop: space.sm }}>
-              <TextField
-                label="WhatsApp Number"
-                value={waNumber}
-                onChangeText={setWaNumber}
-                keyboardType="phone-pad"
-                placeholder="10-digit mobile number"
-                error={waError}
-              />
-            </View>
-          ) : null}
-
-          {/* Optional Notes for Driver */}
-          <View style={{ marginTop: space.sm }}>
-            <Text style={styles.fieldSubLabel}>Special Instructions for Chauffeur (Optional)</Text>
-            <TextInput
-              style={styles.notesInput}
-              placeholder="e.g. Flight arrival timing, extra luggage carrier required, landmark details"
-              placeholderTextColor={colors.slate}
-              value={notes}
-              onChangeText={setNotes}
-              multiline
-              numberOfLines={2}
-            />
-          </View>
-        </View>
-
-        {/* Terms & Conditions Acceptance */}
-        <View style={styles.termsBox}>
-          <Checkbox
-            checked={termsAccepted}
-            onChange={setTermsAccepted}
-            label="I accept the NESAM booking terms and cancellation policy, and understand this is a booking request that NESAM reviews before arranging a vehicle."
-          />
-        </View>
-
-        {submitError ? <Notice message={submitError} tone="error" style={{ marginBottom: space.sm }} /> : null}
-
-        {/* Spacing for bottom button */}
-        <View style={{ height: 110 }} />
+        {submitError ? <Notice message={submitError} tone="error" style={{ marginTop: space.md }} /> : null}
+        {blocker && termsAccepted ? <Notice message={blocker} tone="warning" style={{ marginTop: space.md }} /> : null}
+        <Button title="Book & Confirm" loading={submitting} disabled={!!blocker} onPress={() => void submit()} accessibilityLabel={`Book and confirm for ${formatINR(quote.total)}`} style={{ marginTop: space.lg }} />
       </ScrollView>
 
-      {/* Sticky Bottom Confirmation Bar */}
-      <View style={styles.bottomBar}>
-        <View style={styles.totalRecapCol}>
-          <Text style={styles.recapLabel}>TOTAL PAYABLE</Text>
-          <Text style={styles.recapAmount}>{formatINR(quote.total)}</Text>
-          <Text style={styles.recapMode}>
-            {payment === 'UPI' ? 'Pay by UPI after your trip' : 'Cash to driver at drop'}
-          </Text>
-        </View>
-
-        <Pressable
-          onPress={submit}
-          disabled={!!blocker || submitting}
-          style={({ pressed }) => [
-            styles.confirmBtn,
-            (!!blocker || submitting) && { opacity: 0.5 },
-            pressed && { backgroundColor: '#B71C1C' },
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`Submit booking request for ${formatINR(quote.total)}`}
-        >
-          {submitting ? (
-            <Text style={styles.confirmBtnText}>Submitting…</Text>
-          ) : (
-            <>
-              <Text style={styles.confirmBtnText}>Submit booking request</Text>
-              <Ionicons name="checkmark-circle" size={20} color={colors.white} />
-            </>
-          )}
-        </Pressable>
+      <View style={styles.bottom}>
+        <Content kind="narrow">
+          <FlowFooter onBack={() => navigation.goBack()} onHome={goHome} />
+        </Content>
       </View>
+
+      <Sheet visible={fareOpen} onClose={() => setFareOpen(false)} title="Fare details" subtitle="Prices include GST.">
+        <FareLines lines={fareBreakup.lines} total={quote.total} estimated={!authoritative} />
+        <Text style={[styles.small, { marginTop: space.md }]}>Toll, parking and state tax are paid separately against receipts.</Text>
+      </Sheet>
     </SafeAreaView>
   );
 }
 
+function Line({ label, value }: { label: string; value: string }) {
+  return (
+    <View style={styles.line}>
+      <Text style={styles.lineLabel}>{label}</Text>
+      <Text style={styles.lineValue} numberOfLines={1}>
+        {value}
+      </Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
-  pad: {
-    padding: space.md,
-  },
-  scrollPad: {
-    padding: space.md,
-    paddingTop: space.xs,
-  },
-  summaryCard: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    padding: space.md,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    marginBottom: space.sm,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-  },
-  summaryTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-  },
-  carThumb: {
-    width: 64,
-    height: 42,
-  },
-  carNameText: {
-    fontFamily: fonts.black,
-    fontSize: 17,
-    fontWeight: '900',
-    color: colors.ink,
-  },
-  carSubText: {
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.slate,
-    marginTop: 1,
-  },
-  verifiedBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    borderRadius: radius.full,
-    paddingVertical: 3,
-    paddingHorizontal: 8,
-  },
-  verifiedText: {
-    fontFamily: fonts.extraBold,
-    fontSize: 10,
-    fontWeight: '800',
-    color: '#059669',
-  },
-  routeDivider: {
-    height: 1,
-    backgroundColor: '#F1F5F9',
-    marginVertical: 12,
-  },
-  stopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    marginBottom: 10,
-  },
-  stopDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginTop: 4,
-  },
-  stopLabel: {
-    fontSize: 10,
-    fontWeight: '800',
-    color: colors.slate,
-    letterSpacing: 0.5,
-  },
-  stopName: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.ink,
-    marginTop: 1,
-  },
-  stopAddress: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.slate,
-    marginTop: 1,
-  },
-  itineraryPillsRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    flexWrap: 'wrap',
-  },
-  itineraryPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: '#F8FAFC',
-    borderRadius: radius.full,
-    paddingVertical: 5,
-    paddingHorizontal: 10,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-  },
-  itineraryPillText: {
-    fontFamily: fonts.medium,
-    fontSize: 11,
-    color: colors.ink,
-  },
-  card: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: space.md,
-    marginBottom: space.sm,
-  },
-  cardHeader: {
-    fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.ink,
-    marginBottom: space.xs,
-  },
-  payList: {
-    gap: 8,
-    marginTop: space.xs,
-  },
-  payOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    borderWidth: 1.5,
-    borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    padding: space.sm,
-    backgroundColor: '#F8FAFC',
-  },
-  payOptionActive: {
-    borderColor: colors.primary,
-    backgroundColor: '#FFFBFA',
-  },
-  payIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  payIconBoxActive: {
-    backgroundColor: '#FEE2E2',
-  },
-  payOptionLabel: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  payOptionHint: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.slate,
-    marginTop: 2,
-  },
-  recommendedBadge: {
-    backgroundColor: '#DC2626',
-    borderRadius: 4,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  recommendedBadgeText: {
-    fontFamily: fonts.bold,
-    fontSize: 9,
-    color: colors.white,
-  },
-  promoInputRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: space.xs,
-  },
-  promoInput: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: radius.md,
-    paddingHorizontal: space.sm,
-    paddingVertical: 8,
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  applyBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  applyBtnText: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-    fontSize: 13,
-  },
-  promoFeedback: {
-    fontFamily: fonts.semiBold,
-    fontSize: 12,
-    marginTop: 6,
-  },
-  fareHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  fareSubText: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: colors.slate,
-  },
-  headerTotalFare: {
-    fontFamily: fonts.bold,
-    fontSize: 17,
-    color: colors.primary,
-  },
-  farePolicyBox: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 6,
-    backgroundColor: '#F0F9FF',
-    borderRadius: radius.md,
-    padding: space.sm,
-    marginTop: space.sm,
-  },
-  farePolicyText: {
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: '#0369A1',
-    lineHeight: 15,
-    flex: 1,
-  },
-  riderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 4,
-  },
-  riderAvatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#FEE2E2',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  riderName: {
-    fontFamily: fonts.bold,
-    fontSize: 14,
-    color: colors.ink,
-  },
-  riderPhone: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.slate,
-  },
-  checkboxRow: {
-    marginTop: space.sm,
-    paddingTop: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-  },
-  fieldSubLabel: {
-    fontFamily: fonts.semiBold,
-    fontSize: 11,
-    color: colors.slate,
-    marginBottom: 4,
-  },
-  notesInput: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    borderRadius: radius.md,
-    padding: space.sm,
-    fontFamily: fonts.regular,
-    fontSize: 12,
-    color: colors.ink,
-    minHeight: 52,
-    textAlignVertical: 'top',
-  },
-  termsBox: {
-    backgroundColor: colors.white,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    padding: space.md,
-    marginBottom: space.sm,
-  },
-  bottomBar: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: colors.white,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: space.md,
-    paddingVertical: space.sm,
-    borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
-    elevation: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-  },
-  totalRecapCol: {
-    flex: 1,
-  },
-  recapLabel: {
-    fontFamily: fonts.semiBold,
-    fontSize: 9,
-    color: colors.slate,
-    letterSpacing: 0.5,
-  },
-  recapAmount: {
-    fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.primary,
-    lineHeight: 24,
-  },
-  recapMode: {
-    fontFamily: fonts.medium,
-    fontSize: 10,
-    color: colors.ink,
-  },
-  confirmBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.full,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  confirmBtnText: {
-    fontFamily: fonts.bold,
-    color: colors.white,
-    fontSize: 15,
-  },
+  root: { flex: 1, backgroundColor: colors.white },
+  pad: { padding: space.xl },
+  scroll: { paddingHorizontal: space.xl, paddingTop: space.xl, paddingBottom: 28 },
+  card: { borderWidth: 1, borderColor: '#E3E7EC', borderRadius: 13, padding: 18, marginBottom: 14, backgroundColor: colors.white },
+  route: { fontFamily: fonts.bold, fontSize: 17, lineHeight: 24, color: colors.text },
+  arrow: { fontFamily: fonts.regular, color: '#8A929E' },
+  when: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 18, color: '#6D7785', marginTop: 8 },
+  catRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEF0F4' },
+  cat: { fontFamily: fonts.regular, fontSize: 13.5, color: colors.text, flexShrink: 1 },
+  incl: { fontFamily: fonts.regular, fontSize: 11.5, color: '#7A8494' },
+  totalRow: { flexDirection: 'row', alignItems: 'flex-end', marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: '#EEF0F4' },
+  totalLabel: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink },
+  gstNote: { fontFamily: fonts.regular, fontSize: 10, color: '#7A8494', marginTop: 4 },
+  total: { fontFamily: fonts.bold, fontSize: 24, lineHeight: 30, letterSpacing: -0.6, color: colors.ink },
+  cardTitle: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.ink, marginBottom: 12 },
+  line: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  lineLabel: { fontFamily: fonts.regular, fontSize: 12, color: '#7A8494' },
+  lineValue: { fontFamily: fonts.medium, fontSize: 12.5, color: colors.ink, flexShrink: 1, textAlign: 'right' },
+  checks: { marginTop: 4 },
+  waRow: { flexDirection: 'row', gap: 10 },
+  rule: { height: 1, backgroundColor: colors.divider, marginVertical: 8 },
+  notes: { minHeight: 76, borderWidth: 1, borderColor: colors.border, borderRadius: 6, padding: 11, fontFamily: fonts.regular, fontSize: 13, color: colors.value, textAlignVertical: 'top' },
+  small: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 17, color: '#6D7785', marginTop: 8 },
+  promoRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  promoInput: { flex: 1, minHeight: 46, borderWidth: 1, borderColor: colors.border, borderRadius: 6, paddingHorizontal: 11, fontFamily: fonts.medium, fontSize: 14, color: colors.value },
+  promoFeedback: { fontFamily: fonts.medium, fontSize: 12, marginTop: 8 },
+  heading: { fontFamily: fonts.semiBold, fontSize: 15, color: colors.ink, marginTop: 10, marginBottom: 12 },
+  payNow: { fontFamily: fonts.bold, fontSize: 13, color: colors.ink, textAlign: 'right' },
+  payNowSub: { fontFamily: fonts.regular, fontSize: 10, color: '#7A8494' },
+  policy: { fontFamily: fonts.regular, fontSize: 12, lineHeight: 19, color: '#55606F' },
+  bottom: { backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: '#E5E8ED', paddingHorizontal: space.xl, paddingVertical: 10 },
 });
