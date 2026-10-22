@@ -1,3 +1,4 @@
+import { displayPlate } from '../../utils/fleet';
 import React, { useState } from 'react';
 import { AlertTriangle, Pencil } from 'lucide-react';
 import type { OnboardingSection, VendorRecord } from '../../types';
@@ -96,8 +97,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ record, onEdit, onBack }
         {(f?.vehicles ?? []).map((v) => (
           <Row
             key={v.registrationNumber}
-            label={v.registrationNumber}
-            value={`${[v.make, v.model].filter(Boolean).join(' ') || v.category} · ${v.source === 'vahan' ? 'register verified' : 'manual check'}`}
+            label={displayPlate(v.registrationNumber)}
+            value={[v.make, v.model].filter(Boolean).join(' ') || v.category || 'NESAM will verify the vehicle'}
           />
         ))}
       </Section>

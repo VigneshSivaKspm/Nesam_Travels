@@ -1,102 +1,48 @@
-import { buildFleetDetails, emptyVehicle, fleetIsComplete, isPlate, normalizePlate, validateVehicle } from '../src/utils/fleet';
-import { missingSections } from '../src/services/onboardingService';
-import { applyDetection, type VehicleLookupResult } from '../src/services/vehicleLookup';
-import type { FleetVehicleDoc, StoredFile, VendorRecord } from '../src/types/vendor';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { buildFleetDetails, displayPlate, emptyVehicle, fleetIsComplete, isPlate, normalizePlate, validateVehicle, vehicleFromPlate } from '../src/utils/fleet';
+import { buildVendorSignupRecord, missingSections } from '../src/services/onboardingService';
+import type { FleetVehicleDoc, VendorRecord } from '../src/types/vendor';
 
-const TODAY = '2026-10-13';
-const file = (n: string): StoredFile => ({ path: `vendors/v1/onboarding/x/${n}`, name: n, contentType: 'image/jpeg', size: 1000, uploadedAt: 1 });
+const vehicle = (plate = 'TN01AB1234'): FleetVehicleDoc => vehicleFromPlate(plate);
 
-function vehicle(plate = 'TN01AB1234'): FleetVehicleDoc {
-  return {
-    ...emptyVehicle(),
-    registrationNumber: plate,
-    source: 'vahan',
-    category: 'Sedan',
-    make: 'Maruti',
-    model: 'Dzire',
-    insuranceUpto: '2099-01-01',
-    fitnessUpto: '2099-01-01',
-    permitUpto: '2099-01-01',
-    rcFiles: [file('rc')],
-    insuranceFiles: [file('ins')],
-    fitnessFiles: [file('fc')],
-    permitFiles: [file('permit')],
-    frontPhotoFiles: [file('front')],
-  };
-}
-const ctx = (over: Partial<Parameters<typeof validateVehicle>[1]> = {}) => ({ detectedFor: 'TN01AB1234', duplicate: false, notFound: false, others: [], today: TODAY, ...over });
-
-describe('fleet documentation (spec page 13)', () => {
-  it('accepts a vehicle with RC, insurance, FC, permit and front photo', () => {
-    expect(validateVehicle(vehicle(), ctx())).toEqual({});
+describe('fleet: a vehicle needs only its registration number', () => {
+  it('accepts a vehicle known only by its plate', () => {
+    expect(validateVehicle(vehicle(), { others: [] })).toEqual({});
+    expect(vehicle()).toMatchObject({ registrationNumber: 'TN01AB1234', source: 'manual', rcFiles: [], insuranceUpto: '' });
   });
 
-  it('asks for each document and an unexpired validity', () => {
-    const v = { ...vehicle(), rcFiles: [], insuranceUpto: '2026-10-13', fitnessFiles: [], permitUpto: '', frontPhotoFiles: [] };
-    const e = validateVehicle(v, ctx());
-    expect(e.rcFiles).toBeTruthy();
-    expect(e.insuranceUpto).toMatch(/expired/i);
-    expect(e.fitnessFiles).toBeTruthy();
-    expect(e.permitUpto).toBeTruthy();
-    expect(e.frontPhotoFiles).toBeTruthy();
+  it('refuses a malformed plate and a plate already in the application', () => {
+    expect(validateVehicle({ registrationNumber: 'NOTAPLATE' }, { others: [] }).registrationNumber).toBeTruthy();
+    expect(validateVehicle({ registrationNumber: '' }, { others: [] }).registrationNumber).toBeTruthy();
+    expect(validateVehicle(vehicle(), { others: ['TN01AB1234'] }).registrationNumber).toMatch(/already in your application/i);
   });
 
-  it('the plate must have been checked against the register, and not be a duplicate', () => {
-    expect(validateVehicle(vehicle(), ctx({ detectedFor: '' })).registrationNumber).toMatch(/detect/i);
-    expect(validateVehicle(vehicle(), ctx({ notFound: true })).registrationNumber).toMatch(/not found/i);
-    expect(validateVehicle(vehicle(), ctx({ duplicate: true })).registrationNumber).toMatch(/already registered/i);
-    expect(validateVehicle(vehicle(), ctx({ others: ['TN01AB1234'] })).registrationNumber).toMatch(/already in your application/i);
-    expect(validateVehicle({ ...vehicle(), registrationNumber: 'NOTAPLATE' }, ctx()).registrationNumber).toBeTruthy();
-  });
-
-  it('plates ignore spaces and hyphens', () => {
+  it('plates ignore case, spaces and hyphens', () => {
     expect(normalizePlate('tn-01 ab 1234')).toBe('TN01AB1234');
     expect(isPlate('TN 01 AB 1234')).toBe(true);
+    expect(isPlate('22 BH 1234 AA')).toBe(true);
     expect(isPlate('TN01')).toBe(false);
+    expect(displayPlate('tn01ab1234')).toBe('TN 01 AB 1234');
   });
 
   it('builds the stored fleet with per-document aggregates', () => {
     const f = buildFleetDetails([vehicle('TN01AB1234'), { ...vehicle('TN02CD5678'), category: 'SUV' }]);
     expect(f.fleetSize).toBe(2);
-    expect(f.vehicleTypes.sort()).toEqual(['SUV', 'Sedan']);
-    expect(f.rcFiles).toHaveLength(2);
-    expect(f.fcFiles).toHaveLength(2);
-    expect(f.permitFiles).toHaveLength(2);
-    expect(f.vehiclePhotos).toHaveLength(2);
+    expect(f.plates).toEqual(['TN01AB1234', 'TN02CD5678']);
+    expect(f.vehicleTypes).toEqual(['SUV']);
+    expect(f.rcFiles).toHaveLength(0);
   });
 
-  it('a stored application is complete only while every vehicle still passes', () => {
+  it('a stored fleet is complete when it lists valid, unique plates', () => {
     expect(fleetIsComplete(null)).toBe(false);
     expect(fleetIsComplete(buildFleetDetails([]))).toBe(false);
-    expect(fleetIsComplete(buildFleetDetails([vehicle()]), TODAY)).toBe(true);
-    // The insurance lapsed while the application sat as a draft.
-    expect(fleetIsComplete(buildFleetDetails([{ ...vehicle(), insuranceUpto: '2026-10-01' }]), TODAY)).toBe(false);
-    // The same vehicle twice is not a fleet of two.
-    expect(fleetIsComplete(buildFleetDetails([vehicle(), vehicle()]), TODAY)).toBe(false);
+    expect(fleetIsComplete(buildFleetDetails([vehicle()]))).toBe(true);
+    expect(fleetIsComplete(buildFleetDetails([vehicle(), vehicle()]))).toBe(false);
+    expect(fleetIsComplete(buildFleetDetails([{ ...emptyVehicle(), registrationNumber: 'BAD' }]))).toBe(false);
   });
 
-  it('the register fills the vehicle; only still-valid dates are prefilled', () => {
-    const r: Extract<VehicleLookupResult, { status: 'found' }> = {
-      status: 'found',
-      registrationNumber: 'TN01AB1234',
-      duplicate: false,
-      fetchedAtMs: 1,
-      source: 'surepass',
-      issues: [{ code: 'insurance_expired', message: 'Insurance expired.' }],
-      vehicle: {
-        registrationNumber: 'TN01AB1234', make: 'Toyota', model: 'Innova Crysta', variant: '2.4 Gx', fuelType: 'Diesel', seatingCapacity: 8, passengerSeats: 7, seatClass: '7+1',
-        manufactureYear: '2021', colour: 'White', usage: 'commercial', registrationStatus: 'ACTIVE', registrationActive: true, ownerNameMasked: 'R••• K•••', category: 'Premium SUV', specClass: 'Crysta',
-        validity: { fitnessUpto: '2027-06-30', insuranceUpto: '2026-01-01', permitUpto: '', taxUpto: '', pucUpto: '' },
-      },
-    };
-    const v = applyDetection(emptyVehicle(), r, TODAY);
-    expect(v).toMatchObject({ source: 'vahan', category: 'Premium SUV', make: 'Toyota', model: 'Innova Crysta 2.4 Gx', passengerSeats: 7, seatClass: '7+1', fitnessUpto: '2027-06-30' });
-    expect(v.insuranceUpto).toBe('');
-    expect(v.permitUpto).toBe('');
-    expect(v.issues).toEqual(['insurance_expired']);
-  });
-
-  it('missing sections follow page 13: business, account details, fleet', () => {
+  it('missing sections for a resumed application: business, account details, fleet', () => {
     const base: VendorRecord = { uid: 'v1', phone: '+919800000001', status: 'INCOMPLETE', onboardingStep: 0, business: null, documents: null, fleet: null, payoutSummary: null, review: null, submittedAt: null };
     expect(missingSections(base).sort()).toEqual(['business', 'fleet', 'payout']);
     const done: VendorRecord = {
@@ -105,7 +51,27 @@ describe('fleet documentation (spec page 13)', () => {
       payoutSummary: { accountHolderName: 'Ravi', bankLast4: '9012', ifsc: 'SBIN0001234', upiId: '' },
       fleet: buildFleetDetails([vehicle()]),
     };
-    // No identity proof or business registration document is required any more.
     expect(missingSections(done)).toEqual([]);
+  });
+});
+
+describe('sign-up with a vehicle number', () => {
+  const record = buildVendorSignupRecord('uid1', '+919876543210', 'tn 01 ab 1234');
+
+  it('creates an application that is already submitted for review, with the one vehicle', () => {
+    expect(record).toMatchObject({ uid: 'uid1', role: 'vendor', phone: '+919876543210', status: 'PENDING_APPROVAL', fleetSize: 1, totalFleetSize: 1 });
+    expect(record.fleet.plates).toEqual(['TN01AB1234']);
+    expect(record.fleet.vehicles).toHaveLength(1);
+    expect(record.fleet.vehicles[0]).toMatchObject({ registrationNumber: 'TN01AB1234', source: 'manual' });
+    expect(record.companyName).toBe('Partner TN 01 AB 1234');
+  });
+
+  it('only writes keys the Firestore rules let a vendor own (vendorOwnerKeys)', () => {
+    const rules = readFileSync(join(__dirname, '../../../firestore.rules'), 'utf8');
+    const block = /function vendorOwnerKeys\(\) \{\s*return \[([^\]]*)\]/.exec(rules);
+    expect(block).not.toBeNull();
+    const allowed = new Set([...block![1].matchAll(/'([A-Za-z]+)'/g)].map((m) => m[1]));
+    const extra = Object.keys(record).filter((k) => !allowed.has(k));
+    expect(extra).toEqual([]);
   });
 });

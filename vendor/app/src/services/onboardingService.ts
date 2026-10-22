@@ -25,7 +25,7 @@ import type {
   VendorStatus,
 } from '../types/vendor';
 import { withRetry, withTimeout } from '../utils/retry';
-import { fleetIsComplete } from '../utils/fleet';
+import { buildFleetDetails, displayPlate, fleetIsComplete, isPlate, normalizePlate, vehicleFromPlate } from '../utils/fleet';
 import { callFunction } from './callables';
 
 const VENDORS = 'vendors';
@@ -309,35 +309,45 @@ export function missingSections(record: VendorRecord): OnboardingSection[] {
   return missing;
 }
 
-// ── Self-registration (replaces the invitation-gate flow) ───────────────────
+// ── Sign-up with a vehicle number ───────────────────────────────────────────
 
 /**
- * Creates the vendors/{uid} document with status INCOMPLETE so the real-time
- * listener in App.tsx immediately routes the user to the OnboardingWizard.
- * Safe to call multiple times — setDoc with merge: true is idempotent.
+ * Sign-up needs only a vehicle registration number. The vendors/{uid} document is created already
+ * submitted (PENDING_APPROVAL) with that one vehicle: no register lookup, no documents. NESAM
+ * verifies the vehicle and the partner during review, then approves the account. Business, bank
+ * and document details are not asked for at sign-up; NESAM collects what it needs afterwards.
  */
-export async function createVendorApplication(phone: string): Promise<void> {
+/** The vendors/{uid} document a new partner signs up with (Firestore rules: vendorSelfCreateOk). */
+export function buildVendorSignupRecord(uid: string, phone: string, registration: string) {
+  const plate = normalizePlate(registration);
+  const label = `Partner ${displayPlate(plate)}`;
+  return {
+    uid,
+    role: 'vendor' as const,
+    phone,
+    status: 'PENDING_APPROVAL' as VendorStatus,
+    onboardingStep: 4,
+    business: { vendorName: '', businessName: '', email: '', altPhone: '', address: EMPTY_ADDRESS, operatingCity: '', operatingAreas: [] as string[], estimatedFleetSize: 1 },
+    documents: null,
+    fleet: buildFleetDetails([vehicleFromPlate(plate)]),
+    fleetSize: 1,
+    totalFleetSize: 1,
+    payoutSummary: null,
+    // Lists and headers show this until NESAM records the partner's own name.
+    companyName: label,
+    name: label,
+    contactPerson: '',
+    owner: '',
+    submittedAt: serverTimestamp(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+}
+
+export async function registerVendorWithVehicle(phone: string, registration: string): Promise<void> {
   const uid = requireUid();
-  await withTimeout(
-    setDoc(
-      doc(db, VENDORS, uid),
-      {
-        uid,
-        phone,
-        status: 'INCOMPLETE',
-        onboardingStep: 0,
-        business: null,
-        documents: null,
-        fleet: null,
-        payoutSummary: null,
-        review: null,
-        submittedAt: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true },
-    ),
-  );
+  if (!isPlate(registration)) throw new Error('Enter a valid registration number (e.g. TN 01 AB 1234).');
+  await withTimeout(setDoc(doc(db, VENDORS, uid), buildVendorSignupRecord(uid, phone, registration)));
 }
 
 // ── Registration request → one-time invitation (legacy; kept for back-compat) ─

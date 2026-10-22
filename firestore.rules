@@ -266,11 +266,26 @@ service cloud.firestore {
                      && resource.data.status in ['INCOMPLETE', 'Pending']
                      && vendorInvitePreApproved()));
     }
+    // Sign-up with a vehicle number: a phone-verified owner creates its own vendor document,
+    // already submitted for review (PENDING_APPROVAL) and listing at least one vehicle. Only the
+    // owner-writable keys may be present, so approval, review, commission and wallet fields can
+    // never be set at sign-up; staff approval still decides whether the account is usable.
+    function vendorSelfCreateOk() {
+      let d = request.resource.data;
+      return authPhone() != ''
+             && d.keys().hasOnly(vendorOwnerKeys())
+             && d.uid == uid() && d.role == 'vendor' && d.phone == authPhone()
+             && d.status == 'PENDING_APPROVAL'
+             && d.submittedAt == request.time && d.createdAt == request.time
+             && d.fleet is map && d.fleet.vehicles is list
+             && d.fleet.vehicles.size() > 0 && d.fleet.vehicles.size() <= 100
+             && !exists(docPath('customers', uid()))
+             && !exists(docPath('drivers', uid()));
+    }
     match /vendors/{id} {
-      // A vendor account exists only after staff issued a one-time invitation
-      // and its owner redeemed it (redeemVendorInvitation creates the INCOMPLETE
-      // draft). Clients can no longer create one themselves.
-      allow create: if can('people');
+      // Staff can create a vendor, and a verified owner can sign up with a vehicle number
+      // (vendorSelfCreateOk). redeemVendorInvitation (invitation links) still works as well.
+      allow create: if can('people') || (isOwner(id) && vendorSelfCreateOk());
       // Only the vendor itself, admins, and drivers attached to this vendor.
       // (Bank/ID numbers are not here — see vendor_kyc.)
       allow read: if isOwner(id) || isAdmin()

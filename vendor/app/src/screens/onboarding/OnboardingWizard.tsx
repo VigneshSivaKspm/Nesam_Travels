@@ -59,14 +59,12 @@ import {
 } from '../../utils/validation';
 import {
   buildFleetDetails,
+  displayPlate,
   emptyVehicle,
-  indiaToday,
-  isPlate,
   normalizePlate,
   validateVehicle,
   type VehicleErrors,
 } from '../../utils/fleet';
-import { applyDetection, lookupVehicle, type VehicleLookupResult } from '../../services/vehicleLookup';
 import { describeDataError } from '../../utils/retry';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { Badge, Button, Card, Chip, FullScreenLoader, Notice, Row, TextField } from '../../components/ui';
@@ -74,8 +72,6 @@ import { FileUploadField } from '../../components/FileUploadField';
 import { DateField, displayDate } from '../../components/fields';
 import { colors, radius, space, type } from '../../theme';
 
-const VEHICLE_TYPE_CHOICES = ['Hatchback', 'Sedan', 'SUV', 'Premium SUV', 'Tempo Traveller'] as const;
-const DETECT_DELAY_MS = 800;
 
 interface WizardProps {
   record: VendorRecord | null;
@@ -130,7 +126,7 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
   }, [step, back]);
 
   if (prefillLoading) return <FullScreenLoader label="Preparing your application…" />;
-  // If record is still null (createVendorApplication just called), wait.
+  // If record is still null (the application was just created), wait.
   if (!record) return <FullScreenLoader label="Setting up your application…" />;
 
   const correction = record && (record.status === 'CHANGES_REQUESTED' || record.status === 'REJECTED') ? record : null;
@@ -497,24 +493,20 @@ function DocumentsStep({
   );
 }
 
-// ── Step 2: fleet documentation ─────────────────────────────────────────────
+// ── Step 2: fleet ────────────────────────────────────────────────────────────
 
-type Detection = { state: 'idle' } | { state: 'loading' } | { state: 'done'; result: VehicleLookupResult } | { state: 'error'; message: string };
-
+/** Each vehicle is added with its registration number only; RC, insurance, FC, permit and a front photo are optional extras. */
 function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: () => void; onBack: () => void }) {
   const saved = useMemo(() => record.fleet?.vehicles ?? [], [record.fleet]);
-  const legacy = !!record.fleet && !record.fleet.vehicles?.length;
   const [vehicles, setVehicles] = useState<FleetVehicleDoc[]>(saved);
   const [draft, setDraft] = useState<FleetVehicleDoc>(emptyVehicle());
   const [adding, setAdding] = useState(saved.length === 0);
-  const [detection, setDetection] = useState<Detection>({ state: 'idle' });
-  const [detectedFor, setDetectedFor] = useState('');
+  const [moreDocs, setMoreDocs] = useState(false);
   const [errors, setErrors] = useState<VehicleErrors>({});
   const [busy, setBusy] = useState<Record<string, boolean>>({});
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [stepError, setStepError] = useState('');
-  const seq = useRef(0);
 
   const persisted = useMemo(
     () => new Set(saved.flatMap((v) => [...v.rcFiles, ...v.insuranceFiles, ...v.fitnessFiles, ...v.permitFiles, ...v.frontPhotoFiles].map((f) => f.path))),
@@ -529,66 +521,28 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
   const uploading = Object.values(busy).some(Boolean);
 
   const plate = normalizePlate(draft.registrationNumber);
-  const result = detection.state === 'done' ? detection.result : null;
-  const manual = result != null && (result.status === 'unavailable' || result.status === 'not_configured');
-
-  const detect = useCallback(async (raw: string) => {
-    const wanted = normalizePlate(raw);
-    if (!isPlate(wanted)) return;
-    const mine = ++seq.current;
-    setDetection({ state: 'loading' });
-    try {
-      const r = await lookupVehicle(wanted);
-      if (mine !== seq.current) return;
-      setDetection({ state: 'done', result: r });
-      setDetectedFor(wanted);
-      if (r.status === 'found') setDraft((d) => applyDetection(d, r, indiaToday()));
-      else setDraft((d) => ({ ...d, source: 'manual', registrationNumber: raw.trim().toUpperCase() }));
-    } catch (e) {
-      if (mine !== seq.current) return;
-      setDetection({ state: 'error', message: describeDataError(e) });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!adding || !isPlate(draft.registrationNumber) || detectedFor === plate || detection.state !== 'idle') return undefined;
-    const t = setTimeout(() => void detect(draft.registrationNumber), DETECT_DELAY_MS);
-    return () => clearTimeout(t);
-  }, [adding, draft.registrationNumber, plate, detectedFor, detection.state, detect]);
-
-  const onPlate = (text: string) => {
-    const upper = text.toUpperCase();
-    if (normalizePlate(upper) !== plate) {
-      seq.current++;
-      setDetection({ state: 'idle' });
-      setDetectedFor('');
-      setDraft((d) => ({ ...emptyVehicle(), registrationNumber: upper, rcFiles: d.rcFiles, insuranceFiles: d.insuranceFiles, fitnessFiles: d.fitnessFiles, permitFiles: d.permitFiles, frontPhotoFiles: d.frontPhotoFiles }));
-    } else setDraft((d) => ({ ...d, registrationNumber: upper }));
-  };
 
   const setFiles = (key: 'rcFiles' | 'insuranceFiles' | 'fitnessFiles' | 'permitFiles' | 'frontPhotoFiles') => (files: StoredFile[]) =>
     setDraft((d) => ({ ...d, [key]: files }));
 
+  const resetEditor = () => {
+    setDraft(emptyVehicle());
+    setErrors({});
+    setMoreDocs(false);
+  };
+
   const addVehicle = () => {
-    const e = validateVehicle(draft, {
-      detectedFor,
-      duplicate: result?.status === 'found' && result.duplicate,
-      notFound: result?.status === 'not_found',
-      others: vehicles.map((v) => normalizePlate(v.registrationNumber)),
-    });
+    const e = validateVehicle(draft, { others: vehicles.map((v) => normalizePlate(v.registrationNumber)) });
     setErrors(e);
     if (Object.keys(e).length || uploading) return;
-    setVehicles((list) => [...list, { ...draft, registrationNumber: plate, source: result?.status === 'found' ? 'vahan' : 'manual' }]);
-    setDraft(emptyVehicle());
-    setDetection({ state: 'idle' });
-    setDetectedFor('');
-    setErrors({});
+    setVehicles((list) => [...list, { ...draft, registrationNumber: plate, source: 'manual' }]);
+    resetEditor();
     setAdding(false);
   };
 
   const submit = async () => {
     setStepError('');
-    if (!vehicles.length) { setStepError('Add at least one vehicle with its documents.'); return; }
+    if (!vehicles.length) { setStepError('Add at least one vehicle.'); return; }
     if (adding && draft.registrationNumber.trim()) { setStepError('Finish adding the vehicle you started, or clear it, before continuing.'); return; }
     if (uploading || saving) return;
     setSaving(true);
@@ -605,24 +559,19 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
 
   return (
     <View>
-      {legacy ? <Notice tone="info" message="Please add each vehicle below with its own RC, insurance, FC and permit. Earlier combined uploads are kept for reference." /> : null}
-
       {vehicles.map((v) => (
         <View key={v.registrationNumber} style={styles.vehicle}>
           <View style={{ flex: 1 }}>
-            <Text style={type.h3}>{v.registrationNumber}</Text>
-            <Text style={type.small}>{[v.make, v.model].filter(Boolean).join(' ') || v.category}</Text>
-            <Text style={type.tiny}>{[v.category, v.seatClass ? `${v.seatClass} seats` : '', v.fuelType].filter(Boolean).join(' • ')}</Text>
-            <Text style={type.tiny}>
-              Insurance {displayDate(v.insuranceUpto)} · FC {displayDate(v.fitnessUpto)} · Permit {displayDate(v.permitUpto)}
-            </Text>
+            <Text style={type.h3}>{displayPlate(v.registrationNumber)}</Text>
+            {[v.make, v.model].filter(Boolean).length ? <Text style={type.small}>{[v.make, v.model].filter(Boolean).join(' ')}</Text> : null}
+            {v.category ? <Text style={type.tiny}>{v.category === 'Premium SUV' ? 'Innova Crysta' : v.category}</Text> : null}
           </View>
-          <Badge label={v.source === 'vahan' ? 'Register verified' : 'Manual check'} tone={v.source === 'vahan' ? 'success' : 'warning'} />
+          <Badge label="NESAM will verify" tone="warning" />
           <Text
             style={styles.remove}
             onPress={() => setVehicles((list) => list.filter((x) => x.registrationNumber !== v.registrationNumber))}
             accessibilityRole="button"
-            accessibilityLabel={`Remove ${v.registrationNumber}`}
+            accessibilityLabel={`Remove ${displayPlate(v.registrationNumber)}`}
           >
             Remove
           </Text>
@@ -632,73 +581,39 @@ function FleetStep({ record, onNext, onBack }: { record: VendorRecord; onNext: (
       {adding ? (
         <View style={styles.editor}>
           <Text style={[type.h3, { marginBottom: space.sm }]}>{vehicles.length ? 'Add another vehicle' : 'Add a vehicle'}</Text>
-          <TextField label="Registration number" required value={draft.registrationNumber} onChangeText={onPlate} autoCapitalize="characters" placeholder="TN 01 AB 1234" error={errors.registrationNumber} />
-          <Text style={[type.tiny, { marginBottom: space.sm }]}>Make, model, seats and fuel type are filled in automatically from the vehicle register.</Text>
-          <Button
-            title={detection.state === 'loading' ? 'Checking…' : detectedFor === plate && plate ? 'Check again' : 'Detect vehicle'}
-            variant="secondary"
-            loading={detection.state === 'loading'}
-            disabled={!isPlate(draft.registrationNumber) || detection.state === 'loading'}
-            onPress={() => void detect(draft.registrationNumber)}
-            style={{ marginBottom: space.md }}
+          <TextField
+            label="Registration number"
+            required
+            value={draft.registrationNumber}
+            onChangeText={(t) => setDraft((d) => ({ ...d, registrationNumber: t.toUpperCase() }))}
+            autoCapitalize="characters"
+            autoCorrect={false}
+            placeholder="TN 01 AB 1234"
+            error={errors.registrationNumber}
+            hint="As printed on the number plate. NESAM verifies the vehicle during review."
           />
-          {detection.state === 'loading' ? (
-            <View style={styles.detecting}>
-              <ActivityIndicator color={colors.primary} />
-              <Text style={type.small}>Looking up {draft.registrationNumber} in the vehicle register…</Text>
-            </View>
-          ) : null}
-          {detection.state === 'error' ? <Notice message={detection.message} /> : null}
-          {result?.status === 'not_found' ? <Notice message="This registration number was not found in the vehicle register. Check the number on the plate and try again." /> : null}
-          {result?.status === 'found' && result.duplicate ? <Notice message="This vehicle is already registered with another NESAM partner. Please contact NESAM support." /> : null}
-          {result?.status === 'found' && draft.source === 'vahan' ? (
-            <View style={styles.detected}>
-              <View style={styles.detectedHead}>
-                <Ionicons name="checkmark-circle" size={20} color={colors.success} />
-                <Text style={[type.h3, { flex: 1 }]}>Vehicle found</Text>
-                <Badge label={draft.category === 'Premium SUV' ? 'Innova Crysta' : draft.category} tone="brand" />
-              </View>
-              <Text style={type.body}>{[draft.make, draft.model].filter(Boolean).join(' ')}</Text>
-              <Text style={type.small}>{[draft.fuelType, draft.seatClass ? `${draft.seatClass} seats` : '', draft.year].filter(Boolean).join(' • ')}</Text>
-              <Text style={[type.tiny, { marginTop: 4 }]}>Registered to {result.vehicle.ownerNameMasked || 'the owner on record'}.</Text>
-              {result.issues.map((i) => (
-                <Text key={i.code} style={[type.tiny, { color: colors.warning, marginTop: 4 }]}>
-                  ⚠ {i.message} Enter the dates from your current document below.
-                </Text>
-              ))}
-            </View>
-          ) : null}
-          {manual ? (
+
+          <Button
+            title={moreDocs ? 'Hide vehicle documents' : 'Add vehicle documents (optional)'}
+            variant="ghost"
+            onPress={() => setMoreDocs((v) => !v)}
+            style={{ marginBottom: space.sm }}
+          />
+          {moreDocs ? (
             <>
-              <Notice tone="warning" message="Automatic vehicle detection is unavailable right now. Choose the vehicle type — NESAM will verify the vehicle from your documents." />
-              <Text style={[type.label, { marginBottom: 6 }]}>Vehicle type<Text style={{ color: colors.primary }}> *</Text></Text>
-              <View style={styles.chips}>
-                {VEHICLE_TYPE_CHOICES.map((t) => (
-                  <Chip key={t} label={t === 'Premium SUV' ? 'Innova Crysta' : t} active={draft.category === t} onPress={() => setDraft((d) => ({ ...d, category: t }))} />
-                ))}
-              </View>
-              {errors.category ? <Text style={styles.err}>{errors.category}</Text> : null}
+              <FileUploadField label="RC (registration certificate)" category="vehicle_rc" files={draft.rcFiles} onChange={setFiles('rcFiles')} persistedPaths={persisted} onBusyChange={onRc} max={2} />
+              <FileUploadField label="Insurance" category="vehicle_insurance" files={draft.insuranceFiles} onChange={setFiles('insuranceFiles')} persistedPaths={persisted} onBusyChange={onIns} max={2} />
+              <DateField label="Insurance valid till" value={draft.insuranceUpto} onChange={(d) => setDraft((x) => ({ ...x, insuranceUpto: d }))} minimumDate={new Date()} />
+              <FileUploadField label="FC (fitness certificate)" category="vehicle_fc" files={draft.fitnessFiles} onChange={setFiles('fitnessFiles')} persistedPaths={persisted} onBusyChange={onFc} max={2} />
+              <DateField label="FC valid till" value={draft.fitnessUpto} onChange={(d) => setDraft((x) => ({ ...x, fitnessUpto: d }))} minimumDate={new Date()} />
+              <FileUploadField label="Permit" category="vehicle_permit" files={draft.permitFiles} onChange={setFiles('permitFiles')} persistedPaths={persisted} onBusyChange={onPermit} max={2} />
+              <DateField label="Permit valid till" value={draft.permitUpto} onChange={(d) => setDraft((x) => ({ ...x, permitUpto: d }))} minimumDate={new Date()} />
+              <FileUploadField label="Vehicle front (with plate)" hint="Clear photo showing the number plate · JPG/PNG/WEBP" category="vehicle_photos" files={draft.frontPhotoFiles} onChange={setFiles('frontPhotoFiles')} persistedPaths={persisted} onBusyChange={onFront} max={1} />
             </>
           ) : null}
-
-          <Text style={[type.h3, { marginVertical: space.sm }]}>Vehicle documents</Text>
-          <FileUploadField label="RC (registration certificate)" required category="vehicle_rc" files={draft.rcFiles} onChange={setFiles('rcFiles')} persistedPaths={persisted} onBusyChange={onRc} error={errors.rcFiles} max={2} />
-          <FileUploadField label="Insurance" required category="vehicle_insurance" files={draft.insuranceFiles} onChange={setFiles('insuranceFiles')} persistedPaths={persisted} onBusyChange={onIns} error={errors.insuranceFiles} max={2} />
-          <DateField label="Insurance valid till" required value={draft.insuranceUpto} onChange={(d) => setDraft((x) => ({ ...x, insuranceUpto: d }))} minimumDate={new Date()} error={errors.insuranceUpto} />
-          <FileUploadField label="FC (fitness certificate)" required category="vehicle_fc" files={draft.fitnessFiles} onChange={setFiles('fitnessFiles')} persistedPaths={persisted} onBusyChange={onFc} error={errors.fitnessFiles} max={2} />
-          <DateField label="FC valid till" required value={draft.fitnessUpto} onChange={(d) => setDraft((x) => ({ ...x, fitnessUpto: d }))} minimumDate={new Date()} error={errors.fitnessUpto} />
-          <FileUploadField label="Permit" required category="vehicle_permit" files={draft.permitFiles} onChange={setFiles('permitFiles')} persistedPaths={persisted} onBusyChange={onPermit} error={errors.permitFiles} max={2} />
-          <DateField label="Permit valid till" required value={draft.permitUpto} onChange={(d) => setDraft((x) => ({ ...x, permitUpto: d }))} minimumDate={new Date()} error={errors.permitUpto} />
-          <FileUploadField label="Vehicle front (with plate)" required hint="Clear photo showing the number plate · JPG/PNG/WEBP" category="vehicle_photos" files={draft.frontPhotoFiles} onChange={setFiles('frontPhotoFiles')} persistedPaths={persisted} onBusyChange={onFront} error={errors.frontPhotoFiles} max={1} />
-          {Object.keys(errors).length ? <Notice message="Please fix the highlighted fields." /> : null}
           <View style={styles.nav}>
             {vehicles.length ? (
-              <Button
-                title="Cancel"
-                variant="secondary"
-                onPress={() => { setAdding(false); setDraft(emptyVehicle()); setErrors({}); setDetection({ state: 'idle' }); setDetectedFor(''); }}
-                style={{ flex: 1 }}
-              />
+              <Button title="Cancel" variant="secondary" onPress={() => { setAdding(false); resetEditor(); }} style={{ flex: 1 }} />
             ) : null}
             <Button title={uploading ? 'Uploading…' : 'Add vehicle'} disabled={uploading} onPress={addVehicle} style={{ flex: 2 }} />
           </View>
@@ -775,7 +690,7 @@ function ReviewStep({ record, onEdit, onBack }: { record: VendorRecord; onEdit: 
           <Row
             key={v.registrationNumber}
             label={v.registrationNumber}
-            value={`${[v.make, v.model].filter(Boolean).join(' ') || v.category} · ${v.source === 'vahan' ? 'register verified' : 'manual check'}`}
+            value={[v.make, v.model].filter(Boolean).join(' ') || v.category || 'NESAM will verify the vehicle'}
           />
         ))}
       </ReviewSection>
@@ -847,7 +762,4 @@ const styles = StyleSheet.create({
   vehicle: { flexDirection: 'row', alignItems: 'center', gap: space.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: space.md, marginBottom: space.sm, backgroundColor: colors.card },
   remove: { color: colors.primary, fontWeight: '800', fontSize: 12 },
   editor: { borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, padding: space.md, marginBottom: space.md, backgroundColor: colors.bg },
-  detecting: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: space.md },
-  detected: { borderWidth: 1, borderColor: colors.success, backgroundColor: colors.successSoft, borderRadius: radius.md, padding: space.md, marginBottom: space.md },
-  detectedHead: { flexDirection: 'row', alignItems: 'center', gap: space.sm, marginBottom: 4 },
 });

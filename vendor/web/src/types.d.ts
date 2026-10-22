@@ -229,15 +229,15 @@ export interface VendorDocuments {
 }
 
 /**
- * One vehicle in the application's fleet documentation (spec page 13): the
- * registration number, what the vehicle register says about it, and its RC,
- * insurance, FC, permit and front photo. The register copy is a snapshot; the
- * authoritative record is the server-written vehicle_lookups/{plate}.
+ * One vehicle in the application's fleet. Sign-up needs only the registration number; the make,
+ * model, dates and the RC, insurance, FC, permit and front photo are optional extras that NESAM
+ * can ask for during review. Older applications may carry details copied from the vehicle register
+ * (source 'vahan'); nothing writes those any more.
  */
 export interface FleetVehicleDoc {
   /** Normalised plate, e.g. TN01AB1234. */
   registrationNumber: string;
-  /** Where the vehicle's identity came from. */
+  /** Where the vehicle's identity came from. Sign-up records 'manual'; 'vahan' only appears on older applications. */
   source: 'vahan' | 'manual';
   /** Suggested NESAM category (Sedan, SUV, Premium SUV, …). */
   category: string;

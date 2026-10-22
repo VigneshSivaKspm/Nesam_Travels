@@ -1,35 +1,34 @@
-// Self-registration entry screen (replaces the old invitation-gate).
-// Shown to a signed-in phone number that has no vendors/{uid} document yet.
-// The user reads a brief explainer and taps "Start application"; we create the
-// vendors/{uid} draft with status INCOMPLETE and the real-time listener in
-// App.tsx immediately routes them to the OnboardingWizard.
+// Sign-up for a new fleet partner: the verified mobile number plus the vehicle's registration number.
+// Submitting creates the application already submitted for NESAM's review; the vendors/{uid}
+// listener in App.tsx then shows the "under review" screen.
 import React, { useState } from 'react';
-import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { createVendorApplication } from '../../services/onboardingService';
+import { registerVendorWithVehicle } from '../../services/onboardingService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../config/constants';
+import { displayPlate, isPlate, normalizePlate } from '../../utils/fleet';
 import { describeDataError } from '../../utils/retry';
-import { Button, Card, Notice } from '../../components/ui';
+import { Button, Card, Notice, TextField } from '../../components/ui';
 import { colors, radius, space, type } from '../../theme';
 
-const STEPS = [
-  { icon: 'business-outline' as const, title: 'Business details', desc: 'Owner name, agency name, operating city and bank account for settlements.' },
-  { icon: 'document-text-outline' as const, title: 'Identity & documents', desc: 'GST / trade license and a government-issued identity proof.' },
-  { icon: 'car-outline' as const, title: 'Fleet documentation', desc: 'Each vehicle\'s RC, insurance, FC, permit and a front photo.' },
-  { icon: 'checkmark-circle-outline' as const, title: 'Submit for review', desc: 'NESAM reviews your application and activates your account once approved.' },
-];
-
 export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOut: () => void }) {
+  const [plate, setPlate] = useState('');
+  const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  const start = async () => {
+  const invalid = !isPlate(plate);
+  const fieldError = touched && invalid ? 'Enter the registration number as printed on the plate, e.g. TN 01 AB 1234.' : '';
+
+  const register = async () => {
+    setTouched(true);
+    if (invalid || busy) return;
     setBusy(true);
     setError('');
     try {
-      await createVendorApplication(phone);
-      // vendors/{uid} listener in App.tsx fires and routes to OnboardingWizard.
+      await registerVendorWithVehicle(phone, plate);
+      // vendors/{uid} listener in App.tsx fires and routes to the account status screen.
     } catch (e) {
       setError(describeDataError(e));
       setBusy(false);
@@ -38,66 +37,58 @@ export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOu
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        {/* Hero */}
-        <View style={styles.hero}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="business" size={40} color={colors.white} />
-          </View>
-          <Text style={[type.h1, styles.heroTitle]}>Become a NESAM{'\n'}fleet partner</Text>
-          <Text style={[type.body, styles.heroSub]}>
-            Register your travel agency or fleet and start accepting bookings from thousands of NESAM customers.
-          </Text>
-        </View>
-
-        {/* What you'll need */}
-        <Card style={styles.stepsCard}>
-          <Text style={[type.label, { color: colors.muted, marginBottom: space.sm }]}>WHAT YOU'LL FILL IN</Text>
-          {STEPS.map((s, i) => (
-            <View key={s.title} style={[styles.stepRow, i < STEPS.length - 1 && styles.stepRowBorder]}>
-              <View style={styles.stepNum}>
-                <Text style={styles.stepNumText}>{i + 1}</Text>
-              </View>
-              <Ionicons name={s.icon} size={20} color={colors.primary} style={{ marginTop: 2 }} />
-              <View style={{ flex: 1 }}>
-                <Text style={type.h3}>{s.title}</Text>
-                <Text style={[type.small, { color: colors.muted }]}>{s.desc}</Text>
-              </View>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+          <View style={styles.hero}>
+            <View style={styles.heroIcon}>
+              <Ionicons name="car" size={40} color={colors.white} />
             </View>
-          ))}
-        </Card>
+            <Text style={[type.h1, styles.heroTitle]}>Become a NESAM fleet partner</Text>
+            <Text style={[type.body, styles.heroSub]}>Sign up with your vehicle number. That is all we need to start your application.</Text>
+          </View>
 
-        <View style={styles.noteBox}>
-          <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
-          <Text style={[type.small, { flex: 1, color: colors.ink }]}>
-            Your application is reviewed by the NESAM team. You'll get full access — bookings, drivers, vehicles and wallet — once approved.
-          </Text>
-        </View>
+          <Card style={styles.stepsCard}>
+            <TextField
+              label="Vehicle registration number"
+              required
+              value={plate}
+              onChangeText={(t) => setPlate(t.toUpperCase())}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              placeholder="TN 01 AB 1234"
+              error={fieldError}
+              hint="As printed on the number plate."
+              returnKeyType="done"
+              onSubmitEditing={() => void register()}
+              style={{ marginBottom: 0 }}
+            />
+          </Card>
 
-        {/* Signed-in as */}
-        <View style={styles.phoneRow}>
-          <Ionicons name="phone-portrait-outline" size={14} color={colors.muted} />
-          <Text style={[type.tiny, { color: colors.muted }]}>Registering as <Text style={{ fontWeight: '700', color: colors.ink }}>{phone}</Text></Text>
-        </View>
+          <View style={styles.noteBox}>
+            <Ionicons name="information-circle-outline" size={16} color={colors.primary} />
+            <Text style={[type.small, { flex: 1, color: colors.ink }]}>
+              NESAM reviews your application and verifies the vehicle before bookings, drivers, vehicles and wallet become active. We will contact you on {phone} if anything else is needed.
+            </Text>
+          </View>
 
-        {error ? <Notice message={error} style={{ marginBottom: space.md }} onRetry={() => void start()} /> : null}
+          <View style={styles.phoneRow}>
+            <Ionicons name="phone-portrait-outline" size={14} color={colors.muted} />
+            <Text style={[type.tiny, { color: colors.muted }]}>
+              Registering as <Text style={{ fontWeight: '700', color: colors.ink }}>{phone}</Text>
+              {!invalid ? <Text> · Vehicle <Text style={{ fontWeight: '700', color: colors.ink }}>{displayPlate(normalizePlate(plate))}</Text></Text> : null}
+            </Text>
+          </View>
 
-        <Button
-          title={busy ? 'Starting your application…' : 'Start application'}
-          loading={busy}
-          onPress={() => void start()}
-          style={styles.cta}
-        />
+          {error ? <Notice message={error} style={{ marginBottom: space.md }} onRetry={() => void register()} /> : null}
 
-        <View style={styles.footer}>
-          <Button
-            title={`Need help? Call ${SUPPORT_PHONE_DISPLAY}`}
-            variant="secondary"
-            onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)}
-          />
-          <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
-        </View>
-      </ScrollView>
+          <Button title={busy ? 'Submitting…' : 'Register vehicle'} loading={busy} onPress={() => void register()} style={styles.cta} />
+
+          <View style={styles.footer}>
+            <Button title={`Need help? Call ${SUPPORT_PHONE_DISPLAY}`} variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
+            <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -115,14 +106,6 @@ const styles = StyleSheet.create({
   heroTitle: { textAlign: 'center', marginBottom: space.xs },
   heroSub: { textAlign: 'center', color: colors.muted, paddingHorizontal: space.md },
   stepsCard: { padding: space.md, marginBottom: space.md },
-  stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: space.sm, paddingVertical: space.sm },
-  stepRowBorder: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  stepNum: {
-    width: 22, height: 22, borderRadius: 11,
-    backgroundColor: colors.primarySoft, borderWidth: 1.5, borderColor: colors.primaryBorder,
-    alignItems: 'center', justifyContent: 'center',
-  },
-  stepNumText: { fontSize: 11, fontWeight: '800', color: colors.primary },
   noteBox: {
     flexDirection: 'row', alignItems: 'flex-start', gap: space.sm,
     backgroundColor: colors.primarySoft, borderWidth: 1, borderColor: colors.primaryBorder,

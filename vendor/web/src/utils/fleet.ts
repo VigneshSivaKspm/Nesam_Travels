@@ -1,6 +1,7 @@
-// Fleet documentation helpers (spec page 13): plate handling, per-vehicle
-// validation and the FleetDetails the application stores. Pure, no I/O.
-// Mirrored in vendor/web/src/utils/fleet.ts.
+// Fleet helpers: plate handling, per-vehicle validation and the FleetDetails the application stores.
+// Pure, no I/O. A vehicle needs only its registration number to join an application: there is no
+// register lookup, and documents are optional extras NESAM can ask for during review.
+// Mirrored in vendor/{app,web}/src/utils/fleet.ts.
 import type { FleetDetails, FleetVehicleDoc } from '../types';
 
 /** Plate as printed, with or without spaces/hyphens. */
@@ -10,6 +11,13 @@ export const isPlate = (v: string) => {
   const n = normalizePlate(v);
   return (n.length >= 6 && /^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{1,4}$/.test(n)) || /^\d{2}BH\d{4}[A-Z]{1,2}$/.test(n);
 };
+
+/** "TN01AB1234" → "TN 01 AB 1234" (falls back to the normalised text for odd plates). */
+export function displayPlate(v: string): string {
+  const n = normalizePlate(v);
+  const m = /^([A-Z]{2})(\d{1,2})([A-Z]{0,3})(\d{1,4})$/.exec(n);
+  return m ? [m[1], m[2], m[3], m[4]].filter(Boolean).join(' ') : n;
+}
 
 /** Today in India (YYYY-MM-DD); document validity is a calendar-day matter. */
 export function indiaToday(now = new Date()): string {
@@ -37,36 +45,17 @@ export const emptyVehicle = (): FleetVehicleDoc => ({
   frontPhotoFiles: [],
 });
 
-export type VehicleErrors = Partial<Record<'registrationNumber' | 'category' | 'rcFiles' | 'insuranceFiles' | 'insuranceUpto' | 'fitnessFiles' | 'fitnessUpto' | 'permitFiles' | 'permitUpto' | 'frontPhotoFiles', string>>;
+/** A vehicle known only by its registration number. */
+export const vehicleFromPlate = (plate: string): FleetVehicleDoc => ({ ...emptyVehicle(), registrationNumber: normalizePlate(plate) });
 
-/**
- * What a vehicle needs before it joins the application: a detected (or, when
- * the register was unreachable, hand-typed) identity, each of RC / insurance /
- * FC / permit with an unexpired validity, and the front photo.
- * `detectedFor` is the plate the last register check was run for.
- */
-export function validateVehicle(v: FleetVehicleDoc, ctx: { detectedFor: string; duplicate: boolean; notFound: boolean; others: string[]; today?: string }): VehicleErrors {
-  const today = ctx.today ?? indiaToday();
-  const e: VehicleErrors = {};
+export type VehicleErrors = Partial<Record<'registrationNumber', string>>;
+
+/** What a vehicle needs before it joins the application: a valid plate that is not already listed. */
+export function validateVehicle(v: Pick<FleetVehicleDoc, 'registrationNumber'>, ctx: { others: string[] }): VehicleErrors {
   const plate = normalizePlate(v.registrationNumber);
-  if (!isPlate(plate)) e.registrationNumber = 'Enter a valid registration number (e.g. TN 01 AB 1234).';
-  else if (ctx.others.includes(plate)) e.registrationNumber = 'This vehicle is already in your application.';
-  else if (ctx.detectedFor !== plate) e.registrationNumber = 'Check the vehicle first: tap "Detect vehicle".';
-  else if (ctx.notFound) e.registrationNumber = 'This registration number was not found in the vehicle register. Check it and try again.';
-  else if (ctx.duplicate) e.registrationNumber = 'This vehicle is already registered with another NESAM partner. Contact NESAM support.';
-  if (!v.category) e.category = 'Choose the vehicle type.';
-  if (!v.rcFiles.length) e.rcFiles = 'Upload the RC.';
-  if (!v.insuranceFiles.length) e.insuranceFiles = 'Upload the insurance policy.';
-  if (!v.insuranceUpto) e.insuranceUpto = 'Required';
-  else if (v.insuranceUpto <= today) e.insuranceUpto = 'Insurance has expired.';
-  if (!v.fitnessFiles.length) e.fitnessFiles = 'Upload the fitness certificate (FC).';
-  if (!v.fitnessUpto) e.fitnessUpto = 'Required';
-  else if (v.fitnessUpto <= today) e.fitnessUpto = 'Fitness certificate has expired.';
-  if (!v.permitFiles.length) e.permitFiles = 'Upload the permit.';
-  if (!v.permitUpto) e.permitUpto = 'Required';
-  else if (v.permitUpto <= today) e.permitUpto = 'Permit has expired.';
-  if (!v.frontPhotoFiles.length) e.frontPhotoFiles = 'Upload the vehicle front photo.';
-  return e;
+  if (!isPlate(plate)) return { registrationNumber: 'Enter a valid registration number (e.g. TN 01 AB 1234).' };
+  if (ctx.others.includes(plate)) return { registrationNumber: 'This vehicle is already in your application.' };
+  return {};
 }
 
 /** The FleetDetails stored on vendors/{uid}: the vehicles plus per-document aggregates for the viewers. */
@@ -84,8 +73,8 @@ export function buildFleetDetails(vehicles: FleetVehicleDoc[]): FleetDetails {
   };
 }
 
-/** True when every stored vehicle still passes (an expiry may have passed while the draft sat). */
-export function fleetIsComplete(fleet: FleetDetails | null, today = indiaToday()): boolean {
+/** True when the fleet lists at least one vehicle and every plate is valid and unique. */
+export function fleetIsComplete(fleet: FleetDetails | null): boolean {
   const list = fleet?.vehicles;
   if (!list?.length) return false;
   const seen = new Set<string>();
@@ -93,7 +82,6 @@ export function fleetIsComplete(fleet: FleetDetails | null, today = indiaToday()
     const plate = normalizePlate(v.registrationNumber);
     if (!isPlate(plate) || seen.has(plate)) return false;
     seen.add(plate);
-    const e = validateVehicle(v, { detectedFor: plate, duplicate: false, notFound: false, others: [], today });
-    return Object.keys(e).length === 0;
+    return true;
   });
 }
