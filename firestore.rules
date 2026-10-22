@@ -871,6 +871,22 @@ service cloud.firestore {
       allow update: if false;
     }
 
+    // ── Partner links (driver / vehicle moves between owner-drivers and vendors) ──
+    // Written only by functions/src/partnerLinks.ts. The vendor that asked, the vendor losing the
+    // record, and staff who review people or fleet can read; the one-time code lives in
+    // partner_link_secrets, which nobody can read.
+    match /partner_links/{linkId} {
+      allow read: if can('people') || can('fleet')
+                  || (isVendor() && (resource.data.get('toVendorId', '') == uid()
+                                     || resource.data.get('fromVendorId', '') == uid()));
+      allow write: if false;
+      match /events/{eventId} {
+        allow read: if can('people') || can('fleet');
+        allow write: if false;
+      }
+    }
+    match /partner_link_secrets/{linkId} { allow read, write: if false; }
+
     // Default deny.
     match /{document=**} {
       allow read, write: if false;

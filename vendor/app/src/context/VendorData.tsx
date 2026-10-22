@@ -29,6 +29,7 @@ import {
 } from '../services/vendorService';
 import { EMPTY_WALLET, monthEarnings } from '../utils/wallet';
 import { describeDataError } from '../utils/retry';
+import { linkIsOpen, subscribeToMyLinks, type PartnerLink } from '../services/partnerLinks';
 
 interface VendorDataValue {
   profile: VendorProfile;
@@ -42,6 +43,10 @@ interface VendorDataValue {
   marketTrips: MarketTrip[];
   bids: VendorBid[];
   invites: DriverInviteRecord[];
+  /** Driver / vehicle linking requests that touch this fleet. */
+  links: PartnerLink[];
+  /** Requests this vendor still has to act on (a code to enter, or waiting for the office). */
+  openLinks: PartnerLink[];
   payouts: VendorPayoutRequest[];
   /** The server wallet (wallets/vendor_{uid}); the app never computes a balance. */
   wallet: WalletDetails;
@@ -67,6 +72,7 @@ export function VendorDataProvider({ profile, record, children }: { profile: Ven
   const [marketTrips, setMarketTrips] = useState<MarketTrip[]>([]);
   const [bids, setBids] = useState<VendorBid[]>([]);
   const [invites, setInvites] = useState<DriverInviteRecord[]>([]);
+  const [links, setLinks] = useState<PartnerLink[]>([]);
   const [payouts, setPayouts] = useState<VendorPayoutRequest[]>([]);
   const [wallet, setWallet] = useState<WalletDetails>(EMPTY_WALLET);
   const [ledger, setLedger] = useState<LedgerRecord[]>([]);
@@ -110,6 +116,7 @@ export function VendorDataProvider({ profile, record, children }: { profile: Ven
     [vendorId],
   );
   useEffect(() => subscribeToInvites(vendorId, setInvites), [vendorId]);
+  useEffect(() => subscribeToMyLinks(vendorId, setLinks, () => undefined), [vendorId]);
   useEffect(() => subscribeToVendorPayouts(vendorId, setPayouts), [vendorId]);
   useEffect(
     () =>
@@ -140,13 +147,15 @@ export function VendorDataProvider({ profile, record, children }: { profile: Ven
       marketTrips,
       bids,
       invites,
+      links,
+      openLinks: links.filter((l) => linkIsOpen(l) && l.toVendorId === vendorId),
       payouts,
       wallet,
       ledger,
       monthEarnings: monthEarnings(ledger),
       errors,
     };
-  }, [profile, record, vehicles, drivers, bookings, marketTrips, bids, invites, payouts, wallet, ledger, errors]);
+  }, [profile, record, vehicles, drivers, bookings, marketTrips, bids, invites, links, vendorId, payouts, wallet, ledger, errors]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

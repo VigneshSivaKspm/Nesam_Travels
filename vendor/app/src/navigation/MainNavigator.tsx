@@ -4,21 +4,21 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
 import { useVendorData } from '../context/VendorData';
-import { DashboardScreen } from '../screens/DashboardScreen';
-import { MarketplaceScreen } from '../screens/MarketplaceScreen';
-import { TripsScreen } from '../screens/TripsScreen';
-import { FleetScreen } from '../screens/FleetScreen';
-import { MoreScreen } from '../screens/MoreScreen';
+import { DutiesScreen } from '../screens/DutiesScreen';
 import { DriversScreen } from '../screens/DriversScreen';
+import { VehiclesScreen } from '../screens/VehiclesScreen';
 import { WalletScreen } from '../screens/WalletScreen';
-import { DocumentsScreen } from '../screens/DocumentsScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+import { AccountScreen } from '../screens/AccountScreen';
+import { RequestsScreen } from '../screens/RequestsScreen';
 import { NotificationsScreen } from '../screens/NotificationsScreen';
 import { PenaltiesScreen } from '../screens/PenaltiesScreen';
+import { DocumentsScreen } from '../screens/DocumentsScreen';
+import { ProfileScreen } from '../screens/ProfileScreen';
+import { AgreementsScreen } from '../screens/AgreementsScreen';
 import { NotificationPopups } from '../components/NotificationPopups';
 import { PenaltyAckModal } from '../components/PenaltyAckModal';
 import { useInbox } from '../context/Inbox';
-import { markNotificationRead, } from '../services/partnerNotifications';
+import { markNotificationRead } from '../services/partnerNotifications';
 import { onPushOpened } from '../services/notificationService';
 import { navigationRef } from './navigationRef';
 import { colors } from '../theme';
@@ -29,16 +29,18 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const SignOutCtx = createContext<() => void>(() => undefined);
 export const useSignOut = () => useContext(SignOutCtx);
 
-const TAB_ICONS: Record<keyof TabParamList, keyof typeof Ionicons.glyphMap> = {
-  Home: 'grid-outline',
-  Market: 'pricetags-outline',
-  Trips: 'navigate-outline',
-  Fleet: 'car-outline',
-  More: 'menu-outline',
+const TAB_ICONS: Record<keyof TabParamList, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
+  Duties: { on: 'navigate', off: 'navigate-outline' },
+  Drivers: { on: 'people', off: 'people-outline' },
+  Vehicles: { on: 'car', off: 'car-outline' },
+  Payouts: { on: 'wallet', off: 'wallet-outline' },
+  Account: { on: 'person-circle', off: 'person-circle-outline' },
 };
 
 function Tabs() {
-  const { awaitingDispatch, marketTrips } = useVendorData();
+  const { awaitingDispatch, marketTrips, openLinks } = useVendorData();
+  const { unacknowledged } = useInbox();
+  const newDuties = marketTrips.length + awaitingDispatch.length;
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -46,14 +48,20 @@ function Tabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
-        tabBarIcon: ({ color, size }) => <Ionicons name={TAB_ICONS[route.name]} color={color} size={size} />,
+        tabBarIcon: ({ color, size, focused }) => <Ionicons name={TAB_ICONS[route.name][focused ? 'on' : 'off']} color={color} size={size} />,
       })}
     >
-      <Tab.Screen name="Home" component={DashboardScreen} options={{ title: 'Dashboard' }} />
-      <Tab.Screen name="Market" component={MarketplaceScreen} options={{ title: 'Marketplace', tabBarBadge: marketTrips.length || undefined }} />
-      <Tab.Screen name="Trips" component={TripsScreen} options={{ tabBarBadge: awaitingDispatch.length || undefined }} />
-      <Tab.Screen name="Fleet" component={FleetScreen} />
-      <Tab.Screen name="More" component={MoreScreen} />
+      <Tab.Screen name="Duties" component={DutiesScreen} options={{ tabBarBadge: newDuties || undefined }} />
+      <Tab.Screen name="Drivers" component={DriversScreen} />
+      <Tab.Screen name="Vehicles" component={VehiclesScreen} />
+      <Tab.Screen name="Payouts" component={WalletScreen} />
+      <Tab.Screen
+        name="Account"
+        component={AccountScreen}
+        options={{
+          tabBarBadge: openLinks.length + unacknowledged.length || undefined,
+        }}
+      />
     </Tab.Navigator>
   );
 }
@@ -63,18 +71,25 @@ function openPage(page: string) {
   if (!navigationRef.isReady()) return;
   switch (page) {
     case 'market':
-      return navigationRef.navigate('Tabs', { screen: 'Market' });
     case 'trips':
     case 'booking-detail':
-      return navigationRef.navigate('Tabs', { screen: 'Trips' });
+      return navigationRef.navigate('Tabs', { screen: 'Duties' });
     case 'wallet':
-      return navigationRef.navigate('Wallet');
+      return navigationRef.navigate('Tabs', { screen: 'Payouts' });
+    case 'drivers':
+      return navigationRef.navigate('Tabs', { screen: 'Drivers' });
+    case 'fleet':
+    case 'vehicles':
+      return navigationRef.navigate('Tabs', { screen: 'Vehicles' });
+    case 'requests':
+    case 'partner-links':
+      return navigationRef.navigate('Requests');
     case 'profile':
       return navigationRef.navigate('Profile');
     case 'penalties':
       return navigationRef.navigate('Penalties');
     default:
-      return navigationRef.navigate('Notifications');
+      return navigationRef.navigate('Alerts');
   }
 }
 
@@ -101,14 +116,20 @@ function WorkspaceOverlays() {
 export function MainNavigator({ onSignOut }: { onSignOut: () => void }) {
   return (
     <SignOutCtx.Provider value={onSignOut}>
-      <Stack.Navigator screenOptions={{ headerTintColor: colors.ink, headerTitleStyle: { fontWeight: '800' }, headerShadowVisible: false }}>
+      <Stack.Navigator
+        screenOptions={{
+          headerTintColor: colors.ink,
+          headerTitleStyle: { fontWeight: '800' },
+          headerShadowVisible: false,
+        }}
+      >
         <Stack.Screen name="Tabs" component={Tabs} options={{ headerShown: false }} />
-        <Stack.Screen name="Drivers" component={DriversScreen} options={{ title: 'Drivers & invites' }} />
-        <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet & payouts' }} />
-        <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documents & compliance' }} />
-        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Business profile' }} />
-        <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ title: 'Notifications' }} />
+        <Stack.Screen name="Requests" component={RequestsScreen} options={{ title: 'Linking requests' }} />
+        <Stack.Screen name="Alerts" component={NotificationsScreen} options={{ title: 'Alerts' }} />
         <Stack.Screen name="Penalties" component={PenaltiesScreen} options={{ title: 'Penalties' }} />
+        <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documents & compliance' }} />
+        <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Business & contact' }} />
+        <Stack.Screen name="Agreements" component={AgreementsScreen} options={{ title: 'Agreements accepted' }} />
       </Stack.Navigator>
       <WorkspaceOverlays />
     </SignOutCtx.Provider>

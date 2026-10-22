@@ -44,6 +44,7 @@ export const PAGE_ACCESS: Record<string, Permission | null | "super"> = {
   customers: "people",
   vendors: "people",
   drivers: "people",
+  "partner-links": "people",
   vehicles: "fleet",
   categories: "pricing",
   pricing: "pricing",

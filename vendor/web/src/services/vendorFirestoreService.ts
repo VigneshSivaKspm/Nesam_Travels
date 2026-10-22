@@ -1,7 +1,6 @@
 import { callBackend, settleBooking, settlePayout } from './backend';
 import { callFunction } from './callables';
 import {
-  runTransaction,
   addDoc,
   collection,
   collectionGroup,
@@ -168,22 +167,28 @@ export function subscribeToVendorBids(vendorId: string, cb: (bids: BidProposal[]
     cb(bids.sort((a, b) => (b.submittedAt?.getTime() ?? 0) - (a.submittedAt?.getTime() ?? 0))), onError);
 }
 
-export async function submitBidToFirestore(trip: OpenTrip, counterRate: number, note: string, vendorId: string, vendorName: string) {
-  await addDoc(collection(db, MARKETPLACE_COLLECTION, trip.id, "bids"), {
-    tripId: trip.id,
-    bookingId: trip.bookingId,
-    vendorId,
-    vendorName,
-    vendorCounterRate: counterRate,
-    offeredPayout: trip.offeredPayout,
-    biddingNote: note.trim(),
-    status: "Pending Review",
-    submittedAt: serverTimestamp(),
-  });
-  await updateDoc(doc(db, MARKETPLACE_COLLECTION, trip.id), {
-    status: "Bidding",
-    lastBidAt: serverTimestamp(),
-  });
+/** The server rejects a counter rate that is the offer itself or implausibly high. */
+export const MAX_COUNTER_MULTIPLE = 3;
+export function validateCounterRate(rate: number, offered: number | null): string {
+  if (!Number.isFinite(rate) || rate <= 0) return "Enter your payout in whole rupees.";
+  if (!Number.isInteger(rate)) return "Enter a whole-rupee amount.";
+  if (offered && rate === offered) return "That is the offered payout — use Accept instead.";
+  if (offered && rate > offered * MAX_COUNTER_MULTIPLE) return `That looks too high (most you can ask is ₹${Math.round(offered * MAX_COUNTER_MULTIPLE).toLocaleString("en-IN")}).`;
+  return "";
+}
+
+/** Submits a counter-bid for NESAM's review. One bid per vendor per trip: a newer one replaces it. Runs on the server. */
+export async function submitCounterBid(trip: OpenTrip, rate: number, note: string) {
+  const invalid = validateCounterRate(rate, trip.offeredPayout);
+  if (invalid) throw new Error(invalid);
+  await callFunction("submitMarketplaceBid", { tripId: trip.id, rate, note: note.trim().slice(0, 300) }, 30000);
+  settleBooking(trip.id);
+}
+
+/** Withdraws a bid still under review. */
+export async function withdrawBid(bid: BidProposal) {
+  if (bid.status !== "Pending Review") throw new Error("Only bids under review can be withdrawn.");
+  await callFunction("withdrawMarketplaceBid", { tripId: bid.tripId, bidId: bid.id }, 30000);
 }
 
 /**
@@ -202,6 +207,11 @@ export async function assignTripInFirestore(tripId: string, driver: FleetDriver,
 export function subscribeToVendorActiveTrips(vendorId: string, cb: (trips: VendorTrip[]) => void, onError: OnError) {
   return listen(query(collection(db, BOOKINGS_COLLECTION), where("assignedVendorId", "==", vendorId)), mapVendorTrip, (trips) =>
     cb(trips.filter((t) => t.status !== "Completed" && t.status !== "Cancelled")), onError);
+}
+
+/** Every trip this vendor holds, including finished ones (the Duties screen filters by stage). */
+export function subscribeToVendorTrips(vendorId: string, cb: (trips: VendorTrip[]) => void, onError: OnError) {
+  return listen(query(collection(db, BOOKINGS_COLLECTION), where("assignedVendorId", "==", vendorId)), mapVendorTrip, cb, onError);
 }
 
 export function subscribeToVendorPayouts(vendorId: string, cb: (payouts: PayoutRequest[]) => void, onError: OnError) {
@@ -229,17 +239,12 @@ export async function requestVendorPayout(requestId: string, amount: number, met
   settlePayout(requestId);
 }
 
-export async function acceptOfferedRate(tripId: string, vendorId: string, vendorName: string): Promise<void> {
-  await runTransaction(db, async tx => {
-    const ref = doc(db, 'marketplace_trips', tripId);
-    const snap = await tx.get(ref);
-    if (!snap.exists() || !['Open', 'Bidding'].includes(snap.data().status)) throw new Error('This trip is no longer available.');
-    const payout = Number(snap.data().offeredPayout);
-    if (!Number.isFinite(payout) || payout <= 0) throw new Error('This trip needs an administrator to review its payout.');
-    tx.update(doc(db, 'bookings', tripId), { status: 'Confirmed', assignedVendorId: vendorId, assignedVendorName: vendorName,
-      vendorPayout: payout, confirmedAt: serverTimestamp(), updatedAt: serverTimestamp() });
-    tx.update(ref, { status: 'Assigned', assignedVendorId: vendorId, assignedVendorName: vendorName, updatedAt: serverTimestamp() });
-  });
+/**
+ * Accepts a marketplace trip at the offered payout. The claim runs on the server (claimMarketplaceDuty): it picks exactly
+ * one winner among vendors, owner-drivers and NESAM's own assignment, so the browser writes nothing to the booking or the offer.
+ */
+export async function acceptOfferedRate(tripId: string): Promise<void> {
+  await callFunction("claimMarketplaceDuty", { bookingId: tripId }, 30000);
   settleBooking(tripId);
 }
 

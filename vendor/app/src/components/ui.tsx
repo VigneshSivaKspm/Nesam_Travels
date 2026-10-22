@@ -17,6 +17,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, space, type } from '../theme';
 import { initials } from '../utils/format';
 
@@ -230,7 +231,7 @@ export function Chip({ label, active, onPress }: { label: string; active?: boole
 type NoticeTone = 'error' | 'info' | 'success' | 'warning';
 const NOTICE: Record<NoticeTone, { bg: string; border: string; fg: string }> = {
   error: { bg: colors.primarySoft, border: colors.primaryBorder, fg: colors.primaryDark },
-  info: { bg: colors.infoSoft, border: '#BFDBFE', fg: colors.info },
+  info: { bg: colors.infoSoft, border: '#C9D8F0', fg: colors.info },
   success: { bg: colors.successSoft, border: colors.successBorder, fg: colors.success },
   warning: { bg: colors.warningSoft, border: colors.warningBorder, fg: colors.warning },
 };
@@ -284,7 +285,7 @@ export function EmptyState({ title, message, action }: { title: string; message?
 
 export function Badge({ label, tone = 'neutral' }: { label: string; tone?: 'neutral' | 'success' | 'warning' | 'danger' | 'info' | 'brand' }) {
   const map = {
-    neutral: { bg: '#F3F4F6', fg: '#374151' },
+    neutral: { bg: '#F0F1F4', fg: '#596072' },
     success: { bg: colors.successSoft, fg: colors.success },
     warning: { bg: colors.warningSoft, fg: colors.warning },
     danger: { bg: colors.primarySoft, fg: colors.danger },
@@ -302,10 +303,10 @@ export function Badge({ label, tone = 'neutral' }: { label: string; tone?: 'neut
 
 export function Avatar({ name, photoUrl, size = 48 }: { name: string; photoUrl?: string; size?: number }) {
   if (photoUrl) {
-    return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.border }} />;
+    return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: size * 0.3, backgroundColor: colors.border }} />;
   }
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
+    <View style={[styles.avatar, { width: size, height: size, borderRadius: size * 0.3 }]}>
       <Text style={[styles.avatarText, { fontSize: size * 0.36 }]}>{initials(name)}</Text>
     </View>
   );
@@ -353,6 +354,104 @@ export function Sheet({
   );
 }
 
+// ── Partner (NESAM Partner design) building blocks ─────────────────────────
+
+/** A number with a caption, for the stat strip at the top of a screen. */
+export function Stat({ value, label, tone, onPress }: { value: string; label: string; tone?: 'accent' | 'good'; onPress?: () => void }) {
+  const color = tone === 'accent' ? colors.primary : tone === 'good' ? colors.success : colors.ink;
+  return (
+    <Pressable onPress={onPress} disabled={!onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={`${label}: ${value}`} style={styles.stat}>
+      <Text style={[styles.statValue, { color }]} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.statLabel} numberOfLines={1}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** Horizontally scrolling pill tabs with optional counts. */
+export function PillTabs<T extends string>({ tabs, value, onChange }: { tabs: { id: T; label: string; count?: number; hot?: boolean }[]; value: T; onChange: (id: T) => void }) {
+  return (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillRow} accessibilityRole="tablist">
+      {tabs.map((t) => {
+        const on = t.id === value;
+        return (
+          <Pressable key={t.id} onPress={() => onChange(t.id)} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[styles.pill, on && styles.pillOn]}>
+            <Text style={[styles.pillText, on && { color: colors.white }]}>{t.label}</Text>
+            {t.count ? (
+              <View style={[styles.pillCount, t.hot && !on && { backgroundColor: colors.primary }, on && { backgroundColor: 'rgba(255,255,255,0.22)' }]}>
+                <Text style={[styles.pillCountText, (t.hot || on) && { color: colors.white }]}>{t.count}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+/** Route with a pickup and a drop, as in the NESAM Driver app. */
+export function RouteStack({ pickup, drop }: { pickup: string; drop: string }) {
+  const name = (a: string) => a.split(',')[0]?.trim() || a || '—';
+  const detail = (a: string) => {
+    const i = a.indexOf(',');
+    return i > 0 ? a.slice(i + 1).trim() : '';
+  };
+  return (
+    <View style={styles.route}>
+      <View style={styles.routeStop}>
+        <View style={[styles.routeDot, { borderRadius: 6 }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.routeName} numberOfLines={1}>
+            {name(pickup)}
+          </Text>
+          {detail(pickup) ? (
+            <Text style={type.tiny} numberOfLines={1}>
+              {detail(pickup)}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+      <View style={styles.routeLine} />
+      <View style={styles.routeStop}>
+        <View style={[styles.routeDot, { borderColor: colors.primary, borderRadius: 3 }]} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.routeName} numberOfLines={1}>
+            {name(drop)}
+          </Text>
+          {detail(drop) ? (
+            <Text style={type.tiny} numberOfLines={1}>
+              {detail(drop)}
+            </Text>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+/** A tappable row with an icon tile, used for account menus. */
+export function MenuRow({ icon, label, value, onPress, danger }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; value?: string; onPress: () => void; danger?: boolean }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" style={({ pressed }) => [styles.menuRow, pressed && { backgroundColor: colors.bg }]}>
+      <View style={[styles.menuIcon, danger && { backgroundColor: colors.primarySoft }]}>
+        <Ionicons name={icon} size={20} color={danger ? colors.danger : '#4B5160'} />
+      </View>
+      <Text style={[styles.menuLabel, danger && { color: colors.danger }]} numberOfLines={1}>
+        {label}
+      </Text>
+      {value ? (
+        <Text style={type.small} numberOfLines={1}>
+          {value}
+        </Text>
+      ) : null}
+      <Ionicons name="chevron-forward" size={18} color={colors.faint} />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg },
   padded: { padding: space.lg },
@@ -369,9 +468,14 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     padding: space.lg,
     marginBottom: space.md,
+    shadowColor: '#1B2632',
+    shadowOpacity: 0.06,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
   sectionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: space.sm, marginTop: space.sm },
-  sectionTitle: { fontSize: 12, fontWeight: '800', color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
+  sectionTitle: { fontSize: 12, fontWeight: '700', color: colors.muted, letterSpacing: 0.6, textTransform: 'uppercase' },
   row: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 6, gap: space.md },
   rowLabel: { flex: 1, fontSize: 13, color: colors.muted },
   rowValue: { flexShrink: 1, fontSize: 13, color: colors.ink, fontWeight: '600', textAlign: 'right' },
@@ -389,7 +493,7 @@ const styles = StyleSheet.create({
   btnSmall: { minHeight: 36, paddingHorizontal: space.md, borderRadius: radius.sm },
   btnDisabled: { opacity: 0.5 },
   btnPressed: { opacity: 0.85 },
-  btnText: { fontSize: 15, fontWeight: '700' },
+  btnText: { fontSize: 15, fontWeight: '600' },
   btnTextSmall: { fontSize: 13 },
   link: { color: colors.primary, fontWeight: '700', fontSize: 13 },
   fieldLabel: { ...type.label, marginBottom: 6 },
@@ -449,8 +553,8 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { ...type.h3, textAlign: 'center' },
   emptyMsg: { ...type.small, textAlign: 'center', marginTop: 4 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, alignSelf: 'flex-start' },
-  badgeText: { fontSize: 11, fontWeight: '800' },
+  badge: { paddingHorizontal: 9, paddingVertical: 3, borderRadius: 7, alignSelf: 'flex-start' },
+  badgeText: { fontSize: 11.5, fontWeight: '700' },
   avatar: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: colors.primary, fontWeight: '800' },
   sheetBackdrop: { flex: 1, backgroundColor: colors.overlay },
@@ -464,4 +568,21 @@ const styles = StyleSheet.create({
   sheetHandle: { alignSelf: 'center', width: 40, height: 4, borderRadius: 2, backgroundColor: colors.border, marginTop: space.sm },
   sheetHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: space.md, gap: space.md },
   sheetClose: { color: colors.muted, fontWeight: '700', fontSize: 14, padding: 4 },
+  stat: { flexGrow: 1, flexBasis: '46%', backgroundColor: colors.card, borderRadius: radius.lg, borderWidth: 1, borderColor: colors.border, paddingVertical: 12, paddingHorizontal: 14 },
+  statValue: { fontSize: 20, fontWeight: '700', letterSpacing: -0.3 },
+  statLabel: { fontSize: 12, color: colors.muted, marginTop: 2 },
+  pillRow: { gap: 8, paddingHorizontal: space.lg, paddingVertical: space.sm },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 40, paddingHorizontal: 15, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.card },
+  pillOn: { backgroundColor: '#20242E', borderColor: '#20242E' },
+  pillText: { fontSize: 13, fontWeight: '600', color: '#596072' },
+  pillCount: { minWidth: 20, height: 20, paddingHorizontal: 6, borderRadius: 10, backgroundColor: '#F0F1F4', alignItems: 'center', justifyContent: 'center' },
+  pillCountText: { fontSize: 11, fontWeight: '700', color: '#596072' },
+  route: { marginVertical: space.sm, paddingLeft: 4 },
+  routeStop: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  routeDot: { width: 12, height: 12, borderWidth: 2, borderColor: '#576274', backgroundColor: colors.card, marginTop: 4 },
+  routeLine: { width: 0, height: 14, marginLeft: 5, borderLeftWidth: 1, borderLeftColor: '#C6CCD7', borderStyle: 'dashed' },
+  routeName: { fontSize: 15, fontWeight: '600', color: colors.ink },
+  menuRow: { flexDirection: 'row', alignItems: 'center', gap: space.md, paddingHorizontal: space.lg, minHeight: 58, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  menuIcon: { width: 36, height: 36, borderRadius: 11, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' },
+  menuLabel: { flex: 1, fontSize: 15, fontWeight: '500', color: colors.ink },
 });

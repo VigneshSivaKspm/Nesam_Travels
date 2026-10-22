@@ -31,7 +31,7 @@ export interface FleetVehicle {
   year: string;
   /** null when not recorded. */
   seatingCapacity: number | null;
-  status: 'Active' | 'Maintenance' | 'Inactive';
+  status: 'Active' | 'Maintenance' | 'Inactive' | 'Accident Hold';
   assignedDriverId: string;
   assignedDriverName: string;
   docStatus: VerificationStatus;
@@ -78,6 +78,8 @@ export interface OpenTrip {
   /** Partner payout offered by the platform; null = not valid (cannot be accepted). */
   offeredPayout: number | null;
   status: 'Open' | 'Bidding';
+  /** How NESAM posted it: accept the offer, bid for review, or '' for older posts that allowed both. */
+  mode: 'accept_offer' | 'bid_review' | '';
 }
 
 /** marketplace_trips/{tripId}/bids/{id} submitted by this vendor. */

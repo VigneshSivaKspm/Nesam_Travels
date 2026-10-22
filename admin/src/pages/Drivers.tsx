@@ -478,7 +478,7 @@ export default function Drivers() {
                     className="w-full p-2 border border-[#E5E5E5] rounded-lg text-[12px] mb-1"
                   />
                   <Detail label="Mobile" value={d.phone} />
-                  <Detail label="Vendor" value={d.vendorName || "Independent"} />
+                  <Detail label="Vendor" value={d.vendorName || "Owner-driver (independent)"} />
                   {d.email && <Detail label="Email" value={d.email} />}
                   {d.dob && <Detail label="DOB" value={d.dob} />}
                   {d.address && <Detail label="Address" value={[d.address, d.city, d.pincode].filter(Boolean).join(", ")} />}

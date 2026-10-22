@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
-import { Loader2, ScrollText } from 'lucide-react';
 import { db } from '../services/firebase';
 import { callFunction, ActionError } from '../services/callables';
+import { Banner, Button, Loader } from '../ui/kit';
+import { Icon, IconSprite } from '../ui/Icon';
 
 interface RequiredDoc {
   key: string;
@@ -18,9 +19,8 @@ interface Props {
 }
 
 /**
- * Stops the app until the signed-in person has accepted the current published
- * terms, privacy policy and consents for their role (a new version asks again).
- * If nothing is published, or the status can't be read, it lets them through.
+ * Stops the app until the signed-in person has accepted the current published terms, privacy policy and consents for their
+ * role (a new version asks again). If nothing is published, or the status can't be read, it lets them through.
  */
 export const LegalGate: React.FC<Props> = ({ role, children }) => {
   const [state, setState] = useState<'loading' | 'ok' | 'needed'>('loading');
@@ -45,13 +45,7 @@ export const LegalGate: React.FC<Props> = ({ role, children }) => {
   }, [role]);
   useEffect(() => { void load(); }, [load]);
 
-  if (state === 'loading') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#F7F7F7]" role="status">
-        <Loader2 className="w-7 h-7 text-[#E21E26] animate-spin" />
-      </div>
-    );
-  }
+  if (state === 'loading') return <div className="vx"><Loader label="Checking your agreements…" /></div>;
   if (state === 'ok') return <>{children}</>;
 
   const text = missing.find((m) => m.checkboxText)?.checkboxText || 'I agree to the Terms & Conditions and Privacy Policy.';
@@ -71,32 +65,30 @@ export const LegalGate: React.FC<Props> = ({ role, children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-[#F7F7F7] flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl border border-gray-200 shadow-xl w-full max-w-2xl max-h-[calc(100vh-2rem)] flex flex-col" role="dialog" aria-modal="true" aria-label="Terms and privacy">
-        <div className="px-6 py-4 border-b border-gray-200 flex items-center gap-3">
-          <ScrollText className="w-6 h-6 text-[#E21E26]" />
-          <div>
-            <h1 className="text-lg font-black text-gray-900">Please review and accept to continue</h1>
-            <p className="text-sm text-gray-700">These documents are new or have changed since you last accepted.</p>
+    <div className="vx">
+      <IconSprite />
+      <div className="vx-auth">
+        <div className="vx-auth__col" style={{ maxWidth: 640 }} role="dialog" aria-modal="true" aria-label="Agreements">
+          <div className="vx-card">
+            <div className="vx-media" style={{ marginBottom: 14 }}>
+              <span className="vx-avatar vx-avatar--lg"><Icon name="filecheck" /></span>
+              <div>
+                <strong style={{ fontSize: 18 }}>Review and accept to continue</strong>
+                <small>These documents are new or have changed since you last accepted.</small>
+              </div>
+            </div>
+            {missing.map((m) => (
+              <details key={m.key} className="vx-found" open={missing.length === 1} style={{ background: '#fff' }}>
+                <summary style={{ cursor: 'pointer', fontWeight: 600 }}>{m.title} <span className="vx-muted" style={{ fontWeight: 400 }}>· version {m.version}</span></summary>
+                <pre style={{ whiteSpace: 'pre-wrap', fontFamily: 'inherit', fontSize: 13, lineHeight: 1.7, maxHeight: 280, overflow: 'auto', margin: '10px 0 0' }}>{bodies[m.key] || 'Loading…'}</pre>
+              </details>
+            ))}
+            {error && <Banner tone="err">{error}</Banner>}
+            <label className="vx-check" style={{ margin: '14px 0' }}>
+              <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /><span>{text}</span>
+            </label>
+            <Button variant="primary" block loading={busy} disabled={!checked} onClick={() => void accept()}>{busy ? 'Saving…' : 'Accept and continue'}</Button>
           </div>
-        </div>
-        <div className="px-6 py-4 overflow-y-auto space-y-3">
-          {missing.map((m) => (
-            <details key={m.key} className="border border-gray-300 rounded-xl" open={missing.length === 1}>
-              <summary className="px-4 py-3 text-sm font-bold cursor-pointer text-gray-900">{m.title} <span className="font-normal text-gray-600">· version {m.version}</span></summary>
-              <pre className="px-4 pb-4 text-sm text-gray-800 whitespace-pre-wrap font-sans max-h-72 overflow-auto">{bodies[m.key] || 'Loading…'}</pre>
-            </details>
-          ))}
-          {error && <div role="alert" className="bg-red-50 border border-red-200 text-red-800 text-sm font-semibold p-3 rounded-xl">{error}</div>}
-        </div>
-        <div className="px-6 py-4 border-t border-gray-200 space-y-3">
-          <label className="flex items-start gap-2 text-sm font-semibold text-gray-900">
-            <input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} className="w-5 h-5 mt-0.5 accent-[#E21E26]" />
-            <span>{text}</span>
-          </label>
-          <button onClick={() => void accept()} disabled={!checked || busy} className="w-full sm:w-auto px-8 py-3 bg-[#E21E26] text-white text-sm font-extrabold rounded-xl disabled:opacity-50">
-            {busy ? 'Saving…' : 'Accept and continue'}
-          </button>
         </div>
       </div>
     </div>

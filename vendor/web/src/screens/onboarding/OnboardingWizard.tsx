@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Check, LogOut, MessageSquareWarning } from "lucide-react";
 import type { VendorRecord } from "../../types";
 import { ONBOARDING_STEPS, SECTION_LABELS, stepOfSection } from "../../config/onboarding";
 import { getVendorKyc, type VendorKyc } from "../../services/onboardingService";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
-import {
-  FullScreenLoader,
-  OfflineBanner,
-  RED,
-} from "../../components/onboarding/ui";
+import { FullScreenLoader } from "../../components/onboarding/ui";
+import { Banner, Button } from "../../ui/kit";
+import { Icon, IconSprite } from "../../ui/Icon";
 import { BusinessAccountStep } from "./BusinessAccountStep";
 import { DocumentsStep } from "./DocumentsStep";
 import { FleetStep } from "./FleetStep";
@@ -115,137 +112,61 @@ export const OnboardingWizard: React.FC<OnboardingWizardProps> = ({
   };
 
   return (
-    <div
-      className="min-h-screen w-full font-sans antialiased"
-      style={{ background: "#F5F5F5" }}
-    >
-      <header className="bg-white border-b border-[#E5E5E5] sticky top-0 z-10">
-        <div className="max-w-3xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <img
-              src="/icons/logo.png"
-              alt="NESAM Fleet Partner"
-              className="w-8 h-8 rounded-lg object-contain bg-white border border-[#E5E5E5] p-1 shadow-sm"
-              onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
-            />
+    <div className="vx">
+      <IconSprite />
+      <header className="vx-wizard__bar">
+        <div>
+          <div className="vx-media">
+            <span className="vx-brand__mark" style={{ width: 38, height: 38, borderRadius: 10 }}><img src="/brand/nesam-emblem.jpg" alt="" width={512} height={497} decoding="async" /></span>
             <div>
-              <div className="text-[13px] font-bold text-[#111] leading-tight">
-                Fleet Partner Onboarding
-              </div>
-              <div className="text-[11px] text-[#999] leading-tight">
-                {phone}
-              </div>
+              <strong style={{ fontSize: 14 }}>Fleet partner application</strong>
+              <small>{phone}</small>
             </div>
           </div>
-          <button
-            onClick={onSignOut}
-            className="flex items-center gap-1.5 text-[12px] font-semibold text-[#666] hover:text-[#111]"
-          >
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
+          <Button size="sm" onClick={onSignOut} className="vx-btn--sm"><Icon name="logout" />Sign out</Button>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-4 py-6 space-y-4">
-        {/* Stepper */}
-        <ol
-          className="flex items-center gap-1 sm:gap-2"
-          aria-label="Onboarding progress"
-        >
+      <main className="vx-wizard" style={{ paddingTop: 22 }}>
+        <ol className="vx-steps" aria-label="Application progress">
           {ONBOARDING_STEPS.map((s, i) => {
             const done = i < step || (record?.onboardingStep ?? 0) > i;
             const active = i === step;
-            const flagged = correction?.review?.flaggedSections.some(
-              (f) => stepOfSection(f) === i,
-            );
             return (
-              <li key={s.key} className="flex-1 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => goTo(i)}
-                  disabled={i > maxReachable}
-                  aria-current={active ? "step" : undefined}
-                  className="w-full flex flex-col items-center gap-1.5 disabled:cursor-not-allowed"
-                >
-                  <span
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-[12px] font-bold border-2 transition-colors ${
-                      active
-                        ? "text-white border-transparent"
-                        : flagged
-                          ? "bg-amber-50 border-amber-400 text-amber-700"
-                          : done
-                            ? "bg-emerald-50 border-emerald-500 text-emerald-600"
-                            : "bg-white border-[#E5E5E5] text-[#999]"
-                    }`}
-                    style={active ? { background: RED } : undefined}
-                  >
-                    {done && !active && !flagged ? (
-                      <Check className="w-4 h-4" />
-                    ) : (
-                      i + 1
-                    )}
-                  </span>
-                  <span
-                    className={`text-[10px] sm:text-[11px] font-semibold truncate max-w-full ${active ? "text-[#111]" : "text-[#999]"}`}
-                  >
-                    {s.short}
-                  </span>
+              <li key={s.key} data-state={active ? "active" : done ? "done" : "todo"}>
+                <button type="button" onClick={() => goTo(i)} disabled={i > maxReachable} aria-current={active ? "step" : undefined}
+                  style={{ border: 0, background: "transparent", padding: 0, font: "inherit", color: "inherit", cursor: i > maxReachable ? "not-allowed" : "pointer" }}>
+                  {i + 1}. {s.short}
                 </button>
               </li>
             );
           })}
         </ol>
 
-        {!online && <OfflineBanner />}
-
-        {notice && step === 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 text-[12px] font-medium text-blue-900">
-            {notice}
-          </div>
-        )}
+        {!online && <Banner tone="warn">You’re offline. Changes can’t be saved until your connection is back.</Banner>}
+        {notice && step === 0 && <Banner>{notice}</Banner>}
 
         {correction && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
-            <MessageSquareWarning className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="text-[12px] text-amber-900 space-y-1">
-              <div className="font-bold text-[13px]">
-                {correction.status === "REJECTED"
-                  ? "Your application was not approved"
-                  : "The Nesam team requested changes"}
+          <Banner tone="warn">
+            <strong>{correction.status === "REJECTED" ? "Your application was not approved" : "The NESAM team requested changes"}</strong>
+            {correction.review?.note && <div style={{ whiteSpace: "pre-wrap", marginTop: 4 }}>{correction.review.note}</div>}
+            {!!correction.review?.flaggedSections.length && (
+              <div style={{ marginTop: 6, fontWeight: 600 }}>
+                Please update: {correction.review.flaggedSections.map((f) => SECTION_LABELS[f]).join(", ")}. Then resubmit from the final step.
               </div>
-              {correction.review?.note && (
-                <p className="whitespace-pre-wrap">{correction.review.note}</p>
-              )}
-              {!!correction.review?.flaggedSections.length && (
-                <p className="text-[11px] text-amber-800 font-semibold">
-                  Please update:{" "}
-                  {correction.review.flaggedSections
-                    .map((f) => SECTION_LABELS[f])
-                    .join(", ")}
-                  . Then resubmit from the final step.
-                </p>
-              )}
-            </div>
-          </div>
+            )}
+          </Banner>
         )}
 
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6 sm:p-7 space-y-4">
-          <div>
-            <div className="text-[11px] font-bold uppercase tracking-wider text-[#999]">
-              Step {step + 1} of {ONBOARDING_STEPS.length}
-            </div>
-            <h1 className="text-[18px] sm:text-[20px] font-extrabold text-[#111] mt-0.5">
-              {current.title}
-            </h1>
-          </div>
-
+        <div className="vx-card" style={{ padding: 22 }}>
+          <div className="vx-card__sub" style={{ textTransform: "uppercase", letterSpacing: 1, fontWeight: 600 }}>Step {step + 1} of {ONBOARDING_STEPS.length}</div>
+          <h1 style={{ fontSize: 21, fontWeight: 700, margin: "2px 0 16px" }}>{current.title}</h1>
           {renderStep()}
         </div>
 
-        <div className="text-center text-[11px] text-[#999]">
-          Your progress is saved automatically after each step — you can sign
-          out and continue later.
-        </div>
+        <p className="vx-hint" style={{ textAlign: "center", marginTop: 14 }}>
+          Your progress is saved after each step — you can sign out and continue later.
+        </p>
       </main>
     </div>
   );

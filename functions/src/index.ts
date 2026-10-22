@@ -18,6 +18,7 @@ export { approveAdminRequest, rejectAdminRequest, updateAdminAccess, saveStaffRo
 export { saveCommissionPolicy } from './commission';
 export { awardMarketplaceBid, rejectMarketplaceBid, postBookingToMarketplace, assignIndependentDriver, assignVendor } from './marketplace';
 export { vendorAssignDriver } from './vendorDispatch';
+export { findPartnerDriver, findPartnerVehicle, requestDriverLink, requestVehicleLink, adminCreatePartnerLink, verifyPartnerLinkOtp, resendPartnerLinkOtp, requestPartnerLinkHelp, cancelPartnerLink, decidePartnerLink } from './partnerLinks';
 export { claimMarketplaceDuty, submitMarketplaceBid, withdrawMarketplaceBid } from './claims';
 export { requestPartnerPayout, rebuildPartnerLedger, onBookingFinanceChange, onPayoutRequestWritten } from './ledger';
 export { sendNotification } from './broadcast';

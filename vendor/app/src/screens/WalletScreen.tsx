@@ -32,7 +32,8 @@ export function WalletScreen() {
   const withdrawable = Math.max(0, Math.floor(wallet.available));
 
   return (
-    <Screen edges={[]}>
+    <Screen edges={['top']}>
+      <Text style={[type.h1, { marginBottom: space.md }]}>Payouts</Text>
       {open ? (
         <PayoutSheet
           withdrawable={withdrawable}

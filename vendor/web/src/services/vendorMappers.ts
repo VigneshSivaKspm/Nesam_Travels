@@ -65,7 +65,7 @@ export function mapVehicle(id: string, d: Data): FleetVehicle {
     year: str(d.year) || (num(d.year) !== null ? String(d.year) : ''),
     seatingCapacity: seats !== null && seats > 0 ? seats : null,
     // Same reading as firestore.rules: a missing status is in service.
-    status: d.status === 'Maintenance' || d.status === 'Inactive' ? d.status : 'Active',
+    status: d.status === 'Maintenance' || d.status === 'Inactive' || d.status === 'Accident Hold' ? d.status : 'Active',
     assignedDriverId: str(d.assignedDriverId),
     assignedDriverName: str(d.assignedDriverName),
     // Only an explicit review decision counts; dispatch requires "Approved".
@@ -128,6 +128,7 @@ export function mapOpenTrip(id: string, d: Data): OpenTrip {
     distanceKm: distance !== null && distance > 0 ? distance : null,
     offeredPayout: offer !== null && offer > 0 ? offer : null,
     status: d.status === 'Bidding' ? 'Bidding' : 'Open',
+    mode: d.mode === 'bid_review' ? 'bid_review' : d.mode === 'accept_offer' ? 'accept_offer' : '',
   };
 }
 

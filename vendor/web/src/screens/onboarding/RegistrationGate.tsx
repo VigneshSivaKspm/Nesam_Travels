@@ -1,19 +1,21 @@
 import React, { useState } from 'react';
-import { Car, LogOut, PhoneCall, ShieldCheck, ArrowRight } from 'lucide-react';
 import { registerVendorWithVehicle } from '../../services/onboardingService';
 import { displayPlate, isPlate, normalizePlate } from '../../utils/fleet';
 import { describeDataError } from '../../utils/retry';
-import { Button, ErrorBanner, TextField } from '../../components/onboarding/ui';
+import { Banner, Button, TextInput } from '../../ui/kit';
+import { Icon, IconSprite } from '../../ui/Icon';
 
 interface Props {
   phone: string;
   onSignOut: () => void;
 }
 
+const SUPPORT_PHONE = import.meta.env.VITE_SUPPORT_PHONE || '+91 90250 99990';
+
 /**
  * Sign-up for a new fleet partner: the verified mobile number plus the vehicle's registration number.
- * Submitting creates the application (already submitted for NESAM's review); the real-time listener
- * on vendors/{uid} in App.tsx then shows the "under review" screen.
+ * Submitting creates the application (already submitted for NESAM's review); the real-time listener on vendors/{uid}
+ * in App.tsx then shows the "under review" screen.
  */
 export const RegistrationGate: React.FC<Props> = ({ phone, onSignOut }) => {
   const [plate, setPlate] = useState('');
@@ -40,60 +42,35 @@ export const RegistrationGate: React.FC<Props> = ({ phone, onSignOut }) => {
   };
 
   return (
-    <div className="min-h-screen w-full font-sans antialiased flex items-center justify-center px-4 py-12" style={{ background: '#F5F5F5' }}>
-      <form className="w-full max-w-lg space-y-6" onSubmit={handleRegister} noValidate>
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-2xl mx-auto flex items-center justify-center shadow-md text-white mb-4" style={{ background: '#E21B23' }}>
-            <Car className="w-8 h-8" />
-          </div>
-          <h1 className="text-[24px] font-extrabold text-[#111] tracking-tight">Become a NESAM Fleet Partner</h1>
-          <p className="text-[13px] text-[#666] mt-2 max-w-md mx-auto">
-            Sign up with your vehicle number. That is all we need to start your application.
-          </p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-6 space-y-4">
-          <TextField
-            id="registrationNumber"
-            label="Vehicle registration number"
-            required
-            value={plate}
-            onChange={(v) => setPlate(v.toUpperCase())}
-            error={fieldError}
-            placeholder="TN 01 AB 1234"
-            hint="As printed on the number plate."
-          />
-          <div className="p-3.5 rounded-xl border border-blue-200 bg-blue-50/60 flex items-start gap-2.5 text-[12px] text-blue-900">
-            <ShieldCheck className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
-            <div>
-              <strong>Admin verification:</strong> NESAM reviews your application and verifies the vehicle before Bookings, Marketplace, Drivers, Vehicles and Wallet become active. We will contact you on <strong>{phone}</strong> if anything else is needed.
-            </div>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div className="text-center text-[12px] text-[#888]">
-            Signed in with mobile: <strong className="text-[#111]">{phone}</strong>
-            {!invalid && <> · Vehicle: <strong className="text-[#111] font-mono">{displayPlate(normalizePlate(plate))}</strong></>}
+    <div className="vx">
+      <IconSprite />
+      <div className="vx-auth">
+        <form className="vx-auth__col" onSubmit={handleRegister} noValidate>
+          <div className="vx-auth__brand">
+            <span className="vx-brand__mark"><img src="/brand/nesam-emblem.jpg" alt="" width={512} height={497} decoding="async" /></span>
+            <h1>Become a NESAM Fleet Partner</h1>
+            <p>Sign up with your vehicle number. That is all we need to start your application.</p>
           </div>
 
-          {error && <ErrorBanner message={error} onRetry={() => void handleRegister()} />}
+          <div className="vx-card">
+            <TextInput id="registrationNumber" label="Vehicle registration number" required plate value={plate} onChange={(e) => setPlate(e.target.value.toUpperCase())}
+              error={fieldError} placeholder="TN 01 AB 1234" hint="As printed on the number plate." autoComplete="off" maxLength={14} />
+            <Banner>
+              <strong>Admin verification:</strong> NESAM reviews your application and verifies the vehicle before duties, drivers, vehicles and payouts become active. We will call <strong>{phone}</strong> if anything else is needed.
+            </Banner>
+            <p className="vx-hint" style={{ marginBottom: 12 }}>
+              Signed in with <strong>{phone}</strong>{!invalid && <> · Vehicle <strong className="vx-plate">{displayPlate(normalizePlate(plate))}</strong></>}
+            </p>
+            {error && <Banner tone="err" action={{ label: 'Try again', onClick: () => void handleRegister() }}>{error}</Banner>}
+            <Button type="submit" variant="primary" block loading={busy}>{busy ? 'Submitting…' : 'Register vehicle'}{!busy && <Icon name="arrow" />}</Button>
+          </div>
 
-          <Button type="submit" loading={busy} className="w-full py-3.5 text-[14px] font-bold flex items-center justify-center gap-2 shadow-sm">
-            {busy ? 'Submitting…' : 'Register vehicle'}
-            {!busy && <ArrowRight className="w-4 h-4" />}
-          </Button>
-        </div>
-
-        <div className="flex items-center justify-between text-[12px] font-semibold text-[#666] px-2 pt-2">
-          <a href="tel:+919025099990" className="flex items-center gap-1.5 hover:text-[#111] transition-colors">
-            <PhoneCall className="w-4 h-4 text-[#E21B23]" /> Partner support: +91 90250 99990
-          </a>
-          <button type="button" onClick={onSignOut} className="flex items-center gap-1.5 hover:text-[#111] transition-colors">
-            <LogOut className="w-4 h-4" /> Sign out
-          </button>
-        </div>
-      </form>
+          <div className="vx-auth__foot">
+            <a href={`tel:${SUPPORT_PHONE.replace(/\s/g, '')}`}><Icon name="phone" />Partner support {SUPPORT_PHONE}</a>
+            <button type="button" onClick={onSignOut}><Icon name="logout" />Sign out</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

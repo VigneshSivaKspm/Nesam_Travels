@@ -30,6 +30,7 @@ import Settings from "./pages/Settings";
 
 // Pages — New (Enterprise Multi-Vendor)
 import Vendors from "./pages/Vendors";
+import PartnerLinks from "./pages/PartnerLinks";
 import Marketplace from "./pages/Marketplace";
 import LiveTrips from "./pages/LiveTrips";
 import Penalties from "./pages/Penalties";
@@ -64,6 +65,7 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   customers: { title: "Customers", breadcrumb: ["People", "Customers"] },
   vendors: { title: "Vendor Management", breadcrumb: ["People", "Vendors"] },
   drivers: { title: "Drivers", breadcrumb: ["People", "Drivers"] },
+  "partner-links": { title: "Partner Links", breadcrumb: ["People", "Partner Links"] },
   vehicles: { title: "Vehicles", breadcrumb: ["Fleet", "Vehicles"] },
   categories: {
     title: "Vehicle Categories",
@@ -197,6 +199,8 @@ function AdminShell({ session }: { session: AdminSession }) {
         return <Vendors />;
       case "drivers":
         return <Drivers />;
+      case "partner-links":
+        return <PartnerLinks />;
 
       // Fleet
       case "vehicles":
