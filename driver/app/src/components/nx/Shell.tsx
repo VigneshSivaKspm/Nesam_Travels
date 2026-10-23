@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useR
 import { Linking, Pressable, RefreshControlProps, ScrollView, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../../context/DriverData';
 import { usePresence } from '../../hooks/usePresence';
@@ -165,11 +166,11 @@ export function NxScreen({
   return (
     <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
       <NxTopbar title={title} subtitle={subtitle} />
+      <KeyboardAvoid>
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ paddingTop: 20, paddingHorizontal: gutter, paddingBottom: tabs ? 24 : 40 }}
         keyboardShouldPersistTaps="handled"
-        automaticallyAdjustKeyboardInsets
         refreshControl={refreshControl}
       >
         <View style={{ width: '100%', maxWidth: wide ? 1180 : 760, alignSelf: 'center' }}>
@@ -180,6 +181,7 @@ export function NxScreen({
           </View>
         </View>
       </ScrollView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }

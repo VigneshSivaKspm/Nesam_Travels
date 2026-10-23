@@ -3,7 +3,6 @@
 // vendorAssignDriver. The app writes nothing to a booking or an offer itself.
 import React, { useMemo, useState } from 'react';
 import { Alert, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { useVendorData } from '../context/VendorData';

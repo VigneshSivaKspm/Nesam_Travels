@@ -3,7 +3,6 @@
 // driver confirms with a code sent to their own phone (see components/links).
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useVendorData } from '../context/VendorData';
@@ -70,7 +69,7 @@ export function DriversScreen() {
     ]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <View style={styles.root}>
       {assignFor ? (
         <AssignSheet
           key={assignFor.id}
@@ -185,7 +184,7 @@ export function DriversScreen() {
           ))
         )}
       </Screen>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
 import { useBookingDraft } from '../context/BookingDraft';
@@ -98,6 +99,7 @@ export function SavedPlacesScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Saved Addresses" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <PlaceSearchModal visible={searchOpen} title="Find an address" onClose={() => setSearchOpen(false)} onSelect={setPicked} near={position} />
@@ -161,7 +163,8 @@ export function SavedPlacesScreen() {
           <Button title="Add address" icon="plus" variant="secondary" onPress={() => setAdding('new')} style={{ marginTop: 12 }} />
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

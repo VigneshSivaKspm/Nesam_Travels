@@ -73,6 +73,7 @@ const config: ExpoConfig = {
     ['expo-audio', { microphonePermission: false }],
     '@react-native-community/datetimepicker',
     './plugins/withReleaseSigning',
+    './plugins/withSystemBars',
     [
       'expo-build-properties',
       {

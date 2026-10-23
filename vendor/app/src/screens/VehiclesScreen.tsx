@@ -3,7 +3,6 @@
 // (see components/links). Pairing a driver and changing a vehicle's service status stay direct, rules-checked writes.
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useVendorData } from '../context/VendorData';

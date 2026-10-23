@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { Badge, Button, FlowFooter, Notice, Sheet, Steps, TextButton } from '../components/ui';
 import { Content, ScrollView } from '../components/layout';
@@ -48,12 +49,14 @@ export function ChooseRideScreen() {
   if (!pickup || !drop) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
         <AppHeader title="Choose a cab" onBack={() => navigation.goBack()} />
         <View style={styles.pad}>
           <Notice message="Please set your pickup and drop locations first." />
           <Button title="Plan a trip" onPress={goHome} />
         </View>
-      </SafeAreaView>
+      </KeyboardAvoid>
+</SafeAreaView>
     );
   }
 
@@ -94,6 +97,7 @@ export function ChooseRideScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Choose a cab" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Steps step={2} />
@@ -205,7 +209,8 @@ export function ChooseRideScreen() {
           </>
         ) : null}
       </Sheet>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

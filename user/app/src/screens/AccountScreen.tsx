@@ -4,6 +4,7 @@
 import React, { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
 import { Notice, MenuGroup, MenuRow } from '../components/ui';
@@ -57,6 +58,7 @@ export function AccountScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Account" />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         <Notice message={error} />
@@ -117,7 +119,8 @@ export function AccountScreen() {
           <Text style={styles.logoutBtnText}>Sign out</Text>
         </PressableScale>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

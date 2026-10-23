@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { FlatList, ScrollView } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { useInbox } from '../context/Inbox';
 import { EmptyState, Notice, TextButton } from '../components/ui';
@@ -33,6 +34,7 @@ export function NotificationsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader
         title="Notifications"
         active="alerts"
@@ -92,7 +94,8 @@ export function NotificationsScreen() {
           }}
         />
       </View>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

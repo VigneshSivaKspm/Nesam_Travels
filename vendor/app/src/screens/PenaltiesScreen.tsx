@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useInbox } from '../context/Inbox';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { Badge, EmptyState } from '../components/ui';
 import { PenaltyAckModal } from '../components/PenaltyAckModal';
 import { formatDateTime12 } from '../utils/time';
@@ -22,6 +23,7 @@ export function PenaltiesScreen() {
   const [open, setOpen] = useState<PartnerPenalty | null>(null);
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardAvoid>
       <FlatList
         data={penalties}
         keyExtractor={(p) => p.id}
@@ -46,6 +48,7 @@ export function PenaltiesScreen() {
           </Pressable>
         )}
       />
+      </KeyboardAvoid>
       {open ? <PenaltyAckModal penalty={open} onDone={() => setOpen(null)} /> : null}
     </View>
   );

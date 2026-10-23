@@ -4,6 +4,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useRideFocus } from '../navigation/MainNavigator';
@@ -140,6 +141,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <CancelRideSheet key={trip.id} trip={showCancel ? trip : null} onClose={() => setShowCancel(false)} />
       <SafetySheet visible={showSafety} trip={trip} profile={profile} location={null} onClose={() => setShowSafety(false)} />
       <AppHeader title="Trip Details" subtitle={`#${ref}`} onBack={toBookings} />
@@ -315,7 +317,8 @@ export function ActiveRideScreen({ route, navigation }: Props) {
           <FlowFooter onBack={toBookings} onHome={goHome} />
         </Content>
       </View>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 
@@ -343,6 +346,7 @@ function ConfirmedView({ trip, pending, onHome, onView }: { trip: TripRecord; pe
   const destination = trip.tripType === 'Local Rental' ? 'Local city rental' : trip.drop.name;
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title={confirmed ? 'Booking Confirmed' : 'Booking Received'} subtitle={`#${ref}`} onBack={onHome} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Pressable
@@ -431,7 +435,8 @@ function ConfirmedView({ trip, pending, onHome, onView }: { trip: TripRecord; pe
         </View>
        </Content>
       </View>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

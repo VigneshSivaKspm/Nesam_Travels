@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useInbox } from '../context/Inbox';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { EmptyState } from '../components/ui';
 import { markNotificationRead } from '../services/partnerNotifications';
 import { CATEGORIES, CATEGORY_LABEL, TONE_COLORS, toneOf } from '../utils/notificationModel';
@@ -13,6 +14,7 @@ export function NotificationsScreen() {
   const shown = filter === 'all' ? notifications : notifications.filter((n) => n.category === filter);
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <KeyboardAvoid>
       <View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>
           {(['all', ...CATEGORIES] as const).map((c) => {
@@ -55,6 +57,7 @@ export function NotificationsScreen() {
           );
         }}
       />
+      </KeyboardAvoid>
     </View>
   );
 }

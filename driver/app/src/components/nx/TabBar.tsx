@@ -3,6 +3,7 @@ import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardHeight } from '../KeyboardAvoid';
 import type { TabParamList } from '../../navigation/types';
 import { nx } from '../../theme/nx';
 import { POPPINS } from '../../theme/fonts';
@@ -86,6 +87,8 @@ function TabPressable({
 export function NxTabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   const { short } = useLayout();
+  const keyboardOpen = useKeyboardHeight() > 0;
+  if (keyboardOpen) return null;
 
   return (
     <View

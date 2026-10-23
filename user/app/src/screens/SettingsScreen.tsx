@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useCustomerData } from '../context/CustomerData';
@@ -21,6 +22,7 @@ export function SettingsScreen() {
   }, []);
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Settings" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false}>
         <Card>
@@ -56,7 +58,8 @@ export function SettingsScreen() {
           <MenuRow icon="file-text" title="Terms, privacy & cancellation" subtitle="Agreements and policies" onPress={() => navigation.navigate('LegalDocuments')} />
         </MenuGroup>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

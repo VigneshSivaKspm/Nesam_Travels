@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { FlatList } from '../components/layout';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
 import { Badge, Button, Chip, EmptyState, Notice, type BadgeTone } from '../components/ui';
@@ -48,6 +49,7 @@ export function TripsScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <CancelRideSheet key={cancelTrip?.id ?? 'none'} trip={cancelTrip} onClose={() => setCancelTrip(null)} />
       <AppHeader title="My Bookings" />
       <FlatList
@@ -81,7 +83,8 @@ export function TripsScreen() {
         }
         renderItem={({ item: t }) => <TripCard trip={t} onOpen={() => navigation.navigate('ActiveRide', { bookingId: t.id })} onCancel={() => setCancelTrip(t)} />}
       />
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

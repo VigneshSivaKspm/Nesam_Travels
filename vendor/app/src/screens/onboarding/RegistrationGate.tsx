@@ -2,8 +2,9 @@
 // Submitting creates the application already submitted for NESAM's review; the vendors/{uid}
 // listener in App.tsx then shows the "under review" screen.
 import React, { useState } from 'react';
-import { KeyboardAvoidingView, Linking, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Ionicons } from '@expo/vector-icons';
 import { registerVendorWithVehicle } from '../../services/onboardingService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../../config/constants';
@@ -37,7 +38,7 @@ export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOu
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
           <View style={styles.hero}>
             <View style={styles.heroIcon}>
@@ -88,7 +89,7 @@ export function RegistrationGate({ phone, onSignOut }: { phone: string; onSignOu
             <Button title="Sign out" variant="ghost" onPress={onSignOut} style={{ marginTop: space.sm }} />
           </View>
         </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }

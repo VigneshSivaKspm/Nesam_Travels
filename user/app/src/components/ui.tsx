@@ -21,6 +21,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from './KeyboardAvoid';
 import { colors, fonts, radius, shadows, space, type } from '../theme';
 import { useResponsive, type ContentKind } from '../theme/responsive';
 import { ScrollView, useContentStyle } from './layout';
@@ -69,14 +70,14 @@ export function Screen({
   return (
     <SafeAreaView style={[styles.screen, bg ? { backgroundColor: bg } : null]} edges={edges}>
       {header}
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         {body}
         {footer ? (
           <View style={styles.footer}>
             <View style={content}>{footer}</View>
           </View>
         ) : null}
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }

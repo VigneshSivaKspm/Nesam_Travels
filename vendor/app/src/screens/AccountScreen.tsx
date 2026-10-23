@@ -2,7 +2,6 @@
 // file, and help. Everything else lives in the tabs.
 import React from 'react';
 import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
 import { useVendorData } from '../context/VendorData';
@@ -27,7 +26,7 @@ export function AccountScreen() {
     ]);
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <View style={styles.root}>
       <Screen edges={[]}>
         <Text style={[type.h1, { marginBottom: space.md }]}>Account</Text>
         <Card>
@@ -82,7 +81,7 @@ export function AccountScreen() {
         </Card>
         <Text style={[type.tiny, { textAlign: 'center' }]}>NESAM Vendor v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
       </Screen>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1,5 +1,7 @@
 ﻿import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Text, TextInput } from '../../components/nx/Text';
 import type { ConfirmationResult } from 'firebase/auth';
 import { sendOtpToPhone, confirmOtpCode, describePhoneAuthError } from '../../services/authService';
@@ -83,7 +85,8 @@ export function DriverAuthScreen() {
   if (step === 'otp') {
     return (
       <SafeAreaView style={s.safe}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.kav}>
+        <KeyboardAvoid>
+        <ScrollView contentContainerStyle={s.kav} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={s.card}>
             <Pressable onPress={() => setStep('phone')} style={s.back}>
               <Text style={s.backText}>← Back</Text>
@@ -133,14 +136,16 @@ export function DriverAuthScreen() {
               </Text>
             </Pressable>
           </View>
-        </KeyboardAvoidingView>
+        </ScrollView>
+        </KeyboardAvoid>
       </SafeAreaView>
     );
   }
 
   return (
     <SafeAreaView style={s.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.kav}>
+      <KeyboardAvoid>
+        <ScrollView contentContainerStyle={s.kav} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <View style={s.card}>
           <View style={s.logoBox}>
             <Text style={s.logoText}>N</Text>
@@ -186,14 +191,15 @@ export function DriverAuthScreen() {
             By signing in, you agree to the NESAM Driver Partner Terms & Guidelines.
           </Text>
         </View>
-      </KeyboardAvoidingView>
+      </ScrollView>
+        </KeyboardAvoid>
     </SafeAreaView>
   );
 }
 
 const s = StyleSheet.create({
   safe: { flex: 1, backgroundColor: Colors.darkBg },
-  kav: { flex: 1, justifyContent: 'center' },
+  kav: { flexGrow: 1, justifyContent: 'center' },
   card: {
     margin: 20,
     backgroundColor: '#1C1C1E',

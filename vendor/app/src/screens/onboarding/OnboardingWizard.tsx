@@ -18,6 +18,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../../components/KeyboardAvoid';
 import { Ionicons } from '@expo/vector-icons';
 import type {
   BusinessRegType,
@@ -148,6 +149,7 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
         </View>
         <Button small variant="ghost" title="Sign out" onPress={onSignOut} />
       </View>
+      <KeyboardAvoid>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {/* Step indicator */}
         <View style={styles.stepper}>
@@ -195,6 +197,7 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
         </Card>
         <Text style={[type.tiny, { textAlign: 'center' }]}>Your progress is saved after each step — you can sign out and continue later.</Text>
       </ScrollView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }

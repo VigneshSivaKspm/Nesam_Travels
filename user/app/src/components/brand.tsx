@@ -4,6 +4,7 @@
 import React, { useRef } from 'react';
 import { Animated, Image, Linking, Pressable, type PressableProps, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useKeyboardHeight } from './KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import { colors, fonts, radius, space } from '../theme';
@@ -231,7 +232,9 @@ export function BottomNav({ active }: { active?: NavKey }) {
   const navigation = useNavigation();
   const { service, setService } = useBookingDraft();
   const insets = useSafeAreaInsets();
+  const keyboardOpen = useKeyboardHeight() > 0;
   const selected = active ?? service;
+  if (keyboardOpen) return null;
 
   return (
     <View style={[styles.nav, { paddingBottom: Math.max(8, insets.bottom) }]} accessibilityRole="tablist" accessibilityLabel="Services and account">

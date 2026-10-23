@@ -10,6 +10,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, BackHandler, Image, Pressable, ScrollView, StyleSheet, Switch, View } from 'react-native';
 import { Text } from '../components/nx/Text';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { NxIcon } from '../components/nx/Icon';
 import type { ApprovalStatus, DetectedVehicle, RegistrationData, VehicleCategory, VehicleLookupResult } from '../types/driver';
@@ -277,6 +278,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
 
   return (
     <SafeAreaView style={styles.root} edges={mode === 'update' ? [] : ['top']}>
+      <KeyboardAvoid>
       <ScrollView ref={scrollRef} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         {mode !== 'update' ? (
           <View style={styles.header}>
@@ -489,6 +491,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
           </View>
         </Card>
       </ScrollView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }

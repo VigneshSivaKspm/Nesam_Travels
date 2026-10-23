@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../navigation/types';
 import { useCustomerData } from '../context/CustomerData';
@@ -65,6 +66,7 @@ export function SupportScreen({ route, navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Help & Support" active="support" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.page} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <SupportBanner />
@@ -145,7 +147,8 @@ export function SupportScreen({ route, navigation }: Props) {
           </View>
         ) : null}
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

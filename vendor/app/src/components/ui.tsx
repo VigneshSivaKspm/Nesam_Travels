@@ -17,6 +17,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from './KeyboardAvoid';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, space, type } from '../theme';
 import { initials } from '../utils/format';
@@ -51,10 +52,10 @@ export function Screen({
   );
   return (
     <SafeAreaView style={styles.screen} edges={edges}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoid>
         {body}
         {footer ? <View style={styles.footer}>{footer}</View> : null}
-      </KeyboardAvoidingView>
+      </KeyboardAvoid>
     </SafeAreaView>
   );
 }
@@ -328,7 +329,7 @@ export function Sheet({
   dismissible?: boolean;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={dismissible ? onClose : () => undefined}>
+    <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissible ? onClose : () => undefined}>
       <View style={styles.sheetBackdrop}>
         <Pressable style={{ flex: 1 }} onPress={dismissible ? onClose : undefined} accessibilityLabel="Close" />
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>

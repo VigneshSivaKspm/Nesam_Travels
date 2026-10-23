@@ -104,6 +104,7 @@ const config: ExpoConfig = {
     "@react-native-community/datetimepicker",
     "expo-sharing",
     "./plugins/withReleaseSigning",
+    "./plugins/withSystemBars",
     ...(mapsKey
       ? [
           ["react-native-maps", { androidGoogleMapsApiKey: mapsKey }] as [

@@ -46,6 +46,7 @@ function Tabs() {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: true,
+        tabBarHideOnKeyboard: true,
         header: () => <AppHeader />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,

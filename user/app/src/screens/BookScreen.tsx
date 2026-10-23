@@ -6,6 +6,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Image, Linking, Pressable, ScrollView as RNScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Button, Disclosure, Notice, Segmented, Tabs } from '../components/ui';
@@ -254,6 +255,7 @@ export function BookScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <PlaceSearchModal
         visible={picker !== null}
         title={picker ? fieldLabel(picker) : ''}
@@ -507,7 +509,8 @@ export function BookScreen() {
           ))}
         </RNScrollView>
       </ScrollView>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

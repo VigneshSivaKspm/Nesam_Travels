@@ -3,6 +3,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { FlatList } from '../components/layout';
 import { useNavigation } from '@react-navigation/native';
 import { useCustomerData } from '../context/CustomerData';
@@ -24,6 +25,7 @@ export function PaymentHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Payments & Refunds" onBack={() => navigation.goBack()} />
       <FlatList
         data={rows}
@@ -79,7 +81,8 @@ export function PaymentHistoryScreen() {
           );
         }}
       />
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 

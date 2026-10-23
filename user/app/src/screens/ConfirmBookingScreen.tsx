@@ -4,6 +4,7 @@
 import React, { useRef, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../components/KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
 import { Button, Disclosure, FlowFooter, Notice, RadioCard, Sheet, Steps, TextButton, TextField } from '../components/ui';
 import { Content, ScrollView } from '../components/layout';
@@ -68,13 +69,15 @@ export function ConfirmBookingScreen() {
   if (!pickup || !drop || !route || !category) {
     return (
       <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
         <AppHeader title="Review & Book" onBack={() => navigation.goBack()} />
         <View style={styles.pad}>
           {/* Review & Book header title moved to AppHeader */}
           <Notice message="Your trip details changed. Please go back and choose your cab again." />
           <Button title="Back to Choose your cab" variant="secondary" onPress={() => navigation.goBack()} />
         </View>
-      </SafeAreaView>
+      </KeyboardAvoid>
+</SafeAreaView>
     );
   }
 
@@ -193,6 +196,7 @@ export function ConfirmBookingScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
+<KeyboardAvoid>
       <AppHeader title="Review & Book" onBack={() => navigation.goBack()} />
       <ScrollView kind="narrow" contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Steps step={3} />
@@ -331,7 +335,8 @@ export function ConfirmBookingScreen() {
         <FareLines lines={fareBreakup.lines} total={quote.total} estimated={!authoritative} />
         <Text style={[styles.small, { marginTop: space.md }]}>Toll, parking and state tax are paid separately against receipts.</Text>
       </Sheet>
-    </SafeAreaView>
+    </KeyboardAvoid>
+</SafeAreaView>
   );
 }
 
