@@ -21,6 +21,7 @@ import { useInbox } from '../context/Inbox';
 import { markNotificationRead } from '../services/partnerNotifications';
 import { onPushOpened } from '../services/notificationService';
 import { navigationRef } from './navigationRef';
+import { AppHeader } from '../components/AppHeader';
 import { colors } from '../theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -44,7 +45,8 @@ function Tabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
+        headerShown: true,
+        header: () => <AppHeader />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },

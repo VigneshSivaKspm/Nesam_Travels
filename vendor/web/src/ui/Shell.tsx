@@ -1,34 +1,38 @@
 import React from 'react';
-import { Brand, Avatar } from './kit';
+import { Brand } from './kit';
 import { Icon, IconSprite, type IconName } from './Icon';
 import type { PageId } from '../state/Partner';
 
-interface NavItem { id: PageId; label: string; icon: IconName }
+interface NavItem {
+  id: PageId;
+  label: string;
+  icon: IconName;
+}
 
 const DESKTOP_NAV: NavItem[] = [
   { id: 'duties', label: 'Duties', icon: 'trip' },
-  { id: 'drivers', label: 'Drivers', icon: 'users' },
   { id: 'vehicles', label: 'Vehicles', icon: 'car' },
-  { id: 'requests', label: 'Requests', icon: 'swap' },
-  { id: 'payouts', label: 'Payouts', icon: 'wallet' },
-  { id: 'account', label: 'Account', icon: 'user' },
+  { id: 'drivers', label: 'Drivers', icon: 'users' },
+  { id: 'payouts', label: 'Payments', icon: 'wallet' },
+  { id: 'requests', label: 'Helpdesk', icon: 'swap' },
+  { id: 'account', label: 'My Business', icon: 'user' },
 ];
 
 const PHONE_NAV: NavItem[] = [
-  { id: 'drivers', label: 'Drivers', icon: 'users' },
-  { id: 'vehicles', label: 'Vehicles', icon: 'car' },
   { id: 'duties', label: 'Duties', icon: 'trip' },
-  { id: 'payouts', label: 'Payouts', icon: 'wallet' },
+  { id: 'vehicles', label: 'Fleet', icon: 'car' },
+  { id: 'payouts', label: 'Payments', icon: 'wallet' },
+  { id: 'requests', label: 'Helpdesk', icon: 'swap' },
   { id: 'account', label: 'Account', icon: 'user' },
 ];
 
 export const TITLES: Record<PageId, [string, string]> = {
-  duties: ['Duties', 'New offers, upcoming dispatch and live trips.'],
-  drivers: ['Drivers', 'Invite, link and manage the drivers of your fleet.'],
-  vehicles: ['Vehicles', 'Add vehicles, pair them with drivers and keep them in service.'],
-  requests: ['Requests', 'Drivers and vehicles joining your fleet.'],
-  payouts: ['Payouts', 'Wallet balance, earnings and payout requests.'],
-  account: ['Account', 'Your business, documents and agreements.'],
+  duties: ['Bookings', 'Accept duties. Quote your payout. Assign your team.'],
+  drivers: ['Drivers', 'Invite, link and manage verified drivers of your fleet.'],
+  vehicles: ['Vehicles', 'Your cars, drivers and availability.'],
+  requests: ['Helpdesk', 'Duty change requests and office support.'],
+  payouts: ['Payments', 'Duty accounts and settlements.'],
+  account: ['My Business', 'Your partner profile and account.'],
   alerts: ['Notifications', 'Trips, approvals, payments and penalties.'],
 };
 
@@ -42,75 +46,99 @@ interface ShellProps {
   overlays?: React.ReactNode;
 }
 
-export const Shell: React.FC<ShellProps> = ({ page, go, partnerName, partnerId, counts, children, overlays }) => {
-  const [title, subtitle] = TITLES[page];
-  // The bell opens Notifications; the section it belongs to stays unhighlighted.
+export const Shell: React.FC<ShellProps> = ({
+  page,
+  go,
+  partnerName,
+  partnerId,
+  counts,
+  children,
+  overlays,
+}) => {
+  const [title, subtitle] = TITLES[page] || TITLES.duties;
   const active = page === 'alerts' ? '' : page;
-  const countOf = (id: PageId) => (id === 'requests' ? counts.requests : id === 'duties' ? counts.newDuties : 0);
 
-  const bell = (extra = '') => (
-    <button type="button" className={`vx-iconbtn ${extra}`.trim()} onClick={() => go('alerts')} aria-label={counts.unread ? `Notifications, ${counts.unread} unread` : 'Notifications'}>
-      <Icon name="bell" />
-      {counts.unread > 0 && <span className="vx-iconbtn__dot">{counts.unread > 9 ? '9+' : counts.unread}</span>}
-    </button>
-  );
+  const countOf = (id: PageId) => {
+    if (id === 'requests') return counts.requests;
+    if (id === 'duties') return counts.newDuties;
+    return 0;
+  };
 
   return (
-    <div className="vx">
+    <div className="nesam-vendor-app vx" data-vendor="true">
       <IconSprite />
-      <div className="vx-app">
-        <aside className="vx-side" aria-label="Primary">
-          <Brand />
-          <nav aria-label="Sections" style={{ display: 'grid', gap: 2 }}>
+
+      {/* Top Header matching reference .v-header */}
+      <header className="v-header">
+        <Brand onClick={() => go('duties')} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
+            type="button"
+            className="v-bell"
+            onClick={() => go('alerts')}
+            aria-label={counts.unread ? `Notifications, ${counts.unread} unread` : 'Notifications'}
+          >
+            <Icon name="bell" />
+            {counts.unread > 0 && <i />}
+          </button>
+        </div>
+      </header>
+
+      {/* Main layout with sidebar and content */}
+      <div className="v-layout">
+        <aside className="v-sidebar" aria-label="Main navigation">
+          <nav className="v-nav v-side" aria-label="Sections">
             {DESKTOP_NAV.map((n) => (
-              <button key={n.id} type="button" className="vx-nav" aria-current={active === n.id ? 'page' : undefined} onClick={() => go(n.id)} title={n.label}>
+              <button
+                key={n.id}
+                type="button"
+                aria-current={active === n.id ? 'page' : undefined}
+                onClick={() => go(n.id)}
+                title={n.label}
+              >
                 <Icon name={n.icon} />
-                <span className="vx-nav__label">{n.label}</span>
-                {countOf(n.id) > 0 && <span className="vx-nav__count">{countOf(n.id)}</span>}
+                <span>{n.label}</span>
+                {countOf(n.id) > 0 && <span className="v-small-count">{countOf(n.id)}</span>}
               </button>
             ))}
           </nav>
-          <div className="vx-side__foot">
-            <div className="vx-partner">
-              <Avatar name={partnerName} />
-              <div className="vx-partner__text" style={{ minWidth: 0 }}>
-                <div className="vx-partner__name">{partnerName}</div>
-                <div className="vx-partner__id">Fleet partner · {partnerId.slice(0, 6).toUpperCase()}</div>
-              </div>
-            </div>
+          <div className="v-side-account">
+            <strong>{partnerName}</strong>
+            <span>{partnerId.slice(0, 12).toUpperCase()}</span>
+            <small>Verified partner</small>
           </div>
         </aside>
 
-        <main className="vx-main" id="main">
-          <div className="vx-mobilebar">
-            <Brand />
-            {bell()}
-          </div>
-          <div className="vx-page">
-            <header className="vx-top">
-              <div>
-                <h1>{title}</h1>
-                <p>{subtitle}</p>
-              </div>
-              <div className="vx-top__actions">{bell('vx-iconbtn--desk')}</div>
-            </header>
+        <main className="v-main" id="main">
+          <div className="vx-page" style={{ padding: 0 }}>
             {children}
           </div>
+          <footer className="v-footer">
+            <span>NESAM · Nesam Tours & Travels Private Limited</span>
+            <small>Interactive partner workspace · Live operational updates</small>
+          </footer>
         </main>
       </div>
 
-      <nav className="vx-bottom" aria-label="Primary">
+      {/* Mobile bottom navigation matching reference .v-nav.v-bottom */}
+      <nav className="v-nav v-bottom" aria-label="Mobile navigation">
         {PHONE_NAV.map((n) => {
-          const c = n.id === 'account' ? counts.requests : n.id === 'duties' ? counts.newDuties : 0;
+          const c = countOf(n.id);
           return (
-            <button key={n.id} type="button" className={n.id === 'duties' ? 'is-center' : ''} aria-current={active === n.id || (n.id === 'account' && active === 'requests') ? 'page' : undefined} onClick={() => go(n.id)}>
+            <button
+              key={n.id}
+              type="button"
+              aria-current={active === n.id ? 'page' : undefined}
+              onClick={() => go(n.id)}
+            >
               <Icon name={n.icon} />
               <span>{n.label}</span>
-              {c > 0 && <span className="vx-bottom__count">{c}</span>}
+              {c > 0 && <span className="v-small-count">{c}</span>}
             </button>
           );
         })}
       </nav>
+
       {overlays}
     </div>
   );

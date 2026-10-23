@@ -102,7 +102,7 @@ export const DriversPage: React.FC = () => {
 
 type Step = 'phone' | 'found' | 'code' | 'invited';
 
-const AddDriverDialog: React.FC<{
+export const AddDriverDialog: React.FC<{
   open: boolean; onClose: () => void; vehicleOptions: string[]; onToast: (t: string, k?: 'ok' | 'err') => void;
   onInvite: (phone: string, vehicleNumber: string) => Promise<void>;
 }> = ({ open, onClose, vehicleOptions, onToast, onInvite }) => {

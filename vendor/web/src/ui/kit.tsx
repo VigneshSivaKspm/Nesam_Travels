@@ -2,12 +2,12 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon, type IconName } from './Icon';
 import { initials, placeDetail, placeName } from './format';
 
-export const Brand: React.FC<{ label?: string }> = ({ label = 'PARTNER' }) => (
-  <div className="vx-brand" role="img" aria-label="NESAM Partner">
-    <span className="vx-brand__mark"><img src="/brand/nesam-emblem.jpg" alt="" width={512} height={497} decoding="async" /></span>
-    <div className="vx-brand__text">
+export const Brand: React.FC<{ label?: string; onClick?: () => void }> = ({ label = 'PARTNER', onClick }) => (
+  <div className="v-brand vx-brand" role="img" aria-label="NESAM Partner" onClick={onClick} style={{ cursor: onClick ? 'pointer' : 'default' }}>
+    <span className="v-brand-logo vx-brand__mark"><img src="/brand/nesam-emblem.jpg" alt="" width={512} height={497} decoding="async" /></span>
+    <div className="v-wordmark vx-brand__text">
       <div className="vx-brand__name">NESAM</div>
-      <span className="vx-brand__label">{label}</span>
+      <small className="vx-brand__label">{label}</small>
     </div>
   </div>
 );

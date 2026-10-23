@@ -142,7 +142,7 @@ export function DutiesScreen() {
     );
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <View style={styles.root}>
       {bidTrip ? (
         <BidSheet
           key={bidTrip.id}
@@ -179,7 +179,7 @@ export function DutiesScreen() {
           return <TripCard booking={r.booking} onDispatch={canDispatch(r.booking) ? () => setDispatchFor(r.booking) : undefined} />;
         }}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 

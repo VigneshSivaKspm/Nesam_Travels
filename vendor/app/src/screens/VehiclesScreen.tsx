@@ -80,7 +80,7 @@ export function VehiclesScreen() {
   const approvedCount = vehicles.filter((v) => v.docStatus === 'Approved').length;
 
   return (
-    <SafeAreaView style={styles.root} edges={['top']}>
+    <View style={styles.root}>
       {editing ? (
         <VehicleForm
           existing={editing}
@@ -180,7 +180,7 @@ export function VehiclesScreen() {
           ))
         )}
       </Screen>
-    </SafeAreaView>
+    </View>
   );
 }
 
