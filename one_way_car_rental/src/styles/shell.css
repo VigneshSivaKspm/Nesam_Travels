@@ -242,8 +242,16 @@
   .topbar__mobile {
     display: flex;
   }
+  .topbar__inner {
+    gap: 12px;
+  }
+  .topbar__mobile {
+    flex: none;
+  }
+  /* Room for the fixed tab bar (its own height + the device safe area) so the last content,
+     the footer and final controls stay reachable above it. */
   .shell--nav {
-    padding-bottom: calc(var(--nav-h) + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));
   }
   .bottom-nav {
     position: fixed;
@@ -252,9 +260,10 @@
     bottom: 0;
     z-index: 110;
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
     border-top: 1.5px solid var(--line);
+    box-sizing: border-box;
     background: rgb(255 255 255 / 0.98);
     backdrop-filter: blur(8px);
   }
@@ -264,6 +273,7 @@
     justify-items: center;
     align-content: center;
     gap: 4px;
+    min-width: 0;
     min-height: 54px;
     padding: 6px 0 4px;
     border-radius: var(--r-xs);
@@ -292,6 +302,12 @@
   .bottom-nav__symbol {
     display: grid;
     place-items: center;
+  }
+  .bottom-nav__label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -393,11 +409,11 @@
 
 @media (max-width: 820px) {
   .footer__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
 @media (max-width: 520px) {
   .footer__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

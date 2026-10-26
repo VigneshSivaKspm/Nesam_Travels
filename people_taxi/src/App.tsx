@@ -8,6 +8,7 @@ import { BookingProvider } from '@/state/Booking';
 import { InboxProvider } from '@/state/Inbox';
 import { ToastProvider } from '@/state/Toasts';
 import { isRideDismissed } from '@/state/rideFocus';
+import { takePendingReturn } from '@/lib/pendingReturn';
 import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
 import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
@@ -49,6 +50,25 @@ function RideAutoFocus() {
   return null;
 }
 
+/**
+ * After sign-in: resume the search the rider started as a guest. Mounted inside the terms gate, so
+ * it only runs once the account is ready and any profile / terms steps are done. The pending
+ * destination is read once; it is always a vehicle-selection URL, never a booking submission.
+ */
+function PendingReturn() {
+  const { state } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const here = useRef(location.pathname);
+  here.current = location.pathname;
+
+  useEffect(() => {
+    if (state.status !== 'ready') return;
+    const to = takePendingReturn();
+    if (to && to !== here.current) navigate(to, { replace: true });
+  }, [state.status, navigate]);
+  return null;
+}
 
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
@@ -68,6 +88,7 @@ function AppShellProvider({ children }: { children: ReactNode }) {
       <InboxProvider userId={profile?.uid}>
         <CustomerDataProvider profile={profile}>
           <BookingProvider>
+            {profile ? <PendingReturn /> : null}
             {profile ? <RideAutoFocus /> : null}
             {children}
             <LoginModal />

@@ -1133,7 +1133,7 @@
 }
 .assure__collage {
   display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 12px;
 }
 .assure__collage img {
@@ -1392,15 +1392,15 @@
 }
 @media (max-width: 1099.98px) {
   .services {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .assure__body {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 1023.98px) {
   .hero__stage {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     min-height: 0;
   }
   .hero__copy {
@@ -1413,7 +1413,7 @@
   .how,
   .faq-band,
   .banners {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .faq-band__intro {
     position: static;
@@ -1426,7 +1426,7 @@
     aspect-ratio: 16 / 10;
   }
   .assure__list {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 759.98px) {
@@ -1435,7 +1435,7 @@
   }
   .console .seg {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     width: 100%;
   }
   .console .seg button:nth-child(2n) {
@@ -1449,11 +1449,11 @@
   }
   .console__row,
   .console__row--round {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .console__route {
     position: relative;
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .console__swap {
     position: absolute;
@@ -1493,7 +1493,7 @@
     border-radius: 0 0 calc(var(--r-sm) - 1px) calc(var(--r-sm) - 1px);
   }
   .strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .strip__item,
   .strip__item:nth-child(3) {
@@ -1504,7 +1504,7 @@
     border-top: 1px solid var(--line-strong);
   }
   .sec-head {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .sec-head__no {
     font-size: 4rem;
@@ -1530,7 +1530,7 @@
     --icon: 20px !important;
   }
   .assure__collage {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
   .assure__a {
     grid-column: 1 / -1;
@@ -1566,6 +1566,8 @@
 }
 .hero-copy {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
   align-content: start;
   gap: 16px;
   padding-top: 10px;
@@ -1629,6 +1631,8 @@
 
 /* ── Booking form console (BF) ────────────────────────────────── */
 .bf {
+  min-width: 0;
+  max-width: 100%;
   padding: 24px;
   border: 1.5px solid var(--ink);
   border-radius: var(--r-md);
@@ -1637,10 +1641,12 @@
 }
 .bf-head {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 4px;
   text-align: center;
 }
 .bf-head h2 {
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-size: 1.75rem;
   font-weight: 700;
@@ -1653,7 +1659,7 @@
 }
 .bf-services {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 14px;
   border-bottom: 2px solid var(--paper);
 }
@@ -1662,6 +1668,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  text-align: center;
   min-height: 46px;
   padding: 10px 6px;
   border: 0;
@@ -1696,18 +1705,19 @@
 }
 .bf-form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   margin-top: 16px;
 }
 .bf-route {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: start;
 }
 .bf-route--single {
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
 }
 .bf-route__cell {
   display: grid;
@@ -1750,6 +1760,7 @@
 }
 .bf-field__main {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 2px;
   flex: 1;
   min-width: 0;
@@ -1764,6 +1775,7 @@
 }
 .bf-trigger {
   width: 100%;
+  min-width: 0;
   padding: 2px 0;
   border: 0;
   background: none;
@@ -1827,7 +1839,7 @@
 }
 .bf-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 .bf-cell {
@@ -1836,6 +1848,9 @@
   min-width: 0;
 }
 .bf-input {
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
   min-height: 46px;
   padding: 10px 12px;
   border: 1px solid var(--line);
@@ -1928,8 +1943,16 @@
   font-size: 1.25rem;
   font-weight: 700;
 }
+.bf-offline-service {
+  min-width: 0;
+}
+.bf-offline-service h3,
 .bf-offline-service p {
-  max-width: 420px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.bf-offline-service p {
+  max-width: min(100%, 420px);
   color: var(--muted);
   font-size: var(--fs-sm);
   line-height: 1.6;
@@ -1960,19 +1983,19 @@
 }
 .timepick__group {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
 }
 .timepick__row {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 14px;
 }
 .timepick__group--min {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 .timepick__group--ampm {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .timepick__group button {
   min-height: 42px;
@@ -2141,24 +2164,35 @@
 
 @media (max-width: 999.98px) {
   .home-hero {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 32px;
   }
 }
 @media (max-width: 599.98px) {
+  .home__wrap {
+    padding-top: 24px;
+    padding-bottom: 40px;
+  }
   .bf {
     padding: 18px 14px;
   }
+  .bf-head h2 {
+    font-size: 1.5rem;
+  }
+  .bf-trust {
+    flex-wrap: wrap;
+    text-align: center;
+  }
   .bf-route {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .bf-swap {
     display: none;
   }
   .bf-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .bf-services {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

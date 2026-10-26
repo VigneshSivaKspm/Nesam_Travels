@@ -106,8 +106,8 @@
   --gutter: clamp(18px, 3.2vw, 64px);
   --max: 1760px;
   --side-w: 256px;
-  --nav-h: 0px;
-  --tabbar-h: 62px;
+  --nav-h: 72px;
+  --tabbar-h: 70px; /* fixed phone tab bar: 54px items + 12px padding + 1.5px rule (safe area is added separately) */
   --panel-w: clamp(440px, 34vw, 600px);
   --tap: 48px;
 

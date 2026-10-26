@@ -23,6 +23,7 @@ import { useServerQuotes, type ServerQuoteState } from '@core/hooks/useServerQuo
 import type { ServerCategoryQuote } from '@core/services/quoteService';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { useCustomerData } from '@core/context/CustomerData';
+import { useAuth } from '@/state/Auth';
 
 export type { BookingDraft };
 
@@ -130,7 +131,11 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       couponCode: promoCode || '',
     };
   }, [draft]);
-  const serverQuote = useServerQuotes(quoteRequest);
+  // The booking server only quotes for a signed-in, active rider. Until the account is ready no
+  // request is made (and no earlier answer is kept); becoming ready starts a fresh quote for the
+  // current draft even when the trip itself has not changed.
+  const { state: auth } = useAuth();
+  const serverQuote = useServerQuotes(quoteRequest, auth.status === 'ready');
 
   const value = useMemo<BookingValue>(
     () => ({ draft, update, reset, startFrom, route, routeStatus, retryRoute, categories, categoryStatus, adjustment, coupons, serverQuote }),

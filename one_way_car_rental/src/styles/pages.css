@@ -955,7 +955,7 @@ a.setting:hover {
   .split,
   .support,
   .inbox {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .account__side,
   .split__aside,
@@ -983,12 +983,12 @@ a.setting:hover {
     box-shadow: none;
   }
   .faq--grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 899.98px) {
   .auth {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .auth__main {
     order: 0;

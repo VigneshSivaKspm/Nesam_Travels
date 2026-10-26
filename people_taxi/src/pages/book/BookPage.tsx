@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@core/context/CustomerData';
+import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
 import { Icon } from '@/components/Icon';
@@ -231,9 +232,13 @@ export function BookPage({ step }: { step: BookStep }) {
   );
 
   const { draft } = useBooking();
+  const { state: auth } = useAuth();
   const { pickup, drop } = draft;
 
   if (step !== 'plan' && (!pickup || !drop)) return <Navigate to="/book" replace />;
+  // Fares need a signed-in account: a guest on a later step goes back to the form (draft intact),
+  // where "Search Cabs" asks them to sign in and then resumes vehicle selection.
+  if (step !== 'plan' && auth.status !== 'ready') return <Navigate to="/book" replace />;
   if (step === 'review' && !draft.categoryId) return <Navigate to="/book/ride" replace />;
 
   if (step === 'choose') return <ChooseStep />;

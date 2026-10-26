@@ -13,7 +13,9 @@ import { Button, Tabs } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
+import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
+import { setPendingReturn } from '@/lib/pendingReturn';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
@@ -48,6 +50,7 @@ export function BookingForm({
   onOutstationTrip: (t: 'One Way' | 'Round Trip') => void;
 }) {
   const navigate = useNavigate();
+  const { state: auth, openLoginModal, isLoginModalOpen } = useAuth();
   const { draft, update } = useBooking();
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
@@ -216,7 +219,20 @@ export function BookingForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    navigate('/book/ride');
+    if (auth.status === 'ready') {
+      navigate('/book/ride');
+      return;
+    }
+    // Fares are priced by the booking server for a signed-in account. The trip is already kept in
+    // the draft (tab storage), so a guest signs in here and is then taken on to vehicle selection.
+    // The sign-in window being open is the guard against a duplicate request.
+    if (isLoginModalOpen) return;
+    update({ scheduledAt: scheduled, tripEndAt: outstationTrip === 'Round Trip' && service === 'outstation' ? scheduledEnd : null });
+    setPendingReturn('/book/ride');
+    openLoginModal({
+      title: 'Sign in to see fares',
+      subtitle: 'Sign-in is required to compare cabs and upfront fares. Your trip details are saved.',
+    });
   };
 
   const todayStr = useMemo(() => toDateInput(new Date()), []);

@@ -58,7 +58,7 @@ body {
 }
 
 /* Table hover */
-tr.table-row:hover td {
+tr.table-row:not([data-source]):hover td {
   background-color: #FEF2F2;
 }
 
