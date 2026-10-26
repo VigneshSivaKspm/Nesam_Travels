@@ -168,9 +168,9 @@ export function getBookingSourceDisplay(b: { source?: string; bookingSource?: st
 
 /** Full-row tint + hover per source for the bookings table. Hover is set on the row, so it needs the `data-source` attribute (see index.css). */
 export const BOOKING_SOURCE_TABLE_ROW_CLS: Record<BookingSourceDisplay, string> = {
-  onewaycarrentals: "border-l-4 border-l-emerald-500 bg-emerald-50 hover:bg-emerald-100/70",
-  people_taxi: "border-l-4 border-l-blue-500 bg-blue-50 hover:bg-blue-100/70",
-  nesam: "bg-red-50 hover:bg-red-100/70",
+  onewaycarrentals: "border-l-4 border-l-emerald-500 bg-[#D1FAE5] hover:bg-[#A7F3D0]",
+  people_taxi: "border-l-4 border-l-blue-500 bg-[#DBEAFE] hover:bg-[#BFDBFE]",
+  nesam: "bg-[#FEE2E2] hover:bg-[#FECACA]",
   unknown: "hover:bg-gray-50",
 };
 

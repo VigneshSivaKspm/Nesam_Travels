@@ -7,7 +7,7 @@ import { AdminBookingError, normalizePhone, updateBookingContact, emailError } f
 import ManualBookingModal from "../components/ManualBookingModal";
 import { ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { Field, inputCls } from "../components/FormKit";
-import { AlertBadge, PaymentBadge, StatusBadge, FulfilmentBadge, BookingSourceBadge, BookingSourceCell, bookingSourceRowCls, getBookingSource, getBookingSourceDisplay, BOOKING_SOURCE_TABLE_ROW_CLS } from "../components/booking/BookingBadges";
+import { AlertBadge, PaymentBadge, StatusBadge, FulfilmentBadge, BookingSourceBadge, BookingSourceCell, getBookingSource } from "../components/booking/BookingBadges";
 import { ApproveDialog, AssignDriverModal, CancelBookingModal, RejectDialog } from "../components/booking/BookingActions";
 import { BOOKING_TABS, paymentOf, tabOf, unassignedSeverity, type BookingTab } from "../domain/bookingFlow";
 import { useCan } from "../components/AccessContext";
@@ -243,12 +243,10 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
                   const p = pickupOf(b);
                   const sev = severityOf(b);
                   const pay = paymentOf(b);
-                  // Urgent rows keep their urgency tint; the source stays visible via the Website / Source badge.
-                  const urgent = sev === "critical" || sev === "warning";
-                  const src = getBookingSourceDisplay(b);
+                  // Source and urgency use labelled badges, leaving the row easy to scan.
                   return (
-                    <tr key={b.id} data-source={urgent ? undefined : src} className={`table-row border-b border-[#F0F0F0] align-top ${urgent ? `${bookingSourceRowCls(b)} ${sev === "critical" ? "bg-red-50" : "bg-amber-50"}` : BOOKING_SOURCE_TABLE_ROW_CLS[src]}`}>
-                      <td className="px-3 py-3"><div className="flex items-center gap-1.5 flex-wrap"><button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23] hover:underline">{b.bookingId || b.id}</button></div><div className="text-xs text-[#555]">{b.service}</div></td>
+                    <tr key={b.id} className="border-b border-slate-100 last:border-b-0 align-top bg-white hover:bg-slate-50 focus-within:bg-slate-50 transition-colors">
+                      <td className="px-3 py-3"><div className="flex items-center gap-1.5 flex-wrap"><button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-blue-700 hover:text-blue-800 hover:underline">{b.bookingId || b.id}</button></div><div className="text-xs text-[#555]">{b.service}</div></td>
                       <td className="px-3 py-3 whitespace-nowrap"><BookingSourceCell booking={b} /></td>
                       <td className="px-3 py-3 text-sm"><div className="font-semibold text-[#111]">{b.customer}</div><div className="text-xs text-[#555]">{b.phone}</div></td>
                       <td className="px-3 py-3 text-sm max-w-[200px]"><div className="truncate" title={b.pickup}>{b.pickup}</div><div className="truncate text-[#555]" title={b.drop}>→ {b.drop}</div></td>
@@ -274,11 +272,11 @@ export default function Bookings({ onSelectBooking, initialTab }: { onSelectBook
               const sev = severityOf(b);
               const pay = paymentOf(b);
               return (
-                <li key={b.id} className={`p-4 space-y-2 ${bookingSourceRowCls(b)} ${sev === "critical" ? "bg-red-50" : sev === "warning" ? "bg-amber-50" : ""}`}>
+                <li key={b.id} className="p-4 space-y-2 bg-white hover:bg-slate-50 focus-within:bg-slate-50 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-[#E21B23]">{b.bookingId || b.id}</button>
-                      <BookingSourceBadge booking={b} size="sm" />
+                      <button onClick={() => onSelectBooking(b.id)} className="text-sm font-mono font-semibold text-blue-700 hover:text-blue-800 hover:underline">{b.bookingId || b.id}</button>
+                      <BookingSourceBadge booking={b} size="sm" showNesam />
                     </div>
                     <StatusBadge status={b.status} />
                   </div>
@@ -338,12 +336,12 @@ function RowActions({ b, onView, onApprove, onReject, onAssign, onCancel, onEdit
   const open = ["Pending", "Approved", "Confirmed", "Assigned"].includes(b.status);
   return (
     <div className="flex flex-wrap items-center gap-1.5">
-      <button onClick={onView} className={`${btn} border-[#D4D4D4] text-[#111] hover:bg-gray-50`}>View</button>
+      <button onClick={onView} className={`${btn} bg-white border-[#D4D4D4] text-[#111] hover:bg-gray-50`}>View</button>
       {b.status === "Pending" && <button onClick={onApprove} className={`${btn} border-green-600 bg-green-600 text-white hover:bg-green-700`}>Approve</button>}
-      {b.status === "Pending" && <button onClick={onReject} className={`${btn} border-red-300 text-red-700 hover:bg-red-50`}>Reject</button>}
+      {b.status === "Pending" && <button onClick={onReject} className={`${btn} bg-white border-red-300 text-red-700 hover:bg-red-50`}>Reject</button>}
       {["Approved", "Confirmed", "Assigned"].includes(b.status) && <button onClick={onAssign} className={`${btn} border-[#E21B23] text-[#E21B23] hover:bg-[#FEF2F2]`}>{b.assignedDriverId ? "Change driver" : "Assign driver"}</button>}
       {open && b.status !== "Pending" && <button onClick={onCancel} className={`${btn} border-red-300 text-red-700 hover:bg-red-50`}>Cancel</button>}
-      {b.status !== "Completed" && <button onClick={onEdit} className={`${btn} border-[#D4D4D4] text-[#333] hover:bg-gray-50`}>Edit contact</button>}
+      {b.status !== "Completed" && <button onClick={onEdit} className={`${btn} bg-white border-[#D4D4D4] text-[#333] hover:bg-gray-50`}>Edit contact</button>}
     </div>
   );
 }
