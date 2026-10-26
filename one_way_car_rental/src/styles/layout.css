@@ -1,0 +1,529 @@
+/* Shared page scaffolding and the small contracts the screens rely on.
+   Loaded after the screen stylesheets so one gutter / width / spacing system applies everywhere:
+   --gutter side padding, --max content width, --nav-h header, --tabbar-h phone tab bar. */
+
+/* ── Pages: gutter, max width, bottom space ──────────────────────────────── */
+.page {
+  width: 100%;
+  max-width: var(--max);
+  min-width: 0;
+  margin-inline: auto;
+  padding: clamp(16px, 2.4vw, 32px) var(--gutter) clamp(32px, 5vw, 80px);
+}
+.page > * {
+  min-width: 0;
+}
+.page__after {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.page.split,
+.page .support,
+.page .account,
+.page .inbox {
+  align-items: start;
+}
+
+/* Title block. Inside a flow page's .wrap it sits in the existing gutter; as a direct child of
+   <main> (account, trips, support …) it takes the same gutter and width as .page below it. */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 14px;
+  min-width: 0;
+  margin-bottom: 22px;
+}
+main > .page-head {
+  max-width: var(--max);
+  margin: 0 auto;
+  padding: clamp(20px, 3vw, 40px) var(--gutter) 0;
+  margin-bottom: 0;
+}
+.page-head > .back-btn {
+  margin-top: 2px;
+}
+.page-head__text {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: 6px;
+  min-width: 0;
+}
+.page-head__text h1 {
+  font-size: clamp(1.875rem, 1.4rem + 2vw, 3rem);
+  line-height: 1;
+  overflow-wrap: anywhere;
+}
+.page-head__sub {
+  max-width: 62ch;
+  color: var(--muted);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+.page-head__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-left: auto;
+}
+.back-link {
+  display: inline-flex;
+  flex: 0 0 100%;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 36px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: var(--fs-md);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.back-link:hover {
+  color: var(--ink);
+  text-decoration: none;
+}
+.eyebrow--muted {
+  color: var(--muted);
+}
+.eyebrow--brand {
+  color: var(--brand-ink);
+}
+
+/* ── Shared UI contracts ─────────────────────────────────────────────────── */
+.dialog__head > div {
+  min-width: 0;
+}
+.dialog__sub {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+.dialog__body {
+  min-width: 0;
+  overscroll-behavior: contain;
+}
+.empty__icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  color: var(--brand);
+}
+.empty__action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+.empty__action .btn {
+  margin-top: 0;
+}
+.notice__action {
+  max-width: 100%;
+}
+.tab__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: var(--sunken);
+  color: var(--text);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.tabs {
+  max-width: 100%;
+  grid-auto-columns: minmax(0, 1fr);
+}
+.tabs .tab {
+  justify-content: center;
+  min-width: 0;
+  line-height: 1.15;
+  text-align: center;
+}
+.login-modal__actions {
+  display: grid;
+  gap: 10px;
+}
+.login-modal,
+.login-modal__form,
+.login-modal__head > * {
+  min-width: 0;
+}
+.mt-sm {
+  margin-top: 12px;
+}
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+/* ── Booking home pieces ─────────────────────────────────────────────────── */
+.bf-service {
+  flex-direction: column;
+  gap: 2px;
+  min-height: 64px;
+  padding: 8px 4px;
+}
+.bf-service__icon {
+  display: grid;
+  place-items: center;
+  height: 24px;
+}
+.bf-label--out {
+  display: block;
+  margin-bottom: 6px;
+}
+.ride-banner__icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--r-sm);
+  background: rgb(255 255 255 / 0.12);
+  color: var(--brand-bright);
+}
+.ride-banner--soft .ride-banner__icon {
+  background: rgb(11 12 11 / 0.08);
+  color: var(--brand-ink);
+}
+.ride-banner__link {
+  flex: none;
+  min-height: 38px;
+}
+.ride-banner__inner p .truncate {
+  min-width: 0;
+}
+
+/* ── Choose / review: summary card, selected vehicle, contact ────────────── */
+.choose__side {
+  position: sticky;
+  top: calc(var(--nav-h) + 20px);
+  min-width: 0;
+}
+.flow-card {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 20px;
+  border: 1.5px solid var(--ink);
+  border-radius: var(--r-sm);
+  background: #fff;
+}
+.flow-card__title {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-xl);
+}
+.flow-card__selected {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.flow-card__selected > div {
+  min-width: 0;
+}
+.flow-card__selected strong {
+  overflow-wrap: anywhere;
+}
+.flow-card__car-thumb {
+  flex: none;
+  width: 96px;
+  height: auto;
+  object-fit: contain;
+}
+.flow-card__price-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line-strong);
+}
+.flow-card__price-row span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.flow-card__price-row strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-3xl);
+  line-height: 1;
+}
+.flow-bar__summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-width: 0;
+}
+.flow-bar__summary > div {
+  display: grid;
+  min-width: 0;
+}
+.flow-bar__summary strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+  line-height: 1.1;
+}
+.flow-bar__summary .btn {
+  flex: 0 1 220px;
+}
+
+.card__head {
+  flex-wrap: wrap;
+}
+.card__head h2 {
+  min-width: 0;
+}
+.card__body {
+  min-width: 0;
+}
+.review-car {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.review-car__img {
+  flex: none;
+  width: 120px;
+  height: auto;
+  object-fit: contain;
+}
+.review-car__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.review-car__info strong {
+  overflow-wrap: anywhere;
+}
+.review-car__price {
+  margin-top: 4px;
+}
+.review-car__price strong {
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+}
+.review-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.review-user > div,
+.review-guest {
+  min-width: 0;
+}
+.terms-card {
+  padding: 16px 18px;
+}
+.terms-card.is-invalid {
+  border-color: var(--danger);
+}
+
+/* ── Phones and tablets ──────────────────────────────────────────────────── */
+@media (max-width: 999.98px) {
+  .choose__side {
+    display: none;
+  }
+  /* The sticky bar spans the screen (it sits inside the padded wrap) and keeps its own room. */
+  .flow-bar {
+    margin-inline: calc(var(--gutter) * -1);
+    padding-inline: var(--gutter);
+  }
+  .flow-page__wrap:has(> .flow-bar) {
+    padding-bottom: 0;
+  }
+  .flow-bar__nav .btn {
+    min-width: 0;
+    padding-inline: 12px;
+  }
+}
+@media (max-width: 599.98px) {
+  .grid-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .page-head__actions {
+    flex: 1 1 100%;
+    margin-left: 0;
+  }
+  .page-head__actions .btn {
+    flex: 1 1 auto;
+  }
+  .review-car {
+    align-items: flex-start;
+  }
+  .review-car__img {
+    width: 96px;
+  }
+  .flow-card__selected {
+    flex-wrap: wrap;
+  }
+  .flow-bar__summary .btn {
+    flex: 0 1 190px;
+  }
+  .empty {
+    padding-inline: 12px;
+  }
+  .ride-banner__inner {
+    flex-wrap: wrap;
+  }
+  .ride-banner__link {
+    flex: 1 1 100%;
+  }
+}
+
+/* ── Skeletons: same geometry as the booking home they stand in for ─────── */
+.sk-main {
+  min-width: 0;
+}
+.sk-line,
+.sk-block {
+  display: block;
+  border-radius: var(--r-sm);
+  background: linear-gradient(100deg, var(--sunken) 30%, #fff 50%, var(--sunken) 70%) 0 0 / 220% 100%;
+  animation: shimmer 1.3s linear infinite;
+}
+.sk-line {
+  height: 14px;
+}
+.sk-line--title {
+  height: clamp(32px, 6vw, 52px);
+  width: min(100%, 460px);
+}
+.sk-line--short {
+  width: 55%;
+}
+.sk-hero-copy {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: start;
+  gap: 16px;
+  min-width: 0;
+  padding-top: 10px;
+}
+.sk-field {
+  height: 64px;
+}
+.sk-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.sk-tab {
+  height: 46px;
+}
+.sk-go {
+  height: 56px;
+}
+.shell-skeleton {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--surface);
+}
+.shell-skeleton__bar {
+  height: var(--nav-h);
+  border-bottom: 1.5px solid var(--line);
+  background: var(--surface);
+}
+.shell-skeleton__bar .wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  height: 100%;
+}
+.shell-skeleton__body {
+  flex: 1;
+  min-width: 0;
+}
+@media (max-width: 599.98px) {
+  .sk-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ── Narrow phones: tighter card padding on list-style pages ─────────────── */
+@media (max-width: 599.98px) {
+  .tcard__main {
+    gap: 14px;
+    padding: 16px 14px 14px;
+  }
+  .tcard__main > footer {
+    gap: 10px;
+  }
+  .tcard__main > footer img {
+    width: 56px;
+    height: auto;
+  }
+  .tcard__fare {
+    font-size: var(--fs-xl);
+  }
+  .tcard__actions {
+    padding: 10px 12px;
+  }
+  .notif {
+    gap: 12px;
+    padding: 14px;
+  }
+  .notif__icon {
+    width: 40px;
+    height: 40px;
+  }
+  .offer {
+    padding: 18px 16px 16px 30px;
+  }
+  .offer__code {
+    flex-wrap: wrap;
+    padding: 10px;
+  }
+  .pay-row,
+  .support-ticket {
+    padding: 14px;
+  }
+  .saved {
+    gap: 12px;
+    padding: 14px;
+  }
+  .contact-card__body {
+    padding: 16px;
+  }
+  .legal-doc__head {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+    padding: 12px 16px;
+  }
+  .legal-doc__right {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .legal-doc__body {
+    padding: 8px 16px 20px;
+    overflow-wrap: anywhere;
+  }
+  .support-ticket__head {
+    flex-wrap: wrap;
+  }
+  .support-ticket p {
+    overflow-wrap: anywhere;
+  }
+}

@@ -280,9 +280,10 @@
 .cab__foot {
   grid-area: foot;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 6px 12px;
   margin-top: 16px;
   padding: 10px 0;
   border-top: 1px solid var(--line);
@@ -441,6 +442,10 @@
   display: flex;
   gap: 8px;
 }
+.promo-form .input {
+  flex: 1;
+  min-width: 0;
+}
 
 /* ── Review & book ──────────────────────────────────────── */
 .review {
@@ -479,6 +484,11 @@
 .rv-sum__car small {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+.rv-sum__car > *,
+.rv-sum__total > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 .rv-sum__total {
   display: flex;
@@ -520,11 +530,11 @@
 }
 .rv-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 .rv-grid--wa {
-  grid-template-columns: 90px 1fr;
+  grid-template-columns: 90px minmax(0, 1fr);
 }
 .rv-fold {
   padding-top: 14px;
@@ -582,7 +592,7 @@
 /* ── Confirmation (Done) ────────────────────────────────── */
 .done {
   display: grid;
-  grid-template-columns: 1fr minmax(0, 420px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 420px);
   gap: 50px;
   align-items: center;
   min-height: 440px;
@@ -789,7 +799,7 @@
 }
 .ticket__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
@@ -943,7 +953,7 @@
   }
   .choose,
   .review {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .choose__aside {
     display: none;
@@ -970,7 +980,7 @@
   }
   .flow-bar__nav {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 10px;
   }
   .flow-bar__nav .btn {
@@ -984,6 +994,7 @@
   }
   .flow-bar__total div {
     display: grid;
+    min-width: 0;
   }
   .flow-bar__total small {
     color: var(--muted);
@@ -999,7 +1010,7 @@
     flex: 0 1 240px;
   }
   .done {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     gap: 28px;
     min-height: 0;
   }
@@ -1029,7 +1040,7 @@
   }
   .cab__price {
     display: grid;
-    grid-template-columns: 1fr auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     grid-template-rows: auto auto;
     align-items: center;
     justify-items: start;
@@ -1054,10 +1065,10 @@
 
 @media (max-width: 599.98px) {
   .rv-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .rv-grid--wa {
-    grid-template-columns: 90px 1fr;
+    grid-template-columns: 90px minmax(0, 1fr);
   }
   .cab-tools__sort span {
     display: none;

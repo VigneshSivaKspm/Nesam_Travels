@@ -950,7 +950,7 @@ a.setting:hover {
   .split,
   .support,
   .inbox {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
   .account__side,
   .split__aside,
@@ -973,12 +973,12 @@ a.setting:hover {
     min-height: 42px;
   }
   .faq--grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 899.98px) {
   .auth {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 12px;
   }
   .auth__hero {

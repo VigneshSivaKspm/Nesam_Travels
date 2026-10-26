@@ -204,7 +204,58 @@ function Footer() {
   );
 }
 
+/**
+ * Publishes how much of the viewport's bottom edge is covered (floating tab bar, sticky flow bar,
+ * bottom sheet) as --dock-h, so toasts and other floating UI always clear it. Measured from the
+ * elements themselves, so safe-area insets and responsive visibility are accounted for.
+ */
+function useDockInset() {
+  useEffect(() => {
+    const root = document.documentElement;
+    const SELECTOR = '.tabbar, .flow-bar, .done-actions, .overlay > .dialog';
+    let frame = 0;
+    let watched = new Set<HTMLElement>();
+    const resize = new ResizeObserver(() => schedule());
+    const measure = () => {
+      frame = 0;
+      const vh = window.innerHeight;
+      let covered = 0;
+      const present = new Set(Array.from(document.querySelectorAll<HTMLElement>(SELECTOR)));
+      for (const el of watched) if (!present.has(el)) resize.unobserve(el);
+      for (const el of present) if (!watched.has(el)) resize.observe(el);
+      watched = present;
+      for (const el of present) {
+        if (el.getClientRects().length === 0) continue;
+        const r = el.getBoundingClientRect();
+        // Only what touches the bottom edge matters; a near full-screen page covers everything, so ignore it.
+        if (r.bottom < vh - 48 || r.top >= vh) continue;
+        const height = vh - r.top;
+        if (height < vh * 0.6) covered = Math.max(covered, height);
+      }
+      root.style.setProperty('--dock-h', `${Math.round(covered)}px`);
+    };
+    function schedule() {
+      if (!frame) frame = window.requestAnimationFrame(measure);
+    }
+    const mutate = new MutationObserver(schedule);
+    mutate.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener('scroll', schedule, { passive: true });
+    window.addEventListener('resize', schedule);
+    schedule();
+    return () => {
+      mutate.disconnect();
+      resize.disconnect();
+      watched.clear();
+      window.removeEventListener('scroll', schedule);
+      window.removeEventListener('resize', schedule);
+      if (frame) window.cancelAnimationFrame(frame);
+      root.style.removeProperty('--dock-h');
+    };
+  }, []);
+}
+
 export function Shell() {
+  useDockInset();
   const { unreadCount } = useInbox();
   const { profile } = useCustomerData();
   const { openLoginModal } = useAuth();
@@ -220,7 +271,7 @@ export function Shell() {
   }, [location.pathname]);
 
   return (
-    <div className={`shell ${isImmersive ? 'shell--immersive' : ''}`}>
+    <div className={`shell ${isImmersive ? 'shell--immersive' : ''} ${isFlow ? '' : 'shell--dock'}`}>
       <a
         className="skip-link"
         href="#main"

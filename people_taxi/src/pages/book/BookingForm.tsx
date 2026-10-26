@@ -148,6 +148,13 @@ export function BookingForm({
     setErrors((e) => ({ ...e, drop: undefined, form: undefined }));
   };
 
+  /** A confirmed place goes to the field that opened the picker, then the picker closes (focus returns to the form). */
+  const onPickPlace = (p: GeoPlace) => {
+    if (pickerField === 'pickup') setPickup(p);
+    else if (pickerField === 'drop') setDrop(p);
+    setPickerField(null);
+  };
+
   const swapPlaces = () => {
     if (!draft.pickup && !draft.drop) return;
     update((d) => ({ pickup: d.drop, drop: d.pickup }));
@@ -499,7 +506,7 @@ export function BookingForm({
           config={pickerField === 'pickup' ? pickupConfig : dropConfig}
           saved={savedPlaces}
           recent={recentPlaces}
-          onPick={pickerField === 'pickup' ? setPickup : setDrop}
+          onPick={onPickPlace}
           onClose={() => setPickerField(null)}
         />
       ) : null}

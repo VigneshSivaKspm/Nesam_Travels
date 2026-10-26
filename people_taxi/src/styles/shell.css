@@ -303,16 +303,21 @@
   }
   .topbar__mobile {
     display: flex;
+    flex: none;
     gap: 4px;
+  }
+  .brand {
+    flex: 0 1 auto;
+    min-width: 0;
   }
   .tabbar {
     position: fixed;
     left: 12px;
     right: 12px;
-    bottom: calc(12px + env(safe-area-inset-bottom));
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
     z-index: 90;
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 4px;
     height: 68px;
     padding: 7px;
@@ -321,9 +326,6 @@
     background: rgb(255 255 255 / 0.94);
     backdrop-filter: blur(18px);
     box-shadow: var(--shadow-3);
-  }
-  .shell:not(.shell--immersive) .main {
-    padding-bottom: calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom));
   }
   .tabbar__link {
     display: grid;
@@ -401,7 +403,8 @@
   border: 1px solid rgb(255 255 255 / 0.2);
   backdrop-filter: blur(6px);
 }
-.footer__cta h2 {
+.footer__cta h2,
+.footer__cta h3 {
   color: #fff;
   font-size: var(--fs-h2);
   font-weight: 900;
@@ -438,7 +441,7 @@
 .footer__grid {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 1.4fr) repeat(4, minmax(150px, 1fr));
+  grid-template-columns: minmax(260px, 1.6fr) repeat(2, minmax(150px, 1fr));
   gap: clamp(24px, 3vw, 56px);
 }
 .footer__about .brand img {
@@ -448,13 +451,15 @@
   background: #fff;
   box-shadow: var(--shadow-2);
 }
-.footer__about {
+.footer__about,
+.footer__brand {
   display: grid;
   gap: 18px;
   align-content: start;
   max-width: 40ch;
 }
-.footer__about p {
+.footer__about p,
+.footer__brand p {
   color: var(--on-dark-muted);
 }
 .footer__call {
@@ -525,22 +530,24 @@
   .footer__grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .footer__about {
+  .footer__about,
+  .footer__brand {
     grid-column: 1 / -1;
     max-width: none;
   }
 }
 @media (max-width: 599.98px) {
   .footer__grid {
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .footer__inner {
     border-radius: var(--r-lg) var(--r-lg) 0 0;
   }
 }
+/* Only where the floating tab bar is shown does the footer need room to clear it. */
 @media (max-width: 899.98px) {
-  .footer {
-    padding-bottom: calc(var(--tabbar-h) + 20px);
+  .shell--dock .footer {
+    padding-bottom: calc(var(--tabbar-occupied) + 16px);
   }
 }
 

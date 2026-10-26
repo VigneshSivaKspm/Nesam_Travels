@@ -1,5 +1,6 @@
 // The full-height "workspace" used by choosing a ride, reviewing a booking and following a ride:
-// a scrolling panel with a pinned action bar on one side and the route map filling the rest.
+// a title block, a scrolling panel of cards and a pinned action bar on one side, with the route map
+// filling the rest (desktop) or sitting bounded under the title (phones).
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import type { GeoPlace, RouteInfo } from '@core/types';
@@ -7,14 +8,15 @@ import { formatDistance, formatDuration } from '@core/utils/format';
 import { Icon } from './Icon';
 import { RouteMap, type MapPadding } from './RouteMap';
 
-export function Workspace({ label, children, foot, map }: { label: string; children: ReactNode; foot?: ReactNode; map: ReactNode }) {
+export function Workspace({ label, head, children, foot, map }: { label: string; head?: ReactNode; children: ReactNode; foot?: ReactNode; map: ReactNode }) {
   return (
     <div className="work">
+      {head ? <div className="work__top">{head}</div> : null}
+      <div className="work__map">{map}</div>
       <section className="work__panel" aria-label={label}>
         <div className="work__scroll">{children}</div>
-        {foot ? <div className="work__foot">{foot}</div> : null}
       </section>
-      <div className="work__map">{map}</div>
+      {foot ? <div className="work__foot">{foot}</div> : null}
     </div>
   );
 }

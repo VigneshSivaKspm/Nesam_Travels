@@ -311,14 +311,17 @@ export function RidePage() {
       <RoutePoints pickup={trip.pickup.name} drop={trip.drop.name} pickupAddress={trip.pickup.address} dropAddress={trip.drop.address} />
       <div className="mini-ride">
         <img src={vehicleArtUrl({ name: trip.categoryName, seats: 4 })} alt="" width={96} height={63} />
-        <div>
+        <div className="mini-ride__info">
           <strong>{trip.categoryName}</strong>
           <small className="muted">
             {trip.tripType} · {trip.service}
             {trip.distanceKm ? ` · ${formatDistance(trip.distanceKm)}` : ''}
           </small>
         </div>
-        <strong className="num">{formatINR(trip.fareBreakdown?.total ?? trip.fare)}</strong>
+        <div className="mini-ride__fare">
+          <small>Fare</small>
+          <strong className="num">{formatINR(trip.fareBreakdown?.total ?? trip.fare)}</strong>
+        </div>
       </div>
       <dl className="facts">
         <div>
@@ -396,6 +399,23 @@ export function RidePage() {
     <Workspace
       label="Ride details"
       foot={foot}
+      head={
+        <header className="work__head">
+          <div className="work__head-row">
+            <IconButton icon="arrow-left" label="Back" outline onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate('/trips'))} />
+            <span className="status-chip" style={{ color: chip.fg, background: chip.bg }}>
+              {chip.label}
+            </span>
+          </div>
+          <div>
+            <p className="work__ref">
+              Booking <strong className="num">{trip.bookingId}</strong>
+              {pending ? <span>sending…</span> : fromCache && !online ? <span>offline</span> : null}
+            </p>
+            <h1 className="work__title">{title}</h1>
+          </div>
+        </header>
+      }
       map={
         <RouteMap
           className="work__canvas"
@@ -406,24 +426,10 @@ export function RidePage() {
           userLocation={position}
           path={legPath ?? wholePath}
           basePath={legPath ? wholePath : null}
-          padding={{ top: 72, right: 64, bottom: 64, left: 64 }}
+          padding={{ top: 56, right: 48, bottom: 48, left: 48 }}
         />
       }
     >
-      <header className="work__head">
-        <div className="work__head-row">
-          <IconButton icon="arrow-left" label="Back" outline onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate('/trips'))} />
-          <p className="eyebrow truncate">
-            Booking {trip.bookingId}
-            {pending ? ' · sending…' : !pending && fromCache && !online ? ' · offline' : ''}
-          </p>
-          <span className="status-chip" style={{ color: chip.fg, background: chip.bg }}>
-            {chip.label}
-          </span>
-        </div>
-        <h1 className="work__title">{title}</h1>
-      </header>
-
       {/* Awaiting review / approved / vendor assigned: a status, never a search or an arrival promise */}
       {phase === 'awaiting_review' || phase === 'arranging' || phase === 'partner_confirmed' ? (
         <div className="status-card">

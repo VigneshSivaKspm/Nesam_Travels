@@ -745,16 +745,16 @@ a.setting:hover {
 .contact-card__body p {
   color: var(--muted);
 }
-.ticket {
+.support-ticket {
   display: grid;
   gap: 8px;
   padding: 18px 22px;
   border-top: 1px solid var(--line-strong);
 }
-.card--list > .ticket:first-child {
+.card--list > .support-ticket:first-child {
   border-top: 0;
 }
-.ticket__head {
+.support-ticket__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
