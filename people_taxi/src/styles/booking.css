@@ -6,8 +6,8 @@
   background: var(--paper);
 }
 .flow-page__wrap {
-  padding-top: 40px;
-  padding-bottom: 56px;
+  padding-top: clamp(16px, 3vw, 40px);
+  padding-bottom: clamp(24px, 4vw, 56px);
 }
 .route-title {
   display: flex;
@@ -26,9 +26,6 @@
 }
 .route-title--lg {
   font-size: 1.625rem;
-}
-.only-narrow {
-  display: none;
 }
 
 /* ── Choose your cab ────────────────────────────────────── */
@@ -81,11 +78,7 @@
   color: var(--faint);
   font-size: var(--fs-xs);
 }
-.choose__intro {
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: var(--fs-xs);
-}
+
 .cab-tools {
   display: flex;
   flex-wrap: wrap;
@@ -165,15 +158,7 @@
   opacity: 0.65;
   transform: none;
 }
-.cab__radio {
-  position: absolute;
-  opacity: 0;
-  pointer-events: none;
-}
-.cab:has(.cab__radio:focus-visible) {
-  outline: 2px solid var(--brand);
-  outline-offset: 2px;
-}
+
 .cab__tick {
   position: absolute;
   top: 14px;
@@ -289,25 +274,6 @@
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: var(--fs-xs);
-}
-.choose__fine {
-  margin: 16px 0 10px;
-  color: var(--faint);
-  font-size: var(--fs-xs);
-}
-.searching {
-  margin-top: 18px;
-}
-.searching__label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-}
-.searching__label .spinner {
-  color: var(--brand);
 }
 
 /* Selection summary */
@@ -938,32 +904,17 @@
 }
 
 @media (max-width: 999.98px) {
-  .flow-page {
-    background: #fff;
-  }
-  .flow-page__wrap {
-    padding-top: 20px;
-    padding-bottom: 28px;
-  }
-  .only-narrow {
-    display: block;
-  }
-  .only-wide {
-    display: none !important;
-  }
+  
+  
   .choose,
-  .review {
+.review {
     grid-template-columns: minmax(0, 1fr);
   }
   .choose__aside {
     display: none;
   }
   .trip-sum {
-    padding: 0 0 16px;
-    border: 0;
-    border-bottom: 1px solid var(--line);
-    border-radius: 0;
-    box-shadow: none;
+    padding: 16px;
   }
   .trip-sum__route {
     display: grid;
@@ -974,16 +925,17 @@
     z-index: 90;
     display: grid;
     gap: 10px;
-    padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom));
+    padding: 12px var(--gutter) calc(12px + env(safe-area-inset-bottom, 0px));
     border-top: 1px solid var(--line);
     background: rgb(255 255 255 / 0.98);
+    box-shadow: 0 -6px 20px rgb(22 70 160 / 0.08);
   }
   .flow-bar__nav {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    display: flex;
     gap: 10px;
   }
   .flow-bar__nav .btn {
+    flex: 1 1 0;
     min-height: 48px;
   }
   .flow-bar__total {
@@ -1020,7 +972,8 @@
     z-index: 90;
     display: grid;
     gap: 8px;
-    padding-bottom: calc(12px + env(safe-area-inset-bottom));
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -6px 20px rgb(22 70 160 / 0.08);
   }
   .done-actions .btn--primary {
     min-width: 0;

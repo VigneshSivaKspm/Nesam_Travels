@@ -1,3 +1,4 @@
+// Named exports are shared by the app startup screen and Shell's lazy-page fallback.
 // Loading placeholders shaped like the booking home (header, hero copy, booking card) so the
 // page does not jump between unrelated layouts when the real screen replaces them.
 import type { ReactNode } from 'react';

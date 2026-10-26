@@ -112,7 +112,7 @@ export function PaymentsPage() {
                 <li key={t.id}>
                   <Link className="pay-row" to={`/trips/${t.id}`}>
                     <span className="pay-row__main">
-                      <strong className="truncate">
+                      <strong>
                         {t.pickup.name} → {t.drop.name}
                       </strong>
                       <small className="muted">
