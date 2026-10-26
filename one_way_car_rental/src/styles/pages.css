@@ -399,13 +399,13 @@
 }
 .profile-card {
   display: grid;
-  justify-items: center;
-  gap: 4px;
-  text-align: center;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 16px;
 }
 .profile-card__photo {
   position: relative;
-  margin-bottom: 8px;
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -413,23 +413,28 @@
 }
 .profile-card__cam {
   position: absolute;
-  right: 0;
-  bottom: 0;
+  right: -2px;
+  bottom: -2px;
   display: grid;
   place-items: center;
-  width: 34px;
-  height: 34px;
-  border: 3px solid var(--surface);
+  width: 26px;
+  height: 26px;
+  border: 2px solid var(--surface);
   border-radius: 50%;
   background: var(--ink);
   color: #fff;
 }
+.profile-card__info {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
 .profile-card h2 {
-  font-size: var(--fs-xl);
+  font-size: var(--fs-lg);
   overflow-wrap: anywhere;
 }
 .profile-card .btn {
-  margin-top: 12px;
+  grid-column: 1 / -1;
 }
 .credit-card {
   display: flex;

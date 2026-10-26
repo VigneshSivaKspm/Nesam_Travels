@@ -1,39 +1,13 @@
 // Pieces shared by the booking steps, the confirmation and trip details.
 import { useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { FareLine, PaymentMethod } from '@core/types';
+import type { FareLine } from '@core/types';
 import { isCouponLive } from '@core/services/pricingService';
 import { formatINR } from '@core/utils/format';
 import { Button, Dialog } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { FareBreakdown } from '@/components/FareBreakdown';
 import { useBooking, useBookingQuote } from '@/state/Booking';
-
-const PAYMENTS: { id: PaymentMethod; label: string; hint: string }[] = [
-  { id: 'Cash', label: 'Book now, pay cash later', hint: 'Pay your driver in cash at the end of the trip' },
-  { id: 'UPI', label: 'Book now, pay by UPI later', hint: 'Pay your driver by UPI (GPay/PhonePe/Paytm) at drop' },
-];
-
-/** The booking server records Cash or UPI, collected by the driver, so nothing else is offered. */
-export function PaymentChoice({ value, onChange }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void }) {
-  return (
-    <div className="pay-opts" role="radiogroup" aria-label="Payment method">
-      {PAYMENTS.map((p) => (
-        <label key={p.id} className={`pay-opt ${value === p.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="payment" checked={value === p.id} onChange={() => onChange(p.id)} />
-          <span className="pay-opt__text">
-            <strong>{p.label}</strong>
-            <small>{p.hint}</small>
-          </span>
-          <span className="pay-opt__amount">
-            <strong className="num">{formatINR(0)}</strong>
-            <small>now</small>
-          </span>
-        </label>
-      ))}
-    </div>
-  );
-}
 
 /** Applied promo (chip) or an "Apply a promo code" link that opens the code dialog. */
 export function PromoControl() {

@@ -12,9 +12,9 @@ import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 import { DashboardMainSkeleton } from './DashboardSkeleton';
 
-export function Brand({ light = false }: { light?: boolean; compact?: boolean }) {
+export function Brand() {
   return (
-    <Link to="/book" className={`brand ${light ? 'brand--light' : ''}`} aria-label="One Way Car Rental — book a cab">
+    <Link to="/book" className="brand" aria-label="One Way Car Rental — book a cab">
       <img src="/brand/ow-logo.png" alt="One Way Car Rental Logo" width={42} height={42} />
       <span className="brand__word">
         <b>One Way</b>
@@ -44,6 +44,15 @@ function NotificationsLink({ compact = false }: { compact?: boolean }) {
         ) : null}
       </span>
       {compact ? null : <span>Notifications</span>}
+    </NavLink>
+  );
+}
+
+function MyTripsLink({ compact = false }: { compact?: boolean }) {
+  return (
+    <NavLink to="/trips" className={({ isActive }) => `head-trips ${compact ? 'head-trips--compact' : ''} ${isActive ? 'is-active' : ''}`}>
+      <Icon name="trip-history" size={compact ? 18 : 17} />
+      <span>My Trips</span>
     </NavLink>
   );
 }
@@ -182,7 +191,7 @@ function Footer() {
       <div className="wrap footer__inner">
         <div className="footer__grid">
           <div className="footer__brand">
-            <Brand light />
+            <Brand />
             <p className="footer__tag">Premium Outstation Cabs &amp; Car Rentals</p>
             <address>
               {COMPANY_LEGAL_NAME}
@@ -273,15 +282,13 @@ export function Shell() {
             <Link to="/book" className={`topbar__link ${bookActive ? 'is-active' : ''}`}>
               <Icon name="car" size={17} /> Book a cab
             </Link>
-            <NavLink to="/trips" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
-              <Icon name="trip-history" size={17} /> My trips
-            </NavLink>
             <NavLink to="/offers" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
               <Icon name="offers" size={17} /> Offers
             </NavLink>
           </nav>
 
           <div className="topbar__actions">
+            <MyTripsLink />
             <NotificationsLink />
             <NavLink to="/support" className={({ isActive }) => `head-action ${isActive ? 'is-active' : ''}`}>
               <Icon name="support" size={17} />
@@ -291,6 +298,7 @@ export function Shell() {
           </div>
 
           <div className="topbar__mobile">
+            <MyTripsLink compact />
             <NotificationsLink compact />
             <button
               type="button"

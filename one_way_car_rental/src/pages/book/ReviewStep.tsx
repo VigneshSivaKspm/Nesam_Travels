@@ -16,7 +16,7 @@ import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
 import { categoryName, categoryPhoto } from '@/lib/categories';
-import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
+import { FareDialog, FlowBar, PromoControl } from './parts';
 
 export function ReviewStep() {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export function ReviewStep() {
   const submittingRef = useRef(false);
   const termsRef = useRef<HTMLDivElement>(null);
 
-  const { pickup, drop, tripType, scheduledAt, tripEndAt, payment, notes, waSame, waCode, waNumber, email, forOther, passengerName, passengerMobile, flight } = draft;
+  const { pickup, drop, tripType, scheduledAt, tripEndAt, notes, waSame, waCode, waNumber, email, forOther, passengerName, passengerMobile, flight } = draft;
   const category = q.category;
 
   const hadProfile = useRef(!!profile);
@@ -115,7 +115,7 @@ export function ReviewStep() {
         route,
         fare: quote,
         tripType,
-        paymentMethod: payment,
+        paymentMethod: 'Cash',
         couponCode: q.coupon?.code ?? '',
         notes: fullNotes,
         scheduledAt,
@@ -289,15 +289,6 @@ export function ReviewStep() {
                     onChange={(e) => update({ notes: e.target.value })}
                   />
                 </div>
-              </div>
-            </section>
-
-            <section className="card" style={{ marginTop: 20 }}>
-              <header className="card__head">
-                <h2>Payment Method</h2>
-              </header>
-              <div className="card__body">
-                <PaymentChoice value={payment} onChange={(m) => update({ payment: m })} />
               </div>
             </section>
 

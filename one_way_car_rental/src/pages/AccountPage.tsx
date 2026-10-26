@@ -98,17 +98,19 @@ export function AccountPage() {
           <aside className="account__side">
             <section className="card profile-card">
               <button type="button" className="profile-card__photo" onClick={() => file.current?.click()} disabled={progress != null} aria-label="Change profile photo">
-                <Avatar name={profile.name} photoUrl={profile.photoUrl} size={104} />
+                <Avatar name={profile.name} photoUrl={profile.photoUrl} size={72} />
                 <span className="profile-card__cam">
                   <Icon name={progress != null ? 'document-upload' : 'camera'} size={16} />
                 </span>
               </button>
               <input ref={file} type="file" accept="image/*" hidden onChange={(e) => void onFile(e.target.files?.[0])} />
-              <h2>{profile.name}</h2>
-              <p className="muted">{formatPhone(profile.phone)}</p>
-              {profile.email ? <p className="muted small truncate">{profile.email}</p> : null}
-              {progress != null ? <p className="small muted">Uploading photo… {progress}%</p> : null}
-              <LinkButton block variant="secondary" to="/account/edit" icon="edit">
+              <div className="profile-card__info">
+                <h2>{profile.name}</h2>
+                <p className="muted">{formatPhone(profile.phone)}</p>
+                {profile.email ? <p className="muted small truncate">{profile.email}</p> : null}
+                {progress != null ? <p className="small muted">Uploading photo… {progress}%</p> : null}
+              </div>
+              <LinkButton block size="sm" variant="secondary" to="/account/edit" icon="edit">
                 Edit profile
               </LinkButton>
             </section>

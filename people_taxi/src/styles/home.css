@@ -1146,246 +1146,375 @@
   }
 }
 
-/* ── Booking card ───────────────────────────────────────────────────────────── */
-.bf {
-  container: bf / inline-size;
+/* ── Booking form: "Journey desk" ─────────────────────────────────────────────
+   Three areas in one white card: a compact service rail, one connected route panel (origin and
+   destination joined by a line, swap in its own column) and a quiet schedule section ending in a
+   single search action. Layout follows the card's own width (container queries). */
+.jd {
+  container: jd / inline-size;
+  display: grid;
+  gap: 20px;
   width: 100%;
   min-width: 0;
   max-width: 640px;
   margin-inline: auto;
-  padding: clamp(18px, 3vw, 28px);
+  padding: clamp(16px, 3vw, 28px);
   border: 1px solid var(--line);
-  border-radius: var(--r-lg);
+  border-radius: var(--r-md);
   background: var(--surface);
-  box-shadow: var(--shadow-2);
+  box-shadow: 0 8px 28px rgb(12 27 61 / 0.08);
 }
 @media (min-width: 1080px) {
-  .bf {
+  .jd {
     max-width: none;
     margin-inline: 0;
   }
 }
-.bf-head {
+.jd-head {
   display: grid;
   gap: 4px;
-  text-align: center;
 }
-.bf-head h2 {
-  font-size: clamp(1.25rem, 1.05rem + 0.9vw, 1.625rem);
+.jd-head h2 {
+  font-size: var(--fs-xl);
   font-weight: 800;
   color: var(--ink);
 }
-.bf-head p {
+.jd-head p {
   color: var(--muted);
   font-size: var(--fs-sm);
 }
+.jd-form {
+  display: grid;
+  gap: 20px;
+}
 
-/* Service tabs: a 2×2 grid of pills in a narrow card, one row of four when there is room. */
-.bf-services {
+/* Labels and errors (also used by the time picker and the review step) */
+.jd-label,
+.bf-label {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.jd-error,
+.bf-error {
+  margin: 4px 0 0;
+  color: var(--danger-ink);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.jd-error--form {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: var(--r-xs);
+  background: var(--danger-soft);
+}
+
+/* ── Service rail ──────────────────────────────────────────────────────────── */
+.jd-rail {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin-top: 16px;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--inset);
 }
-.bf-service {
+.jd-tab {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   min-width: 0;
-  min-height: 44px;
-  padding: 8px 10px;
-  border: 1.5px solid var(--line);
-  border-radius: var(--r-pill);
-  background: var(--surface);
-  color: var(--text);
+  min-height: 46px;
+  padding: 8px 10px 11px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
   font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
-  overflow-wrap: anywhere;
-  transition: border-color var(--dur) var(--ease-out), background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
 }
-.bf-service:hover {
-  border-color: var(--brand-line);
+.jd-tab .icon {
+  flex: none;
+}
+.jd-tab:hover {
   color: var(--ink);
 }
-.bf-service.is-active {
-  border-color: var(--brand);
-  background: var(--brand-soft);
-  color: var(--brand-ink);
-  font-weight: 800;
+.jd-tab:focus-visible {
+  outline: 3px solid var(--brand-bright);
+  outline-offset: 1px;
 }
-.bf-journey {
-  margin-top: 14px;
-}
-.bf-form {
-  display: grid;
-  gap: 14px;
-  margin-top: 16px;
-}
-
-/* Route: pickup and drop stack in a narrow card and sit side by side in a wide one. */
-.bf-route {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-}
-.bf-route__cell {
-  display: grid;
-  gap: 6px;
-  min-width: 0;
-  align-content: start;
-}
-.bf-label {
-  font-size: var(--fs-xs);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--muted);
-}
-.bf-field {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-height: 60px;
-  padding: 8px 14px;
-  border: 1.5px solid var(--field-line);
-  border-radius: var(--r-btn);
+.jd-tab.is-active {
   background: var(--surface);
-  transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: 0 1px 3px rgb(12 27 61 / 0.14);
 }
-.bf-field:hover {
-  border-color: var(--brand-line);
+.jd-tab.is-active .icon {
+  color: var(--brand);
 }
-.bf-field:focus-within,
-.bf-field:has(.bf-trigger:focus-visible) {
-  border-color: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-tint);
-}
-.bf-field.is-invalid {
-  border-color: var(--danger);
-}
-.bf-pin {
-  flex: none;
-  width: 10px;
-  height: 10px;
-  border: 2px solid var(--muted);
-  border-radius: 50%;
-}
-.bf-pin--drop {
-  border-color: var(--brand);
+.jd-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: 4px;
+  height: 3px;
+  border-radius: 3px;
   background: var(--brand);
 }
-.bf-field__main {
+
+/* Journey type / airport direction: compact and secondary */
+.jd-seg {
+  display: flex;
+  width: 100%;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--inset);
+}
+.jd-seg__btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+.jd-seg__btn:hover {
+  color: var(--ink);
+}
+.jd-seg__btn:focus-visible {
+  outline: 3px solid var(--brand-bright);
+  outline-offset: 1px;
+}
+.jd-seg__btn.is-on {
+  background: var(--surface);
+  color: var(--ink);
+  font-weight: 800;
+  box-shadow: 0 1px 2px rgb(12 27 61 / 0.14);
+}
+
+/* ── Connected route panel ─────────────────────────────────────────────────── */
+.jd-route {
   display: grid;
-  flex: 1;
-  gap: 2px;
+  grid-template-columns: minmax(0, 1fr);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-sm);
+  background: var(--inset);
+}
+.jd-route:not(.jd-route--single) {
+  grid-template-columns: minmax(0, 1fr) 56px;
+}
+.jd-route:has(.is-invalid) {
+  border-color: var(--danger);
+}
+.jd-route__stops {
+  display: grid;
   min-width: 0;
 }
-.bf-trigger {
+.jd-stop {
+  position: relative;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  min-width: 0;
+}
+.jd-stop--from {
+  border-top-left-radius: calc(var(--r-sm) - 1px);
+}
+.jd-stop--to {
+  border-bottom-left-radius: calc(var(--r-sm) - 1px);
+}
+.jd-route--single .jd-stop--from {
+  border-bottom-left-radius: calc(var(--r-sm) - 1px);
+}
+.jd-stop:hover {
+  background: rgb(255 255 255 / 0.65);
+}
+.jd-stop:has(.jd-value:focus-visible) {
+  background: var(--surface);
+  outline: 3px solid var(--brand-bright);
+  outline-offset: -3px;
+}
+/* Marker column: origin ring, destination square, and the line that joins them across the divider. */
+.jd-stop__mark {
+  position: relative;
+}
+.jd-stop__mark::before {
+  content: '';
+  position: absolute;
+  left: 14px;
+  top: 18px;
+  width: 12px;
+  height: 12px;
+  box-sizing: border-box;
+}
+.jd-stop--from .jd-stop__mark::before {
+  border: 3px solid var(--ink);
+  border-radius: 50%;
+  background: var(--inset);
+}
+.jd-stop--to .jd-stop__mark::before {
+  border-radius: 3px;
+  background: var(--brand);
+}
+.jd-stop.is-invalid .jd-stop__mark::before {
+  border-color: var(--danger);
+}
+.jd-stop--to.is-invalid .jd-stop__mark::before {
+  background: var(--danger);
+}
+.jd-stop__mark::after {
+  content: '';
+  position: absolute;
+  left: 19px;
+  width: 2px;
+  background: var(--line-strong);
+}
+.jd-stop--from .jd-stop__mark::after {
+  top: 34px;
+  bottom: 0;
+}
+.jd-stop--to .jd-stop__mark::after {
+  top: 0;
+  height: 18px;
+}
+.jd-route--single .jd-stop__mark::after {
+  display: none;
+}
+.jd-stop__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 14px 12px 0;
+}
+.jd-stop--to .jd-stop__body {
+  border-top: 1px solid var(--line-strong);
+}
+.jd-value {
+  display: grid;
+  gap: 2px;
   width: 100%;
   padding: 2px 0;
   border: 0;
   background: none;
   color: var(--ink);
-  font-size: var(--fs-sm);
+  font-size: 1rem;
   font-weight: 700;
-  line-height: 1.4;
+  line-height: 1.35;
   text-align: left;
   cursor: pointer;
 }
-/* The whole card is the tap target. */
-.bf-trigger::after {
+/* The whole stop is the tap target. */
+.jd-value::after {
   content: '';
   position: absolute;
   inset: 0;
-  border-radius: inherit;
 }
-.bf-trigger:focus-visible {
+.jd-value:focus-visible {
   outline: none;
 }
-.bf-trigger__text,
-.bf-addr {
+.jd-value__text,
+.jd-value__addr {
   display: block;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
-.bf-trigger.is-empty {
+.jd-value.is-empty .jd-value__text {
   color: var(--muted);
   font-weight: 500;
 }
-.bf-addr {
+.jd-value__addr {
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
+  font-weight: 500;
 }
-.bf-chev {
-  flex: none;
-  color: var(--faint);
-}
-
-/* Swap: stacked, on the right edge at the seam; side by side, in the gutter between the fields. */
-.bf-swap {
-  position: absolute;
-  z-index: 2;
-  top: 50%;
-  right: 14px;
+.jd-route__side {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
+  border-left: 1px solid var(--line-strong);
+}
+.jd-swap {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
   padding: 0;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 50%;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-xs);
   background: var(--surface);
-  color: var(--muted);
-  box-shadow: var(--shadow-1);
-  transform: translateY(-50%) rotate(90deg);
+  color: var(--ink);
   cursor: pointer;
   transition: color var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
 }
-.bf-swap:hover:not(:disabled) {
-  color: var(--brand);
+.jd-swap .icon {
+  transform: rotate(90deg);
+}
+.jd-swap:hover {
   border-color: var(--brand);
+  color: var(--brand);
 }
 
-.bf-row {
+/* ── Schedule ──────────────────────────────────────────────────────────────── */
+.jd-section {
+  display: grid;
+  gap: 10px;
+}
+.jd-section__title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 800;
+}
+.jd-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 12px;
 }
-.bf-cell {
+.jd-field {
   display: grid;
-  align-content: start;
   gap: 6px;
+  align-content: start;
   min-width: 0;
 }
-.bf-input,
-.bf-time {
+.jd-control {
   width: 100%;
   min-height: var(--field-h);
   padding: 8px 14px;
-  border: 1.5px solid var(--field-line);
-  border-radius: var(--r-btn);
-  background: var(--surface);
+  border: 1px solid var(--field-line);
+  border-radius: var(--r-xs);
+  background: var(--inset);
   color: var(--ink);
   font-size: 1rem;
   font-weight: 600;
 }
-.bf-input:hover,
-.bf-time:hover {
-  border-color: var(--brand-line);
+.jd-control:hover {
+  border-color: var(--ink-3);
 }
-.bf-input:focus,
-.bf-time:focus-visible {
+.jd-control:focus,
+.jd-control:focus-visible {
   outline: none;
   border-color: var(--brand);
   background: var(--surface);
   box-shadow: 0 0 0 3px var(--brand-tint);
 }
-.bf-time {
+.jd-control.is-invalid {
+  border-color: var(--danger);
+}
+.jd-control--btn {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1393,102 +1522,112 @@
   text-align: left;
   cursor: pointer;
 }
-.bf-time > span {
+.jd-control--btn > span {
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
-.bf-time.is-empty {
+.jd-control--btn.is-empty {
   color: var(--muted);
   font-weight: 500;
 }
-.bf-time .icon {
+.jd-control--btn .icon {
   flex: none;
   color: var(--muted);
 }
-.bf-error {
-  margin: 0;
-  color: var(--danger-ink);
-  font-size: var(--fs-xs);
-  font-weight: 600;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
+
+/* ── Action ────────────────────────────────────────────────────────────────── */
+.jd-action {
+  display: grid;
+  gap: 12px;
 }
-.bf-error--form {
-  padding: 10px 14px;
-  border-radius: var(--r-btn);
-  background: var(--danger-soft);
+.jd .jd-submit,
+.jd .jd-submit:hover:not(:disabled) {
+  min-height: 54px;
+  border-radius: var(--r-xs);
+  box-shadow: none;
+  font-size: var(--fs-md);
 }
-.bf-submit {
-  margin-top: 4px;
+.jd .jd-submit:hover:not(:disabled) {
+  transform: none;
 }
-.bf-trust {
+.jd-trust {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 4px 6px;
+  gap: 4px 8px;
   color: var(--muted);
-  font-size: var(--fs-xs);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
   text-align: center;
 }
-.bf-offline-service {
+.jd-trust .icon {
+  flex: none;
+}
+
+/* Tour packages: no form, a call-us card inside the same shell */
+.jd-offline {
   display: grid;
-  justify-items: center;
-  gap: 10px;
-  margin-top: 20px;
-  padding: 24px 18px;
-  border: 1.5px dashed var(--line-strong);
-  border-radius: var(--r-card);
-  text-align: center;
+  justify-items: start;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--inset);
 }
-.bf-offline-service__icon {
+.jd-offline__icon {
   display: grid;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 50%;
-  background: var(--brand-soft);
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
   color: var(--brand);
 }
-.bf-offline-service h3 {
-  font-size: var(--fs-xl);
+.jd-offline h3 {
+  font-size: var(--fs-lg);
   font-weight: 800;
 }
-.bf-offline-service p {
-  max-width: 420px;
+.jd-offline p {
+  max-width: 46ch;
   color: var(--muted);
   font-size: var(--fs-sm);
   line-height: 1.6;
 }
-.bf-offline-service__actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 10px;
-  margin: 6px 0;
+.jd-offline small {
+  color: var(--muted);
+}
+.jd .jd-offline__call {
+  min-height: 52px;
+  border-radius: var(--r-xs);
+  box-shadow: none;
 }
 
-@container bf (min-width: 420px) {
-  .bf-row {
+@container jd (min-width: 420px) {
+  .jd-pair {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px;
   }
+  .jd-seg {
+    display: inline-flex;
+    width: fit-content;
+    max-width: 100%;
+  }
+  .jd-seg__btn {
+    flex: 0 1 auto;
+    padding-inline: 16px;
+  }
 }
-@container bf (min-width: 520px) {
-  .bf-services {
+@container jd (min-width: 520px) {
+  .jd-rail {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
-  .bf-route:not(.bf-route--single) {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 14px 20px;
-  }
-  .bf-swap {
-    top: 44px;
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
+  .jd-tab {
+    flex-direction: column;
+    gap: 4px;
+    min-height: 62px;
+    padding-bottom: 12px;
   }
 }
 
