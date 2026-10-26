@@ -12,12 +12,11 @@ import { PRESENCE_STALE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/c
 import { formatDate, formatDateTime, formatDistance, formatDuration, formatINR, formatPhone, formatTime, localMobile, timeAgo } from '@core/utils/format';
 import { haversineKm, isValidLatLng } from '@core/utils/geo';
 import { describeError } from '@core/utils/retry';
-import { customerStatus, tripStatusChip } from '@core/utils/tripView';
+import { customerStatus, paymentLabel, tripStatusChip } from '@core/utils/tripView';
 import { Avatar, Badge, Button, IconButton, Notice, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { RoutePoints } from '@/components/RoutePoints';
 import { RouteMap } from '@/components/RouteMap';
-import { Workspace } from '@/components/Workspace';
 import { FareBreakdown } from '@/components/FareBreakdown';
 import { tripFareLines } from '@/lib/fareLines';
 import { amountDue, isPaid, payableAmount, upiLink } from '@/lib/tripMoney';
@@ -105,11 +104,14 @@ function Timeline({ steps }: { steps: TimelineStep[] }) {
           <span className="timeline__dot" aria-hidden="true">
             {s.state === 'done' ? <Icon name="check" size={14} /> : null}
           </span>
-          <span className="timeline__label">
-            {s.label}
-            <span className="sr-only">{s.state === 'done' ? ' (done)' : s.state === 'current' ? ' (current)' : ' (upcoming)'}</span>
+          <span className="timeline__body">
+            <span className="timeline__label">
+              {s.label}
+              <span className="sr-only">{s.state === 'done' ? ' (done)' : s.state === 'current' ? ' (current)' : ' (upcoming)'}</span>
+            </span>
+            {s.state === 'current' ? <span className="timeline__tag">In progress</span> : null}
+            {s.detail ? <time className="timeline__time">{s.detail}</time> : null}
           </span>
-          {s.detail ? <time className="timeline__time">{s.detail}</time> : null}
         </li>
       ))}
     </ol>
@@ -303,34 +305,58 @@ export function RidePage() {
   const legPath = tracking && eta ? eta.path : null;
   const wholePath = tripRoute?.key === routeKey ? tripRoute.info.path : null;
 
+  const total = trip.fareBreakdown?.total ?? trip.fare;
+  const arranging = phase === 'awaiting_review' || phase === 'arranging' || phase === 'partner_confirmed';
+  const showDriver = !!trip.driver && (tracking || phase === 'driver_assigned');
+  const closed = phase === 'cancelled' || trip.status === 'Rejected';
+  const paymentState = closed ? paymentLabel(trip).text : isPaid(trip) ? 'Paid' : trip.paymentStatus;
+  const driverLine = trip.driver ? [trip.driver.name, trip.driver.vehicleModel || trip.categoryName, trip.driver.vehicleNumber].filter(Boolean).join(' · ') : '';
+  const hasMap = phase !== 'cancelled' && isValidLatLng(trip.pickup) && isValidLatLng(trip.drop);
+
+  const mapCard = hasMap ? (
+    <section className="rcard rcard--map" aria-label="Route map">
+      <div className="rmap">
+        <RouteMap
+          label="Ride map"
+          pickup={mapPickup}
+          drop={trip.drop}
+          driver={driverLoc ? { lat: driverLoc.lat, lng: driverLoc.lng, label: trip.driver?.name, stale: !driverFresh } : null}
+          userLocation={position}
+          path={legPath ?? wholePath}
+          basePath={legPath ? wholePath : null}
+          padding={{ top: 48, right: 48, bottom: 48, left: 48 }}
+        />
+      </div>
+    </section>
+  ) : null;
+
   const tripCard = (
     <section className="rcard" aria-labelledby="trip-h">
       <header>
-        <h2 id="trip-h">Trip</h2>
+        <h2 id="trip-h">Trip details</h2>
       </header>
       <RoutePoints pickup={trip.pickup.name} drop={trip.drop.name} pickupAddress={trip.pickup.address} dropAddress={trip.drop.address} />
       <div className="mini-ride">
         <img src={vehicleArtUrl({ name: trip.categoryName, seats: 4 })} alt="" width={96} height={63} />
-        <div>
+        <div className="mini-ride__info">
           <strong>{trip.categoryName}</strong>
           <small className="muted">
             {trip.tripType} · {trip.service}
             {trip.distanceKm ? ` · ${formatDistance(trip.distanceKm)}` : ''}
           </small>
         </div>
-        <strong className="num">{formatINR(trip.fareBreakdown?.total ?? trip.fare)}</strong>
       </div>
       <dl className="facts">
         <div>
-          <dt>{trip.scheduledAt ? 'Pickup' : 'Booked'}</dt>
+          <dt>{trip.scheduledAt ? 'Pickup date and time' : 'Booked on'}</dt>
           <dd>{trip.scheduledAt ? `${formatDate(trip.scheduledAt)}, ${formatTime(trip.scheduledAt)}` : formatDateTime(trip.createdAt)}</dd>
         </div>
-        <div>
-          <dt>Payment</dt>
-          <dd>
-            {trip.paymentMethod} · {isPaid(trip) ? 'Paid' : trip.paymentStatus}
-          </dd>
-        </div>
+        {!closed ? (
+          <div>
+            <dt>Driver and vehicle</dt>
+            <dd>{driverLine || (finished ? '—' : 'Being arranged. Details appear here once your vehicle is assigned.')}</dd>
+          </div>
+        ) : null}
         {trip.notes ? (
           <div>
             <dt>Your note</dt>
@@ -342,7 +368,7 @@ export function RidePage() {
   );
 
   const moneyBox =
-    phase !== 'cancelled' && trip.status !== 'Pending' ? (
+    !closed && trip.status !== 'Pending' ? (
       isPaid(trip) ? (
         <div className="pay-box pay-box--paid">
           <Icon name="success" size={24} />
@@ -370,6 +396,47 @@ export function RidePage() {
       )
     ) : null;
 
+  const fareCard = (
+    <section className="rcard" aria-labelledby="fare-h">
+      <header>
+        <h2 id="fare-h">{phase === 'completed' ? 'Receipt and payment' : 'Fare and payment'}</h2>
+        {phase === 'completed' ? (
+          <Button size="sm" variant="secondary" icon="download" onClick={doPrint}>
+            Save or print
+          </Button>
+        ) : null}
+      </header>
+      {phase !== 'completed' ? (
+        <p className="fare-total">
+          <span>{closed ? 'Booking fare' : 'Total fare'}</span>
+          <strong className="num">{formatINR(total)}</strong>
+        </p>
+      ) : null}
+      <dl className="facts">
+        <div>
+          <dt>Payment method</dt>
+          <dd>{trip.paymentMethod}</dd>
+        </div>
+        <div>
+          <dt>Payment status</dt>
+          <dd>{paymentState}</dd>
+        </div>
+      </dl>
+      {moneyBox}
+      {phase === 'completed' ? (
+        <>
+          {printing ? <Notice tone="error">{printing}</Notice> : null}
+          <FareBreakdown lines={tripFareLines(trip)} total={total} tolls={trip.tollCharges} />
+          {trip.paid && trip.paid.totalPaid > 0 ? (
+            <p className="muted small">
+              Paid so far {formatINR(trip.paid.totalPaid)} · Balance {formatINR(trip.paid.balanceDue)}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </section>
+  );
+
   const timeline = (
     <section className="rcard" aria-labelledby="progress-h">
       <header>
@@ -379,177 +446,17 @@ export function RidePage() {
     </section>
   );
 
-  const foot =
-    finished || (tracking && driverPhone) ? (
-      finished ? (
+  const actions = (
+    <section className="rcard rcard--actions" aria-labelledby="actions-h">
+      <header>
+        <h2 id="actions-h">Need something?</h2>
+      </header>
+      {finished ? (
         <Button size="lg" block onClick={bookAgain}>
           {phase === 'completed' ? 'Book this trip again' : 'Book another ride'}
         </Button>
-      ) : (
-        <a className="btn btn--primary btn--lg btn--block" href={`tel:+91${driverPhone}`}>
-          <Icon name="phone" /> Call {trip.driver?.name.split(' ')[0] ?? 'driver'}
-        </a>
-      )
-    ) : undefined;
-
-  return (
-    <Workspace
-      label="Ride details"
-      foot={foot}
-      map={
-        <RouteMap
-          className="work__canvas"
-          label="Ride map"
-          pickup={mapPickup}
-          drop={trip.drop}
-          driver={driverLoc ? { lat: driverLoc.lat, lng: driverLoc.lng, label: trip.driver?.name, stale: !driverFresh } : null}
-          userLocation={position}
-          path={legPath ?? wholePath}
-          basePath={legPath ? wholePath : null}
-          padding={{ top: 72, right: 64, bottom: 64, left: 64 }}
-        />
-      }
-    >
-      <header className="work__head">
-        <div className="work__head-row">
-          <IconButton icon="arrow-left" label="Back" outline onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate('/trips'))} />
-          <p className="eyebrow truncate">
-            Booking {trip.bookingId}
-            {pending ? ' · sending…' : !pending && fromCache && !online ? ' · offline' : ''}
-          </p>
-          <span className="status-chip" style={{ color: chip.fg, background: chip.bg }}>
-            {chip.label}
-          </span>
-        </div>
-        <h1 className="work__title">{title}</h1>
-      </header>
-
-      {/* Awaiting review / approved / vendor assigned: a status, never a search or an arrival promise */}
-      {phase === 'awaiting_review' || phase === 'arranging' || phase === 'partner_confirmed' ? (
-        <div className="status-card">
-          <img src="/art/account-review.webp" alt="" width={96} height={96} />
-          <div>
-            <strong>{status.label}</strong>
-            <p>{pending ? 'Sending your request…' : status.detail}</p>
-            {trip.scheduledAt ? <p className="muted small">Pickup: {formatDateTime(trip.scheduledAt)}</p> : null}
-          </div>
-        </div>
       ) : null}
-      {phase === 'driver_assigned' ? (
-        <Notice tone="success">
-          <strong>{status.label}.</strong> {status.detail}
-        </Notice>
-      ) : null}
-
-      {/* Live: ETA, code, driver */}
-      {tracking && hero ? (
-        <div className="eta">
-          <span className="eta__big num">{hero.big}</span>
-          <span className="eta__small">{hero.small}</span>
-          {phase === 'driver_en_route' && straightKm != null && !eta ? <span className="eta__small">Driver is {formatDistance(straightKm)} from your pickup.</span> : null}
-        </div>
-      ) : null}
-      {streamingNote ? <p className="muted small">{streamingNote}</p> : null}
-      {tracking && !driverLoc ? <p className="muted small">Live location appears once your driver’s app shares it.</p> : null}
-
-      {(phase === 'driver_assigned' || phase === 'driver_en_route' || phase === 'driver_arrived') && trip.driver ? (
-        <div className={`otp-card ${phase === 'driver_arrived' ? 'is-arrived' : ''}`}>
-          <div>
-            <strong>{phase === 'driver_arrived' ? 'Share this code to start your ride' : 'Your start-of-ride code'}</strong>
-            <small>
-              {phase === 'driver_arrived' ? `Meet your driver at ${trip.pickup.name}. Only share the code once you’re in the car.` : 'Give it to your driver once you’re in the car.'}
-            </small>
-          </div>
-          <span className="otp-card__code num" aria-label={`Ride code ${otp ? otp.split('').join(' ') : 'unavailable'}`}>
-            {otp ?? '····'}
-          </span>
-        </div>
-      ) : null}
-
-      {trip.driver && (tracking || phase === 'driver_assigned') ? (
-        <section className="driver-card" aria-label="Your driver">
-          <Avatar name={trip.driver.name} photoUrl={trip.driver.photoUrl} size={60} />
-          <div className="driver-card__text">
-            <strong>{trip.driver.name}</strong>
-            <small className="muted">
-              {trip.driver.rating != null ? `★ ${trip.driver.rating.toFixed(1)} · ` : ''}
-              {trip.driver.vehicleModel || trip.categoryName}
-            </small>
-          </div>
-          {trip.driver.vehicleNumber ? <span className="plate">{trip.driver.vehicleNumber}</span> : null}
-        </section>
-      ) : null}
-      {driverPhone && (tracking || phase === 'driver_assigned') ? (
-        <div className="driver-actions">
-          <a className="btn btn--dark btn--sm" href={`tel:+91${driverPhone}`}>
-            <Icon name="phone" /> Call driver
-          </a>
-          <a className="btn btn--secondary btn--sm" href={`https://wa.me/91${driverPhone}`} target="_blank" rel="noopener noreferrer">
-            <Icon name="chat" /> WhatsApp
-          </a>
-          <p className="muted small driver-actions__note">Calls go to {formatPhone(driverPhone)}.</p>
-        </div>
-      ) : (tracking || phase === 'driver_assigned') && trip.driver ? (
-        <Badge>No phone number on file for this driver</Badge>
-      ) : null}
-
-      {/* Cancelled */}
-      {phase === 'cancelled' ? (
-        <Notice tone={trip.cancellationFee > 0 ? 'warning' : 'info'}>
-          <strong>
-            {trip.status === 'Rejected' ? 'This booking was not accepted' : trip.cancelledBy === 'customer' ? 'You cancelled this ride' : 'This ride was cancelled'}
-            {trip.cancelReason ? ` — “${trip.cancelReason}”` : ''}.
-          </strong>{' '}
-          {trip.cancellationFee > 0 ? `A cancellation fee of ${formatINR(trip.cancellationFee)} applies per our policy.` : 'No cancellation fee was charged.'}
-          {trip.refund && trip.refund.amount > 0 ? ` Refund ${trip.refund.status.toLowerCase()}: ${formatINR(trip.refund.amount)}.` : ''}
-        </Notice>
-      ) : null}
-
-      {phase === 'completed' ? (
-        <>
-          <section className="done-card">
-            <img src="/art/trip-completed.webp" alt="" width={120} height={120} />
-            <div>
-              <h2>You’ve arrived at {trip.drop.name}</h2>
-              <p className="muted">{formatDateTime(trip.completedAt)}</p>
-            </div>
-          </section>
-          {moneyBox}
-          <section className="rcard" aria-labelledby="receipt-h">
-            <header>
-              <h2 id="receipt-h">Receipt</h2>
-              <Button size="sm" variant="secondary" icon="download" onClick={doPrint}>
-                Save or print
-              </Button>
-            </header>
-            {printing ? <Notice tone="error">{printing}</Notice> : null}
-            <FareBreakdown lines={tripFareLines(trip)} total={trip.fareBreakdown?.total ?? trip.fare} tolls={trip.tollCharges} />
-            {trip.paid && trip.paid.totalPaid > 0 ? (
-              <p className="muted small">
-                Paid so far {formatINR(trip.paid.totalPaid)} · Balance {formatINR(trip.paid.balanceDue)}
-              </p>
-            ) : null}
-          </section>
-          {profile ? <RatingCard trip={trip} profile={profile} /> : null}
-          {tripCard}
-          <details className="rcard rcard--fold">
-            <summary>
-              <h2>Trip timeline</h2>
-              <Icon name="chevron-down" size={18} />
-            </summary>
-            <Timeline steps={stepsNow} />
-          </details>
-        </>
-      ) : (
-        <>
-          {phase !== 'cancelled' ? timeline : null}
-          {tripCard}
-          {moneyBox}
-        </>
-      )}
-
-      {/* Options */}
-      <section className="options" aria-label="Trip options">
+      <div className="options">
         {!finished ? (
           <button type="button" className="option" onClick={() => void doShare()}>
             <Icon name="share" /> Share trip details
@@ -558,6 +465,9 @@ export function RidePage() {
         <Link className="option" to={`/support?booking=${encodeURIComponent(trip.bookingId)}`}>
           <Icon name="support" /> Get help with this trip
         </Link>
+        <a className="option" href={`tel:${SUPPORT_PHONE}`}>
+          <Icon name="phone" /> Call People Taxi · {SUPPORT_PHONE_DISPLAY}
+        </a>
         {tracking ? (
           <button type="button" className="option option--danger" onClick={() => setShowSafety(true)}>
             <Icon name="emergency" /> Safety centre · SOS
@@ -568,13 +478,138 @@ export function RidePage() {
             <Icon name="cancellation" /> Cancel booking
           </button>
         ) : null}
-        <a className="option" href={`tel:${SUPPORT_PHONE}`}>
-          <Icon name="phone" /> Call People Taxi · {SUPPORT_PHONE_DISPLAY}
-        </a>
-      </section>
+      </div>
+    </section>
+  );
+
+  return (
+    <div className="page ride">
+      <header className="ride-head">
+        <div className="ride-head__bar">
+          <IconButton icon="arrow-left" label="Back" outline onClick={() => ((window.history.state as { idx?: number } | null)?.idx ? navigate(-1) : navigate('/trips'))} />
+          <p className="ride-head__ref">
+            <span>Booking reference</span>
+            <strong className="num">{trip.bookingId}</strong>
+            {pending ? <small> · sending…</small> : fromCache && !online ? <small> · offline</small> : null}
+          </p>
+          <span className="status-chip" style={{ color: chip.fg, background: chip.bg }}>
+            {chip.label}
+          </span>
+        </div>
+        <h1 className="ride-head__title">{title}</h1>
+      </header>
+
+      <div className="ride__grid">
+        <div className="ride__main">
+          {/* Awaiting review / approved / vendor assigned: a status, never a search or an arrival promise */}
+          {arranging || phase === 'driver_assigned' ? (
+            <section className={`status-card ${phase === 'driver_assigned' ? 'is-good' : ''}`} aria-labelledby="status-h">
+              {arranging ? <img src="/art/account-review.webp" alt="" width={96} height={96} /> : <span className="status-card__icon" aria-hidden="true"><Icon name="check" size={28} /></span>}
+              <div>
+                <h2 id="status-h">{arranging ? 'What happens next' : 'Your trip is confirmed'}</h2>
+                <p>{pending ? 'Sending your request…' : status.detail}</p>
+                {trip.scheduledAt ? (
+                  <p className="status-card__when">
+                    <Icon name="clock" size={16} /> Pickup {formatDateTime(trip.scheduledAt)}
+                  </p>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
+
+          {/* Live: ETA, code, driver */}
+          {tracking && hero ? (
+            <div className="eta">
+              <span className="eta__big num">{hero.big}</span>
+              <span className="eta__small">{hero.small}</span>
+              {phase === 'driver_en_route' && straightKm != null && !eta ? <span className="eta__small">Driver is {formatDistance(straightKm)} from your pickup.</span> : null}
+            </div>
+          ) : null}
+          {streamingNote ? <p className="muted small">{streamingNote}</p> : null}
+          {tracking && !driverLoc ? <p className="muted small">Live location appears once your driver’s app shares it.</p> : null}
+
+          {(phase === 'driver_assigned' || phase === 'driver_en_route' || phase === 'driver_arrived') && trip.driver ? (
+            <div className={`otp-card ${phase === 'driver_arrived' ? 'is-arrived' : ''}`}>
+              <div>
+                <strong>{phase === 'driver_arrived' ? 'Share this code to start your ride' : 'Your start-of-ride code'}</strong>
+                <small>
+                  {phase === 'driver_arrived' ? `Meet your driver at ${trip.pickup.name}. Only share the code once you’re in the car.` : 'Give it to your driver once you’re in the car.'}
+                </small>
+              </div>
+              <span className="otp-card__code num" aria-label={`Ride code ${otp ? otp.split('').join(' ') : 'unavailable'}`}>
+                {otp ?? '····'}
+              </span>
+            </div>
+          ) : null}
+
+          {showDriver && trip.driver ? (
+            <section className="driver-card" aria-label="Your driver">
+              <Avatar name={trip.driver.name} photoUrl={trip.driver.photoUrl} size={60} />
+              <div className="driver-card__text">
+                <strong>{trip.driver.name}</strong>
+                <small className="muted">
+                  {trip.driver.rating != null ? `★ ${trip.driver.rating.toFixed(1)} · ` : ''}
+                  {trip.driver.vehicleModel || trip.categoryName}
+                </small>
+              </div>
+              {trip.driver.vehicleNumber ? <span className="plate">{trip.driver.vehicleNumber}</span> : null}
+              {driverPhone ? (
+                <div className="driver-actions">
+                  <a className="btn btn--primary btn--sm" href={`tel:+91${driverPhone}`}>
+                    <Icon name="phone" /> Call {trip.driver.name.split(' ')[0] || 'driver'}
+                  </a>
+                  <a className="btn btn--secondary btn--sm" href={`https://wa.me/91${driverPhone}`} target="_blank" rel="noopener noreferrer">
+                    <Icon name="chat" /> WhatsApp
+                  </a>
+                  <p className="muted small driver-actions__note">Calls go to {formatPhone(driverPhone)}.</p>
+                </div>
+              ) : (
+                <div className="driver-actions">
+                  <Badge>No phone number on file for this driver</Badge>
+                </div>
+              )}
+            </section>
+          ) : null}
+
+          {/* Cancelled */}
+          {phase === 'cancelled' ? (
+            <Notice tone={trip.cancellationFee > 0 ? 'warning' : 'info'}>
+              <strong>
+                {trip.status === 'Rejected' ? 'This booking was not accepted' : trip.cancelledBy === 'customer' ? 'You cancelled this ride' : 'This ride was cancelled'}
+                {trip.cancelReason ? ` — “${trip.cancelReason}”` : ''}.
+              </strong>{' '}
+              {trip.cancellationFee > 0 ? `A cancellation fee of ${formatINR(trip.cancellationFee)} applies per our policy.` : 'No cancellation fee was charged.'}
+              {trip.refund && trip.refund.amount > 0 ? ` Refund ${trip.refund.status.toLowerCase()}: ${formatINR(trip.refund.amount)}.` : ''}
+            </Notice>
+          ) : null}
+
+          {phase === 'completed' ? (
+            <>
+              <section className="done-card">
+                <img src="/art/trip-completed.webp" alt="" width={120} height={120} />
+                <div>
+                  <h2>You’ve arrived at {trip.drop.name}</h2>
+                  <p className="muted">{formatDateTime(trip.completedAt)}</p>
+                </div>
+              </section>
+              {profile ? <RatingCard trip={trip} profile={profile} /> : null}
+            </>
+          ) : null}
+
+          {tracking ? mapCard : null}
+          {phase !== 'cancelled' ? timeline : null}
+          {tripCard}
+          {!tracking ? mapCard : null}
+        </div>
+
+        <aside className="ride__side" aria-label="Fare, payment and actions">
+          {fareCard}
+          {actions}
+        </aside>
+      </div>
 
       {showCancel ? <CancelDialog trip={trip} onClose={() => setShowCancel(false)} /> : null}
       {showSafety && profile ? <SafetyDialog trip={trip} profile={profile} location={sharePoint} onClose={() => setShowSafety(false)} /> : null}
-    </Workspace>
+    </div>
   );
 }
