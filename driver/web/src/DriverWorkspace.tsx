@@ -230,12 +230,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
 
   const handleReachedPickup = async (requestId: string) => {
     if (!viewTrip) return;
-    const maxAccuracy = rules?.locationMaxAccuracyMeters ?? 200;
-    const location = await getFirebaseLocation(20000, maxAccuracy);
-    if (!location || location.accuracy === null || location.accuracy > maxAccuracy) {
-      throw new Error('Could not get an accurate live location. Enable precise location and move to an open area, then try again. If GPS remains unavailable, use Trip help / Call office for pickup confirmation.');
-    }
-    await advanceTrip({ bookingId: viewTrip.id, to: 'Reached Pickup', location, requestId });
+    await advanceTrip({ bookingId: viewTrip.id, to: 'Reached Pickup', requestId });
   };
 
   const handleVerifyBoarding = async (otp: string) => {
