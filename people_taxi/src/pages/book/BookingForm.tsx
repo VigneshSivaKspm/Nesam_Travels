@@ -9,11 +9,13 @@ import { reverseGeocode } from '@core/services/geoService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { haversineKm, isValidLatLng } from '@core/utils/geo';
-import { Button, Tabs } from '@/components/ui';
+import { Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
+import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
+import { setPendingReturn } from '@/lib/pendingReturn';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
@@ -36,6 +38,19 @@ const disposalFor = (pickup: GeoPlace): GeoPlace => ({
 const directionOf = (pickup: GeoPlace | null, drop: GeoPlace | null): AirportDirection =>
   isAirportPlace(pickup) && !isAirportPlace(drop) ? 'from' : 'to';
 
+/** Compact two-way switch (journey type, airport direction): a quiet radio group, not another set of tabs. */
+function Segmented({ label, value, items, onChange }: { label: string; value: string; items: { id: string; label: string }[]; onChange: (id: string) => void }) {
+  return (
+    <div className="jd-seg" role="radiogroup" aria-label={label}>
+      {items.map((i) => (
+        <button key={i.id} type="button" role="radio" aria-checked={value === i.id} className={`jd-seg__btn ${value === i.id ? 'is-on' : ''}`} onClick={() => onChange(i.id)}>
+          {i.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function BookingForm({
   service,
   onService,
@@ -48,6 +63,7 @@ export function BookingForm({
   onOutstationTrip: (t: 'One Way' | 'Round Trip') => void;
 }) {
   const navigate = useNavigate();
+  const { state: auth, openLoginModal, isLoginModalOpen } = useAuth();
   const { draft, update } = useBooking();
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
@@ -145,6 +161,13 @@ export function BookingForm({
     setErrors((e) => ({ ...e, drop: undefined, form: undefined }));
   };
 
+  /** A confirmed place goes to the field that opened the picker, then the picker closes (focus returns to the form). */
+  const onPickPlace = (p: GeoPlace) => {
+    if (pickerField === 'pickup') setPickup(p);
+    else if (pickerField === 'drop') setDrop(p);
+    setPickerField(null);
+  };
+
   const swapPlaces = () => {
     if (!draft.pickup && !draft.drop) return;
     update((d) => ({ pickup: d.drop, drop: d.pickup }));
@@ -216,7 +239,20 @@ export function BookingForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    navigate('/book/ride');
+    if (auth.status === 'ready') {
+      navigate('/book/ride');
+      return;
+    }
+    // Fares are priced by the booking server for a signed-in account. The trip is already kept in
+    // the draft (tab storage), so a guest signs in here and is then taken on to vehicle selection.
+    // The sign-in window being open is the guard against a duplicate request.
+    if (isLoginModalOpen) return;
+    update({ scheduledAt: scheduled, tripEndAt: outstationTrip === 'Round Trip' && service === 'outstation' ? scheduledEnd : null });
+    setPendingReturn('/book/ride');
+    openLoginModal({
+      title: 'Sign in to see fares',
+      subtitle: 'Sign-in is required to compare cabs and upfront fares. Your trip details are saved.',
+    });
   };
 
   const todayStr = useMemo(() => toDateInput(new Date()), []);
@@ -262,219 +298,236 @@ export function BookingForm({
     };
   }, [service, airportDir, draft.pickup]);
 
+  const isRental = service === 'rental';
+  const fromAirport = service === 'airport' && airportDir === 'from';
+  const toAirport = service === 'airport' && airportDir === 'to';
+  const roundTrip = service === 'outstation' && outstationTrip === 'Round Trip';
+
   return (
-    <div className="bf" id="book-console">
-      <div className="bf-head">
+    <div className="jd" id="book-console">
+      <header className="jd-head">
         <h2>{SERVICE_TITLE[service]}</h2>
         <p>Compare fares across all vehicle categories before booking</p>
-      </div>
+      </header>
 
-      <nav className="bf-services" aria-label="Booking services">
+      {/* Service rail */}
+      <nav className="jd-rail" aria-label="Booking services">
         {SERVICES.map((s) => (
           <button
             key={s.id}
             type="button"
-            className={`bf-service ${service === s.id ? 'is-active' : ''}`}
+            className={`jd-tab ${service === s.id ? 'is-active' : ''}`}
+            aria-current={service === s.id ? 'true' : undefined}
             onClick={() => onService(s.id)}
           >
+            <Icon name={s.icon} size={18} />
             <span>{s.label}</span>
           </button>
         ))}
       </nav>
 
       {service === 'outstation' ? (
-        <div className="bf-journey">
-          <Tabs
-            variant="boxed"
-            active={outstationTrip}
-            onChange={(id) => onOutstationTrip(id as 'One Way' | 'Round Trip')}
-            items={[
-              { id: 'One Way', label: 'One Way Drop' },
-              { id: 'Round Trip', label: 'Round Trip' },
-            ]}
-          />
-        </div>
+        <Segmented
+          label="Journey type"
+          value={outstationTrip}
+          onChange={(id) => onOutstationTrip(id as 'One Way' | 'Round Trip')}
+          items={[
+            { id: 'One Way', label: 'One way drop' },
+            { id: 'Round Trip', label: 'Round trip' },
+          ]}
+        />
       ) : null}
 
       {service === 'airport' ? (
-        <div className="bf-journey">
-          <Tabs
-            variant="boxed"
-            active={airportDir}
-            onChange={(id) => onAirportDirChange(id as AirportDirection)}
-            items={[
-              { id: 'to', label: 'Going to Airport' },
-              { id: 'from', label: 'Pickup from Airport' },
-            ]}
-          />
-        </div>
+        <Segmented
+          label="Airport direction"
+          value={airportDir}
+          onChange={(id) => onAirportDirChange(id as AirportDirection)}
+          items={[
+            { id: 'to', label: 'Going to airport' },
+            { id: 'from', label: 'Pickup from airport' },
+          ]}
+        />
       ) : null}
 
       {service === 'multicity' ? (
-        <div className="bf-offline-service">
-          <div className="bf-offline-service__icon">
+        <div className="jd-offline">
+          <span className="jd-offline__icon" aria-hidden="true">
             <Icon name="sparkles" size={24} />
-          </div>
+          </span>
           <h3>Custom Multi-Day &amp; Vacation Packages</h3>
-          <p>
-            Tailored itineraries for family vacations, temple tours, hill station getaways and corporate events with dedicated chauffeurs.
-          </p>
-          <div className="bf-offline-service__actions">
-            <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--primary btn--lg">
-              <Icon name="phone" size={18} /> Call {SUPPORT_PHONE_DISPLAY}
-            </a>
-          </div>
-          <small className="muted">24/7 dedicated travel concierge</small>
+          <p>Tailored itineraries for family vacations, temple tours, hill station getaways and corporate events with dedicated chauffeurs.</p>
+          <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--primary jd-offline__call">
+            <Icon name="phone" size={18} /> Call {SUPPORT_PHONE_DISPLAY}
+          </a>
+          <small>24/7 dedicated travel concierge</small>
         </div>
       ) : (
-        <form className="bf-form" onSubmit={onSubmit} noValidate>
-          <div className={`bf-route ${service === 'rental' ? 'bf-route--single' : ''}`}>
-            <div className="bf-route__cell">
-              <label htmlFor="bf-pickup" className="bf-label">
-                {service === 'airport' && airportDir === 'from' ? 'Airport Pickup' : 'Pickup Location'}
-              </label>
-              <div className={`bf-field ${errors.pickup ? 'is-invalid' : ''}`}>
-                <span className="bf-pin" aria-hidden="true" />
-                <div className="bf-field__main">
+        <form className="jd-form" onSubmit={onSubmit} noValidate>
+          {/* Connected route panel: one surface, two stops joined by a line, swap in its own column */}
+          <div className={`jd-route ${isRental ? 'jd-route--single' : ''}`}>
+            <div className="jd-route__stops">
+              <div className={`jd-stop jd-stop--from ${errors.pickup ? 'is-invalid' : ''}`}>
+                <span className="jd-stop__mark" aria-hidden="true" />
+                <div className="jd-stop__body">
+                  <label htmlFor="bf-pickup" className="jd-label">
+                    {fromAirport ? 'Airport pickup' : 'Pickup location'}
+                  </label>
                   <button
                     ref={pickupInputRef}
                     id="bf-pickup"
                     type="button"
-                    className={`bf-trigger ${!draft.pickup ? 'is-empty' : ''}`}
+                    className={`jd-value ${!draft.pickup ? 'is-empty' : ''}`}
+                    aria-describedby={errors.pickup ? 'bf-pickup-error' : undefined}
                     onClick={() => setPickerField('pickup')}
                   >
-                    <span className="bf-trigger__text">
-                      {draft.pickup?.name ?? (service === 'airport' && airportDir === 'from' ? 'Select departure airport…' : 'Enter pickup city, area or landmark…')}
+                    <span className="jd-value__text">
+                      {draft.pickup?.name ?? (fromAirport ? 'Select departure airport' : 'Enter pickup city, area or landmark')}
                     </span>
+                    {draft.pickup?.address && draft.pickup.address !== draft.pickup.name ? <span className="jd-value__addr">{draft.pickup.address}</span> : null}
                   </button>
-                  {draft.pickup?.address ? <span className="bf-addr">{draft.pickup.address}</span> : null}
+                  {errors.pickup ? (
+                    <p id="bf-pickup-error" className="jd-error">
+                      {errors.pickup}
+                    </p>
+                  ) : null}
                 </div>
-                <Icon name="chevron-down" size={16} className="bf-chev" />
               </div>
-              {errors.pickup ? <p className="bf-error">{errors.pickup}</p> : null}
-            </div>
 
-            {service !== 'rental' ? (
-              <button
-                type="button"
-                className="bf-swap"
-                title="Swap pickup and drop"
-                aria-label="Swap pickup and drop"
-                onClick={swapPlaces}
-              >
-                <Icon name="swap" size={16} />
-              </button>
-            ) : null}
-
-            {service !== 'rental' ? (
-              <div className="bf-route__cell">
-                <label htmlFor="bf-drop" className="bf-label">
-                  {service === 'airport' && airportDir === 'to' ? 'Airport Destination' : 'Drop Location'}
-                </label>
-                <div className={`bf-field ${errors.drop ? 'is-invalid' : ''}`}>
-                  <span className="bf-pin bf-pin--drop" aria-hidden="true" />
-                  <div className="bf-field__main">
+              {!isRental ? (
+                <div className={`jd-stop jd-stop--to ${errors.drop ? 'is-invalid' : ''}`}>
+                  <span className="jd-stop__mark" aria-hidden="true" />
+                  <div className="jd-stop__body">
+                    <label htmlFor="bf-drop" className="jd-label">
+                      {toAirport ? 'Airport destination' : 'Drop location'}
+                    </label>
                     <button
                       ref={dropInputRef}
                       id="bf-drop"
                       type="button"
-                      className={`bf-trigger ${!draft.drop ? 'is-empty' : ''}`}
+                      className={`jd-value ${!draft.drop ? 'is-empty' : ''}`}
+                      aria-describedby={errors.drop ? 'bf-drop-error' : undefined}
                       onClick={() => setPickerField('drop')}
                     >
-                      <span className="bf-trigger__text">
-                        {draft.drop?.name ?? (service === 'airport' && airportDir === 'to' ? 'Select destination airport…' : 'Enter destination city or landmark…')}
+                      <span className="jd-value__text">
+                        {draft.drop?.name ?? (toAirport ? 'Select destination airport' : 'Enter destination city or landmark')}
                       </span>
+                      {draft.drop?.address && draft.drop.address !== draft.drop.name ? <span className="jd-value__addr">{draft.drop.address}</span> : null}
                     </button>
-                    {draft.drop?.address ? <span className="bf-addr">{draft.drop.address}</span> : null}
+                    {errors.drop ? (
+                      <p id="bf-drop-error" className="jd-error">
+                        {errors.drop}
+                      </p>
+                    ) : null}
                   </div>
-                  <Icon name="chevron-down" size={16} className="bf-chev" />
                 </div>
-                {errors.drop ? <p className="bf-error">{errors.drop}</p> : null}
+              ) : null}
+            </div>
+
+            {!isRental ? (
+              <div className="jd-route__side">
+                <button type="button" className="jd-swap" title="Swap pickup and drop" aria-label="Swap pickup and drop" onClick={swapPlaces}>
+                  <Icon name="swap" size={18} />
+                </button>
               </div>
             ) : null}
           </div>
 
-          <div className="bf-row">
-            <div className="bf-cell">
-              <label htmlFor="bf-date" className="bf-label">
-                Pickup Date
-              </label>
-              <input
-                id="bf-date"
-                type="date"
-                className="input bf-input"
-                min={todayStr}
-                max={maxDateStr}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-              />
-              {errors.date ? <p className="bf-error">{errors.date}</p> : null}
-            </div>
-
-            <div className="bf-cell">
-              <label htmlFor="bf-time" className="bf-label">
-                Pickup Time
-              </label>
-              <button
-                id="bf-time"
-                type="button"
-                className={`bf-time ${!time ? 'is-empty' : ''}`}
-                onClick={() => setTimeField('pickup')}
-              >
-                <span>{time ? formatTime12(time) : 'Choose time…'}</span>
-                <Icon name="clock" size={16} />
-              </button>
-              {errors.time ? <p className="bf-error">{errors.time}</p> : null}
+          {/* Schedule */}
+          <div className="jd-section" role="group" aria-labelledby="jd-sched">
+            <p className="jd-section__title" id="jd-sched">
+              Pickup schedule
+            </p>
+            <div className="jd-pair">
+              <div className="jd-field">
+                <label htmlFor="bf-date" className="jd-label">
+                  Date
+                </label>
+                <input
+                  id="bf-date"
+                  type="date"
+                  className={`jd-control ${errors.date ? 'is-invalid' : ''}`}
+                  min={todayStr}
+                  max={maxDateStr}
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                />
+                {errors.date ? <p className="jd-error">{errors.date}</p> : null}
+              </div>
+              <div className="jd-field">
+                <label htmlFor="bf-time" className="jd-label">
+                  Time
+                </label>
+                <button
+                  id="bf-time"
+                  type="button"
+                  className={`jd-control jd-control--btn ${!time ? 'is-empty' : ''} ${errors.time ? 'is-invalid' : ''}`}
+                  onClick={() => setTimeField('pickup')}
+                >
+                  <span>{time ? formatTime12(time) : 'Choose time'}</span>
+                  <Icon name="clock" size={18} />
+                </button>
+                {errors.time ? <p className="jd-error">{errors.time}</p> : null}
+              </div>
             </div>
           </div>
 
-          {service === 'outstation' && outstationTrip === 'Round Trip' ? (
-            <div className="bf-row">
-              <div className="bf-cell">
-                <label htmlFor="bf-end-date" className="bf-label">
-                  Return Date
-                </label>
-                <input
-                  id="bf-end-date"
-                  type="date"
-                  className="input bf-input"
-                  min={date || todayStr}
-                  max={maxDateStr}
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  required
-                />
-                {errors.endDate ? <p className="bf-error">{errors.endDate}</p> : null}
-              </div>
-
-              <div className="bf-cell">
-                <label htmlFor="bf-end-time" className="bf-label">
-                  Return Time
-                </label>
-                <button
-                  id="bf-end-time"
-                  type="button"
-                  className={`bf-time ${!endTime ? 'is-empty' : ''}`}
-                  onClick={() => setTimeField('return')}
-                >
-                  <span>{endTime ? formatTime12(endTime) : 'Choose return time…'}</span>
-                  <Icon name="clock" size={16} />
-                </button>
-                {errors.endTime ? <p className="bf-error">{errors.endTime}</p> : null}
+          {roundTrip ? (
+            <div className="jd-section" role="group" aria-labelledby="jd-return">
+              <p className="jd-section__title" id="jd-return">
+                Return schedule
+              </p>
+              <div className="jd-pair">
+                <div className="jd-field">
+                  <label htmlFor="bf-end-date" className="jd-label">
+                    Return date
+                  </label>
+                  <input
+                    id="bf-end-date"
+                    type="date"
+                    className={`jd-control ${errors.endDate ? 'is-invalid' : ''}`}
+                    min={date || todayStr}
+                    max={maxDateStr}
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    required
+                  />
+                  {errors.endDate ? <p className="jd-error">{errors.endDate}</p> : null}
+                </div>
+                <div className="jd-field">
+                  <label htmlFor="bf-end-time" className="jd-label">
+                    Return time
+                  </label>
+                  <button
+                    id="bf-end-time"
+                    type="button"
+                    className={`jd-control jd-control--btn ${!endTime ? 'is-empty' : ''} ${errors.endTime ? 'is-invalid' : ''}`}
+                    onClick={() => setTimeField('return')}
+                  >
+                    <span>{endTime ? formatTime12(endTime) : 'Choose return time'}</span>
+                    <Icon name="clock" size={18} />
+                  </button>
+                  {errors.endTime ? <p className="jd-error">{errors.endTime}</p> : null}
+                </div>
               </div>
             </div>
           ) : null}
 
-          {errors.form ? <p className="bf-error bf-error--form">{errors.form}</p> : null}
+          {errors.form ? (
+            <p className="jd-error jd-error--form" role="alert">
+              {errors.form}
+            </p>
+          ) : null}
 
-          <Button type="submit" variant="primary" size="lg" block className="bf-submit" iconTrailing="arrow-right">
-            Search Cabs &amp; View Fares
-          </Button>
-
-          <p className="bf-trust">
-            <Icon name="shield-check" size={14} /> Fares are 100% upfront · Zero hidden fees · Pay driver directly
-          </p>
+          <div className="jd-action">
+            <Button type="submit" variant="primary" size="lg" block className="jd-submit" iconTrailing="arrow-right">
+              Search Cabs &amp; View Fares
+            </Button>
+            <p className="jd-trust">
+              <Icon name="shield-check" size={16} /> Fares are 100% upfront · Zero hidden fees · Pay driver directly
+            </p>
+          </div>
         </form>
       )}
 
@@ -483,7 +536,7 @@ export function BookingForm({
           config={pickerField === 'pickup' ? pickupConfig : dropConfig}
           saved={savedPlaces}
           recent={recentPlaces}
-          onPick={pickerField === 'pickup' ? setPickup : setDrop}
+          onPick={onPickPlace}
           onClose={() => setPickerField(null)}
         />
       ) : null}

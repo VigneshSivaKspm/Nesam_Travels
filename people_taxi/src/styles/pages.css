@@ -788,6 +788,9 @@ a.setting:hover {
 
 /* ── Sign in: two rounded cards on the sky page ──────────────────────────── */
 .auth {
+  width: 100%;
+  max-width: var(--max);
+  margin-inline: auto;
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(420px, 1fr);
   gap: 16px;
@@ -947,15 +950,15 @@ a.setting:hover {
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 1099.98px) {
   .account,
-  .split,
-  .support,
-  .inbox {
-    grid-template-columns: 1fr;
+.split,
+.support,
+.inbox {
+    grid-template-columns: minmax(0, 1fr);
   }
   .account__side,
-  .split__aside,
-  .support__aside,
-  .inbox__filters {
+.split__aside,
+.support__aside,
+.inbox__filters {
     position: static;
   }
   .inbox__filters {
@@ -973,12 +976,12 @@ a.setting:hover {
     min-height: 42px;
   }
   .faq--grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 @media (max-width: 899.98px) {
   .auth {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
     padding: 12px;
   }
   .auth__hero {

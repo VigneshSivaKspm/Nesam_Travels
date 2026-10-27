@@ -26,11 +26,9 @@ import { advanceTrip, newRequestId, recordCollection, revealCustomerContact, ver
 import { SLOTS } from '../services/verificationService';
 import type { TollReceipt, TripDetails } from '../types/driver';
 import { formatINR, formatPhone, localMobile } from '../utils/format';
-import { haversineKm } from '../utils/geo';
 import { describeError } from '../utils/retry';
 import { formatTime12 } from '../utils/time';
 import { startBlockers } from '../utils/tripFlow';
-import { PICKUP_RADIUS_KM } from '../config/constants';
 import { nx } from '../theme/nx';
 
 export function mapsDirections(loc: TripDetails['pickup']): string {
@@ -110,7 +108,6 @@ function TripFlow({ trip }: { trip: TripDetails }) {
   const finished = trip.status === 'Completed' || sub === 'Trip Ended';
   const cancelled = trip.status === 'Cancelled' || trip.status === 'Rejected';
   const when = tripWhen(trip);
-  const radiusKm = rules?.pickupRadiusKm ?? PICKUP_RADIUS_KM;
   const arrival = arrivalWindow(trip, rules, now);
   const opensText = arrival.opensAt ? `${arrival.opensAt.toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata', day: '2-digit', month: 'short' })}, ${formatTime12(arrival.opensAt)} IST` : '';
   const arrivalNote = !arrival.open && rules ? `Marking arrival opens ${opensText} — ${durationText(rules.startWindowMs)} before the pickup time. You can take the vehicle photos now.` : '';
@@ -154,14 +151,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
 
   const reachedPickup = () =>
     act(async () => {
-      const here = await getCurrentPosition(12000);
-      if (trip.pickup.lat != null && trip.pickup.lng != null) {
-        const d = haversineKm(here, { lat: trip.pickup.lat, lng: trip.pickup.lng });
-        if (d > radiusKm) {
-          throw new DriverActionError('too-far', `You are ${d.toFixed(1)} km from the pickup point. Move within ${radiusKm} km to continue.`);
-        }
-      }
-      await step('Reached Pickup', { location: here });
+      await step('Reached Pickup');
     }, 'Could not update the trip.');
 
   const startTrip = () => act(async () => step('Trip Started', { location: await hereOrNull() }), 'Could not start the trip.');
@@ -554,7 +544,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
         <NxPanel>
           <NxBadge label="On the way to pickup" tone="green" icon="car" />
           <Text style={[nxText.heading, { marginTop: 15 }]}>Reached the location?</Text>
-          <Text style={[nxText.copy, { marginTop: 7 }]}>Confirm when you arrive. You must be within {radiusKm} km of the pickup point.</Text>
+          <Text style={[nxText.copy, { marginTop: 7 }]}>Confirm when you arrive. GPS verification is disabled.</Text>
           <NxFormError message={error} />
           <NxSwipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={reachedPickup} />
           <Text style={nxText.note}>{arrivalNote || `Vehicle photos submitted · pickup ${placeName(trip.pickup.address)}`}</Text>

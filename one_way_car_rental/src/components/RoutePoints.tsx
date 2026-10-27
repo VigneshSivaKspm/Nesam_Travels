@@ -15,7 +15,7 @@ export function RoutePoints({ pickup, drop, pickupAddress, dropAddress, compact 
         <span className="route-points__mark route-points__mark--pickup" aria-hidden="true" />
         <div className="route-points__text">
           <span className="route-points__label">Pickup</span>
-          <strong className={compact ? 'truncate' : ''}>{pickup}</strong>
+          <strong>{pickup}</strong>
           {!compact && pickupAddress && pickupAddress !== pickup ? <small>{pickupAddress}</small> : null}
         </div>
         {trailing}
@@ -24,7 +24,7 @@ export function RoutePoints({ pickup, drop, pickupAddress, dropAddress, compact 
         <span className="route-points__mark route-points__mark--drop" aria-hidden="true" />
         <div className="route-points__text">
           <span className="route-points__label">Destination</span>
-          <strong className={compact ? 'truncate' : ''}>{drop}</strong>
+          <strong>{drop}</strong>
           {!compact && dropAddress && dropAddress !== drop ? <small>{dropAddress}</small> : null}
         </div>
       </li>

@@ -230,8 +230,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
 
   const handleReachedPickup = async (requestId: string) => {
     if (!viewTrip) return;
-    const location = await getFirebaseLocation();
-    await advanceTrip({ bookingId: viewTrip.id, to: 'Reached Pickup', location, requestId });
+    await advanceTrip({ bookingId: viewTrip.id, to: 'Reached Pickup', requestId });
   };
 
   const handleVerifyBoarding = async (otp: string) => {

@@ -233,9 +233,9 @@ export function ChooseStep() {
                     const blocked = tooFar || !!reason;
                     const incl = inclusionLine(c, q.outstation);
                     return (
-                      <li key={c.id}>
-                        <label className={`cab ${on ? 'is-selected' : ''} ${blocked ? 'is-disabled' : ''}`}>
-                          <input type="radio" name="cab" className="cab__radio" checked={on} disabled={blocked} onChange={() => update({ categoryId: c.id })} />
+                      <li key={c.id} className={`cab ${on ? 'is-selected' : ''} ${blocked ? 'is-disabled' : ''}`}>
+                        <input id={`cab-${c.id}`} type="radio" name="cab" className="cab__radio" checked={on} disabled={blocked} onChange={() => update({ categoryId: c.id })} />
+                        <label className="cab__label" htmlFor={`cab-${c.id}`}>
                           <span className="cab__tick" aria-hidden="true">
                             <Icon name="check" size={12} />
                           </span>
@@ -270,22 +270,15 @@ export function ChooseStep() {
                               <small>Fare unavailable</small>
                             )}
                           </span>
-                          <span className="cab__foot">
-                            <span>{incl || 'Fare as per route distance'}</span>
-                            {fare ? (
-                              <button
-                                type="button"
-                                className="link-btn"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setFareFor(c);
-                                }}
-                              >
-                                <Icon name="chevron-right" size={13} /> View fare breakup
-                              </button>
-                            ) : null}
-                          </span>
                         </label>
+                        <div className="cab__foot">
+                          <span>{incl || 'Fare as per route distance'}</span>
+                          {fare ? (
+                            <button type="button" className="link-btn" onClick={() => setFareFor(c)}>
+                              <Icon name="chevron-right" size={13} /> View fare breakup
+                            </button>
+                          ) : null}
+                        </div>
                       </li>
                     );
                   })}

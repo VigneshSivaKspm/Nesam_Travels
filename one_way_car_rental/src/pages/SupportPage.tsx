@@ -171,8 +171,8 @@ export function SupportPage() {
                 ) : (
                   <ul className="card card--list">
                     {tickets.map((t) => (
-                      <li key={t.id} className="ticket">
-                        <div className="ticket__head">
+                      <li key={t.id} className="support-ticket">
+                        <div className="support-ticket__head">
                           <strong>{t.category || 'Support request'}</strong>
                           <Badge tone={t.status === 'Resolved' || t.status === 'Closed' ? 'green' : t.status === 'In Progress' ? 'blue' : 'amber'} dot>
                             {t.status}

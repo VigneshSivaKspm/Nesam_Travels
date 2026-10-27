@@ -12,7 +12,6 @@ import { timingSafeEqual } from 'crypto';
 import { db } from './admin';
 import { auditInTx } from './audit';
 import { LEGACY_STAGE_FOR, TRIP_SUB_STATUSES, TripSubStatus, tripStageBlocker, tripSubStatusOf } from './domain/bookingFlow';
-import { distanceKm } from './domain/verification';
 import { finalizeFare, finalizeLegacyFare, PricingSnapshot } from './domain/tariff';
 import { assertDriverEligible, assertVehicleEligible, loadScheduleConfig } from './eligibility';
 import { formatDateTime12, pickupInstant } from './domain/time';
@@ -147,16 +146,8 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
         }
         assertVehicleEligible(v, vs.id, b, scheduleCfg);
       }
-      // Reached needs a FRESH, ACCURATE fix inside the configured radius. A missing fix is refused,
-      // never recorded as a note; the only exception is the audited overrideReachedPickup function.
-      if (!fix) throw new HttpsError('failed-precondition', 'Turn on location and try again. NESAM needs your live position to confirm you are at the pickup.', { code: 'location-required' });
-      const ageMs = fix.capturedAt === null ? Infinity : Date.now() - fix.capturedAt;
-      if (ageMs > limits.maxAgeMs || ageMs < -60000) throw new HttpsError('failed-precondition', 'Your location is out of date. Wait for a fresh GPS fix and try again.', { code: 'location-stale' });
-      if (fix.accuracy !== null && fix.accuracy > limits.maxAccuracyM) throw new HttpsError('failed-precondition', `GPS accuracy is too low (±${fix.accuracy} m). Move to an open area and try again.`, { code: 'location-inaccurate' });
-      if (!Number.isFinite(b.pickupLat) || !Number.isFinite(b.pickupLng)) throw new HttpsError('failed-precondition', 'This booking has no pickup coordinates. Contact NESAM support.', { code: 'pickup-unknown' });
-      const d = distanceKm(fix, { lat: b.pickupLat, lng: b.pickupLng });
-      if (d > limits.radiusKm) throw new HttpsError('failed-precondition', `You are ${d.toFixed(1)} km from the pickup point. Move within ${limits.radiusKm} km to continue.`, { distanceKm: Math.round(d * 10) / 10, radiusKm: limits.radiusKm });
-      update = { ...base, reachedPickupAt: stamp, reachedPickupLocation: geo, reachedPickupDistanceKm: Math.round(d * 100) / 100 };
+      // Pickup is driver-confirmed; GPS verification is disabled.
+      update = { ...base, reachedPickupAt: stamp, reachedPickupLocation: null, reachedPickupDistanceKm: FieldValue.delete(), reachedPickupVerification: 'driver-confirmed' };
       adminMsg = `${driver.name} reached the pickup for ${label}.`;
     } else if (to === 'Trip Started') {
       if (!['Assigned', 'Confirmed', 'Ongoing'].includes(b.status)) throw new HttpsError('failed-precondition', 'This trip cannot be started in its current state.');
@@ -309,9 +300,8 @@ export const verifyBoarding = onCall(async (request) => {
 });
 
 /**
- * Audited exception to the pickup gate: staff mark a trip "Reached Pickup" when the driver's GPS
- * cannot confirm it (dead phone, no signal) and the reason is on record. It is a distinct,
- * logged path — the driver-facing advanceTrip never accepts a missing or distant location.
+ * Staff can also mark a trip "Reached Pickup" on the driver's behalf.
+ * This distinct path requires a reason and keeps an audit record.
  */
 export const overrideReachedPickup = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');

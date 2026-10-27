@@ -76,7 +76,7 @@ const Preview: React.FC = () => {
       <TripFlowScreen
         trip={fx.trips[tripScreens[screen]]}
         now={Date.now()}
-        rules={noRules ? null : { startWindowMs: 6 * 3600000, pickupRadiusKm: 3 }}
+        rules={noRules ? null : { startWindowMs: 6 * 3600000, pickupRadiusKm: 3, locationMaxAccuracyMeters: 200 }}
         onBack={() => undefined}
         onStartVerification={() => undefined}
         onReachedPickup={noop}

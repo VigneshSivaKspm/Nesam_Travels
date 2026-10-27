@@ -21,6 +21,7 @@
   line-height: 1.1;
   text-decoration: none;
   white-space: nowrap;
+  max-width: 100%;
   cursor: pointer;
   transition: background var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), transform var(--dur) var(--ease), color var(--dur) var(--ease-out);
 }
@@ -101,16 +102,6 @@
 }
 .btn--block {
   width: 100%;
-}
-.btn__price {
-  margin-left: auto;
-  padding: 4px 14px;
-  border-radius: var(--r-pill);
-  background: rgb(255 255 255 / 0.2);
-}
-.btn--lg:has(.btn__price) {
-  justify-content: space-between;
-  padding-right: 14px;
 }
 
 .spinner {
@@ -199,11 +190,11 @@
 .textarea,
 .select {
   width: 100%;
-  min-height: 56px;
-  padding: 0 20px;
-  border: 2px solid var(--line);
-  border-radius: 20px;
-  background: var(--paper);
+  min-height: var(--field-h);
+  padding: 0 16px;
+  border: 1.5px solid var(--field-line);
+  border-radius: var(--r-btn);
+  background: var(--surface);
   color: var(--ink);
   font-size: var(--fs-md);
   font-weight: 600;
@@ -211,7 +202,7 @@
 }
 .textarea {
   min-height: 120px;
-  padding: 16px 20px;
+  padding: 14px 16px;
   resize: vertical;
   line-height: var(--lh-body);
 }
@@ -253,9 +244,9 @@
 .input-affix {
   display: flex;
   align-items: stretch;
-  border: 2px solid var(--line);
-  border-radius: 20px;
-  background: var(--paper);
+  border: 1.5px solid var(--field-line);
+  border-radius: var(--r-btn);
+  background: var(--surface);
   overflow: hidden;
   transition: border-color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out), background var(--dur) var(--ease-out);
 }
@@ -313,33 +304,6 @@
 }
 
 /* Segmented control (radio semantics): a soft pill track, the active option fills blue */
-.seg {
-  display: inline-flex;
-  padding: 5px;
-  gap: 4px;
-  border-radius: var(--r-pill);
-  background: var(--brand-soft);
-  max-width: 100%;
-}
-.seg button {
-  min-height: 42px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: transparent;
-  color: var(--brand-ink);
-  font-weight: 800;
-  white-space: nowrap;
-  transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), box-shadow var(--dur) var(--ease-out);
-}
-.seg button:hover {
-  background: rgb(22 101 232 / 0.08);
-}
-.seg button[aria-checked='true'] {
-  background: var(--brand);
-  color: #fff;
-  box-shadow: 0 6px 14px rgb(22 101 232 / 0.35);
-}
 
 /* ── Chips, tabs, badges ─────────────────────────────────────────────────── */
 .chip {
@@ -599,7 +563,7 @@
 
 /* ── Surfaces ────────────────────────────────────────────────────────────── */
 .card {
-  padding: clamp(20px, 2vw, 32px);
+  padding: clamp(18px, 2.4vw, 28px);
   border: 1px solid var(--line);
   border-radius: var(--r-lg);
   background: var(--surface);
@@ -612,17 +576,6 @@
 .card--list {
   padding: 0;
   overflow: hidden;
-}
-.card__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 18px;
-}
-.card__title {
-  font-size: var(--fs-lg);
-  font-weight: 800;
 }
 
 /* ── Dialog ──────────────────────────────────────────────────────────────── */
@@ -642,6 +595,7 @@
   flex-direction: column;
   width: min(100%, 560px);
   max-height: min(100%, 88vh);
+  max-height: min(100%, 88dvh);
   border-radius: var(--r-xl);
   background: var(--surface);
   box-shadow: var(--shadow-4);
@@ -657,16 +611,23 @@
   gap: 12px;
   padding: 22px 20px 8px 30px;
 }
+.dialog__head > div {
+  min-width: 0;
+}
 .dialog__head h2 {
   font-size: var(--fs-xl);
   font-weight: 900;
+  overflow-wrap: anywhere;
 }
 .dialog__body {
+  min-height: 0;
   padding: 4px 30px 26px;
   overflow: auto;
+  overscroll-behavior: contain;
 }
 .dialog__foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 12px;
   padding: 16px 30px 26px;
@@ -697,8 +658,18 @@
   .dialog {
     width: 100%;
     max-height: 92vh;
+    max-height: min(92dvh, var(--app-h, 100dvh));
     border-radius: var(--r-xl) var(--r-xl) 0 0;
     animation: rise 260ms var(--ease-out);
+  }
+  .dialog__head {
+    padding: 14px 14px 6px 20px;
+  }
+  .dialog__body {
+    padding: 4px 20px 20px;
+  }
+  .dialog__foot {
+    padding: 14px 20px calc(20px + env(safe-area-inset-bottom, 0px));
   }
   .dialog::before {
     content: '';
@@ -710,7 +681,7 @@
     background: var(--line-strong);
   }
   .dialog__foot > .btn {
-    flex: 1;
+    flex: 1 1 auto;
   }
 }
 
@@ -718,7 +689,8 @@
 .toasts {
   position: fixed;
   right: var(--gutter);
-  bottom: 24px;
+  /* Clears whatever is docked to the bottom of the viewport (tab bar, flow bar, sheet). */
+  bottom: calc(var(--dock-h, 0px) + 24px);
   z-index: 300;
   display: grid;
   gap: 12px;
@@ -772,7 +744,7 @@
   .toasts {
     right: 16px;
     left: 16px;
-    bottom: calc(var(--tabbar-h) + 28px);
+    bottom: calc(var(--dock-h, 0px) + 16px);
     width: auto;
   }
 }
@@ -820,7 +792,6 @@
   padding-top: 4px;
 }
 
-
 /* ── Flow Steps, Tabs & Dialog Overlays (People Taxi) ── */
 .flow-steps {
   display: flex;
@@ -864,7 +835,7 @@
 .tabs {
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: 1fr;
+  grid-auto-columns: minmax(0, 1fr);
 }
 .tabs--line {
   border-bottom: 2px solid var(--line);
@@ -939,7 +910,7 @@
   }
   .dialog--sheet {
     width: 100%;
-    max-height: 92dvh;
+    max-height: min(92dvh, var(--app-h, 100dvh));
     border-radius: 20px 20px 0 0;
     padding-bottom: env(safe-area-inset-bottom);
     animation: sheet 200ms var(--ease);
@@ -949,7 +920,7 @@
   }
   .dialog--page {
     width: 100%;
-    height: 100dvh;
+    height: var(--app-h, 100dvh);
     max-height: none;
     border: 0;
     border-radius: 0;
@@ -961,4 +932,21 @@
     transform: translateY(40px);
     opacity: 0.4;
   }
+}
+
+/* Narrow phones: long labels wrap inside a button instead of running past its edge. */
+@media (max-width: 479.98px) {
+  .btn {
+    padding-block: 8px;
+    text-align: center;
+    white-space: normal;
+  }
+  .btn--lg {
+    padding-inline: 20px;
+  }
+}
+.toast__body,
+.field__error,
+.notice {
+  overflow-wrap: anywhere;
 }

@@ -126,8 +126,8 @@ html:has(.ds-workspace) { scrollbar-gutter: stable; }
 .badge-pulse { animation: pulse 2s infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
-/* Table hover (legacy pages) */
-tr.table-row:hover td { background-color: var(--color-brand-soft); }
+/* Table hover (legacy pages). Rows tinted by booking source (data-source) keep their own hover. */
+tr.table-row:not([data-source]):hover td { background-color: var(--color-brand-soft); }
 
 /* Transition defaults */
 .nav-item { transition: background-color var(--duration-ui) ease, color var(--duration-ui) ease; }

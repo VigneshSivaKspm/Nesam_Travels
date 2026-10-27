@@ -173,6 +173,8 @@ export function BookingForm({
       return;
     }
     if (e.form) return;
+    // Signed in: the vehicle step shows fares. A guest lands on the same URL's sign-in-required
+    // screen (BookPage) with this draft intact, and resumes here once signed in.
     navigate('/book/ride');
   };
 

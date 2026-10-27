@@ -455,11 +455,12 @@ export interface TripRules {
   /** How long before the pickup time the first trip step (Reached Pickup) opens. */
   startWindowMs: number;
   pickupRadiusKm: number;
+  locationMaxAccuracyMeters: number;
 }
 
 export function parseTripRules(d: Record<string, unknown> | undefined): TripRules {
   const n = (v: unknown, dflt: number, lo: number, hi: number) => (typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi ? v : dflt);
-  return { startWindowMs: n(d?.tripStartWindowMinutes, 360, 15, 4320) * 60000, pickupRadiusKm: n(d?.pickupRadiusKm, 3, 0.1, 25) };
+  return { startWindowMs: n(d?.tripStartWindowMinutes, 360, 15, 4320) * 60000, pickupRadiusKm: n(d?.pickupRadiusKm, 3, 0.1, 25), locationMaxAccuracyMeters: n(d?.locationMaxAccuracyMeters, 200, 10, 2000) };
 }
 
 export function subscribeToTripRules(callback: (rules: TripRules | null) => void) {

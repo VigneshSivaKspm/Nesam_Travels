@@ -4,11 +4,11 @@ import { getFirestore } from 'firebase-admin/firestore';
 /**
  * Credentials for the Admin SDK.
  *  - Firebase Cloud Functions: none needed (application default credentials).
- *  - Vercel / any other host: set FIREBASE_SERVICE_ACCOUNT to the service-account JSON
+ *  - Vercel / any other host: set NESAM_SERVICE_ACCOUNT to the service-account JSON
  *    (raw JSON, or base64 of it). It is read only on the server and never sent to a client.
  */
 function serviceAccountFromEnv(): (ServiceAccount & { project_id?: string }) | null {
-  const raw = (process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim();
+  const raw = (process.env.NESAM_SERVICE_ACCOUNT ?? process.env.FIREBASE_SERVICE_ACCOUNT ?? '').trim();
   if (!raw) return null;
   const json = raw.startsWith('{') ? raw : Buffer.from(raw, 'base64').toString('utf8');
   const account = JSON.parse(json) as Record<string, unknown>;
@@ -24,7 +24,7 @@ if (!getApps().length) {
     initializeApp({
       credential: cert(account),
       projectId,
-      storageBucket: (process.env.FIREBASE_STORAGE_BUCKET ?? '').trim() || `${projectId}.firebasestorage.app`,
+      storageBucket: (process.env.NESAM_STORAGE_BUCKET ?? process.env.FIREBASE_STORAGE_BUCKET ?? '').trim() || `${projectId}.firebasestorage.app`,
     });
   } else {
     initializeApp();

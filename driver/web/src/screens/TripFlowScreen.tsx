@@ -689,7 +689,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
           <h3 className="nx-heading" style={{ marginTop: 15 }}>
             Reached the location?
           </h3>
-          <p className="nx-copy">Confirm when you arrive. NESAM checks your live position against the pickup point.</p>
+          <p className="nx-copy">Confirm when you arrive. GPS verification is disabled.</p>
           {error ? (
             <div className="nx-form-error" role="alert">
               {error}

@@ -7,6 +7,7 @@ import {
 } from "../../domain/officeStage";
 import { bookingPickupDate, toDate } from "../../utils/time";
 import { Badge, Button, Icon } from "../ui";
+import { BookingSourceBadge } from "./BookingBadges";
 
 /** Reference booking table cells. Each returns the inner content of one <td>. */
 
@@ -30,6 +31,8 @@ export function RouteCell({ b }: { b: Booking }) {
       <small title={b.bookingId || b.id}>
         {b.bookingId || b.id} <i>{bookingSourceLabel(b)}</i>
       </small>
+      {/* Which customer website the booking came from (One Way Car Rentals / People Taxi). */}
+      <BookingSourceBadge booking={b} size="sm" className="mt-1" />
       {areas && <small>{areas}</small>}
     </div>
   );

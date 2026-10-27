@@ -155,6 +155,32 @@ export function BookingSourceBadge({
   return null;
 }
 
+/** Table cell for the Website / Source column: the real source badge, "Nesam" only when explicitly stored, otherwise "Unknown". */
+export type BookingSourceDisplay = BookingSourceType | "unknown";
+
+/** Source as shown in the table: "nesam" only when explicitly stored, otherwise "unknown". */
+export function getBookingSourceDisplay(b: { source?: string; bookingSource?: string; brand?: string; website?: string; notes?: string } | null | undefined): BookingSourceDisplay {
+  const s = getBookingSource(b);
+  if (s !== "nesam") return s;
+  const raw = `${b?.bookingSource || ""} ${b?.source || ""} ${b?.brand || ""} ${b?.website || ""}`.toLowerCase();
+  return raw.includes("nesam") ? "nesam" : "unknown";
+}
+
+/** Full-row tint + hover per source for the bookings table. Hover is set on the row, so it needs the `data-source` attribute (see index.css). */
+export const BOOKING_SOURCE_TABLE_ROW_CLS: Record<BookingSourceDisplay, string> = {
+  onewaycarrentals: "border-l-4 border-l-emerald-500 bg-[#D1FAE5] hover:bg-[#A7F3D0]",
+  people_taxi: "border-l-4 border-l-blue-500 bg-[#DBEAFE] hover:bg-[#BFDBFE]",
+  nesam: "bg-[#FEE2E2] hover:bg-[#FECACA]",
+  unknown: "hover:bg-gray-50",
+};
+
+export function BookingSourceCell({ booking }: { booking?: { source?: string; bookingSource?: string; brand?: string; website?: string; notes?: string } | null }) {
+  const s = getBookingSourceDisplay(booking);
+  if (s === "onewaycarrentals" || s === "people_taxi") return <BookingSourceBadge booking={booking} size="sm" />;
+  if (s === "nesam") return <BookingSourceBadge source="nesam" showNesam size="sm" />;
+  return <span className="inline-flex px-2 py-0.5 rounded-full border border-gray-300 bg-gray-50 text-[11px] font-semibold text-[#555]">Unknown</span>;
+}
+
 export function BookingSourceBanner({
   booking,
   className = "",
