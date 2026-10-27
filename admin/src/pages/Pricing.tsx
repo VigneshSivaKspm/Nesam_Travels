@@ -12,6 +12,7 @@ import { StageBar } from "../components/ui/ListKit";
 import MenuButton from "../components/ui/MenuButton";
 import TariffConfigCard from "../components/TariffConfigCard";
 import LocalFares from "../components/LocalFares";
+import FixedRouteFares from "../components/FixedRouteFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { TaxPolicyDialog, type TaxPolicy } from "./Invoices";
@@ -47,7 +48,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>(restore?.filter ?? "All");
-  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" | "local" } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "fixed" | "limits" | "all" | "tax" | "local" } | null>(null);
   const canEdit = useCan("pricing");
   const canTest = useCan("operations");
   const { toast, show } = useToast(6000);
@@ -111,6 +112,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     ["Pricing & Fare Management", "Manage base rates, partner payouts, extra charges and fare rules.", "Company-wide", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY })],
     ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => setSheet({ kind: "local" })],
     ["Extra charges", "Waiting, hills, carrier and other add-ons.", "Configured scope", () => onNavigate("categories")],
+    ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => setSheet({ kind: "fixed" })],
     ["Business contracts", "Company rates, credit terms and contracts.", "Business account", () => onNavigate("business")],
     ["Service boundaries", "Define verified cities, areas and service zones.", "Service areas", () => onNavigate("locations")],
     ["Fare limits", "Review approved minimum and maximum amounts.", "Configured scope", () => setSheet({ kind: "limits" })],
@@ -203,6 +205,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       {sheet?.kind === "history" && <HistorySheet rules={rules} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet onClose={() => setSheet(null)} />}
       {sheet?.kind === "base" && <Modal title="Base rates & partner payout" subtitle="Company-wide" onClose={closeBase} busy={baseBusy} wide><TariffConfigCard onDirtyChange={(d) => { baseDirty.current = d; }} onBusyChange={setBaseBusy} /></Modal>}
+      {sheet?.kind === "fixed" && <FixedRouteFares onClose={() => setSheet(null)} onToast={show} />}
       {sheet?.kind === "local" && <Modal title="Local fares" subtitle="Rental packages and Pickup & Drop" onClose={() => setSheet(null)} wide><LocalFares initialCity={sel.city} onToast={show} /></Modal>}
       {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}

@@ -22,7 +22,7 @@ import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { loadCommissionPolicy } from './commission';
 import { createContactInTx, maskPhone } from './contacts';
-import { loadTariffConfig, priceBooking, rentalHoursOf, sharedCityId, tariffClassOf } from './quote';
+import { loadFixedRoutes, loadTariffConfig, priceBooking, rentalHoursOf, sharedCityId, tariffClassOf } from './quote';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { nextBookingCode } from './bookingSequence';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text } from './shared';
@@ -138,7 +138,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
     const customerId = typeof input.customerId === 'string' ? input.customerId : '';
-    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff] = await Promise.all([
+    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff, fixedRoutes] = await Promise.all([
       tx.get(ref),
       tx.get(db.collection('vehicle_categories').where('status', '==', 'Active')),
       typeof input.serviceId === 'string' && input.serviceId ? tx.get(db.doc(`services/${input.serviceId}`)) : Promise.resolve(null),
@@ -146,6 +146,8 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       loadCommissionPolicy(tx),
       loadFareAdjustment(tx),
       loadTariffConfig(tx),
+      // Fixed route fares are matched on canonical master-location ids, so a map-pin trip never needs them.
+      tripType === 'One Way' && pickupR.source === 'master' && dropR.source === 'master' ? loadFixedRoutes(tx) : Promise.resolve([]),
     ]);
     if (previous.exists) {
       if (previous.data()!.createdBy !== admin.uid) throw new HttpsError('permission-denied', 'Request already used.');
@@ -171,7 +173,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const pricedRaw = priceBooking({
-      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours,
+      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId,
     });
     const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
     assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });

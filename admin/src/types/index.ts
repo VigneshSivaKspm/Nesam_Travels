@@ -716,6 +716,15 @@ export interface FareRule {
   effectiveFrom?: string;
   effectiveUntil?: string;
 
+  // Fixed route fares saved with the Fixed route fares tool (absent on older route rules; `baseFare` is the customer fare)
+  managed?: boolean;
+  partnerPayout?: number;
+  gstMode?: "included" | "excluded";
+  peakAdjustment?: "apply" | "exclude";
+  reverseDirection?: boolean;
+  version?: number;
+  lastReason?: string;
+
   createdAt?: any;
   updatedAt?: any;
   createdBy?: string;

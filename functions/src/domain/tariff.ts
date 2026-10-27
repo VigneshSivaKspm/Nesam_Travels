@@ -247,7 +247,7 @@ export interface PricingSnapshot {
   schema: 2;
   /** 'tariff_v2' (this module) or 'legacy_category' (admin category fares, kept for local / airport duties). */
   source: 'tariff_v2' | 'legacy_category';
-  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package';
+  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package' | 'fixed_route';
   tariffVersion: number;
   tariffClass: TariffClass | null;
   gstRate: number;
@@ -276,6 +276,10 @@ export interface PricingSnapshot {
   extraHourRatePaise?: number;
   /** Local Pickup & Drop only: canonical City record the fare came from. */
   localCityId?: string;
+  /** Fixed route fare only: the fare record (and its version) that priced the booking, and whether the booked direction was its reverse. */
+  fixedRouteId?: string;
+  fixedRouteVersion?: number;
+  fixedRouteReversed?: boolean;
   /** Dates charged, IST, for round trips. */
   pickupDate: string;
   endDate: string | null;
@@ -551,6 +555,110 @@ export function quoteRentalPackage(i: QuoteInput & { hours: number }): QuoteResu
   };
 }
 
+// ── Fixed route fares ───────────────────────────────────────────────────────
+
+/** An agreed fare for one route (and, when allowed, its reverse) saved with the Fixed route fares tool. */
+export interface FixedRouteFare {
+  id: string;
+  name: string;
+  originId: string;
+  destinationId: string;
+  categoryId: string;
+  /** '' = any service. */
+  serviceId: string;
+  customerFare: number;
+  partnerPayout: number;
+  gstMode: GstMode;
+  /** Whether the global fare adjustment applies to this fare: always an explicit choice. */
+  peakAdjustment: 'apply' | 'exclude';
+  reverseDirection: boolean;
+  priority: number;
+  effectiveFrom: string;
+  effectiveUntil: string;
+  version: number;
+}
+
+/**
+ * An enabled fare saved through the tool and valid in every field. Older route rules (no partner payout, GST
+ * or peak choice) and anything incomplete return null and are never priced.
+ */
+export function parseFixedRouteFare(id: string, d: Record<string, any> | undefined | null): FixedRouteFare | null {
+  if (!d || d.managed !== true || d.pricingType !== 'FIXED_ROUTE' || d.status !== 'Active') return null;
+  const s = (v: unknown): string => (typeof v === 'string' ? v : '');
+  const originId = s(d.originLocationId), destinationId = s(d.destinationLocationId), categoryId = s(d.vehicleCategoryId);
+  if (!originId || !destinationId || originId === destinationId || !categoryId) return null;
+  if (!isPos(d.baseFare) || !isPos(d.partnerPayout)) return null;
+  if (d.gstMode !== 'included' && d.gstMode !== 'excluded') return null;
+  if (d.peakAdjustment !== 'apply' && d.peakAdjustment !== 'exclude') return null;
+  if (typeof d.reverseDirection !== 'boolean') return null;
+  if (typeof d.priority !== 'number' || !Number.isInteger(d.priority) || d.priority < 1 || d.priority > 99) return null;
+  return {
+    id, name: s(d.name), originId, destinationId, categoryId, serviceId: s(d.serviceId), customerFare: d.baseFare, partnerPayout: d.partnerPayout,
+    gstMode: d.gstMode, peakAdjustment: d.peakAdjustment, reverseDirection: d.reverseDirection, priority: d.priority,
+    effectiveFrom: s(d.effectiveFrom), effectiveUntil: s(d.effectiveUntil), version: typeof d.version === 'number' ? d.version : 0,
+  };
+}
+
+/**
+ * The fare that applies to a trip: same canonical origin / destination (the reverse only when the fare allows
+ * it), vehicle category and service (a fare for one service never prices another), inside its dates. Several
+ * matches resolve the same way every time: lowest priority number, then the booked direction over its reverse,
+ * then a service-specific fare over an any-service one, then the record id.
+ */
+export function matchFixedRoute(
+  rules: FixedRouteFare[],
+  c: { originId: string; destinationId: string; categoryId: string; serviceId: string; date: string },
+): { rule: FixedRouteFare; reversed: boolean } | null {
+  const hits: { rule: FixedRouteFare; reversed: boolean }[] = [];
+  for (const r of rules) {
+    if (r.categoryId !== c.categoryId) continue;
+    if (r.serviceId && r.serviceId !== c.serviceId) continue;
+    if (r.effectiveFrom && c.date < r.effectiveFrom) continue;
+    if (r.effectiveUntil && c.date > r.effectiveUntil) continue;
+    const direct = r.originId === c.originId && r.destinationId === c.destinationId;
+    const reversed = r.reverseDirection && r.originId === c.destinationId && r.destinationId === c.originId;
+    if (direct || reversed) hits.push({ rule: r, reversed: !direct });
+  }
+  hits.sort((a, b) => a.rule.priority - b.rule.priority || Number(a.reversed) - Number(b.reversed) || Number(!a.rule.serviceId) - Number(!b.rule.serviceId) || (a.rule.id < b.rule.id ? -1 : 1));
+  return hits[0] ?? null;
+}
+
+/**
+ * A fixed route fare replaces the distance-based base fare: the customer pays the agreed fare (GST follows the
+ * fare's own mode, using the one GST rate and rounding of every other fare) and the partner is paid the agreed
+ * payout. The road distance is still recorded. The global fare adjustment applies only when the fare opts in.
+ */
+export function quoteFixedRoute(i: {
+  rule: FixedRouteFare; reversed: boolean; gstRate: number; tariffVersion: number; tariffClass: TariffClass | null;
+  routeKm: number; durationMin: number; pickupMs: number; discount?: number; adjustmentPercent?: number; adjustmentDirection?: 'increase' | 'decrease';
+}): QuoteResult {
+  const r = i.rule;
+  const fixedPaise = paise(r.customerFare);
+  const packagePaise = r.gstMode === 'included' ? taxableFromInclusivePaise(fixedPaise, i.gstRate) : fixedPaise;
+  const adjustmentPercent = r.peakAdjustment === 'apply' ? i.adjustmentPercent ?? 0 : 0;
+  const direction = i.adjustmentDirection ?? 'increase';
+  const km = Math.round(i.routeKm * 10) / 10;
+  const base = toBreakdown({
+    packagePaise, distancePaise: packagePaise, bataPaise: 0, floorPaise: 0, discount: i.discount ?? 0, adminAdjustment: 0,
+    adjustmentPercent, adjustmentDirection: direction, gstRate: i.gstRate, km: i.routeKm, durationMin: i.durationMin, ratePaise: 0,
+  });
+  // The agreed fare is the whole base fare; there is no distance line.
+  const fare: FareBreakdown = { ...base, baseFare: base.distanceFare, distanceFare: 0 };
+  return {
+    fare,
+    pricing: {
+      schema: 2, source: 'tariff_v2', model: 'fixed_route', tariffVersion: i.tariffVersion, tariffClass: i.tariffClass, gstRate: i.gstRate,
+      // The road distance is kept; no per-KM charge is added to an agreed fare, so a longer trip does not raise it.
+      quotedKm: km, includedKm: km, extraKmRatePaise: 0, customerRatePaise: 0, customerBataPaise: 0, days: 1, minKmPerDay: 0,
+      fixedRouteId: r.id, fixedRouteVersion: r.version, fixedRouteReversed: i.reversed,
+      packagePaise, discount: fare.discount, adminAdjustment: 0, adjustmentPercent, adjustmentDirection: direction,
+      partner: { mode: 'NORMAL_RATE', ratePaise: 0, bataPaise: 0, minKm: 0, days: 1, basePaise: paise(r.partnerPayout) },
+      pickupDate: istDate(i.pickupMs), endDate: null,
+      gates: [...GATES_LOCAL, 'Fixed route fare: the agreed fare is charged for the route whatever the kilometres driven'],
+    },
+  };
+}
+
 /** True when both places lie inside the SAME configured city zone. No zones configured → false (gated, D15). */
 export function withinCityZone(cfg: TariffConfig, a: { lat: number; lng: number }, b: { lat: number; lng: number }): CityZone | null {
   const dist = (p: { lat: number; lng: number }, z: CityZone) => {
@@ -620,8 +728,8 @@ export function finalizeFare(i: FinalInput): FinalResult {
   const gst = gstOn(taxable, p.gstRate);
   const billableKm = Math.max(totalKm, includedKm);
   let partnerPaise: number | null = null;
-  if (p.partner && p.model === 'rental_package') {
-    // A rental package pays the partner its fixed package payout.
+  if (p.partner && (p.model === 'rental_package' || p.model === 'fixed_route')) {
+    // A rental package or fixed route fare pays the partner its agreed payout.
     partnerPaise = p.partner.basePaise;
   } else if (p.partner) {
     const partnerKm = Math.max(totalKm, p.model === 'round_trip_calendar' ? p.partner.minKm * days : p.partner.minKm, p.quotedKm && p.model === 'one_way_standard' ? p.quotedKm : 0);

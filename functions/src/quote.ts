@@ -10,10 +10,10 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { DutyClass, dutyClassOf } from './domain/eligibility';
 import { buildFareBreakup, buildTariffFareBreakup, FareBreakup } from './domain/fareBreakup';
-import { FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
+import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
 import {
-  CONFIRMED_TARIFF_V2, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, localFareFor, paise, parseTariffConfig,
-  gstOn, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone,
+  CONFIRMED_TARIFF_V2, FixedRouteFare, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
+  parseFixedRouteFare, parseTariffConfig, gstOn, quoteFixedRoute, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone,
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
 import { requirePermission, text } from './shared';
@@ -24,6 +24,13 @@ export async function loadTariffConfig(tx?: Transaction): Promise<TariffConfig |
   const ref = db.doc(TARIFF_DOC);
   const snap = tx ? await tx.get(ref) : await ref.get();
   return snap.exists ? parseTariffConfig(snap.data()) : null;
+}
+
+/** Every enabled, valid fixed route fare (see parseFixedRouteFare); older route rules are not included. */
+export async function loadFixedRoutes(tx?: Transaction): Promise<FixedRouteFare[]> {
+  const q = db.collection('fare_rules').where('pricingType', '==', 'FIXED_ROUTE').where('status', '==', 'Active');
+  const snap = tx ? await tx.get(q) : await q.get();
+  return snap.docs.map((d) => parseFixedRouteFare(d.id, d.data())).filter((r): r is FixedRouteFare => r !== null);
 }
 
 /** tariff class of a category: an explicit `tariffClass` on the category record, else its duty class. */
@@ -88,6 +95,9 @@ export interface PriceInput {
   localCityId?: string | null;
   /** Local Rental only: the package the customer chose, in hours. */
   rentalHours?: number | null;
+  /** Enabled fixed route fares and the booked service. Only places with canonical location ids (never a map pin) can match one. */
+  fixedRoutes?: FixedRouteFare[];
+  serviceId?: string;
 }
 
 export interface PriceResult {
@@ -121,6 +131,21 @@ export function priceBooking(i: PriceInput): PriceResult {
   };
   const adjust = { adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction };
   const timing = { routeKm: i.route.distanceKm, durationMin: i.route.durationMin, pickupMs: i.pickupAt.getTime(), endMs: null };
+
+  // An enabled fixed route fare replaces the distance-based base fare for exactly its route, direction, service,
+  // category and dates. Anything that does not match keeps its normal pricing; a map pin never matches.
+  const hasId = (id: string) => !!id && id !== 'pin';
+  const fixed = i.tripType === 'One Way' && i.fixedRoutes?.length && hasId(i.pickup.id) && hasId(i.drop.id)
+    ? matchFixedRoute(i.fixedRoutes, { originId: i.pickup.id, destinationId: i.drop.id, categoryId: i.category.id, serviceId: i.serviceId ?? '', date: istDate(i.pickupAt.getTime()) })
+    : null;
+  if (fixed) {
+    const tariff = i.tariff;
+    const q = withDiscounts((discount) => quoteFixedRoute({
+      rule: fixed.rule, reversed: fixed.reversed, gstRate: tariff?.gstRate ?? CATEGORY_GST_RATE, tariffVersion: tariff?.version ?? 0, tariffClass: klass,
+      routeKm: i.route.distanceKm, durationMin: i.route.durationMin, pickupMs: i.pickupAt.getTime(), discount, adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
+    }));
+    return { fare: q.fare, pricing: q.pricing, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, outstation, q.pricing), usesCommissionPolicy: false };
+  }
 
   // Fixed rental packages and per-city Local Pickup & Drop fares switch on one by one (each has its own
   // enabled flag), so they do not wait for the confirmed-tariff switch. Anything not explicitly enabled
@@ -338,7 +363,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
             customerUses: prior.filter((b) => normalizeCode(b.couponCode || '') === code).length,
             pickupAt: when, completedTrips: prior.filter((b) => b.status === 'Completed').length,
             pickupText: `${pickup.name} ${pickup.address ?? ''}`, dropText: `${drop.name} ${drop.address ?? ''}`,
-            fixedRoute: before.pricing.model === 'city_drop_package', peakAdjusted: adjustment?.direction === 'increase',
+            fixedRoute: before.pricing.model === 'city_drop_package' || before.pricing.model === 'fixed_route', peakAdjusted: adjustment?.direction === 'increase',
           });
           if (r.ok) { discount = r.coupon.discount; couponMessage = r.coupon.message; } else couponMessage = r.message;
         } else if (code) couponMessage = 'Sign in to apply this code.';

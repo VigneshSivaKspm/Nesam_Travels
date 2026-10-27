@@ -121,6 +121,17 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
     const extras = lines.filter((l) => l.treatment === 'extra');
     return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
   }
+  if (pricing.model === 'fixed_route') {
+    const head: FareLine[] = [{
+      key: 'package', label: 'Fixed route fare', amount: fare.baseFare, treatment: 'included',
+      detail: `Agreed fare for this route (${pricing.includedKm} KM by road); it does not change with the kilometres driven`,
+    }];
+    // No per-KM charge is added to an agreed fare.
+    const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum', 'extraKm'].includes(l.key));
+    const lines = [...head, ...extrasBlock(rest)];
+    const extras = lines.filter((l) => l.treatment === 'extra');
+    return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
+  }
   const head: FareLine[] = [
     {
       key: 'distance', label: roundTrip ? 'Distance (billable KM)' : 'Distance charge', amount: fare.distanceFare + fare.minimumFareAdjustment, treatment: 'included',

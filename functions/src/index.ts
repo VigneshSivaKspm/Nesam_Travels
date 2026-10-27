@@ -11,6 +11,7 @@ export { issuePenalty, transitionPenalty, acknowledgePenalty, disputePenalty } f
 export { advanceTrip, verifyBoarding, overrideReachedPickup } from './trips';
 export { saveTariffConfig, quoteBooking } from './quote';
 export { saveTariffSection } from './tariffSections';
+export { saveFixedRouteFare } from './fixedRoutes';
 export { createCaptureSession, getSlotChallenge, submitCapturePhoto, finalizeVehicleVerification } from './vehicleVerification';
 export { reportSecurityEvent, getIntegrityNonce, verifyDeviceIntegrity } from './security';
 export { sendVerificationCode, verifyCustomerCode, whatsappWebhook } from './customerVerification';

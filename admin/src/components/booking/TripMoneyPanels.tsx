@@ -20,6 +20,7 @@ const MODEL_LABEL: Record<string, string> = {
   rental_time: "Local rental (time)",
   local_pickup_drop: "Local Pickup & Drop (city fare)",
   rental_package: "Local rental package",
+  fixed_route: "Fixed route fare",
   legacy_category: "Vehicle category fares",
 };
 

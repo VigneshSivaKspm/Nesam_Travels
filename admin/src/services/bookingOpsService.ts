@@ -35,6 +35,15 @@ export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; keepSavedR
 export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; data?: unknown }) =>
   callFunction<typeof i, { version: number }>("saveTariffSection", i);
 
+export interface FixedRouteFareData {
+  originLocationId: string; destinationLocationId: string; vehicleCategoryId: string; serviceId: string;
+  customerFare: number; partnerPayout: number; gstMode: "included" | "excluded"; peakAdjustment: "apply" | "exclude"; reverseDirection: boolean;
+  status: "Active" | "Inactive"; priority: number; effectiveFrom: string; effectiveUntil: string;
+}
+/** Creates (no ruleId), edits (ruleId + the version the editor loaded) or enables / disables a fixed route fare. */
+export const saveFixedRouteFare = (i: { ruleId?: string; expectedVersion?: number; reason: string; action?: "status"; status?: "Active" | "Inactive"; data?: FixedRouteFareData }) =>
+  callFunction<typeof i, { id: string; version: number }>("saveFixedRouteFare", i);
+
 /** Fulfilment route 2: reserve an approved booking to a Vendor, which then assigns its own driver and vehicle. */
 export const assignVendor = (i: { bookingId: string; vendorId: string; payout?: number; reason?: string }) =>
   callFunction<typeof i, { ok: boolean; vendorName: string; payout: number }>("assignVendor", i);

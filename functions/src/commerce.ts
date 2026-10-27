@@ -147,7 +147,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
         isFirstBooking: prior.length === 0, customerUses: prior.filter(b => normalizeCode(b.couponCode || '') === couponCode).length,
         pickupAt: when, completedTrips: prior.filter(b => b.status === 'Completed').length,
         pickupText: `${pickup.name} ${pickup.address ?? ''}`, dropText: `${drop.name} ${drop.address ?? ''}`,
-        fixedRoute: beforeDiscount.pricing.model === 'city_drop_package', peakAdjusted: adjustment?.direction === 'increase',
+        fixedRoute: beforeDiscount.pricing.model === 'city_drop_package' || beforeDiscount.pricing.model === 'fixed_route', peakAdjusted: adjustment?.direction === 'increase',
       });
       if (!result.ok) throw new HttpsError('failed-precondition', result.message);
       discount = result.coupon.discount;

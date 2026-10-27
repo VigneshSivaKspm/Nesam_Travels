@@ -1,6 +1,8 @@
 // Authoritative fare policy. Client calculations are previews only.
 import { AppliedCoupon, Coupon, DiscountDetail, FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './types';
 const GST_RATE = 0.05, NIGHT_END_HOUR = 6, NIGHT_START_HOUR = 22, OUTSTATION_THRESHOLD_KM = 40;
+/** The GST rate of the vehicle-category engine, for fixed prices quoted while no tariff is saved. */
+export const CATEGORY_GST_RATE = GST_RATE;
 const str = (v: unknown): string => typeof v === 'string' ? v : '';
 const num = (v: unknown, fallback = 0): number => typeof v === 'number' && Number.isFinite(v) ? v : fallback;
 function vehicleTypeAliases(...labels: string[]): string[] {
