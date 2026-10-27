@@ -32,6 +32,7 @@ import Settings from "./pages/Settings";
 // Pages — New (Enterprise Multi-Vendor)
 import Vendors from "./pages/Vendors";
 import PartnerLinks from "./pages/PartnerLinks";
+import PartnerRequests from "./pages/PartnerRequests";
 import Marketplace from "./pages/Marketplace";
 import Trips from "./pages/Trips";
 import Penalties from "./pages/Penalties";
@@ -78,6 +79,7 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   vendors: { title: "Vendor Management", breadcrumb: ["People & Fleet", ""] },
   drivers: { title: "Drivers", breadcrumb: ["People & Fleet", "Driver Partners"] },
   "partner-links": { title: "Partner Links", breadcrumb: ["People & Fleet", ""] },
+  "partner-requests": { title: "Partner Requests", breadcrumb: ["Operations", ""] },
   vehicles: { title: "Vehicles", breadcrumb: ["People & Fleet", ""] },
   categories: { title: "Vehicle Categories", breadcrumb: ["People & Fleet", ""] },
   services: { title: "Services", breadcrumb: ["Office", ""] },
@@ -231,6 +233,8 @@ function AdminShell({ session }: { session: AdminSession }) {
         return <Drivers onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "partner-links":
         return <PartnerLinks />;
+      case "partner-requests":
+        return <PartnerRequests onOpenBooking={(id) => openTarget("booking-detail", id)} />;
 
       // Fleet
       case "vehicles":

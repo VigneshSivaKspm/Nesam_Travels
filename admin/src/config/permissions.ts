@@ -48,6 +48,8 @@ export const PAGE_ACCESS: Record<string, Permission | null | "super"> = {
   verification: "people",
   drivers: "people",
   "partner-links": "people",
+  // Listing is open to every active admin; each decision checks operations / finance / people on the server.
+  "partner-requests": null,
   vehicles: "fleet",
   categories: "pricing",
   pricing: "pricing",

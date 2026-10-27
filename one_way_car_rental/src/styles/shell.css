@@ -310,6 +310,34 @@
     }
   }
 
+  /* 320–359px: logo, My Trips, notifications and support share one row without overflowing. */
+  @media (max-width: 359.98px) {
+    .topbar__inner {
+      gap: 8px;
+    }
+    .topbar__mobile {
+      gap: 0;
+    }
+    .topbar__mobile .head-action--icon {
+      width: 40px;
+      height: 40px;
+    }
+    .brand {
+      gap: 6px;
+    }
+    .brand img {
+      width: 30px;
+      height: 30px;
+    }
+    .brand__word b {
+      font-size: 1rem;
+    }
+    .brand__word small {
+      font-size: 0.62rem;
+      letter-spacing: 0.06em;
+    }
+  }
+
   /* Room for the fixed tab bar (its own height + the device safe area). */
   .shell--nav {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom));

@@ -1,13 +1,17 @@
-// The reference's 12-hour time picker: hour, quarter-hour minute and AM/PM, with
-// past or out-of-window times disabled and the choice re-checked on confirm.
-import React, { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+// The 12-hour time picker: three scrolling wheels — hour 1–12, every minute 00–59 and AM/PM.
+// Past or out-of-window times are shown faded and can't be confirmed; the choice is re-checked on confirm.
+import React, { useMemo, useRef, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View, type NativeScrollEvent, type NativeSyntheticEvent } from 'react-native';
 import { Button, Notice, Sheet } from './ui';
 import { colors, fonts, space } from '../theme';
 
 const HOURS = Array.from({ length: 12 }, (_, i) => i + 1);
-const MINUTES = [0, 15, 30, 45];
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+const PERIODS: Period[] = ['AM', 'PM'];
 type Period = 'AM' | 'PM';
+const ITEM_H = 44;
+/** Rows above (and below) the centre band, so the first and last values can reach it. */
+const PAD_ROWS = 2;
 
 const pad = (n: number) => String(n).padStart(2, '0');
 
@@ -43,7 +47,7 @@ export function TimePickerSheet({
 }) {
   const initial = value ?? compose(day, 6, 0, 'PM');
   const [hour, setHour] = useState(() => initial.getHours() % 12 || 12);
-  const [minute, setMinute] = useState(() => MINUTES.reduce((a, m) => (Math.abs(m - initial.getMinutes()) < Math.abs(a - initial.getMinutes()) ? m : a), 0));
+  const [minute, setMinute] = useState(() => initial.getMinutes());
   const [period, setPeriod] = useState<Period>(() => (initial.getHours() >= 12 ? 'PM' : 'AM'));
   const [error, setError] = useState('');
 
@@ -51,6 +55,11 @@ export function TimePickerSheet({
   const current = useMemo(() => compose(day, hour, minute, period), [day, hour, minute, period]);
   const currentProblem = problemOf(current);
   const dayText = day.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  const choose = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setError('');
+  };
 
   const confirm = () => {
     // Re-checked now: a time can become past while the sheet is open.
@@ -64,24 +73,15 @@ export function TimePickerSheet({
 
   return (
     <Sheet visible={visible} onClose={onClose} title={title} subtitle={`${dayText} · ${zoneLabel(day)}`}>
-      <Group label="Hour">
-        {HOURS.map((h) => (
-          <Option key={h} label={pad(h)} on={h === hour} disabled={!MINUTES.some((m) => ok(h, m, period))} onPress={() => setHour(h)} />
-        ))}
-      </Group>
-      <Group label="Minute">
-        {MINUTES.map((m) => (
-          <Option key={m} label={pad(m)} on={m === minute} disabled={!ok(hour, m, period)} onPress={() => setMinute(m)} wide />
-        ))}
-      </Group>
-      <Group label="AM / PM">
-        {(['AM', 'PM'] as Period[]).map((p) => (
-          <Option key={p} label={p} on={p === period} disabled={!HOURS.some((h) => MINUTES.some((m) => ok(h, m, p)))} onPress={() => setPeriod(p)} wide />
-        ))}
-      </Group>
       <Text style={styles.value} accessibilityLiveRegion="polite">
-        {pad(hour)}:{pad(minute)} {period}
+        {hour}:{pad(minute)} {period}
       </Text>
+      <View style={styles.wheels}>
+        <View pointerEvents="none" style={styles.band} />
+        <Wheel label="Hour" items={HOURS} value={hour} format={String} isDisabled={(h) => !MINUTES.some((m) => ok(h, m, period))} onChange={choose(setHour)} />
+        <Wheel label="Minute" items={MINUTES} value={minute} format={pad} isDisabled={(m) => !ok(hour, m, period)} onChange={choose(setMinute)} />
+        <Wheel label="AM or PM" items={PERIODS} value={period} format={String} isDisabled={(p) => !HOURS.some((h) => MINUTES.some((m) => ok(h, m, p)))} onChange={choose(setPeriod)} />
+      </View>
       {currentProblem || error ? <Notice tone="warning" message={error || currentProblem} /> : null}
       <Text style={styles.note}>Past times are unavailable. The time is checked again before your booking is confirmed.</Text>
       <Button title="Confirm time" icon="check" onPress={confirm} disabled={!!currentProblem} style={{ marginTop: space.lg }} />
@@ -89,39 +89,95 @@ export function TimePickerSheet({
   );
 }
 
-function Group({ label, children }: { label: string; children: React.ReactNode }) {
+/** One scrolling column; the row that settles in the centre band is the selected value. */
+function Wheel<T extends string | number>({
+  label,
+  items,
+  value,
+  format,
+  isDisabled,
+  onChange,
+}: {
+  label: string;
+  items: T[];
+  value: T;
+  format: (item: T) => string;
+  isDisabled: (item: T) => boolean;
+  onChange: (item: T) => void;
+}) {
+  const ref = useRef<ScrollView>(null);
+  const placed = useRef(false);
+  const index = Math.max(0, items.indexOf(value));
+  const clamp = (i: number) => Math.min(items.length - 1, Math.max(0, i));
+
+  const go = (i: number, animated = true) => {
+    const at = clamp(i);
+    ref.current?.scrollTo({ y: at * ITEM_H, animated });
+    if (items[at] !== value) onChange(items[at] as T);
+  };
+  const settle = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const at = clamp(Math.round(e.nativeEvent.contentOffset.y / ITEM_H));
+    if (items[at] !== value) onChange(items[at] as T);
+  };
+
   return (
-    <View style={{ marginBottom: space.md }}>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel={label}>
-        {children}
-      </View>
+    <View
+      style={styles.wheel}
+      accessible
+      accessibilityRole="adjustable"
+      accessibilityLabel={label}
+      accessibilityValue={{ text: format(value) }}
+      accessibilityActions={[{ name: 'increment' }, { name: 'decrement' }]}
+      onAccessibilityAction={(e) => go(index + (e.nativeEvent.actionName === 'increment' ? 1 : -1))}
+    >
+      <ScrollView
+        ref={ref}
+        nestedScrollEnabled
+        showsVerticalScrollIndicator={false}
+        snapToInterval={ITEM_H}
+        decelerationRate="fast"
+        contentContainerStyle={{ paddingVertical: ITEM_H * PAD_ROWS }}
+        onLayout={() => {
+          // Start on the current value once; afterwards the wheel keeps its own position.
+          if (placed.current) return;
+          placed.current = true;
+          ref.current?.scrollTo({ y: index * ITEM_H, animated: false });
+        }}
+        onMomentumScrollEnd={settle}
+        onScrollEndDrag={settle}
+      >
+        {items.map((item, i) => {
+          const on = item === value;
+          const off = isDisabled(item);
+          return (
+            <Pressable key={String(item)} onPress={() => go(i)} style={styles.item} importantForAccessibility="no">
+              <Text style={[styles.itemText, on && styles.itemTextOn, off && !on && styles.itemTextOff]}>{format(item)}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
-function Option({ label, on, disabled, onPress, wide }: { label: string; on: boolean; disabled: boolean; onPress: () => void; wide?: boolean }) {
-  return (
-    <Pressable
-      onPress={disabled ? undefined : onPress}
-      accessibilityRole="radio"
-      accessibilityState={{ selected: on, disabled }}
-      style={({ pressed }) => [styles.option, wide && styles.optionWide, on && styles.optionOn, disabled && styles.optionOff, pressed && !disabled && { opacity: 0.7 }]}
-    >
-      <Text style={[styles.optionText, on && styles.optionTextOn, disabled && { color: '#B5BCC6' }]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
-  label: { fontFamily: fonts.regular, fontSize: 11.5, color: colors.muted, marginBottom: 7 },
-  options: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-  option: { minWidth: 46, flexGrow: 1, flexBasis: '14%', minHeight: 40, borderRadius: 6, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-  optionWide: { flexBasis: '20%' },
-  optionOn: { borderColor: colors.primary, backgroundColor: '#FFF6F5' },
-  optionOff: { backgroundColor: '#F6F7F9', borderColor: '#EEF0F3' },
-  optionText: { fontFamily: fonts.medium, fontSize: 14, color: colors.value },
-  optionTextOn: { color: colors.primary, fontFamily: fonts.semiBold },
-  value: { fontFamily: fonts.semiBold, fontSize: 28, letterSpacing: -0.6, color: colors.ink, textAlign: 'center', marginVertical: space.md },
+  value: { fontFamily: fonts.semiBold, fontSize: 28, letterSpacing: -0.6, color: colors.ink, textAlign: 'center', marginBottom: space.md },
+  wheels: { flexDirection: 'row', gap: 8, height: ITEM_H * (PAD_ROWS * 2 + 1), marginBottom: space.md },
+  band: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: ITEM_H * PAD_ROWS,
+    height: ITEM_H,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    backgroundColor: '#FFF6F5',
+  },
+  wheel: { flex: 1 },
+  item: { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
+  itemText: { fontFamily: fonts.medium, fontSize: 17, color: colors.muted },
+  itemTextOn: { fontFamily: fonts.semiBold, fontSize: 21, color: colors.primary },
+  itemTextOff: { color: '#C3C9D1' },
   note: { fontFamily: fonts.regular, fontSize: 11.5, lineHeight: 17, color: colors.muted },
 });

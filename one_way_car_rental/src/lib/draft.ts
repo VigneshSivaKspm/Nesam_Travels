@@ -1,5 +1,5 @@
 // The booking draft and its tab-lifetime persistence (kept free of React and Firebase so it can be tested).
-import type { GeoPlace, PaymentMethod, TripType } from '@core/types';
+import type { GeoPlace, TripType } from '@core/types';
 import { isValidLatLng } from '@core/utils/geo';
 
 export interface BookingDraft {
@@ -11,8 +11,6 @@ export interface BookingDraft {
   /** Round trips only: when the trip ends (billing counts Indian calendar dates from pickup to here). */
   tripEndAt: Date | null;
   categoryId: string;
-  /** The booking server records Cash or UPI. */
-  payment: PaymentMethod;
   /** A code the rider has applied (re-validated against every fare). */
   promoCode: string;
   notes: string;
@@ -35,7 +33,6 @@ export const EMPTY_DRAFT: BookingDraft = {
   scheduledAt: null,
   tripEndAt: null,
   categoryId: '',
-  payment: 'Cash',
   promoCode: '',
   notes: '',
   waSame: true,
@@ -84,7 +81,6 @@ export function loadDraft(): BookingDraft {
       // The end only makes sense after a still-valid pickup.
       tripEndAt: scheduled && endAt && !Number.isNaN(endAt.getTime()) && endAt.getTime() >= scheduled.getTime() ? endAt : null,
       categoryId: typeof d.categoryId === 'string' ? d.categoryId : '',
-      payment: d.payment === 'UPI' ? 'UPI' : 'Cash',
       promoCode: typeof d.promoCode === 'string' ? d.promoCode : '',
       notes: typeof d.notes === 'string' ? d.notes.slice(0, 300) : '',
       waSame: d.waSame !== false,

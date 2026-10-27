@@ -1,12 +1,14 @@
-// The pickup-time sheet: 12-hour clock, quarter-hour minutes and AM/PM. The chosen time is checked
-// again when confirmed, so a time that became too soon while the sheet was open is refused.
-import { useState } from 'react';
+// The pickup-time sheet: three scrolling wheels — hour 1–12, every minute 00–59 and AM/PM. The chosen
+// time is checked again when confirmed, so a time that became too soon while the sheet was open is refused.
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { Button, Dialog } from './ui';
 import { combineDateTime } from '@/lib/schedule';
 
-const HOURS = [12, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-const MINUTES = [0, 15, 30, 45];
+const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const MINUTES = Array.from({ length: 60 }, (_, i) => i);
+const MERIDIEMS = ['AM', 'PM'];
+const ITEM_H = 44;
 
 export const formatTime12 = (hhmm: string) => {
   const [h, m] = hhmm.split(':').map(Number) as [number, number];
@@ -16,7 +18,46 @@ export const formatTime12 = (hhmm: string) => {
 
 function split(hhmm: string) {
   const [h, m] = hhmm ? (hhmm.split(':').map(Number) as [number, number]) : [18, 0];
-  return { hour: h % 12 === 0 ? 12 : h % 12, minute: MINUTES.includes(m) ? m : Math.min(45, Math.ceil(m / 15) * 15), pm: h >= 12 };
+  return { hour: h % 12 === 0 ? 12 : h % 12, minute: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0, pm: h >= 12 };
+}
+
+/** One vertically scrolling column; the item snapped to the centre band is the selected value. */
+function Wheel<T extends string | number>({ label, items, value, format = String, onChange }: { label: string; items: T[]; value: T; format?: (item: T) => string; onChange: (item: T) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    ref.current?.scrollTo({ top: items.indexOf(value) * ITEM_H });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const onScroll = () => {
+    const el = ref.current;
+    if (!el) return;
+    const next = items[Math.min(items.length - 1, Math.max(0, Math.round(el.scrollTop / ITEM_H)))] as T;
+    if (next !== value) onChange(next);
+  };
+
+  // Keyboard: arrows step by one, Page Up / Down by five, Home / End jump to the ends.
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const steps: Record<string, number | undefined> = { ArrowDown: 1, ArrowUp: -1, PageDown: 5, PageUp: -5 };
+    const step = steps[e.key];
+    const at = items.indexOf(value);
+    const to = step !== undefined ? at + step : e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : null;
+    if (to === null) return;
+    e.preventDefault();
+    const i = Math.min(items.length - 1, Math.max(0, to));
+    ref.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' });
+    onChange(items[i] as T);
+  };
+
+  return (
+    <div ref={ref} className="timepick__wheel" role="listbox" aria-label={label} tabIndex={0} onScroll={onScroll} onKeyDown={onKeyDown}>
+      {items.map((item, i) => (
+        <div key={item} role="option" aria-selected={item === value} className={item === value ? 'is-on' : ''} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' })}>
+          {format(item)}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function TimePicker({
@@ -43,6 +84,11 @@ export function TimePicker({
   const [minute, setMinute] = useState(init.minute);
   const [pm, setPm] = useState(init.pm);
   const [error, setError] = useState('');
+
+  const pick = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setError('');
+  };
 
   const hhmm = () => `${String((hour % 12) + (pm ? 12 : 0)).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
@@ -79,58 +125,10 @@ export function TimePicker({
         <p className="timepick__now num" aria-live="polite">
           {hour}:{String(minute).padStart(2, '0')} <span>{pm ? 'PM' : 'AM'}</span>
         </p>
-        <div className="timepick__group" role="radiogroup" aria-label="Hour">
-          {HOURS.map((h) => (
-            <button
-              key={h}
-              type="button"
-              role="radio"
-              aria-checked={hour === h}
-              className={hour === h ? 'is-on' : ''}
-              onClick={() => {
-                setHour(h);
-                setError('');
-              }}
-            >
-              {h}
-            </button>
-          ))}
-        </div>
-        <div className="timepick__row">
-          <div className="timepick__group timepick__group--min" role="radiogroup" aria-label="Minutes">
-            {MINUTES.map((m) => (
-              <button
-                key={m}
-                type="button"
-                role="radio"
-                aria-checked={minute === m}
-                className={minute === m ? 'is-on' : ''}
-                onClick={() => {
-                  setMinute(m);
-                  setError('');
-                }}
-              >
-                :{String(m).padStart(2, '0')}
-              </button>
-            ))}
-          </div>
-          <div className="timepick__group timepick__group--ampm" role="radiogroup" aria-label="AM or PM">
-            {[false, true].map((p) => (
-              <button
-                key={String(p)}
-                type="button"
-                role="radio"
-                aria-checked={pm === p}
-                className={pm === p ? 'is-on' : ''}
-                onClick={() => {
-                  setPm(p);
-                  setError('');
-                }}
-              >
-                {p ? 'PM' : 'AM'}
-              </button>
-            ))}
-          </div>
+        <div className="timepick__wheels">
+          <Wheel label="Hour" items={HOURS} value={hour} onChange={pick(setHour)} />
+          <Wheel label="Minutes" items={MINUTES} value={minute} format={(m) => String(m).padStart(2, '0')} onChange={pick(setMinute)} />
+          <Wheel label="AM or PM" items={MERIDIEMS} value={pm ? 'PM' : 'AM'} onChange={pick<string>((m) => setPm(m === 'PM'))} />
         </div>
         {error ? (
           <p className="field__error" role="alert">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import type { TripType } from '@core/types';
 import { useCustomerData } from '@core/context/CustomerData';
 import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
@@ -105,33 +106,24 @@ function Home() {
   const [params, setParams] = useSearchParams();
   const fromUrl = parseService(params.get('service'));
   const tripParam = params.get('trip');
-  const service: ServiceId = fromUrl ?? serviceOfTrip(draft.tripType);
-  const outstationTrip: 'One Way' | 'Round Trip' =
-    draft.tripType === 'Round Trip' ? 'Round Trip' : draft.tripType === 'One Way' ? 'One Way' : readOutstation();
-  const lastOutstation = useRef(outstationTrip);
+  const service: ServiceId = fromUrl ?? (tripParam === 'round-trip' ? 'round-trip' : serviceOfTrip(draft.tripType));
 
   useEffect(() => {
-    const wanted =
+    const wanted: TripType =
       service === 'airport'
         ? 'Airport Taxi'
         : service === 'rental'
           ? 'Local Rental'
-          : service === 'outstation'
-            ? tripParam === 'round-trip'
-              ? 'Round Trip'
-              : tripParam === 'one-way'
-                ? 'One Way'
-                : draft.tripType === 'One Way' || draft.tripType === 'Round Trip'
-                  ? draft.tripType
-                  : lastOutstation.current
-            : null;
-    if (!wanted || wanted === draft.tripType) return;
+          : service === 'round-trip'
+            ? 'Round Trip'
+            : 'One Way';
+    if (wanted === draft.tripType) return;
     update((d) => ({
       tripType: wanted,
       drop: d.drop?.id === 'place-local-disposal' && wanted !== 'Local Rental' ? null : d.drop,
       tripEndAt: wanted === 'Round Trip' ? d.tripEndAt : null,
     }));
-  }, [service, tripParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [service]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onService = useCallback(
     (s: ServiceId) => {
@@ -140,40 +132,29 @@ function Home() {
     [setParams],
   );
 
-  const onOutstationTrip = (t: 'One Way' | 'Round Trip') => {
-    lastOutstation.current = t;
-    try {
-      sessionStorage.setItem(OUTSTATION_KEY, t);
-    } catch {
-      /* private mode */
-    }
-    update({ tripType: t, tripEndAt: t === 'Round Trip' ? draft.tripEndAt : null });
-    setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
-  };
-
   const scrollToConsole = () => {
     const el = document.getElementById('book-console');
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
 
   const onRoute = (c: Corridor) => {
-    update({ pickup: c.pickup, drop: c.drop, tripType: outstationTrip });
-    setParams({ service: 'outstation' }, { replace: true });
+    update({ pickup: c.pickup, drop: c.drop, tripType: 'One Way' });
+    setParams({ service: 'one-way' }, { replace: true });
     scrollToConsole();
     window.setTimeout(() => document.getElementById('bf-date')?.focus({ preventScroll: true }), 400);
   };
 
   const onDestination = (d: Destination) => {
-    update({ drop: d.place, tripType: outstationTrip });
-    setParams({ service: 'outstation' }, { replace: true });
+    update({ drop: d.place, tripType: 'One Way' });
+    setParams({ service: 'one-way' }, { replace: true });
     scrollToConsole();
   };
 
   const onServiceCard = (s: Service) => {
     if (s.id === 'airport') onService('airport');
     else if (s.id === 'local-rental') onService('rental');
-    else if (s.id === 'round-trip') onOutstationTrip('Round Trip');
-    else onOutstationTrip('One Way');
+    else if (s.id === 'round-trip') onService('round-trip');
+    else onService('one-way');
     scrollToConsole();
   };
 
@@ -186,8 +167,6 @@ function Home() {
           <BookingForm
             service={service}
             onService={onService}
-            outstationTrip={outstationTrip}
-            onOutstationTrip={onOutstationTrip}
           />
         </div>
       </div>

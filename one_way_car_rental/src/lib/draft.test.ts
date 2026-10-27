@@ -24,13 +24,12 @@ describe('booking draft persistence', () => {
   it('starts empty and keeps what the rider entered across a reload', () => {
     expect(loadDraft()).toEqual(EMPTY_DRAFT);
     const later = new Date(Date.now() + 3 * 3600000);
-    saveDraft({ ...EMPTY_DRAFT, pickup: place('Theni', 10.01, 77.47), drop: place('Madurai', 9.92, 78.12), tripType: 'Round Trip', scheduledAt: later, categoryId: 'sedan', payment: 'UPI', promoCode: 'WELCOME50', notes: 'Gate 2' });
+    saveDraft({ ...EMPTY_DRAFT, pickup: place('Theni', 10.01, 77.47), drop: place('Madurai', 9.92, 78.12), tripType: 'Round Trip', scheduledAt: later, categoryId: 'sedan', promoCode: 'WELCOME50', notes: 'Gate 2' });
     const back = loadDraft();
     expect(back.pickup?.name).toBe('Theni');
     expect(back.drop?.lat).toBeCloseTo(9.92);
     expect(back.tripType).toBe('Round Trip');
     expect(back.scheduledAt?.getTime()).toBe(later.getTime());
-    expect(back.payment).toBe('UPI');
     expect(back.promoCode).toBe('WELCOME50');
     expect(back.notes).toBe('Gate 2');
 
@@ -44,14 +43,12 @@ describe('booking draft persistence', () => {
   it('drops a schedule that has already passed and places without coordinates', () => {
     sessionStorage.setItem(
       'nesam.booking.v1',
-      JSON.stringify({ scheduledAt: new Date(Date.now() - 60000).toISOString(), pickup: { name: 'Nowhere', lat: 0, lng: 0 }, drop: { name: 'Bad' }, payment: 'Card' }),
+      JSON.stringify({ scheduledAt: new Date(Date.now() - 60000).toISOString(), pickup: { name: 'Nowhere', lat: 0, lng: 0 }, drop: { name: 'Bad' } }),
     );
     const d = loadDraft();
     expect(d.scheduledAt).toBeNull();
     expect(d.pickup).toBeNull();
     expect(d.drop).toBeNull();
-    // Only Cash and UPI are recorded by the booking server.
-    expect(d.payment).toBe('Cash');
   });
 
   it('survives corrupt storage', () => {

@@ -912,6 +912,28 @@ service cloud.firestore {
     }
 
     // ── Admin-managed collections ───────────────────────────────────────────
+    // Partner requests (duty cancellation, bank change, document renewal) — written only by
+    // requestDutyCancellation / submitPartnerRequest / decidePartnerRequest (functions/src/partnerOps.ts).
+    match /partner_requests/{requestId} {
+      allow read: if isAdmin()
+                  || (isVendor() && resource.data.get('vendorId', '') == uid())
+                  || (isDriver() && resource.data.get('driverId', '') == uid());
+      allow write: if false;
+    }
+    // Security deposit per partner, keyed {type}_{uid} (setSecurityDeposit / requestDepositRefund).
+    match /partner_deposits/{depositId} {
+      allow read: if canReadFinance()
+                  || (isVendor() && depositId == 'vendor_' + uid())
+                  || (isDriver() && depositId == 'driver_' + uid());
+      allow write: if false;
+    }
+    // Working-wallet recharge orders (createWalletRecharge / verifyWalletRecharge).
+    match /wallet_recharges/{orderId} {
+      allow read: if canReadFinance()
+                  || (isVendor() && resource.data.get('vendorId', '') == uid())
+                  || (isDriver() && resource.data.get('driverId', '') == uid());
+      allow write: if false;
+    }
     // Penalties are issued, changed, acknowledged and disputed only through
     // issuePenalty / transitionPenalty / acknowledgePenalty / disputePenalty.
     match /penalties/{penaltyId} {

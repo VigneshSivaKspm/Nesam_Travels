@@ -36,6 +36,13 @@ export interface FleetVehicle {
   assignedDriverName: string;
   docStatus: VerificationStatus;
   rejectionReason: string;
+  /** ISO expiry dates of the vehicle documents ('' when not recorded). */
+  expiries: { rc: string; insurance: string; fitness: string; permit: string; puc: string };
+  availableFrom: Date | null;
+  availabilityLocation: string;
+  vehicleClass: string;
+  /** Permanent Car ID when the office has issued one. */
+  code: string;
 }
 
 /** drivers/{uid} in this vendor's fleet, as stored. */
@@ -57,6 +64,9 @@ export interface FleetDriver {
   assignedVehicleNumber: string;
   /** null until the driver has ratings. */
   rating: number | null;
+  code: string;
+  docStatus: VerificationStatus;
+  rejectionReason: string;
 }
 
 export interface OpenTrip {
@@ -80,6 +90,19 @@ export interface OpenTrip {
   status: 'Open' | 'Bidding';
   /** How NESAM posted it: accept the offer, bid for review, or '' for older posts that allowed both. */
   mode: 'accept_offer' | 'bid_review' | '';
+  /** One Way / Round Trip / Local Rental … as booked ('' on older posts). */
+  tripType: string;
+  pickupAt: Date | null;
+  /** Bids / acceptance close at this time (null = until pickup). */
+  cutoffAt: Date | null;
+  /** Expense terms published with the duty (toll, parking, state tax …). */
+  terms: DutyTerms | null;
+}
+
+export interface DutyTerms {
+  customerExtraKm: number | null;
+  partnerExtraKm: number | null;
+  items: Record<string, string>;
 }
 
 /** marketplace_trips/{tripId}/bids/{id} submitted by this vendor. */
@@ -92,6 +115,7 @@ export interface BidProposal {
   biddingNote: string;
   submittedAt: Date | null;
   status: string;
+  autoAcceptConsent: boolean;
 }
 
 export interface VendorTrip {
@@ -124,6 +148,70 @@ export interface VendorTrip {
   totalPaid: number | null;
   balanceDue: number | null;
   fareLines: { key: string; label: string; amount: number | null; treatment: string; detail: string }[];
+  pickupAt: Date | null;
+  dropLabel: string;
+  pickupLabel: string;
+  tripType: string;
+  vehicleCategory: string;
+  /** Kilometres included in the agreed payout. */
+  includedKm: number | null;
+  acceptedAt: Date | null;
+  /** Driver + vehicle must be confirmed by this time (server-set when the duty is accepted). */
+  assignBy: Date | null;
+  driverResponse: { viewedAt: Date | null; acknowledgedAt: Date | null } | null;
+  cancellationRequest: { requestId: string; status: string; quotedPenalty: number; finalPenalty: number | null } | null;
+  completedAt: Date | null;
+}
+
+/** partner_requests/{id} sent by this vendor. */
+export interface PartnerRequestRecord {
+  id: string;
+  type: 'cancellation' | 'bank_change' | 'document_renewal';
+  status: 'Pending' | 'Approved' | 'Declined';
+  bookingId: string;
+  bookingCode: string;
+  route: string;
+  reasonLabel: string;
+  details: string;
+  quotedPenalty: number;
+  ruleLabel: string;
+  finalPenalty: number | null;
+  adminReason: string;
+  requestedAt: Date | null;
+  decidedAt: Date | null;
+  documentLabel: string;
+  entityName: string;
+  expiry: string;
+  accountLast4: string;
+  ifsc: string;
+}
+
+/** partner_deposits/vendor_{uid}. */
+export interface SecurityDeposit {
+  amount: number;
+  status: string;
+  reference: string;
+}
+
+/** settlement_dues/{bookingId} for this vendor (one per completed, verified trip). */
+export interface SettlementDue {
+  id: string;
+  bookingCode: string;
+  amount: number;
+  entitlement: number;
+  collectedByPartner: number;
+  status: string;
+  dueAt: Date | null;
+  completedAt: Date | null;
+}
+
+/** Operating limits the office configures (settings/operations), with safe defaults. */
+export interface OperationsConfig {
+  assignmentWindowHours: number;
+  assignBeforePickupHours: number;
+  missedAssignmentPenalty: number;
+  cancellation: { lastMinuteHours: number; lastMinuteCharge: number; graceHours: number; afterGraceCharge: number };
+  supportPhone: string;
 }
 
 /** wallets/vendor_{uid} — computed by the server from the partner ledger. */
@@ -163,6 +251,8 @@ export interface TransactionRecord {
   bookingCode: string;
   payoutRequestId: string;
   createdAt: Date | null;
+  penaltyId: string;
+  reference: string;
 }
 
 // ─── Vendor onboarding / approval pipeline ──────────────────────────────────

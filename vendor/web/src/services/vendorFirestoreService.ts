@@ -178,10 +178,10 @@ export function validateCounterRate(rate: number, offered: number | null): strin
 }
 
 /** Submits a counter-bid for NESAM's review. One bid per vendor per trip: a newer one replaces it. Runs on the server. */
-export async function submitCounterBid(trip: OpenTrip, rate: number, note: string) {
+export async function submitCounterBid(trip: OpenTrip, rate: number, note: string, autoAcceptConsent = true) {
   const invalid = validateCounterRate(rate, trip.offeredPayout);
   if (invalid) throw new Error(invalid);
-  await callFunction("submitMarketplaceBid", { tripId: trip.id, rate, note: note.trim().slice(0, 300) }, 30000);
+  await callFunction("submitMarketplaceBid", { tripId: trip.id, rate, note: note.trim().slice(0, 300), autoAcceptConsent }, 30000);
   settleBooking(trip.id);
 }
 

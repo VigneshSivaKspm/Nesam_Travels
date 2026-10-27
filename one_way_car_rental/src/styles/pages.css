@@ -401,8 +401,8 @@
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 10px 14px;
-  padding: 14px 16px;
+  gap: 8px 12px;
+  padding: 12px 14px;
 }
 .profile-card__photo {
   position: relative;
@@ -417,8 +417,8 @@
   bottom: -2px;
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 22px;
+  height: 22px;
   border: 2px solid var(--surface);
   border-radius: 50%;
   background: var(--ink);
@@ -428,6 +428,9 @@
   display: grid;
   gap: 2px;
   min-width: 0;
+}
+.profile-card__info p {
+  overflow-wrap: anywhere;
 }
 .profile-card h2 {
   font-size: var(--fs-lg);

@@ -164,10 +164,10 @@ function Footer() {
             <h2>Services</h2>
             <ul>
               <li>
-                <Link to="/book?service=outstation">Outstation One Way</Link>
+                <Link to="/book?service=one-way">One Way Drop Taxi</Link>
               </li>
               <li>
-                <Link to="/book?service=outstation&trip=round-trip">Round Trips</Link>
+                <Link to="/book?service=round-trip">Round Trips</Link>
               </li>
               <li>
                 <Link to="/book?service=airport">Airport Transfers</Link>

@@ -1,12 +1,29 @@
-// The home page below (and beside) the booking form: popular routes, the NESAM way, reviews,
-// FAQ and the app. Nothing here is a price, a rating or a review: fares come from the booking
-// server and reviews are shown only once NESAM publishes real ones (none are published yet).
+// The home page below (and beside) the booking form: popular routes, the photo sections (services,
+// journeys, destinations, fleet, how it works, safety, offers), reviews, FAQ and the app. Nothing here
+// is a price, a rating or a review: fares come from the booking server and reviews are shown only
+// once NESAM publishes real ones (none are published yet).
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE } from '@core/config/constants';
+import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR } from '@core/utils/format';
 import { Icon } from '@/components/Icon';
-import { POPULAR_ROUTES, type PopularRoute } from './content';
+import { useBooking } from '@/state/Booking';
+import { vehicleArtUrl } from '@/lib/vehicleArt';
+import {
+  ASSURANCE,
+  CORRIDORS,
+  DESTINATIONS,
+  FEATURES,
+  IMG,
+  MORE_CORRIDORS,
+  POPULAR_ROUTES,
+  SERVICES,
+  STEPS,
+  type Corridor,
+  type Destination,
+  type PopularRoute,
+  type Service,
+} from './content';
 
 export function HeroCopy() {
   return (
@@ -87,6 +104,7 @@ export function PopularRoutes({ onPick }: { onPick: (r: PopularRoute) => void })
   );
 }
 
+/** The phone home's short "why NESAM" list; on desktop the photo trust strip below takes its place. */
 export function WhySection() {
   const items = [
     { icon: 'receipt', title: 'Clear fares', text: 'Know your inclusions, applicable GST and extra rates before you book.' },
@@ -110,6 +128,294 @@ export function WhySection() {
           </li>
         ))}
       </ul>
+    </section>
+  );
+}
+
+// ── Photo sections (desktop) ────────────────────────────────────────────────
+// Every card fills the booking form (so a visitor is one tap from fares) or links somewhere real.
+
+function SectionHead({ eyebrow, title, text, id, action }: { eyebrow: string; title: string; text?: string; id: string; action?: React.ReactNode }) {
+  return (
+    <header className="hx-head">
+      <div className="sec-heading">
+        <span className="eyebrow">{eyebrow}</span>
+        <h2 id={id}>{title}</h2>
+        {text ? <p className="hx-head__text">{text}</p> : null}
+      </div>
+      {action ? <div className="hx-head__action">{action}</div> : null}
+    </header>
+  );
+}
+
+export function TrustStrip() {
+  return (
+    <section className="hx-strip" aria-label="Why travellers choose NESAM">
+      <ul>
+        {FEATURES.map((f) => (
+          <li key={f.title}>
+            <img src={IMG(f.image)} alt="" width={84} height={84} loading="lazy" />
+            <div>
+              <h3>{f.title}</h3>
+              <p>{f.text}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
+  return (
+    <section className="hx-sec" aria-labelledby="hx-services">
+      <SectionHead
+        eyebrow="Ways to travel"
+        id="hx-services"
+        title="A ride for every kind of journey"
+        text="Choose a starting point and we’ll set up your trip. You’ll see the fare for every car before you book."
+      />
+      <ul className="hx-services">
+        {SERVICES.map((s) => (
+          <li key={s.id}>
+            <button type="button" className="hx-service" onClick={() => onPick(s)}>
+              <span className="hx-service__media">
+                <img src={IMG(s.image)} alt="" width={724} height={543} loading="lazy" />
+              </span>
+              <span className="hx-service__body">
+                <strong>{s.title}</strong>
+                <span>{s.text}</span>
+              </span>
+              <span className="hx-service__go" aria-hidden="true">
+                <Icon name="arrow-right" size={18} />
+              </span>
+            </button>
+          </li>
+        ))}
+        <li>
+          <a className="hx-service hx-service--call" href={`tel:${SUPPORT_PHONE}`}>
+            <span className="hx-service__body">
+              <span className="eyebrow">Something custom?</span>
+              <strong>Multi-day tours, weddings, corporate fleets</strong>
+              <span>Tell our team what you need and we’ll arrange it.</span>
+            </span>
+            <span className="hx-service__phone">
+              <Icon name="phone" size={20} />
+              <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+    </section>
+  );
+}
+
+export function JourneysSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
+  return (
+    <section className="hx-sec" aria-labelledby="hx-journeys">
+      <SectionHead
+        eyebrow="Across the south"
+        id="hx-journeys"
+        title="Favourite drives across the south"
+        text="Pick a route to fill in your trip, then choose the day and time. Distances and times are approximate; your exact fare is shown before you book."
+      />
+      <ul className="hx-photos hx-photos--routes">
+        {CORRIDORS.map((c) => (
+          <li key={c.id}>
+            <button type="button" className="hx-photo" onClick={() => onRoute(c)} aria-label={`Plan ${c.origin} to ${c.destination}, about ${c.km}`}>
+              {c.image ? <img src={IMG(c.image)} alt="" width={768} height={512} loading="lazy" /> : null}
+              <span className="hx-photo__shade" aria-hidden="true" />
+              <span className="hx-photo__body">
+                <span className="hx-photo__title">
+                  {c.origin}
+                  <Icon name="arrow-right" size={18} />
+                  {c.destination}
+                </span>
+                <span className="hx-photo__meta">
+                  <span>
+                    <Icon name="route" size={15} /> {c.km}
+                  </span>
+                  <span>
+                    <Icon name="clock" size={15} /> ~{c.duration}
+                  </span>
+                </span>
+              </span>
+              <span className="hx-photo__cta">
+                Plan this trip <Icon name="arrow-right" size={14} />
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="hx-more" role="group" aria-label="More routes">
+        <span className="eyebrow eyebrow--muted">More routes</span>
+        {MORE_CORRIDORS.map((c) => (
+          <button key={c.id} type="button" className="chip" onClick={() => onRoute(c)}>
+            {c.origin} <Icon name="arrow-right" size={14} /> {c.destination} <span className="hx-more__km">{c.km}</span>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+export function DestinationsSection({ onPick }: { onPick: (d: Destination) => void }) {
+  return (
+    <section className="hx-sec" aria-labelledby="hx-destinations">
+      <SectionHead eyebrow="Destinations" id="hx-destinations" title="Where will you go next?" text="Tap a destination to set it as your drop, then add your pickup." />
+      <ul className="hx-photos hx-photos--dest">
+        {DESTINATIONS.map((d) => (
+          <li key={d.id}>
+            <button type="button" className="hx-photo hx-photo--dest" onClick={() => onPick(d)} aria-label={`Set ${d.name} as your destination`}>
+              <img src={IMG(d.image)} alt="" width={768} height={512} loading="lazy" />
+              <span className="hx-photo__shade" aria-hidden="true" />
+              <span className="hx-photo__body">
+                <strong>{d.name}</strong>
+                <small>{d.tagline}</small>
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+const FALLBACK_FLEET = [
+  { art: 'hatchback', name: 'Hatchback', text: 'Compact and economical for solo and couple trips.' },
+  { art: 'sedan', name: 'Sedan', text: 'Comfortable cruising for small families.' },
+  { art: 'premium-sedan', name: 'Premium sedan', text: 'A more refined ride for business and occasions.' },
+  { art: 'suv', name: 'SUV', text: 'Extra room and presence for longer drives.' },
+  { art: 'mpv', name: 'MPV', text: 'Seven-seat comfort with space for luggage.' },
+  { art: 'passenger-van', name: 'Passenger van', text: 'Groups and extended families, together.' },
+  { art: 'minibus', name: 'Mini bus', text: 'Weddings, tours and larger gatherings.' },
+  { art: 'tourist-coach', name: 'Tourist coach', text: 'Big groups, long itineraries.' },
+];
+
+export function FleetSection({ onPick }: { onPick: () => void }) {
+  const { categories } = useBooking();
+  const live = categories.slice(0, 8);
+  return (
+    <section className="hx-sec" aria-labelledby="hx-fleet">
+      <SectionHead
+        eyebrow="Our fleet"
+        id="hx-fleet"
+        title="The right car for your group"
+        text="From a quick drop to a full-group tour. Fares for each car are shown once you enter your trip."
+        action={
+          <button type="button" className="btn btn--primary" onClick={onPick}>
+            Get fares <Icon name="arrow-right" size={16} />
+          </button>
+        }
+      />
+      <ul className="hx-fleet">
+        {live.length
+          ? live.map((c) => (
+              <li key={c.id} className="hx-vehicle">
+                <img src={vehicleArtUrl(c)} alt={`NESAM ${c.name}, ${c.seats} seats`} width={320} height={210} loading="lazy" />
+                <div className="hx-vehicle__body">
+                  <strong>{c.name}</strong>
+                  <span className="hx-vehicle__seats">
+                    <Icon name="passengers" size={15} /> {c.seats} seats
+                  </span>
+                  {c.description ? <p>{c.description}</p> : null}
+                </div>
+              </li>
+            ))
+          : FALLBACK_FLEET.map((v) => (
+              <li key={v.art} className="hx-vehicle">
+                <img src={`/vehicles/${v.art}.webp`} alt={`NESAM ${v.name}`} width={320} height={210} loading="lazy" />
+                <div className="hx-vehicle__body">
+                  <strong>{v.name}</strong>
+                  <p>{v.text}</p>
+                </div>
+              </li>
+            ))}
+      </ul>
+    </section>
+  );
+}
+
+export function HowSection() {
+  return (
+    <section className="hx-how" aria-labelledby="hx-how">
+      <div className="hx-how__body">
+        <span className="eyebrow">How it works</span>
+        <h2 id="hx-how">Booked in minutes. Handled with care.</h2>
+        <ol className="hx-how__steps">
+          {STEPS.map((s, i) => (
+            <li key={s.title}>
+              <span className="hx-how__num num">{String(i + 1).padStart(2, '0')}</span>
+              <div>
+                <h3>{s.title}</h3>
+                <p>{s.text}</p>
+              </div>
+              <img src={IMG(s.image)} alt="" width={96} height={96} loading="lazy" />
+            </li>
+          ))}
+        </ol>
+      </div>
+      <div className="hx-how__photo">
+        <img src={IMG('photography/about-fleet')} alt="NESAM chauffeurs and fleet" width={1448} height={1086} loading="lazy" />
+      </div>
+    </section>
+  );
+}
+
+export function AssuranceSection() {
+  return (
+    <section className="hx-sec hx-assure" aria-labelledby="hx-safe">
+      <div className="hx-assure__collage" aria-hidden="true">
+        <img className="hx-assure__a" src={IMG('photography/trust-driver')} alt="" width={724} height={543} loading="lazy" />
+        <img src={IMG('photography/trust-interior')} alt="" width={724} height={543} loading="lazy" />
+        <img src={IMG('photography/trust-support')} alt="" width={724} height={543} loading="lazy" />
+      </div>
+      <div className="hx-assure__body">
+        <div className="sec-heading">
+          <span className="eyebrow">Travel with confidence</span>
+          <h2 id="hx-safe">Built for long journeys and peace of mind</h2>
+          <p className="hx-head__text">From the moment your driver is assigned to the receipt for your trip, every step is visible to you.</p>
+        </div>
+        <ul className="hx-assure__list">
+          {ASSURANCE.map((a) => (
+            <li key={a.title}>
+              <span className="hx-assure__icon">
+                <Icon name={a.icon} size={20} />
+              </span>
+              <div>
+                <h3>{a.title}</h3>
+                <p>{a.text}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </section>
+  );
+}
+
+export function Banners() {
+  const freeHours = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000);
+  return (
+    <section className="hx-sec hx-banners" aria-label="Offers and help">
+      <Link className="hx-banner" to="/offers" style={{ backgroundImage: `url(${IMG('backgrounds/offer-background')})` }}>
+        <span className="eyebrow">Offers</span>
+        <strong>Promo codes and festival savings</strong>
+        <span>See what’s live and apply a code when you review your booking.</span>
+        <span className="hx-banner__cta">
+          View offers <Icon name="arrow-right" size={16} />
+        </span>
+      </Link>
+      <a className="hx-banner" href={`tel:${SUPPORT_PHONE}`} style={{ backgroundImage: `url(${IMG('backgrounds/app-promotion-background')})` }}>
+        <span className="eyebrow">Plan with a person</span>
+        <strong>Corporate, family or group travel?</strong>
+        <span>
+          Call us on {SUPPORT_PHONE_DISPLAY}. Cancel free until {freeHours} hour{freeHours === 1 ? '' : 's'} before pickup, then a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
+        </span>
+        <span className="hx-banner__cta">
+          <Icon name="phone" size={16} /> Call us
+        </span>
+      </a>
     </section>
   );
 }
@@ -148,6 +454,8 @@ export function FaqSection() {
       q: 'When will I get my driver details?',
       a: 'NESAM first reviews your booking request. Once a driver is assigned, their name, phone number and vehicle number appear in My Bookings, before your pickup.',
     },
+    { q: 'What is the boarding code?', a: 'A 4-digit code shown on your booking. Share it with your driver only once you are in the car; the trip cannot start without it.' },
+    { q: 'How far ahead can I book?', a: 'Every booking is made in advance: choose your pickup date and time, then choose your cab. The booking form shows the earliest and latest pickup times you can choose.' },
     {
       q: 'How do cancellations and refunds work?',
       a: `Cancel from My Bookings. Cancelling more than ${freeHours} hour${freeHours === 1 ? '' : 's'} before pickup is free; after that a ${formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies. The screen shows any fee before you confirm, and any refund is recorded under Payments.`,

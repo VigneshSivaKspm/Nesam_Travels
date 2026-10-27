@@ -8,7 +8,7 @@ import type { LatLng, RouteInfo, TripRecord } from '@core/types';
 import { useCustomerData } from '@/state/CustomerData';
 import { cancellationQuote, subscribeToBoardingOtp, subscribeToBooking } from '@core/services/rideService';
 import { getRoute } from '@core/services/geoService';
-import { PRESENCE_STALE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { CUSTOMER_PAYMENTS_ENABLED, PRESENCE_STALE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatDate, formatDateTime, formatDistance, formatDuration, formatINR, formatPhone, formatTime, localMobile, timeAgo } from '@core/utils/format';
 import { haversineKm, isValidLatLng } from '@core/utils/geo';
 import { describeError } from '@core/utils/retry';
@@ -469,7 +469,7 @@ export function RidePage() {
                       </div>
                     </dl>
                     <p className="bd-pay-note">{phase === 'completed' ? 'Your driver confirms the payment once collected.' : 'Collected by your driver at the end of the trip. Tolls and parking, if any, are added at actuals. Final charges are reviewed when your trip closes.'}</p>
-                    {trip.paymentMethod === 'UPI' && upiLink(trip) && trip.status !== 'Pending' ? (
+                    {CUSTOMER_PAYMENTS_ENABLED && trip.paymentMethod === 'UPI' && upiLink(trip) && trip.status !== 'Pending' ? (
                       <a className="btn btn--secondary btn--block" href={upiLink(trip)!}>
                         <Icon name="payment-card" size={17} /> Open UPI app · {formatINR(due)}
                       </a>

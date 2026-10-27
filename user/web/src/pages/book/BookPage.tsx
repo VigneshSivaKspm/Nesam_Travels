@@ -8,8 +8,23 @@ import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
 import { ChooseStep } from './ChooseStep';
 import { ReviewStep } from './ReviewStep';
-import { AppSection, FaqSection, HeroCopy, PopularRoutes, ReviewsSection, WhySection } from './HomeSections';
-import type { PopularRoute } from './content';
+import {
+  AppSection,
+  AssuranceSection,
+  Banners,
+  DestinationsSection,
+  FaqSection,
+  FleetSection,
+  HeroCopy,
+  HowSection,
+  JourneysSection,
+  PopularRoutes,
+  ReviewsSection,
+  ServicesSection,
+  TrustStrip,
+  WhySection,
+} from './HomeSections';
+import type { Corridor, Destination, PopularRoute, Service } from './content';
 
 export type BookStep = 'plan' | 'choose' | 'review';
 
@@ -98,12 +113,28 @@ function Home() {
     setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
   };
 
-  const onRoute = (r: PopularRoute) => {
+  const scrollToConsole = () => document.getElementById('book-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+  // Popular routes and the "across the south" journeys fill both ends; the date and time stay the rider's choice.
+  const onRoute = (r: Pick<PopularRoute | Corridor, 'pickup' | 'drop'>) => {
     update({ pickup: r.pickup, drop: r.drop, tripType: outstationTrip });
     setParams({ service: 'outstation' }, { replace: true });
-    const el = document.getElementById('book-console');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    scrollToConsole();
     window.setTimeout(() => document.getElementById('bf-date')?.focus({ preventScroll: true }), 400);
+  };
+
+  const onDestination = (d: Destination) => {
+    update({ drop: d.place, tripType: outstationTrip });
+    setParams({ service: 'outstation' }, { replace: true });
+    scrollToConsole();
+  };
+
+  const onServiceCard = (s: Service) => {
+    if (s.id === 'airport') onService('airport');
+    else if (s.id === 'local-rental') onService('rental');
+    else if (s.id === 'round-trip') onOutstationTrip('Round Trip');
+    else onOutstationTrip('One Way');
+    scrollToConsole();
   };
 
   return (
@@ -116,6 +147,17 @@ function Home() {
         </div>
         <PopularRoutes onPick={onRoute} />
         <WhySection />
+        {/* The photo sections are part of the desktop home; phones keep the compact, form-first home. */}
+        <div className="hx">
+          <TrustStrip />
+          <ServicesSection onPick={onServiceCard} />
+          <JourneysSection onRoute={onRoute} />
+          <DestinationsSection onPick={onDestination} />
+          <FleetSection onPick={scrollToConsole} />
+          <HowSection />
+          <AssuranceSection />
+          <Banners />
+        </div>
         <ReviewsSection />
         <FaqSection />
         <AppSection />

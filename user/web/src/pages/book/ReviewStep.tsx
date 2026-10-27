@@ -10,7 +10,7 @@ import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { CUSTOMER_PAYMENTS_ENABLED, SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Button, Checkbox, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
@@ -117,7 +117,8 @@ export function ReviewStep() {
         route,
         fare: quote,
         tripType,
-        paymentMethod: payment,
+        // With payment options switched off every booking is pay-later (recorded as Cash, settled after the trip).
+        paymentMethod: CUSTOMER_PAYMENTS_ENABLED ? payment : 'Cash',
         couponCode: q.coupon?.code ?? '',
         notes: composeNotes({ flight: airport ? flight : '', passengerName: forOther ? passengerName : '', passengerMobile: forOther ? passengerMobile : '', notes }),
         scheduledAt,
@@ -192,7 +193,7 @@ export function ReviewStep() {
         {submitting ? 'Sending request…' : profile ? 'Submit booking request' : 'Sign in & continue'}
       </Button>
       <p className="rv-act__note">
-        <Icon name="lock" size={13} /> Nothing is charged now · pay your driver by {payment === 'UPI' ? 'UPI' : 'cash'} after the trip
+        <Icon name="lock" size={13} /> Nothing is charged now · {CUSTOMER_PAYMENTS_ENABLED ? `pay your driver by ${payment === 'UPI' ? 'UPI' : 'cash'} after the trip` : 'pay after the trip'}
       </p>
     </section>
   );
@@ -287,10 +288,14 @@ export function ReviewStep() {
 
             <section className="card" aria-labelledby="rv-pay">
               <header className="card__head">
-                <h2 id="rv-pay">Choose payment</h2>
+                <h2 id="rv-pay">{CUSTOMER_PAYMENTS_ENABLED ? 'Choose payment' : 'Promo code'}</h2>
               </header>
-              <PaymentChoice value={payment} onChange={(m) => update({ payment: m })} />
-              <p className="muted small">Online payment and advance payment are not available yet. Your driver collects the fare after the trip.</p>
+              {CUSTOMER_PAYMENTS_ENABLED ? (
+                <>
+                  <PaymentChoice value={payment} onChange={(m) => update({ payment: m })} />
+                  <p className="muted small">Online payment and advance payment are not available yet. Your driver collects the fare after the trip.</p>
+                </>
+              ) : null}
               <PromoControl />
             </section>
 

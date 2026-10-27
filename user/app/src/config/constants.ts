@@ -9,6 +9,12 @@ export const ROUTING_URL = (process.env.EXPO_PUBLIC_ROUTING_URL || 'https://rout
 
 /** Optional company UPI VPA — enables a "Pay via UPI app" deep link on the receipt. */
 export const COMPANY_UPI_ID: string = process.env.EXPO_PUBLIC_COMPANY_UPI_ID || '';
+/**
+ * Customer payment options in the NESAM website and app. Switched off for now: no payment-method choice
+ * when booking and no "Open UPI app" button. Every booking is pay-later (recorded as Cash, settled after
+ * the trip). Set to true to bring both back.
+ */
+export const CUSTOMER_PAYMENTS_ENABLED: boolean = false;
 export const COMPANY_NAME = 'NESAM Tours & Travels';
 export const COMPANY_LEGAL_NAME = 'NESAM Tours and Travels Private Limited';
 

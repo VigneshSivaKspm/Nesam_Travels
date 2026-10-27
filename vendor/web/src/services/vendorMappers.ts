@@ -7,7 +7,11 @@ import type {
   FleetDriver,
   FleetVehicle,
   OpenTrip,
+  OperationsConfig,
+  PartnerRequestRecord,
   PayoutRequest,
+  SecurityDeposit,
+  SettlementDue,
   TransactionRecord,
   VendorTrip,
   VerificationStatus,
@@ -71,6 +75,13 @@ export function mapVehicle(id: string, d: Data): FleetVehicle {
     // Only an explicit review decision counts; dispatch requires "Approved".
     docStatus: review(d.docStatus),
     rejectionReason: str(d.rejectionReason),
+    expiries: {
+      rc: str(d.rcExpiry), insurance: str(d.insuranceExpiry), fitness: str(d.fitnessExpiry), permit: str(d.permitExpiry), puc: str(d.pucExpiry),
+    },
+    availableFrom: toDate((d.availability as Data | undefined)?.availableFrom),
+    availabilityLocation: str((d.availability as Data | undefined)?.location),
+    vehicleClass: str(d.vehicleClass),
+    code: str(d.vehicleCode) || str(d.carCode),
   };
 }
 
@@ -93,6 +104,9 @@ export function mapDriver(id: string, d: Data): FleetDriver {
     assignedVehicleId: str(d.assignedVehicleId),
     assignedVehicleNumber: str(d.assignedVehicleNumber),
     rating: rating !== null && rating > 0 ? rating : null,
+    code: str(d.driverCode),
+    docStatus: review(d.docStatus),
+    rejectionReason: str(d.rejectionReason),
   };
 }
 
@@ -129,6 +143,32 @@ export function mapOpenTrip(id: string, d: Data): OpenTrip {
     offeredPayout: offer !== null && offer > 0 ? offer : null,
     status: d.status === 'Bidding' ? 'Bidding' : 'Open',
     mode: d.mode === 'bid_review' ? 'bid_review' : d.mode === 'accept_offer' ? 'accept_offer' : '',
+    tripType: tripTypeOf(d),
+    pickupAt: at,
+    cutoffAt: toDate(d.cutoffAt),
+    terms: termsOf(d.terms),
+  };
+}
+
+/** "One Way", "Round Trip", "Local Rental", "Multicity", "Airport" from what the booking stored. */
+export function tripTypeOf(d: Data): string {
+  const raw = `${str(d.tripType)} ${str(d.service)} ${str(d.bookingType)}`.toLowerCase();
+  if (/round/.test(raw)) return 'Round Trip';
+  if (/rental|local|hour/.test(raw)) return 'Local Rental';
+  if (/multi/.test(raw)) return 'Multicity';
+  if (/airport/.test(raw)) return 'Airport';
+  if (/one|drop|outstation/.test(raw)) return 'One Way';
+  return str(d.tripType) || str(d.service);
+}
+
+function termsOf(v: unknown) {
+  if (!v || typeof v !== 'object') return null;
+  const t = v as Data;
+  const items = (t.items && typeof t.items === 'object' ? t.items : {}) as Record<string, unknown>;
+  return {
+    customerExtraKm: num(t.customerExtraKm),
+    partnerExtraKm: num(t.partnerExtraKm),
+    items: Object.fromEntries(Object.entries(items).map(([k, x]) => [k, str(x)])),
   };
 }
 
@@ -142,6 +182,7 @@ export function mapBid(id: string, d: Data): BidProposal {
     biddingNote: str(d.biddingNote),
     submittedAt: toDate(d.submittedAt),
     status: str(d.status) || 'Pending Review',
+    autoAcceptConsent: d.autoAcceptConsent === true,
   };
 }
 
@@ -152,6 +193,8 @@ export function mapVendorTrip(id: string, d: Data): VendorTrip {
   const summary = d.paymentSummary && typeof d.paymentSummary === 'object' ? (d.paymentSummary as Data) : null;
   const verification = (d.vehicleVerification && typeof d.vehicleVerification === 'object' ? d.vehicleVerification : {}) as Data;
   const breakup = (d.fareBreakup && typeof d.fareBreakup === 'object' ? d.fareBreakup : {}) as { lines?: unknown };
+  const response = d.driverResponse && typeof d.driverResponse === 'object' ? (d.driverResponse as Data) : null;
+  const cancel = d.cancellationRequest && typeof d.cancellationRequest === 'object' ? (d.cancellationRequest as Data) : null;
   return {
     id,
     bookingId: str(d.bookingId) || id,
@@ -177,6 +220,68 @@ export function mapVendorTrip(id: string, d: Data): VendorTrip {
     totalPaid: summary ? num(summary.totalPaid) : null,
     balanceDue: summary ? num(summary.balanceDue) : null,
     fareLines: Array.isArray(breakup.lines) ? (breakup.lines as { key: string; label: string; amount: number | null; treatment: string; detail: string }[]) : [],
+    pickupAt: at,
+    pickupLabel: str(d.pickupCity) || str(d.pickup) || str(d.pickupAddress),
+    dropLabel: str(d.dropCity) || str(d.drop) || str(d.dropAddress),
+    tripType: tripTypeOf(d),
+    vehicleCategory: str(d.vehicleCategory) || str(d.vehicle),
+    includedKm: includedKmOf(d),
+    acceptedAt: toDate(d.assignedVendorAt) ?? toDate(d.acceptedAt) ?? toDate(d.confirmedAt),
+    assignBy: toDate(d.assignBy),
+    driverResponse: response && str(response.driverId) === str(d.assignedDriverId)
+      ? { viewedAt: toDate(response.viewedAt), acknowledgedAt: toDate(response.acknowledgedAt) }
+      : null,
+    cancellationRequest: cancel
+      ? { requestId: str(cancel.requestId), status: str(cancel.status), quotedPenalty: num(cancel.quotedPenalty) ?? 0, finalPenalty: num(cancel.finalPenalty) }
+      : null,
+    completedAt: toDate(d.tripEndAt) ?? toDate(d.completedAt),
+  };
+}
+
+function includedKmOf(d: Data): number | null {
+  const pricing = (d.pricing && typeof d.pricing === 'object' ? d.pricing : {}) as Data;
+  const km = num(pricing.includedKm) ?? num(pricing.quotedKm) ?? num(d.distanceKm);
+  return km !== null && km > 0 ? Math.round(km) : null;
+}
+
+export function mapPartnerRequest(id: string, d: Data): PartnerRequestRecord {
+  const type = d.type === 'bank_change' ? 'bank_change' : d.type === 'document_renewal' ? 'document_renewal' : 'cancellation';
+  const status = d.status === 'Approved' ? 'Approved' : d.status === 'Declined' ? 'Declined' : 'Pending';
+  return {
+    id, type, status, bookingId: str(d.bookingId), bookingCode: str(d.bookingCode), route: str(d.route), reasonLabel: str(d.reasonLabel), details: str(d.details),
+    quotedPenalty: num(d.quotedPenalty) ?? 0, ruleLabel: str(d.ruleLabel), finalPenalty: num(d.finalPenalty), adminReason: str(d.adminReason),
+    requestedAt: toDate(d.requestedAt) ?? toDate(d.createdAt), decidedAt: toDate(d.decidedAt), documentLabel: str(d.documentLabel), entityName: str(d.entityName),
+    expiry: str(d.expiry), accountLast4: str(d.accountLast4), ifsc: str(d.ifsc),
+  };
+}
+
+export function mapDeposit(d: Data | undefined): SecurityDeposit | null {
+  if (!d) return null;
+  return { amount: num(d.amount) ?? 0, status: str(d.status) || 'Not paid', reference: str(d.reference) };
+}
+
+export function mapSettlementDue(id: string, d: Data): SettlementDue {
+  return {
+    id, bookingCode: str(d.bookingCode) || id, amount: num(d.amount) ?? 0, entitlement: num(d.entitlement) ?? 0,
+    collectedByPartner: num(d.collectedByPartner) ?? 0, status: str(d.status) || 'Due', dueAt: toDate(d.dueAt), completedAt: toDate(d.completedAt),
+  };
+}
+
+const hoursIn = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v <= 72 ? v : fallback);
+const rupeesIn = (v: unknown, fallback: number) => (typeof v === 'number' && Number.isSafeInteger(v) && v >= 0 ? v : fallback);
+
+/** settings/operations — the same defaults the server applies (functions/src/partnerOps.ts). */
+export function mapOperations(d: Data | undefined): OperationsConfig {
+  const c = ((d?.partnerCancellation ?? {}) as Data);
+  return {
+    assignmentWindowHours: hoursIn(d?.vendorAssignmentWindowHours, 2),
+    assignBeforePickupHours: hoursIn(d?.vendorAssignBeforePickupHours, 1),
+    missedAssignmentPenalty: rupeesIn(d?.missedAssignmentPenalty, 500),
+    cancellation: {
+      lastMinuteHours: hoursIn(c.lastMinuteHours, 4), lastMinuteCharge: rupeesIn(c.lastMinuteCharge, 1000),
+      graceHours: hoursIn(c.graceHours, 4), afterGraceCharge: rupeesIn(c.afterGraceCharge, 500),
+    },
+    supportPhone: str(d?.supportPhone) || '+919025099990',
   };
 }
 
@@ -218,6 +323,8 @@ export function mapLedgerEntry(id: string, d: Data): TransactionRecord | null {
     bookingCode: str(d.bookingCode),
     payoutRequestId: str(d.payoutRequestId),
     createdAt: toDate(d.createdAt),
+    penaltyId: str(d.penaltyId),
+    reference: str(d.reference) || str(d.rechargeOrderId),
   };
 }
 

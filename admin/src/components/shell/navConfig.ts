@@ -24,6 +24,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "bookings", label: "Bookings", icon: "calendar-check-2" },
       { id: "trips", label: "Trips", icon: "route" },
       { id: "marketplace", label: "Open Marketplace", icon: "radio-tower" },
+      { id: "partner-requests", label: "Partner Requests", icon: "inbox" },
     ],
   },
   {

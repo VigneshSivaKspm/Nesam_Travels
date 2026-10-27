@@ -20,6 +20,7 @@ import { assignableVehicle, docId, money } from './marketplace';
 import { releaseBlocker, releaseConfigOf } from './release';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { approved, text } from './shared';
+import { assertPenaltiesAcknowledged, assignByFor } from './partnerOps';
 
 export const POSTING_MODES = ['accept_offer', 'bid_review'] as const;
 export type PostingMode = (typeof POSTING_MODES)[number];
@@ -63,6 +64,7 @@ export const claimMarketplaceDuty = onCall({ timeoutSeconds: 60 }, async (reques
     const b = snap.data()!, offer = m.data()!;
     if (!['Open', 'Bidding'].includes(String(offer.status)) || !awaitingFulfilment(b)) throw new HttpsError('failed-precondition', 'This trip is no longer available. Another partner has taken it or it was withdrawn.', { code: 'taken' });
     if (b.fareVerified !== true) throw new HttpsError('failed-precondition', 'This trip is not ready to be taken yet.');
+    await assertPenaltiesAcknowledged(tx, party.kind, party.uid);
     const mode = POSTING_MODES.includes(offer.mode) ? (offer.mode as PostingMode) : null;
     if (mode === 'bid_review') throw new HttpsError('failed-precondition', 'This trip is open for bids reviewed by NESAM. Submit a bid instead of accepting.', { code: 'bid-only' });
     // Legacy posts carried both paths; an owner-driver could only ever accept an Open offer.
@@ -102,6 +104,8 @@ export const claimMarketplaceDuty = onCall({ timeoutSeconds: 60 }, async (reques
       tx.update(ref, {
         status: 'Confirmed', assignedVendorId: party.uid, assignedVendorName: partnerName, vendorPayout: payout, payoutSource: 'offered', fulfilmentRoute: 'marketplace',
         confirmedAt: stamp, acceptedAt: stamp, assignedVendorAt: stamp, assignmentChanges: FieldValue.increment(1), updatedAt: stamp,
+        // Driver + vehicle must be confirmed by this time (Partner app "Assign by"); missing it can lead to an office penalty.
+        assignBy: Timestamp.fromMillis(assignByFor(Date.now(), at ? at.getTime() : null, settings.data())),
       });
       tx.update(market, { status: 'Assigned', assignedVendorId: party.uid, assignedVendorName: partnerName, acceptedAt: stamp, updatedAt: stamp });
     }
@@ -152,11 +156,16 @@ export const submitMarketplaceBid = onCall({ timeoutSeconds: 60 }, async (reques
     if (rate > fare) throw new HttpsError('failed-precondition', `A counter amount cannot exceed the customer fare (₹${fare.toLocaleString('en-IN')}).`);
     if (money(offer.ceiling) > 0 && rate > money(offer.ceiling)) throw new HttpsError('failed-precondition', `A counter amount cannot exceed the ceiling (₹${money(offer.ceiling).toLocaleString('en-IN')}).`);
     if (existing.exists && existing.data()!.status !== 'Pending Review') throw new HttpsError('failed-precondition', 'Your bid on this trip has already been decided.');
+    await assertPenaltiesAcknowledged(tx, party.kind, party.uid);
+    // Consent to accept automatically when the approved payout reaches this bid, and to assign within the window.
+    const autoAcceptConsent = request.data?.autoAcceptConsent === true;
+    if (party.kind === 'vendor' && !autoAcceptConsent) throw new HttpsError('invalid-argument', 'Confirm the automatic acceptance and assignment terms to place a bid.', { code: 'consent-required' });
     const stamp = FieldValue.serverTimestamp();
     const name = text(party.data.companyName || party.data.name);
     tx.set(bidRef, {
       tripId, bookingId: label(b, tripId), bidderType: party.kind, bidderId: party.uid, vendorId: party.kind === 'vendor' ? party.uid : '', driverId: party.kind === 'driver' ? party.uid : '',
       vendorName: name, vendorPhone: text(party.data.phone), offeredPayout: money(offer.offeredPayout), vendorCounterRate: rate, biddingNote: note,
+      autoAcceptConsent, consentAt: autoAcceptConsent ? stamp : null,
       status: 'Pending Review', source: `${party.kind}-app`, submittedAt: existing.exists ? existing.data()!.submittedAt ?? stamp : stamp, updatedAt: stamp,
     });
     tx.update(market, { status: 'Bidding', ...(existing.exists ? {} : { bidCount: FieldValue.increment(1) }), lastCounterRate: rate, lastBidAt: stamp, updatedAt: stamp });

@@ -59,8 +59,8 @@ export function BookingForm({
 }: {
   service: ServiceId;
   onService: (s: ServiceId) => void;
-  outstationTrip: 'One Way' | 'Round Trip';
-  onOutstationTrip: (t: 'One Way' | 'Round Trip') => void;
+  outstationTrip?: 'One Way' | 'Round Trip';
+  onOutstationTrip?: (t: 'One Way' | 'Round Trip') => void;
 }) {
   const navigate = useNavigate();
   const { state: auth, openLoginModal, isLoginModalOpen } = useAuth();
@@ -120,7 +120,7 @@ export function BookingForm({
   }, [scheduled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (outstationTrip === 'Round Trip' && scheduled && scheduledEnd) {
+    if (service === 'round-trip' && scheduled && scheduledEnd) {
       if (scheduledEnd.getTime() < scheduled.getTime()) {
         setErrors((e) => ({ ...e, endTime: 'Return time must be after departure time' }));
       } else {
@@ -128,7 +128,7 @@ export function BookingForm({
         update({ tripEndAt: scheduledEnd });
       }
     }
-  }, [outstationTrip, scheduled, scheduledEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [service, scheduled, scheduledEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (service === 'rental' && draft.pickup && draft.drop?.id !== 'place-local-disposal') {
@@ -220,7 +220,7 @@ export function BookingForm({
       if (problem) err.time = problem;
     }
 
-    if (outstationTrip === 'Round Trip' && service === 'outstation') {
+    if (service === 'round-trip') {
       if (!endDate) err.endDate = 'Select return date';
       if (!endTime) err.endTime = 'Select return time';
       if (scheduled && scheduledEnd && scheduledEnd.getTime() < scheduled.getTime()) {
@@ -247,7 +247,7 @@ export function BookingForm({
     // the draft (tab storage), so a guest signs in here and is then taken on to vehicle selection.
     // The sign-in window being open is the guard against a duplicate request.
     if (isLoginModalOpen) return;
-    update({ scheduledAt: scheduled, tripEndAt: outstationTrip === 'Round Trip' && service === 'outstation' ? scheduledEnd : null });
+    update({ scheduledAt: scheduled, tripEndAt: service === 'round-trip' ? scheduledEnd : null });
     setPendingReturn('/book/ride');
     openLoginModal({
       title: 'Sign in to see fares',
@@ -301,7 +301,7 @@ export function BookingForm({
   const isRental = service === 'rental';
   const fromAirport = service === 'airport' && airportDir === 'from';
   const toAirport = service === 'airport' && airportDir === 'to';
-  const roundTrip = service === 'outstation' && outstationTrip === 'Round Trip';
+  const roundTrip = service === 'round-trip';
 
   return (
     <div className="jd" id="book-console">
@@ -326,18 +326,6 @@ export function BookingForm({
         ))}
       </nav>
 
-      {service === 'outstation' ? (
-        <Segmented
-          label="Journey type"
-          value={outstationTrip}
-          onChange={(id) => onOutstationTrip(id as 'One Way' | 'Round Trip')}
-          items={[
-            { id: 'One Way', label: 'One way drop' },
-            { id: 'Round Trip', label: 'Round trip' },
-          ]}
-        />
-      ) : null}
-
       {service === 'airport' ? (
         <Segmented
           label="Airport direction"
@@ -350,20 +338,7 @@ export function BookingForm({
         />
       ) : null}
 
-      {service === 'multicity' ? (
-        <div className="jd-offline">
-          <span className="jd-offline__icon" aria-hidden="true">
-            <Icon name="sparkles" size={24} />
-          </span>
-          <h3>Custom Multi-Day &amp; Vacation Packages</h3>
-          <p>Tailored itineraries for family vacations, temple tours, hill station getaways and corporate events with dedicated chauffeurs.</p>
-          <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--primary jd-offline__call">
-            <Icon name="phone" size={18} /> Call {SUPPORT_PHONE_DISPLAY}
-          </a>
-          <small>24/7 dedicated travel concierge</small>
-        </div>
-      ) : (
-        <form className="jd-form" onSubmit={onSubmit} noValidate>
+      <form className="jd-form" onSubmit={onSubmit} noValidate>
           {/* Connected route panel: one surface, two stops joined by a line, swap in its own column */}
           <div className={`jd-route ${isRental ? 'jd-route--single' : ''}`}>
             <div className="jd-route__stops">
@@ -529,7 +504,6 @@ export function BookingForm({
             </p>
           </div>
         </form>
-      )}
 
       {pickerField ? (
         <LocationPicker

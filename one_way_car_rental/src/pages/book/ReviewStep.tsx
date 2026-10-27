@@ -154,7 +154,7 @@ export function ReviewStep() {
         <div className="choose">
           <div className="choose__main">
             <PageHead backTo="/book/ride" title="Review & confirm">
-              Check trip itinerary, contact information and payment details before submitting.
+              Check trip itinerary and contact information before submitting. You pay your driver after the trip.
             </PageHead>
             <FlowSteps current={3} />
 

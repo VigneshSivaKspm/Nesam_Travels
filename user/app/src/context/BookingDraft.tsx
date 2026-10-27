@@ -27,6 +27,8 @@ export interface BookingDraft {
   airportDirection: 'to' | 'from';
   /** Airport transfers: optional flight number, sent in the booking notes. */
   flightNumber: string;
+  /** A promo code the rider applied. The booking server checks it with every quote, so the fare shown is the fare booked. */
+  promoCode: string;
 }
 
 /** The services in the bottom navigation. Multicity has no booking contract on the server yet. */
@@ -83,6 +85,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
     categoryId: '',
     airportDirection: 'to',
     flightNumber: '',
+    promoCode: '',
   });
   const [service, setServiceState] = useState<HomeService>('outstation');
   const lastOutstation = useRef<TripType>('One Way');
@@ -124,7 +127,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const reset = useCallback(() => {
     lastOutstation.current = 'One Way';
     setServiceState('outstation');
-    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to' }));
+    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '' }));
   }, []);
   const setRoute = useCallback((key: string, info: RouteInfo) => setRouteState({ key, info }), []);
 
@@ -132,7 +135,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const route = routeKey && routeState?.key === routeKey ? routeState.info : null;
 
   const quoteRequest = useMemo(() => {
-    const { pickup, drop, scheduledAt, tripEndAt, tripType } = draft;
+    const { pickup, drop, scheduledAt, tripEndAt, tripType, promoCode } = draft;
     if (!pickup || !drop || !scheduledAt || scheduleProblem(scheduledAt)) return null;
     if (tripType === 'Round Trip' && (!tripEndAt || tripEndAt.getTime() < scheduledAt.getTime())) return null;
     return {
@@ -141,7 +144,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
       tripType,
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
-      couponCode: '',
+      couponCode: promoCode || '',
     };
   }, [draft]);
   const serverQuote = useServerQuotes(quoteRequest);

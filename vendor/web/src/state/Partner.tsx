@@ -2,7 +2,8 @@
 // same services as before (rules and server functions decide what is allowed). Nothing here is simulated.
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import type {
-  BidProposal, FleetDriver, FleetVehicle, OpenTrip, PayoutRequest, TransactionRecord, VendorProfile, VendorRecord, VendorTrip, WalletDetails,
+  BidProposal, FleetDriver, FleetVehicle, OpenTrip, OperationsConfig, PartnerRequestRecord, PayoutRequest, SecurityDeposit, SettlementDue, TransactionRecord,
+  VendorProfile, VendorRecord, VendorTrip, WalletDetails,
 } from '../types';
 import type { PartnerNotification, PartnerPenalty } from '../notificationTypes';
 import {
@@ -13,7 +14,8 @@ import {
 } from '../services/vendorFirestoreService';
 import { markNotificationRead, subscribeToVendorNotifications, subscribeToVendorPenalties } from '../services/partnerNotifications';
 import { subscribeToInvites, subscribeToMyLinks, type DriverInvite, type PartnerLink } from '../services/partnerLinks';
-import { EMPTY_WALLET } from '../services/vendorMappers';
+import { EMPTY_WALLET, mapOperations } from '../services/vendorMappers';
+import { subscribeToDeposit, subscribeToOperations, subscribeToPartnerRequests, subscribeToSettlementDues } from '../partner/services';
 
 export type PageId = 'duties' | 'drivers' | 'vehicles' | 'requests' | 'payouts' | 'account' | 'alerts';
 
@@ -41,6 +43,10 @@ interface PartnerValue {
   penaltiesError: string;
   links: PartnerLink[];
   invites: DriverInvite[];
+  requests: PartnerRequestRecord[];
+  deposit: SecurityDeposit | null;
+  dues: SettlementDue[];
+  ops: OperationsConfig;
   loadError: string;
   retry: () => void;
   unread: number;
@@ -58,7 +64,7 @@ interface PartnerValue {
     inviteDriver: (phone: string, vehicleNumber: string) => Promise<void>;
     setSuspended: (driverId: string, suspended: boolean) => Promise<void>;
     acceptOffer: (trip: OpenTrip) => Promise<void>;
-    submitBid: (trip: OpenTrip, rate: number, note: string) => Promise<void>;
+    submitBid: (trip: OpenTrip, rate: number, note: string, autoAcceptConsent?: boolean) => Promise<void>;
     withdrawBid: (bid: BidProposal) => Promise<void>;
     assign: (tripId: string, driverId: string, vehicleId: string) => Promise<void>;
     requestPayout: (amount: number, method: 'UPI' | 'Bank Transfer') => Promise<void>;
@@ -98,6 +104,10 @@ export const PartnerProvider: React.FC<{ profile: VendorProfile; record: VendorR
   const [penaltiesError, setPenaltiesError] = useState('');
   const [links, setLinks] = useState<PartnerLink[]>([]);
   const [invites, setInvites] = useState<DriverInvite[]>([]);
+  const [requests, setRequests] = useState<PartnerRequestRecord[]>([]);
+  const [deposit, setDeposit] = useState<SecurityDeposit | null>(null);
+  const [dues, setDues] = useState<SettlementDue[]>([]);
+  const [ops, setOps] = useState<OperationsConfig>(() => mapOperations(undefined));
   const [loadError, setLoadError] = useState('');
   const [retryKey, setRetryKey] = useState(0);
 
@@ -118,6 +128,10 @@ export const PartnerProvider: React.FC<{ profile: VendorProfile; record: VendorR
       subscribeToVendorPenalties(vendorId, (p) => { setPenalties(p); setPenaltiesError(''); }, setPenaltiesError),
       subscribeToMyLinks(vendorId, setLinks, fail),
       subscribeToInvites(vendorId, setInvites, fail),
+      subscribeToPartnerRequests(vendorId, setRequests, fail),
+      subscribeToDeposit(vendorId, setDeposit),
+      subscribeToSettlementDues(vendorId, setDues),
+      subscribeToOperations(setOps),
     ];
     return () => unsubs.forEach((u) => u());
   }, [vendorId, retryKey]);
@@ -132,7 +146,7 @@ export const PartnerProvider: React.FC<{ profile: VendorProfile; record: VendorR
     const name = profile.companyName;
     return {
       profile, record, vehicles, drivers, categories, openTrips, bids, trips, wallet, payouts, ledger, notifications, penalties, penaltiesError, links, invites,
-      loadError, retry, page, go, intent, clearIntent,
+      requests, deposit, dues, ops, loadError, retry, page, go, intent, clearIntent,
       unread: notifications.filter((n) => !n.read).length,
       openLinks: links.filter((l) => linkIsOpen(l) && l.toVendorId === vendorId),
       actions: {
@@ -147,7 +161,7 @@ export const PartnerProvider: React.FC<{ profile: VendorProfile; record: VendorR
         inviteDriver: (phone, vehicleNumber) => run(() => inviteDriverByVendor(phone, vendorId, name, vehicleNumber), 'The invitation was not saved. Please retry.'),
         setSuspended: (id, suspended) => run(() => setDriverSuspended(id, suspended), 'The driver status was not changed. Please retry.'),
         acceptOffer: async (trip) => { await run(() => acceptOfferedRate(trip.id), 'Could not accept this trip. Please retry.'); go('duties'); },
-        submitBid: (trip, rate, note) => run(() => submitCounterBid(trip, rate, note), 'The bid was not submitted. Please retry.'),
+        submitBid: (trip, rate, note, consent = true) => run(() => submitCounterBid(trip, rate, note, consent), 'The bid was not submitted. Please retry.'),
         withdrawBid: (bid) => run(() => withdrawBid(bid), 'The bid was not withdrawn. Please retry.'),
         assign: (tripId, driverId, vehicleId) => {
           const driver = drivers.find((d) => d.id === driverId);
@@ -159,7 +173,7 @@ export const PartnerProvider: React.FC<{ profile: VendorProfile; record: VendorR
         markRead: (id) => { void markNotificationRead(id).catch(() => undefined); },
       },
     };
-  }, [profile, record, vehicles, drivers, categories, openTrips, bids, trips, wallet, payouts, ledger, notifications, penalties, penaltiesError, links, invites, loadError, retry, page, go, intent, clearIntent, vendorId]);
+  }, [profile, record, vehicles, drivers, categories, openTrips, bids, trips, wallet, payouts, ledger, notifications, penalties, penaltiesError, links, invites, requests, deposit, dues, ops, loadError, retry, page, go, intent, clearIntent, vendorId]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };

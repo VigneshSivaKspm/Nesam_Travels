@@ -23,6 +23,7 @@ import { describeError } from '../utils/retry';
 import { colors, fonts, space } from '../theme';
 import { NOTES_MAX, composeBookingNotes, scheduleProblem, whatsappProblem } from '../utils/bookingRules';
 import {
+  CUSTOMER_PAYMENTS_ENABLED,
   SCHEDULED_CANCELLATION_FEE,
   SCHEDULED_FREE_CANCEL_BEFORE_MS,
 } from '../config/constants';
@@ -41,14 +42,12 @@ const dayText = (d: Date) => `${d.getDate()} ${d.toLocaleDateString('en-IN', { m
 export function ConfirmBookingScreen() {
   const navigation = useNavigation();
   const { profile, trips } = useCustomerData();
-  const { draft, reset, route, categories, adjustment, coupons, serverQuote: serverQuoteState } = useBookingDraft();
-  const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId, flightNumber } = draft;
+  const { draft, update, reset, route, categories, adjustment, coupons, serverQuote: serverQuoteState } = useBookingDraft();
+  const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId, flightNumber, promoCode } = draft;
   const { online } = useNetworkStatus();
 
   const [payment, setPayment] = useState<PaymentMethod>('Cash');
-  const [promoInput, setPromoInput] = useState('');
-  const [appliedCode, setAppliedCode] = useState<string | null>(null);
-  const [promoError, setPromoError] = useState('');
+  const [promoInput, setPromoInput] = useState(promoCode);
   const [notes, setNotes] = useState('');
   const [someoneElse, setSomeoneElse] = useState(false);
   const [guestName, setGuestName] = useState('');
@@ -96,21 +95,28 @@ export function ConfirmBookingScreen() {
     });
   };
 
-  const couponCheck = appliedCode ? checkCoupon(appliedCode) : null;
-  const coupon: AppliedCoupon | null = couponCheck?.ok ? couponCheck.coupon : null;
-  const promoMsg = couponCheck
-    ? couponCheck.ok
-      ? { ok: true, text: couponCheck.coupon.message }
-      : { ok: false, text: `Promo not applied: ${couponCheck.message}` }
-    : promoError
-      ? { ok: false, text: promoError }
-      : null;
-
-  const priceKey = JSON.stringify([draft, coupon?.code, adjustment?.id, adjustment?.percent]);
-  const localQuote = calculateFare({ category, route, tripType, pickupTime, adjustment, discount: coupon?.discount ?? 0 });
-  // The booking server's own fare for this exact trip (and promo, when it applies).
+  // The booking server's own fare for this exact trip, with the promo code checked by the server too.
   const authoritativeEntry = serverQuoteState.status === 'ready' ? serverQuoteState.data?.quotes.find((x) => x.categoryId === category.id && x.ok && x.fare) : undefined;
   const authoritative = !!authoritativeEntry;
+  // Until the server answers, the code is checked locally for the estimate only (an estimate is never submittable).
+  const localCheck = promoCode && !authoritative ? checkCoupon(promoCode) : null;
+  const coupon: AppliedCoupon | null = authoritativeEntry
+    ? authoritativeEntry.couponApplied && promoCode ? { code: promoCode, discount: authoritativeEntry.fare!.discount, message: authoritativeEntry.couponMessage ?? '' } : null
+    : localCheck?.ok ? localCheck.coupon : null;
+  const promoMsg = !promoCode
+    ? null
+    : authoritativeEntry
+      ? authoritativeEntry.couponApplied
+        ? { ok: true, text: authoritativeEntry.couponMessage || `${promoCode} applied.` }
+        : { ok: false, text: `Promo not applied: ${authoritativeEntry.couponMessage || 'This code does not apply to this trip.'}` }
+      : serverQuoteState.status === 'loading'
+        ? { ok: true, text: `Checking ${promoCode}…` }
+        : localCheck && !localCheck.ok
+          ? { ok: false, text: `Promo not applied: ${localCheck.message}` }
+          : null;
+
+  const priceKey = JSON.stringify([draft, adjustment?.id, adjustment?.percent]);
+  const localQuote = calculateFare({ category, route, tripType, pickupTime, adjustment, discount: coupon?.discount ?? 0 });
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : authoritativeEntry?.fare ?? localQuote;
   const outstation = isOutstation(route.distanceKm);
 
@@ -124,15 +130,11 @@ export function ConfirmBookingScreen() {
       || (waError || emailError || guestError ? 'Check your contact details.' : '')
       || (!termsAccepted ? 'Accept the fare, extra charges and cancellation policy to book.' : '');
 
-  const applyPromo = () => {
-    const res = checkCoupon(promoInput);
-    if (res.ok) {
-      setAppliedCode(res.coupon.code);
-      setPromoError('');
-    } else {
-      setAppliedCode(null);
-      setPromoError(res.message);
-    }
+  // The server quote is requested again with the code; its answer decides whether the discount applies.
+  const applyPromo = () => update({ promoCode: promoInput.trim().toUpperCase().slice(0, 50) });
+  const removePromo = () => {
+    update({ promoCode: '' });
+    setPromoInput('');
   };
 
   const submit = async () => {
@@ -149,8 +151,9 @@ export function ConfirmBookingScreen() {
         route,
         fare: quote,
         tripType,
-        paymentMethod: payment,
-        couponCode: coupon?.code ?? '',
+        paymentMethod: CUSTOMER_PAYMENTS_ENABLED ? payment : 'Cash',
+        // Only a code the server applied to this fare is sent; a rejected code would make the booking fail.
+        couponCode: authoritativeEntry?.couponApplied ? promoCode : '',
         notes: composeBookingNotes({
           flight: tripType === 'Airport Taxi' ? flightNumber : '',
           passengerName: someoneElse ? guestName : '',
@@ -287,28 +290,31 @@ export function ConfirmBookingScreen() {
               placeholder="Enter code"
               placeholderTextColor={colors.faint}
               value={promoInput}
-              onChangeText={(t) => {
-                setPromoInput(t);
-                setPromoError('');
-              }}
+              onChangeText={setPromoInput}
               autoCapitalize="characters"
               autoCorrect={false}
               accessibilityLabel="Promo code"
             />
-            <Button small title="Apply" onPress={applyPromo} disabled={!promoInput.trim()} style={{ minHeight: 46, paddingHorizontal: 18 }} />
+            <Button small title="Apply" onPress={applyPromo} disabled={!promoInput.trim() || promoInput.trim().toUpperCase() === promoCode} style={{ minHeight: 46, paddingHorizontal: 18 }} />
           </View>
           {promoMsg ? <Text style={[styles.promoFeedback, { color: promoMsg.ok ? colors.success : colors.primaryDark }]}>{promoMsg.text}</Text> : null}
-          {coupon ? <TextButton title="Remove code" icon="x" size={11} onPress={() => { setAppliedCode(null); setPromoInput(''); }} style={{ alignSelf: 'flex-start' }} /> : null}
+          {promoCode ? <TextButton title="Remove code" icon="x" size={11} onPress={removePromo} style={{ alignSelf: 'flex-start' }} /> : null}
         </View>
 
-        {/* Payment */}
-        <Text style={styles.heading}>Choose payment</Text>
-        <View accessibilityRole="radiogroup">
-          {PAYMENT_OPTIONS.map((p) => (
-            <RadioCard key={p.id} selected={payment === p.id} onPress={() => setPayment(p.id)} title={p.title} subtitle={p.subtitle} right={<Text style={styles.payNow}>{'₹0\n'}<Text style={styles.payNowSub}>now</Text></Text>} />
-          ))}
-        </View>
-        <Text style={styles.small}>Online advance payment isn’t available yet. Toll, parking and state tax are extra, paid separately against receipts.</Text>
+        {/* Payment: hidden while customer payment options are switched off (every booking is pay-later). */}
+        {CUSTOMER_PAYMENTS_ENABLED ? (
+          <>
+            <Text style={styles.heading}>Choose payment</Text>
+            <View accessibilityRole="radiogroup">
+              {PAYMENT_OPTIONS.map((p) => (
+                <RadioCard key={p.id} selected={payment === p.id} onPress={() => setPayment(p.id)} title={p.title} subtitle={p.subtitle} right={<Text style={styles.payNow}>{'₹0\n'}<Text style={styles.payNowSub}>now</Text></Text>} />
+              ))}
+            </View>
+          </>
+        ) : null}
+        <Text style={styles.small}>
+          {CUSTOMER_PAYMENTS_ENABLED ? 'Online advance payment isn’t available yet. ' : 'Nothing is charged now; you pay after the trip. '}Toll, parking and state tax are extra, paid separately against receipts.
+        </Text>
 
         <View style={styles.rule} />
         <Disclosure title="Cancellation policy">

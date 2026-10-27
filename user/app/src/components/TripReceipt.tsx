@@ -7,7 +7,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import type { TripRecord } from '../types';
 import { FareLines, tripFareLines } from './FareLines';
-import { COMPANY_NAME, COMPANY_UPI_ID, GST_RATE } from '../config/constants';
+import { COMPANY_NAME, COMPANY_UPI_ID, CUSTOMER_PAYMENTS_ENABLED, GST_RATE } from '../config/constants';
 import { escapeHtml, formatDateTime, formatDistance, formatDuration, formatINR } from '../utils/format';
 import { Button, Card, Notice } from './ui';
 import { colors, fonts, space, type } from '../theme';
@@ -138,11 +138,11 @@ export function TripReceipt({ trip, customerName }: { trip: TripRecord; customer
                 ? 'Your driver will confirm the payment once collected.'
                 : trip.paymentMethod === 'Wallet'
                   ? 'This amount will be deducted from your wallet. Nothing to pay the driver.'
-                  : COMPANY_UPI_ID
+                  : CUSTOMER_PAYMENTS_ENABLED && COMPANY_UPI_ID
                     ? 'Payment status updates once it’s confirmed.'
                     : 'Scan your driver’s UPI QR code to pay.'}
             </Text>
-            {trip.paymentMethod === 'UPI' && COMPANY_UPI_ID ? (
+            {CUSTOMER_PAYMENTS_ENABLED && trip.paymentMethod === 'UPI' && COMPANY_UPI_ID ? (
               <Button title="Open UPI app" variant="secondary" onPress={() => void Linking.openURL(upiLink(trip)).catch(() => setError('No UPI app found on this phone.'))} style={{ marginTop: space.md }} />
             ) : null}
           </>

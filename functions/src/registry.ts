@@ -81,6 +81,16 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   transitionPenalty: fns.transitionPenalty,
   acknowledgePenalty: fns.acknowledgePenalty,
   disputePenalty: fns.disputePenalty,
+  // partner requests & partner operations
+  requestDutyCancellation: fns.requestDutyCancellation,
+  submitPartnerRequest: fns.submitPartnerRequest,
+  decidePartnerRequest: fns.decidePartnerRequest,
+  acknowledgeAssignment: fns.acknowledgeAssignment,
+  setVehicleAvailability: fns.setVehicleAvailability,
+  createWalletRecharge: fns.createWalletRecharge,
+  verifyWalletRecharge: fns.verifyWalletRecharge,
+  setSecurityDeposit: fns.setSecurityDeposit,
+  requestDepositRefund: fns.requestDepositRefund,
   // identity, legal, security
   reportSecurityEvent: fns.reportSecurityEvent,
   getIntegrityNonce: fns.getIntegrityNonce,
@@ -118,6 +128,7 @@ export const RECONCILES_BOOKING = new Set([
   'createBooking', 'createAdminBooking', 'overrideBookingFare', 'approveBooking', 'rejectBooking', 'cancelBooking', 'updateRefund',
   'assignDriver', 'recordPayment', 'voidPayment', 'advanceTrip', 'overrideReachedPickup', 'verifyBoarding', 'awardMarketplaceBid', 'rejectMarketplaceBid', 'postBookingToMarketplace',
   'assignIndependentDriver', 'assignVendor', 'vendorAssignDriver', 'claimMarketplaceDuty', 'submitMarketplaceBid', 'withdrawMarketplaceBid', 'finalizeVehicleVerification',
+  'requestDutyCancellation', 'acknowledgeAssignment',
 ]);
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);
 
