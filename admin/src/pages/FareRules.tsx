@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import TariffConfigCard from "../components/TariffConfigCard";
 import { FareRule, PricingModel, TravelService, VehicleCategory, MasterLocation, FareCalculationInput } from "../types";
@@ -18,7 +18,8 @@ import {
 } from "../services/fareRuleService";
 import AppFarePreview from "../components/AppFarePreview";
 import { auth } from "../services/firebase";
-import { ConfirmDialog, ErrorBanner, Toast, useToast } from "../components/Feedback";
+import { ConfirmDialog, ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
+import { Button } from "../components/ui";
 
 const PRICING_MODELS: { value: PricingModel; label: string; desc: string }[] = [
   { value: "BASE_PLUS_PER_KM", label: "Base Fare + Per KM", desc: "Initial base fare covering base KM, then per-KM rate for extra distance." },
@@ -45,7 +46,7 @@ const TAB_FIELDS: Record<FormTab, FareRuleField[]> = {
 };
 const errText = (e: unknown) => (e instanceof FareRuleActionError ? e.message : "Something went wrong. Please try again.");
 
-export default function FareRules() {
+export default function FareRules({ onBack }: { onBack: () => void }) {
   const [fareRules, setFareRules] = useState<FareRule[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
@@ -69,6 +70,12 @@ export default function FareRules() {
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FareRuleField, string>>>({});
   const [activeTab, setActiveTab] = useState<FormTab>("identity");
   const [formData, setFormData] = useState<FareRuleForm>(emptyFareRuleForm);
+  // The form as it was opened, so leaving the page can tell real edits from an untouched form.
+  const formBaseline = useRef("");
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  // The base-rates editor reports its unsaved edits and in-flight saves so Back cannot drop or interrupt them.
+  const tariffDirty = useRef(false);
+  const [tariffBusy, setTariffBusy] = useState(false);
 
   // Rate-card calculator (admin / phone quotations)
   const [calcInput, setCalcInput] = useState<FareCalculationInput>({
@@ -142,8 +149,10 @@ export default function FareRules() {
   const errNode = (f: FareRuleField) => (fieldErrors[f] ? <p className="text-[10px] text-red-600 mt-1">{fieldErrors[f]}</p> : null);
 
   const openForm = (rule: FareRule | null) => {
+    const initial = rule ? formFromRule(rule) : { ...emptyFareRuleForm(), vehicleCategoryId: categories.find((c) => c.status === "Active")?.id || "" };
+    formBaseline.current = JSON.stringify(initial);
     setEditingRule(rule);
-    setFormData(rule ? formFromRule(rule) : { ...emptyFareRuleForm(), vehicleCategoryId: categories.find((c) => c.status === "Active")?.id || "" });
+    setFormData(initial);
     setFormError(null);
     setFieldErrors({});
     setActiveTab("identity");
@@ -215,10 +224,22 @@ export default function FareRules() {
     }
   };
 
+  // A save, status change, copy or delete in flight must finish before the page is left.
+  const busy = isSubmitting || deleteBusy || rowBusyId !== null || tariffBusy;
+  const handleBack = () => {
+    if (busy) return;
+    if ((showModal && JSON.stringify(formData) !== formBaseline.current) || tariffDirty.current) setConfirmLeave(true);
+    else onBack();
+  };
+
   return (
     <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen">
       <Toast toast={toast} />
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
+
+      <div>
+        <Button icon="arrow-left" onClick={handleBack} disabled={busy}>Back to Service &amp; Fare Settings</Button>
+      </div>
 
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -243,7 +264,7 @@ export default function FareRules() {
         </div>
       </div>
 
-      <TariffConfigCard />
+      <TariffConfigCard onDirtyChange={(d) => { tariffDirty.current = d; }} onBusyChange={setTariffBusy} />
       <FareAdjustmentCard />
 
       {/* Summary Cards */}
@@ -650,6 +671,23 @@ export default function FareRules() {
             </table>
           </div>
         </div>
+      )}
+
+      {confirmLeave && (
+        <Modal
+          title="You have unsaved changes."
+          onClose={() => setConfirmLeave(false)}
+          busy={busy}
+          centered
+          footer={
+            <>
+              <Button onClick={() => setConfirmLeave(false)}>Stay</Button>
+              <Button variant="danger" disabled={busy} onClick={() => { setConfirmLeave(false); onBack(); }}>Discard &amp; go back</Button>
+            </>
+          }
+        >
+          <p className="text-[13px] text-body">Your edits on this page have not been saved. Leaving now discards them.</p>
+        </Modal>
       )}
 
       {/* Add / Edit Fare Rule Modal Form */}

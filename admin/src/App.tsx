@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Login from "./pages/Login";
@@ -22,7 +22,7 @@ import Invoices from "./pages/Invoices";
 import Services from "./pages/Services";
 import TourPackages from "./pages/TourPackages";
 import Locations from "./pages/Locations";
-import Pricing from "./pages/Pricing";
+import Pricing, { MORE_SETTINGS_VIEW, type PricingView } from "./pages/Pricing";
 import FareRules from "./pages/FareRules";
 import Support from "./pages/Support";
 import Offers from "./pages/Offers";
@@ -84,7 +84,7 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   packages: { title: "Tour Packages", breadcrumb: ["Office", ""] },
   locations: { title: "Locations", breadcrumb: ["Office", ""] },
   pricing: { title: "Pricing & Fare Management", breadcrumb: ["Office", "Pricing & Fare"] },
-  "fare-rules": { title: "Fixed route fares", breadcrumb: ["Office", "Service & Fare Settings"] },
+  "fare-rules": { title: "Pricing & Fare Management", breadcrumb: ["Office", "Service & Fare Settings"] },
   offers: { title: "Offers & Coupons", breadcrumb: ["Office", ""] },
   payments: { title: "Payments", breadcrumb: ["Finance", ""] },
   invoices: { title: "Invoices", breadcrumb: ["Finance", ""] },
@@ -132,7 +132,12 @@ function AdminShell({ session }: { session: AdminSession }) {
   useEffect(() => startStaffSession(session.access.staffCode ?? ""), [session.user.uid, session.access.staffCode]);
   useEffect(() => { logActivity("View page", meta.title, currentPage === "booking-detail" ? selectedBookingId ?? "" : meta.title); }, [currentPage, selectedBookingId]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Service & Fare Settings as it was left when Fixed route fares opened (fareReturn), and what it restores on mount (pricingView).
+  const fareReturn = useRef<PricingView | null>(null);
+  const pricingView = useRef<PricingView | null>(null);
+
   const navigate = (page: string, tab?: string) => {
+    if (page !== "fare-rules") fareReturn.current = null;
     setBookingsTab(tab);
     setActivePage(page);
     setSelectedBookingId(null);
@@ -265,9 +270,23 @@ function AdminShell({ session }: { session: AdminSession }) {
       case "locations":
         return <Locations />;
       case "pricing":
-        return <Pricing onNavigate={navigate} />;
+        return (
+          <Pricing
+            onNavigate={navigate}
+            restore={pricingView.current}
+            onRestored={() => { pricingView.current = null; }}
+            onOpenFareRules={(view) => { fareReturn.current = view; navigate("fare-rules"); }}
+          />
+        );
       case "fare-rules":
-        return <FareRules />;
+        return (
+          <FareRules
+            onBack={() => {
+              pricingView.current = fareReturn.current ?? MORE_SETTINGS_VIEW;
+              navigate("pricing");
+            }}
+          />
+        );
       case "offers":
         return <Offers />;
       case "reviews":

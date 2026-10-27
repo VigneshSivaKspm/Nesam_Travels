@@ -26,28 +26,46 @@ const STATUS_FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled", "Remo
 /** Tamil helper line under an English heading (reference bilingual headings). */
 const Ta = ({ children }: { children: ReactNode }) => <span className="block text-[12px] text-muted" lang="ta">{children}</span>;
 
+/** What the page shows, kept by the app while the Pricing & Fare Management page is open so Back can put it back. */
+export type PricingView = { tab: Tab; sel: Sel; filter: (typeof STATUS_FILTERS)[number]; scrollY: number };
+/** Where Back lands when there is no earlier context: More settings with no location chosen. */
+export const MORE_SETTINGS_VIEW: PricingView = { tab: "More settings", sel: { state: "", city: "", area: "" }, filter: "All", scrollY: 0 };
+
 /** Master Admin "Service & Fare Settings": location-scoped availability, cab types and pricing. */
-export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab?: string) => void }) {
-  const [tab, setTab] = useState<Tab>("Booking availability");
-  const [sel, setSel] = useState<Sel>({ state: "", city: "", area: "" });
+export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRules }: {
+  onNavigate: (page: string, tab?: string) => void;
+  restore: PricingView | null;
+  onRestored: () => void;
+  onOpenFareRules: (view: PricingView) => void;
+}) {
+  const [tab, setTab] = useState<Tab>(restore?.tab ?? "Booking availability");
+  const [sel, setSel] = useState<Sel>(restore?.sel ?? { state: "", city: "", area: "" });
   const [rules, setRules] = useState<ServiceRule[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
-  const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>("All");
+  const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>(restore?.filter ?? "All");
   const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" | "local" } | null>(null);
   const canEdit = useCan("pricing");
   const canTest = useCan("operations");
   const { toast, show } = useToast(6000);
-  // The base-rates editor reports unsaved edits so closing its sheet cannot silently drop them.
+  // The base-rates editor reports unsaved edits and in-flight saves so closing its sheet cannot drop or interrupt them.
   const baseDirty = useRef(false);
+  const [baseBusy, setBaseBusy] = useState(false);
   const closeBase = () => {
+    if (baseBusy) return;
     if (baseDirty.current && !window.confirm("Discard your unsaved base-rate changes?")) return;
     baseDirty.current = false;
     setSheet(null);
   };
+  // Coming back from a tool page: the saved view is used once, then the scroll position is put back.
+  useEffect(() => {
+    if (!restore) return;
+    onRestored();
+    window.scrollTo(0, restore.scrollY);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const u = [subscribeServiceRules((r) => { setRules(r); setLoaded(true); setLoadError(null); }, (m) => { setLoadError(m); setLoaded(true); }), subscribeLocations(setLocations), subscribeVehicleCategories(setCategories), subscribeServices(setServices)];
     return () => u.forEach((x) => x());
@@ -90,9 +108,9 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
 
   const tools: [string, string, string, () => void][] = [
     ["Base rates", "Regular ₹/km, driver bata and partner payout.", "Company-wide", () => setSheet({ kind: "base" })],
+    ["Pricing & Fare Management", "Manage base rates, partner payouts, extra charges and fare rules.", "Company-wide", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY })],
     ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => setSheet({ kind: "local" })],
     ["Extra charges", "Waiting, hills, carrier and other add-ons.", "Configured scope", () => onNavigate("categories")],
-    ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => onNavigate("fare-rules")],
     ["Business contracts", "Company rates, credit terms and contracts.", "Business account", () => onNavigate("business")],
     ["Service boundaries", "Define verified cities, areas and service zones.", "Service areas", () => onNavigate("locations")],
     ["Fare limits", "Review approved minimum and maximum amounts.", "Configured scope", () => setSheet({ kind: "limits" })],
@@ -184,7 +202,7 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
       {sheet?.kind === "status" && <StatusSheet rule={sheet.rule} to={sheet.to!} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "history" && <HistorySheet rules={rules} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet onClose={() => setSheet(null)} />}
-      {sheet?.kind === "base" && <Modal title="Base rates & partner payout" subtitle="Company-wide" onClose={closeBase} wide><TariffConfigCard onDirtyChange={(d) => { baseDirty.current = d; }} /></Modal>}
+      {sheet?.kind === "base" && <Modal title="Base rates & partner payout" subtitle="Company-wide" onClose={closeBase} busy={baseBusy} wide><TariffConfigCard onDirtyChange={(d) => { baseDirty.current = d; }} onBusyChange={setBaseBusy} /></Modal>}
       {sheet?.kind === "local" && <Modal title="Local fares" subtitle="Rental packages and Pickup & Drop" onClose={() => setSheet(null)} wide><LocalFares initialCity={sel.city} onToast={show} /></Modal>}
       {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}

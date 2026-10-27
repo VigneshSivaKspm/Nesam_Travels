@@ -56,7 +56,7 @@ const isBlank = (r: Row) => ROW_KEYS.every((k) => r[k].trim() === "");
  * extra usage defaults and the airport fare. Saved only through the server as one new tariff version
  * (audited, with a stale-edit check). A new tariff affects NEW quotes; a confirmed booking keeps its snapshot.
  */
-export default function TariffConfigCard({ onDirtyChange }: { onDirtyChange?: (dirty: boolean) => void } = {}) {
+export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDirtyChange?: (dirty: boolean) => void; onBusyChange?: (busy: boolean) => void } = {}) {
   const canEdit = useCan("pricing");
   const { tariff: t, error: loadError } = useTariff();
   const [form, setForm] = useState<Form>(() => fromTariff(null));
@@ -80,6 +80,7 @@ export default function TariffConfigCard({ onDirtyChange }: { onDirtyChange?: (d
   const stale = loadedVersion !== null && loadedVersion !== savedVersion && dirty;
 
   useEffect(() => { onDirtyChange?.(dirty); }, [dirty, onDirtyChange]);
+  useEffect(() => { onBusyChange?.(busy); }, [busy, onBusyChange]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (e: BeforeUnloadEvent) => { e.preventDefault(); };
