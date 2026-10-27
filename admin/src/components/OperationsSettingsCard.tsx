@@ -65,8 +65,8 @@ export default function OperationsSettingsCard() {
     <div className="space-y-6 max-w-3xl">
       {loadError && <Notice tone="error">{loadError}</Notice>}
       <section className="space-y-3">
-        <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-[#E21B23]" />Unassigned booking alerts</h3>
-        <p className="text-sm text-[#555]">Approved or confirmed bookings with no driver are flagged on the dashboard and staff are notified as the pickup gets close — once per level, so alerts do not repeat.</p>
+        <h3 className="text-[15px] font-bold text-ink flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-brand" />Unassigned booking alerts</h3>
+        <p className="text-sm text-muted">Approved or confirmed bookings with no driver are flagged on the dashboard and staff are notified as the pickup gets close — once per level, so alerts do not repeat.</p>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Field label="Warning before pickup (hours)" hint="Normal above this; warning at or below it."><input value={form.warn} onChange={(e) => set("warn", e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" disabled={!canEdit} className={inputCls} /></Field>
           <Field label="Urgent before pickup (hours)" hint="Critical at or below this."><input value={form.crit} onChange={(e) => set("crit", e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" disabled={!canEdit} className={inputCls} /></Field>
@@ -74,17 +74,17 @@ export default function OperationsSettingsCard() {
       </section>
 
       <section className="space-y-3">
-        <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-[#E21B23]" />Driver device security</h3>
-        <p className="text-sm text-[#555]">When on, a driver’s Android phone must pass Google Play Integrity (genuine, unmodified device running the published app) before it can start, reach or end a trip. Failures are logged under Security events.</p>
+        <h3 className="text-[15px] font-bold text-ink flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-brand" />Driver device security</h3>
+        <p className="text-sm text-muted">When on, a driver’s Android phone must pass Google Play Integrity (genuine, unmodified device running the published app) before it can start, reach or end a trip. Failures are logged under Security events.</p>
         <Notice tone="warn">Turn this on only after Play Integrity is configured on the server (PLAY_INTEGRITY_PACKAGE_NAME and a service account) — otherwise Android drivers will be refused.</Notice>
-        <label className="flex items-center gap-2 text-sm font-semibold text-[#333]"><input type="checkbox" checked={form.enforce} onChange={(e) => set("enforce", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-[#E21B23]" />Require a verified device for trip actions</label>
-        <label className="flex items-center gap-2 text-sm font-semibold text-[#333]"><input type="checkbox" checked={form.allowWeb} onChange={(e) => set("allowWeb", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-[#E21B23]" />Allow drivers to run trips from the web portal (a browser cannot be verified)</label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-body"><input type="checkbox" checked={form.enforce} onChange={(e) => set("enforce", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-brand" />Require a verified device for trip actions</label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-body"><input type="checkbox" checked={form.allowWeb} onChange={(e) => set("allowWeb", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-brand" />Allow drivers to run trips from the web portal (a browser cannot be verified)</label>
         <Field label="Re-check device every (hours)"><input value={form.ttl} onChange={(e) => set("ttl", e.target.value.replace(/\D/g, ""))} inputMode="numeric" disabled={!canEdit} className={`${inputCls} max-w-[10rem]`} /></Field>
       </section>
 
       {problem && dirty && <p className="text-sm font-semibold text-red-700" role="alert">{problem}</p>}
       {msg && <Notice tone={msg.tone === "ok" ? "ok" : "error"}>{msg.text}</Notice>}
-      {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save"}</button> : <p className="text-sm text-[#555]">Changing these needs system access.</p>}
+      {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save"}</button> : <p className="text-sm text-muted">Changing these needs system access.</p>}
     </div>
   );
 }

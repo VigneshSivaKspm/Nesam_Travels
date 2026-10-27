@@ -16,6 +16,8 @@ export const ACK_TEXT = 'I have read and understood the penalty information.';
 export const PENALTY_CATEGORIES = [
   'Trip Cancellation', 'No Show at Pickup', 'Late Arrival', 'Misconduct / Complaint',
   'Document / Insurance Lapse', 'Vehicle Condition', 'Other',
+  // Master Admin penalty reasons.
+  'Assignment deadline missed', 'Accepted duty not fulfilled', 'Cancellation after driver arrival', 'Service / conduct issue',
 ];
 
 const docId = (v: unknown, what: string): string => {

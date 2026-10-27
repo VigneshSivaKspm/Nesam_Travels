@@ -1,7 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { db } from './admin';
 import { GeoPlace, RouteInfo } from './domain/types';
-import { AdminAccess, Permission, accessOf } from './permissions';
+import { AdminAccess, DUTY_LABEL, DutyAction, Permission, accessOf } from './permissions';
 
 export const approved = (s: unknown) => ['Approved', 'APPROVED', 'Active'].includes(String(s));
 export const text = (v: unknown, max = 300) => typeof v === 'string' ? v.trim().slice(0, max) : '';
@@ -43,6 +43,12 @@ export async function requireAdmin(auth: CallerAuth): Promise<AdminAccess> {
   const a = snap.data();
   if (!snap.exists || a?.role !== 'admin' || a?.status !== 'active') throw new HttpsError('permission-denied', 'Only active admins can do this.');
   return accessOf(auth.uid, a, text(auth.token?.email, 120));
+}
+
+/** A Staff ID made in Staff & Access must hold the duty action; other admins are limited by permissions only. */
+export function requireDuty(admin: AdminAccess, action: DutyAction): void {
+  if (admin.isSuper || !admin.duty || admin.duty.includes(action)) return;
+  throw new HttpsError('permission-denied', `Your Staff ID does not include “${DUTY_LABEL[action]}”. Ask the Master account.`);
 }
 
 /** Same check as firestore.rules can(p): an active admin holding every listed permission. */

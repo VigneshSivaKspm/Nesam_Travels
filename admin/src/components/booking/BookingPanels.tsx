@@ -42,32 +42,32 @@ export function PaymentsPanel({
   const sorted = [...(rows ?? [])].sort((a, b) => (toDate(a.paymentDate as never)?.getTime() ?? 0) - (toDate(b.paymentDate as never)?.getTime() ?? 0));
   const legacy = (rows?.length ?? 0) === 0 && pay.totalPaid > 0;
   return (
-    <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5 space-y-4">
+    <div className="bg-white rounded-xl border border-line shadow-sm p-5 space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-bold text-[#111]">Payments</h3>
+        <h3 className="text-sm font-bold text-ink">Payments</h3>
         <PaymentBadge status={pay.status} />
       </div>
       <dl className="grid grid-cols-2 gap-3 text-sm">
-        <div><dt className="text-xs font-semibold text-[#555] uppercase">Amount due</dt><dd className="font-bold text-[#111]">{rupees(pay.amountDue)}</dd></div>
-        <div><dt className="text-xs font-semibold text-[#555] uppercase">Total paid</dt><dd className="font-bold text-green-700">{rupees(pay.totalPaid)}</dd></div>
-        <div><dt className="text-xs font-semibold text-[#555] uppercase">Balance due</dt><dd className={`font-bold ${pay.balanceDue > 0 ? "text-[#E21B23]" : "text-[#111]"}`}>{rupees(pay.balanceDue)}</dd></div>
-        <div><dt className="text-xs font-semibold text-[#555] uppercase">Advance</dt><dd className="font-bold text-[#111]">{rupees(pay.advancePaid)}</dd></div>
-        {pay.partnerCashHeld > 0 && <div className="col-span-2"><dt className="text-xs font-semibold text-[#555] uppercase">Collected directly by driver / vendor</dt><dd className="font-bold text-[#111]">{rupees(pay.partnerCashHeld)}</dd></div>}
+        <div><dt className="text-xs font-semibold text-muted uppercase">Amount due</dt><dd className="font-bold text-ink">{rupees(pay.amountDue)}</dd></div>
+        <div><dt className="text-xs font-semibold text-muted uppercase">Total paid</dt><dd className="font-bold text-green-700">{rupees(pay.totalPaid)}</dd></div>
+        <div><dt className="text-xs font-semibold text-muted uppercase">Balance due</dt><dd className={`font-bold ${pay.balanceDue > 0 ? "text-brand" : "text-ink"}`}>{rupees(pay.balanceDue)}</dd></div>
+        <div><dt className="text-xs font-semibold text-muted uppercase">Advance</dt><dd className="font-bold text-ink">{rupees(pay.advancePaid)}</dd></div>
+        {pay.partnerCashHeld > 0 && <div className="col-span-2"><dt className="text-xs font-semibold text-muted uppercase">Collected directly by driver / vendor</dt><dd className="font-bold text-ink">{rupees(pay.partnerCashHeld)}</dd></div>}
       </dl>
       {error && <Notice tone="error">{error}</Notice>}
-      {rows === null && !error && <p className="text-sm text-[#555]" role="status">Loading payment history…</p>}
+      {rows === null && !error && <p className="text-sm text-muted" role="status">Loading payment history…</p>}
       {legacy && <Notice tone="info">This booking was marked paid before payments were recorded one by one, so there is no itemised history.</Notice>}
       {sorted.length > 0 && (
-        <ul className="divide-y divide-[#EEE] border border-[#EEE] rounded-lg">
+        <ul className="divide-y divide-line border border-line rounded-lg">
           {sorted.map((r) => (
-            <li key={r.id} className={`p-3 text-sm space-y-0.5 ${r.status === "Voided" ? "bg-gray-50 text-[#777]" : ""}`}>
+            <li key={r.id} className={`p-3 text-sm space-y-0.5 ${r.status === "Voided" ? "bg-gray-50 text-faint" : ""}`}>
               <div className="flex justify-between gap-2">
-                <span className={`font-semibold ${r.status === "Voided" ? "line-through" : "text-[#111]"}`}>{rupees(r.amount)} · {r.method}{r.kind ? ` · ${r.kind}` : ""}</span>
+                <span className={`font-semibold ${r.status === "Voided" ? "line-through" : "text-ink"}`}>{rupees(r.amount)} · {r.method}{r.kind ? ` · ${r.kind}` : ""}</span>
                 {r.status === "Voided" ? <span className="text-xs font-semibold text-red-700">Voided</span> : canVoid && <button onClick={() => onVoid(r)} className="text-xs font-semibold text-red-700 hover:underline">Void</button>}
               </div>
-              <div className="text-xs text-[#555]">{when(r.paymentDate)} · collected by {COLLECTOR[r.collectorType ?? ""] ?? r.collectorType}{r.collectorName ? ` (${r.collectorName})` : ""}</div>
-              {r.reference && <div className="text-xs text-[#555]">Ref: {r.reference}</div>}
-              {r.notes && <div className="text-xs text-[#555]">{r.notes}</div>}
+              <div className="text-xs text-muted">{when(r.paymentDate)} · collected by {COLLECTOR[r.collectorType ?? ""] ?? r.collectorType}{r.collectorName ? ` (${r.collectorName})` : ""}</div>
+              {r.reference && <div className="text-xs text-muted">Ref: {r.reference}</div>}
+              {r.notes && <div className="text-xs text-muted">{r.notes}</div>}
               {r.status === "Voided" && r.voidReason && <div className="text-xs">Reason: {r.voidReason}</div>}
             </li>
           ))}
@@ -108,18 +108,18 @@ export interface AssignmentRow {
 }
 
 export function AssignmentHistory({ rows }: { rows: AssignmentRow[] | null }) {
-  if (!rows || rows.length === 0) return <p className="text-sm text-[#555]">No assignment changes recorded.</p>;
+  if (!rows || rows.length === 0) return <p className="text-sm text-muted">No assignment changes recorded.</p>;
   const sorted = [...rows].sort((a, b) => (toDate(b.at as never)?.getTime() ?? 0) - (toDate(a.at as never)?.getTime() ?? 0));
   const label = (a: string) => (a === "assign" ? "Assigned" : a === "reassign" ? "Reassigned" : "Assignment removed");
   return (
     <ul className="space-y-2">
       {sorted.map((r) => (
-        <li key={r.id} className="text-sm border-l-2 border-[#E21B23] pl-3">
-          <div className="font-semibold text-[#111]">{label(r.action)} · {when(r.at)}</div>
-          <div className="text-[#333]">
+        <li key={r.id} className="text-sm border-l-2 border-brand pl-3">
+          <div className="font-semibold text-ink">{label(r.action)} · {when(r.at)}</div>
+          <div className="text-body">
             {r.oldDriver ? `${r.oldDriver.name || "—"}${r.oldDriver.vehicleNumber ? ` (${r.oldDriver.vehicleNumber})` : ""}` : "—"} → {r.newDriver ? `${r.newDriver.name || "—"}${r.newDriver.vehicleNumber ? ` (${r.newDriver.vehicleNumber})` : ""}` : "no driver"}
           </div>
-          <div className="text-xs text-[#555]">By {r.changedByName || "—"}{r.reason?.trim() ? ` — ${r.reason}` : ""}</div>
+          <div className="text-xs text-muted">By {r.changedByName || "—"}{r.reason?.trim() ? ` — ${r.reason}` : ""}</div>
         </li>
       ))}
     </ul>
@@ -151,33 +151,33 @@ function StoragePhoto({ path, label }: { path: string; label: string }) {
     getDownloadURL(storageRef(storage, path)).then((u) => live && setUrl(u)).catch(() => live && setFailed(true));
     return () => { live = false; };
   }, [path]);
-  if (failed) return <div className="aspect-[4/3] rounded-lg bg-gray-100 flex items-center justify-center text-xs text-[#555] p-2 text-center">Photo could not be loaded</div>;
+  if (failed) return <div className="aspect-[4/3] rounded-lg bg-gray-100 flex items-center justify-center text-xs text-muted p-2 text-center">Photo could not be loaded</div>;
   if (!url) return <div className="aspect-[4/3] rounded-lg bg-gray-100 animate-pulse" aria-label={`Loading ${label}`} />;
   return (
-    <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={label} className="aspect-[4/3] w-full object-cover rounded-lg border border-[#E5E5E5]" /></a>
+    <a href={url} target="_blank" rel="noreferrer"><img src={url} alt={label} className="aspect-[4/3] w-full object-cover rounded-lg border border-line" /></a>
   );
 }
 
 export function VehicleVerificationPanel({ doc, error }: { doc: VerificationDoc | null | undefined; error: string | null }) {
   if (error) return <Notice tone="error">{error}</Notice>;
-  if (doc === undefined) return <p className="text-sm text-[#555]" role="status">Loading verification…</p>;
-  if (!doc || (doc.status !== "Submitted" && doc.status !== "InProgress" && doc.status !== "Superseded")) return <p className="text-sm text-[#555]">No vehicle photos have been submitted for this trip yet.</p>;
+  if (doc === undefined) return <p className="text-sm text-muted" role="status">Loading verification…</p>;
+  if (!doc || (doc.status !== "Submitted" && doc.status !== "InProgress" && doc.status !== "Superseded")) return <p className="text-sm text-muted">No vehicle photos have been submitted for this trip yet.</p>;
   const slots: ["front" | "rear" | "interior", string][] = [["front", "Vehicle front"], ["rear", "Vehicle rear"], ["interior", "Dashboard / interior"]];
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className={`px-2 py-0.5 rounded border text-xs font-bold ${RISK_CLS[doc.riskLevel ?? "low"]}`}>{(doc.riskLevel ?? "low").toUpperCase()} fraud risk{doc.riskScore !== undefined ? ` (${doc.riskScore})` : ""}</span>
-        <span className="text-[#555]">{doc.status === "Submitted" ? `Submitted ${when(doc.submittedAt)}` : doc.status === "Superseded" ? "Superseded — driver or trip changed" : "In progress"}{doc.odometerReading ? ` · odometer ${doc.odometerReading.toLocaleString("en-IN")} km` : ""}</span>
+        <span className="text-muted">{doc.status === "Submitted" ? `Submitted ${when(doc.submittedAt)}` : doc.status === "Superseded" ? "Superseded — driver or trip changed" : "In progress"}{doc.odometerReading ? ` · odometer ${doc.odometerReading.toLocaleString("en-IN")} km` : ""}</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {slots.map(([slot, label]) => {
           const p = doc.photos?.[slot];
           return (
             <div key={slot} className="space-y-1">
-              <div className="text-xs font-semibold text-[#333]">{label}</div>
-              {p ? <StoragePhoto path={p.path} label={label} /> : <div className="aspect-[4/3] rounded-lg border border-dashed border-[#D4D4D4] flex items-center justify-center text-xs text-[#555]">Not captured</div>}
+              <div className="text-xs font-semibold text-body">{label}</div>
+              {p ? <StoragePhoto path={p.path} label={label} /> : <div className="aspect-[4/3] rounded-lg border border-dashed border-line-strong flex items-center justify-center text-xs text-muted">Not captured</div>}
               {p && (
-                <div className="text-xs text-[#555] space-y-0.5">
+                <div className="text-xs text-muted space-y-0.5">
                   <div>{p.capturedAtMs ? formatDateTime12(new Date(p.capturedAtMs)) : "—"}{p.gps ? ` · ${p.gps.lat.toFixed(4)}, ${p.gps.lng.toFixed(4)}` : ""}</div>
                   {p.instruction && <div>Asked: “{p.instruction}” · code {p.code}</div>}
                   {(p.signals ?? []).filter((s) => s.weight >= 15).map((s) => <div key={s.code} className="text-amber-800">⚠ {s.message}</div>)}
@@ -187,7 +187,7 @@ export function VehicleVerificationPanel({ doc, error }: { doc: VerificationDoc 
           );
         })}
       </div>
-      <p className="text-xs text-[#555]">Risk flags are signals for review — they are not proof that a photo is genuine or fake.</p>
+      <p className="text-xs text-muted">Risk flags are signals for review — they are not proof that a photo is genuine or fake.</p>
     </div>
   );
 }
@@ -236,15 +236,15 @@ export function VerifyCustomerModal({ booking, onClose, onDone }: { booking: Boo
         {!sent ? (
           <>
             <p>Send a 6-digit code to the customer. They read it back to you to confirm their contact details.</p>
-            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={channels.whatsapp} onChange={(e) => setChannels({ ...channels, whatsapp: e.target.checked })} className="w-4 h-4 accent-[#E21B23]" />WhatsApp {booking.customerWhatsapp?.e164 ? `(${booking.customerWhatsapp.e164})` : ""}</label>
-            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={channels.sms} onChange={(e) => setChannels({ ...channels, sms: e.target.checked })} className="w-4 h-4 accent-[#E21B23]" />SMS ({booking.phone})</label>
-            <label className={`flex items-center gap-2 font-semibold ${hasEmail ? "" : "text-[#777]"}`}><input type="checkbox" disabled={!hasEmail} checked={channels.email} onChange={(e) => setChannels({ ...channels, email: e.target.checked })} className="w-4 h-4 accent-[#E21B23]" />Email {hasEmail ? `(${booking.customerEmail})` : "— no email on this booking"}</label>
+            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={channels.whatsapp} onChange={(e) => setChannels({ ...channels, whatsapp: e.target.checked })} className="w-4 h-4 accent-brand" />WhatsApp {booking.customerWhatsapp?.e164 ? `(${booking.customerWhatsapp.e164})` : ""}</label>
+            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={channels.sms} onChange={(e) => setChannels({ ...channels, sms: e.target.checked })} className="w-4 h-4 accent-brand" />SMS ({booking.phone})</label>
+            <label className={`flex items-center gap-2 font-semibold ${hasEmail ? "" : "text-faint"}`}><input type="checkbox" disabled={!hasEmail} checked={channels.email} onChange={(e) => setChannels({ ...channels, email: e.target.checked })} className="w-4 h-4 accent-brand" />Email {hasEmail ? `(${booking.customerEmail})` : "— no email on this booking"}</label>
           </>
         ) : (
           <>
             <ul className="space-y-1">{sent.map((s) => <li key={s.channel} className={s.status === "sent" ? "text-green-800" : "text-red-800"}><strong className="capitalize">{s.channel}</strong>: {statusText(s)}</li>)}</ul>
             <Field label="Code the customer reads out" required><input value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" className={`${inputCls} text-xl tracking-widest font-mono`} /></Field>
-            <p className="text-xs text-[#555]">The code expires in 10 minutes and allows 5 tries.</p>
+            <p className="text-xs text-muted">The code expires in 10 minutes and allows 5 tries.</p>
           </>
         )}
       </div>

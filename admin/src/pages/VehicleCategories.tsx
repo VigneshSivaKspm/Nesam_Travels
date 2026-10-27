@@ -309,8 +309,8 @@ export default function VehicleCategories() {
       {/* Top Action Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">Vehicle Categories</h1>
-          <p className="text-[13px] text-[#666666]">
+          <h1 className="text-[20px] font-bold text-ink">Vehicle Categories</h1>
+          <p className="text-[13px] text-muted">
             Configure fleet vehicle types, seating capacities, and default fare calculation rules.
           </p>
         </div>
@@ -319,7 +319,7 @@ export default function VehicleCategories() {
           <button
             onClick={handleOpenAdd}
             className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-            style={{ background: "#E21B23" }}
+            style={{ background: "#c1232c" }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -335,7 +335,7 @@ export default function VehicleCategories() {
           {
             label: "Total Categories",
             value: categories.length.toString(),
-            color: "#E21B23",
+            color: "#c1232c",
             sub: "Configured types",
           },
           {
@@ -357,28 +357,28 @@ export default function VehicleCategories() {
             sub: "Registered fleet",
           },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
             <div className="text-[24px] font-bold" style={{ color: s.color }}>
               {s.value}
             </div>
-            <div className="text-[12px] font-semibold text-[#111111] mt-0.5">{s.label}</div>
-            <div className="text-[10px] text-[#999999]">{s.sub}</div>
+            <div className="text-[12px] font-semibold text-ink mt-0.5">{s.label}</div>
+            <div className="text-[10px] text-faint">{s.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center text-[13px] text-[#999999]">
+        <div className="bg-white rounded-xl border border-line p-12 text-center text-[13px] text-faint">
           Loading vehicle categories...
         </div>
       ) : categories.length === 0 ? (
         /* Empty State Placeholder */
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-16 flex flex-col items-center text-center">
+        <div className="bg-white rounded-xl border border-line shadow-sm p-16 flex flex-col items-center text-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#FEF2F2" }}>
             <svg
               className="w-8 h-8"
-              style={{ color: "#E21B23" }}
+              style={{ color: "#c1232c" }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -391,15 +391,15 @@ export default function VehicleCategories() {
               />
             </svg>
           </div>
-          <h2 className="text-[18px] font-bold text-[#111111] mb-2">No vehicle categories found.</h2>
-          <p className="text-[13px] text-[#999999] max-w-sm mb-6">
+          <h2 className="text-[18px] font-bold text-ink mb-2">No vehicle categories found.</h2>
+          <p className="text-[13px] text-faint max-w-sm mb-6">
             Vehicle categories (for example Sedan, SUV, Tempo Traveller) define seating and the default fare used for bookings. Add the first category to get started.
           </p>
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenAdd}
               className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
-              style={{ background: "#E21B23" }}
+              style={{ background: "#c1232c" }}
             >
               + Add Vehicle Category
             </button>
@@ -407,12 +407,12 @@ export default function VehicleCategories() {
         </div>
       ) : (
         /* Category Directory Table & Controls */
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
           {/* Controls Bar */}
-          <div className="p-4 border-b border-[#E5E5E5] flex flex-wrap items-center justify-between gap-3 bg-[#FAFAFA]">
+          <div className="p-4 border-b border-line flex flex-wrap items-center justify-between gap-3 bg-surface-2">
             <div className="relative flex-1 min-w-[200px] max-w-md">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-faint"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -429,27 +429,27 @@ export default function VehicleCategories() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search category name, code..."
-                className="w-full pl-9 pr-4 py-2 text-[12px] bg-white border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] placeholder-[#999999]"
+                className="w-full pl-9 pr-4 py-2 text-[12px] bg-white border border-line rounded-lg focus:outline-none focus:border-brand placeholder-faint"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-[#666666] font-medium">Status:</span>
+              <span className="text-[11px] text-muted font-medium">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:border-[#E21B23] text-[#444444]"
+                className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white focus:outline-none focus:border-brand text-body"
               >
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
                 <option value="Inactive">Inactive</option>
               </select>
 
-              <span className="text-[11px] text-[#666666] font-medium ml-2">Sort:</span>
+              <span className="text-[11px] text-muted font-medium ml-2">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:border-[#E21B23] text-[#444444]"
+                className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white focus:outline-none focus:border-brand text-body"
               >
                 <option value="order">Display Order</option>
                 <option value="name">Category Name</option>
@@ -462,29 +462,29 @@ export default function VehicleCategories() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[950px]">
               <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                <tr className="bg-surface-2 border-b border-line">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Category
                   </th>
-                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Seating & Luggage
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Base Fare
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Per KM Rate
                   </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Driver Batta
                   </th>
-                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Vehicles
                   </th>
-                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-center text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Status
                   </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-semibold text-[#999999] uppercase tracking-wide">
+                  <th className="px-4 py-3 text-right text-[11px] font-semibold text-faint uppercase tracking-wide">
                     Actions
                   </th>
                 </tr>
@@ -492,7 +492,7 @@ export default function VehicleCategories() {
               <tbody>
                 {filteredCategories.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[12px] text-[#999999]">
+                    <td colSpan={8} className="px-4 py-8 text-center text-[12px] text-faint">
                       No vehicle categories match your search filters.
                     </td>
                   </tr>
@@ -500,11 +500,11 @@ export default function VehicleCategories() {
                   filteredCategories.map((cat) => {
                     const vehicleCount = getVehicleCountForCategory(cat);
                     return (
-                      <tr key={cat.id} className="border-b border-[#F5F5F5] hover:bg-[#FAFAFA] transition-colors">
+                      <tr key={cat.id} className="border-b border-hover hover:bg-surface-2 transition-colors">
                         {/* Category Name & Code */}
                         <td className="px-4 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-[#FEF2F2] flex items-center justify-center text-[20px] shrink-0 border border-[#FEE2E2]">
+                            <div className="w-10 h-10 rounded-xl bg-brand-soft flex items-center justify-center text-[20px] shrink-0 border border-[#FEE2E2]">
                               {cat.imageUrl ? (
                                 <img
                                   src={cat.imageUrl}
@@ -520,7 +520,7 @@ export default function VehicleCategories() {
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold text-[#111111]">{cat.name}</span>
+                                <span className="text-[13px] font-bold text-ink">{cat.name}</span>
                                 {cat.code && (
                                   <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-bold uppercase">
                                     {cat.code}
@@ -528,7 +528,7 @@ export default function VehicleCategories() {
                                 )}
                               </div>
                               {cat.description && (
-                                <div className="text-[11px] text-[#888888] line-clamp-1 max-w-xs">
+                                <div className="text-[11px] text-faint line-clamp-1 max-w-xs">
                                   {cat.description}
                                 </div>
                               )}
@@ -538,31 +538,31 @@ export default function VehicleCategories() {
 
                         {/* Seating */}
                         <td className="px-4 py-3.5 text-center">
-                          <div className="text-[12px] font-bold text-[#111111]">
+                          <div className="text-[12px] font-bold text-ink">
                             {cat.seatingCapacity} Seats
                           </div>
-                          <div className="text-[10px] text-[#999999]">
+                          <div className="text-[10px] text-faint">
                             {cat.luggageCapacity || "Standard"} • {cat.acSupported || "AC"}
                           </div>
                         </td>
 
                         {/* Base Fare */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-bold text-[#E21B23]">
+                          <div className="text-[12px] font-bold text-brand">
                             ₹{cat.fare?.baseFare ?? 0}
                           </div>
-                          <div className="text-[10px] text-[#888888]">
+                          <div className="text-[10px] text-faint">
                             Min {cat.fare?.baseKm ?? 10} km
                           </div>
                         </td>
 
                         {/* Per KM */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-semibold text-[#111111]">
-                            ₹{cat.fare?.perKmRate ?? 0} <span className="text-[10px] font-normal text-[#888888]">/ km</span>
+                          <div className="text-[12px] font-semibold text-ink">
+                            ₹{cat.fare?.perKmRate ?? 0} <span className="text-[10px] font-normal text-faint">/ km</span>
                           </div>
                           {cat.fare?.outstationPerKmRate ? (
-                            <div className="text-[10px] text-[#888888]">
+                            <div className="text-[10px] text-faint">
                               Outstation: ₹{cat.fare.outstationPerKmRate}/km
                             </div>
                           ) : null}
@@ -570,10 +570,10 @@ export default function VehicleCategories() {
 
                         {/* Driver Batta */}
                         <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-medium text-[#444444]">
+                          <div className="text-[12px] font-medium text-body">
                             ₹{cat.fare?.driverAllowance ?? 0}
                           </div>
-                          <div className="text-[10px] text-[#999999]">Per day / trip</div>
+                          <div className="text-[10px] text-faint">Per day / trip</div>
                         </td>
 
                         {/* Vehicle Count */}
@@ -601,7 +601,7 @@ export default function VehicleCategories() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenEdit(cat)}
-                              className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                              className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-line text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                             >
                               Edit
                             </button>
@@ -621,7 +621,7 @@ export default function VehicleCategories() {
                                 setDeleteError(null);
                                 setDeleteTarget(cat);
                               }}
-                              className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-[#E21B23] hover:bg-red-100 transition-colors cursor-pointer"
+                              className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-brand hover:bg-red-100 transition-colors cursor-pointer"
                             >
                               Delete
                             </button>
@@ -642,12 +642,12 @@ export default function VehicleCategories() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-8">
             {/* Modal Header */}
-            <div className="px-6 py-4 border-b border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2">
               <div>
-                <h3 className="text-[16px] font-bold text-[#111111]">
+                <h3 className="text-[16px] font-bold text-ink">
                   {isEditing ? "Edit Vehicle Category" : "+ Add Vehicle Category"}
                 </h3>
-                <p className="text-[11px] text-[#666666]">
+                <p className="text-[11px] text-muted">
                   These rates are used by the booking engine to price customer rides in this category.
                 </p>
               </div>
@@ -664,7 +664,7 @@ export default function VehicleCategories() {
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex flex-wrap border-b border-[#E5E5E5] bg-[#F5F5F5] px-6 pt-2">
+            <div className="flex flex-wrap border-b border-line bg-hover px-6 pt-2">
               {([
                 { id: "basic", label: "Category Info" },
                 { id: "specs", label: "Vehicle Specs" },
@@ -677,8 +677,8 @@ export default function VehicleCategories() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2 text-[12px] font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
                     activeTab === tab.id
-                      ? "border-[#E21B23] text-[#E21B23] bg-white rounded-t-lg"
-                      : "border-transparent text-[#666666] hover:text-[#111111]"
+                      ? "border-brand text-brand bg-white rounded-t-lg"
+                      : "border-transparent text-muted hover:text-ink"
                   }`}
                 >
                   {tab.label}
@@ -701,7 +701,7 @@ export default function VehicleCategories() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Category Name *
                         </label>
                         <input
@@ -710,13 +710,13 @@ export default function VehicleCategories() {
                           placeholder="e.g. Sedan, SUV, Innova"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("name")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Category Code
                         </label>
                         <input
@@ -724,7 +724,7 @@ export default function VehicleCategories() {
                           placeholder="e.g. SEDAN, SUV, INNOVA"
                           value={formData.code}
                           onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] font-mono focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] font-mono focus:outline-none focus:border-brand"
                         />
                         <p className="text-[10px] text-gray-500 mt-1">Leave blank to derive it from the name.</p>
                         {errNode("code")}
@@ -732,25 +732,25 @@ export default function VehicleCategories() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Description</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Description</label>
                       <textarea
                         rows={2}
                         placeholder="Brief overview of vehicle category for customers and admin display..."
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Icon Emoji
                         </label>
                         <select
                           value={formData.icon}
                           onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="🚘">🚘 Sedan (Dzire / Etios)</option>
                           <option value="🚙">🚙 SUV (Ertiga / Harrier)</option>
@@ -762,7 +762,7 @@ export default function VehicleCategories() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Image URL (Optional)
                         </label>
                         <input
@@ -770,17 +770,17 @@ export default function VehicleCategories() {
                           placeholder="https://example.com/sedan.png"
                           value={formData.imageUrl}
                           onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("imageUrl")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Status</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Status</label>
                         <select
                           value={formData.status}
                           onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="Active">Active (Selectable)</option>
                           <option value="Inactive">Inactive (Hidden)</option>
@@ -795,7 +795,7 @@ export default function VehicleCategories() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Seating Capacity *
                         </label>
                         <input
@@ -807,13 +807,13 @@ export default function VehicleCategories() {
                           onChange={(e) =>
                             setFormData({ ...formData, seatingCapacity: parseInt(e.target.value) || 0 })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("seatingCapacity")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Recommended Passengers
                         </label>
                         <input
@@ -827,7 +827,7 @@ export default function VehicleCategories() {
                               recommendedPassengers: parseInt(e.target.value) || 0,
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("recommendedPassengers")}
                       </div>
@@ -835,7 +835,7 @@ export default function VehicleCategories() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Luggage Capacity
                         </label>
                         <input
@@ -843,18 +843,18 @@ export default function VehicleCategories() {
                           placeholder="e.g. 2 Large Bags"
                           value={formData.luggageCapacity}
                           onChange={(e) => setFormData({ ...formData, luggageCapacity: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           AC Support
                         </label>
                         <select
                           value={formData.acSupported}
                           onChange={(e) => setFormData({ ...formData, acSupported: e.target.value as any })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="AC">AC Only</option>
                           <option value="Non-AC">Non-AC Only</option>
@@ -863,7 +863,7 @@ export default function VehicleCategories() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Display Order
                         </label>
                         <input
@@ -873,7 +873,7 @@ export default function VehicleCategories() {
                           onChange={(e) =>
                             setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 1 })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("displayOrder")}
                       </div>
@@ -886,7 +886,7 @@ export default function VehicleCategories() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Base Fare (₹)
                         </label>
                         <input
@@ -899,13 +899,13 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, baseFare: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.baseFare")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Base KM / Minimum KM
                         </label>
                         <input
@@ -918,13 +918,13 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, baseKm: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.baseKm")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Per KM Rate (₹)
                         </label>
                         <input
@@ -937,7 +937,7 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, perKmRate: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         <p className="text-[10px] text-gray-500 mt-1">Required. Charged for every km beyond the base km.</p>
                         {errNode("fare.perKmRate")}
@@ -946,7 +946,7 @@ export default function VehicleCategories() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Driver Allowance (Batta) (₹)
                         </label>
                         <input
@@ -959,13 +959,13 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, driverAllowance: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.driverAllowance")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Night Allowance (₹)
                         </label>
                         <input
@@ -978,13 +978,13 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, nightAllowance: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.nightAllowance")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Minimum Fare (₹)
                         </label>
                         <input
@@ -997,7 +997,7 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, minimumFare: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.minimumFare")}
                       </div>
@@ -1010,7 +1010,7 @@ export default function VehicleCategories() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Outstation Per KM Rate (₹)
                         </label>
                         <input
@@ -1026,13 +1026,13 @@ export default function VehicleCategories() {
                               },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.outstationPerKmRate")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Outstation Driver Batta / Day (₹)
                         </label>
                         <input
@@ -1048,13 +1048,13 @@ export default function VehicleCategories() {
                               },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.outstationDriverBattaPerDay")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Time Charge / Hour (₹)
                         </label>
                         <input
@@ -1070,7 +1070,7 @@ export default function VehicleCategories() {
                               },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         <p className="text-[10px] text-gray-500 mt-1">Billed per minute of local trip time (hourly rate ÷ 60).</p>
                         {errNode("fare.waitingChargePerHour")}
@@ -1079,7 +1079,7 @@ export default function VehicleCategories() {
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Extra Hour Charge (₹)
                         </label>
                         <input
@@ -1095,13 +1095,13 @@ export default function VehicleCategories() {
                               },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.extraHourCharge")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Extra KM Charge (₹)
                         </label>
                         <input
@@ -1117,13 +1117,13 @@ export default function VehicleCategories() {
                               },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.extraKmCharge")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Permit Charge (₹)
                         </label>
                         <input
@@ -1136,13 +1136,13 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, permitCharge: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("fare.permitCharge")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Carrier / Luggage Charge (₹)
                         </label>
                         <input
@@ -1155,15 +1155,15 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, carrierCharge: parseFloat(e.target.value) || 0 },
                             })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
-                        <p className="text-[11px] text-[#555] mt-1">Shown on bookings as an extra, payable separately. Leave 0 if there is no carrier charge.</p>
+                        <p className="text-[11px] text-muted mt-1">Shown on bookings as an extra, payable separately. Leave 0 if there is no carrier charge.</p>
                         {errNode("fare.carrierCharge")}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-line">
                         <input
                           type="checkbox"
                           id="tollInc"
@@ -1174,14 +1174,14 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, tollIncluded: e.target.checked },
                             })
                           }
-                          className="w-4 h-4 accent-[#E21B23]"
+                          className="w-4 h-4 accent-brand"
                         />
-                        <label htmlFor="tollInc" className="text-[12px] font-semibold text-[#111111]">
+                        <label htmlFor="tollInc" className="text-[12px] font-semibold text-ink">
                           Toll Included in Base Fare
                         </label>
                       </div>
 
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-line">
                         <input
                           type="checkbox"
                           id="parkInc"
@@ -1192,9 +1192,9 @@ export default function VehicleCategories() {
                               fare: { ...formData.fare, parkingIncluded: e.target.checked },
                             })
                           }
-                          className="w-4 h-4 accent-[#E21B23]"
+                          className="w-4 h-4 accent-brand"
                         />
-                        <label htmlFor="parkInc" className="text-[12px] font-semibold text-[#111111]">
+                        <label htmlFor="parkInc" className="text-[12px] font-semibold text-ink">
                           Parking Included in Base Fare
                         </label>
                       </div>
@@ -1204,12 +1204,12 @@ export default function VehicleCategories() {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
+              <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-surface-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
                   disabled={saving}
-                  className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -1218,7 +1218,7 @@ export default function VehicleCategories() {
                   type="submit"
                   disabled={saving}
                   className="px-6 py-2 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  style={{ background: "#E21B23" }}
+                  style={{ background: "#c1232c" }}
                 >
                   {saving && (
                     <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

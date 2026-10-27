@@ -258,8 +258,8 @@ export default function Services() {
       {/* Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">Services</h1>
-          <p className="text-[13px] text-[#666666]">
+          <h1 className="text-[20px] font-bold text-ink">Services</h1>
+          <p className="text-[13px] text-muted">
             Configure Airport Taxi, Outstation Cab, One Way Taxi, Local Rental, Corporate and Recurring services.
           </p>
         </div>
@@ -268,7 +268,7 @@ export default function Services() {
           <button
             onClick={handleOpenAdd}
             className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-            style={{ background: "#E21B23" }}
+            style={{ background: "#c1232c" }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -284,7 +284,7 @@ export default function Services() {
           {
             label: "Total Services",
             value: stats.totalCount.toString(),
-            color: "#E21B23",
+            color: "#c1232c",
             sub: "Offered travel services",
           },
           {
@@ -306,28 +306,28 @@ export default function Services() {
             sub: "Promoted on web & app",
           },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
             <div className="text-[24px] font-bold" style={{ color: s.color }}>
               {s.value}
             </div>
-            <div className="text-[12px] font-semibold text-[#111111] mt-0.5">{s.label}</div>
-            <div className="text-[10px] text-[#999999]">{s.sub}</div>
+            <div className="text-[12px] font-semibold text-ink mt-0.5">{s.label}</div>
+            <div className="text-[10px] text-faint">{s.sub}</div>
           </div>
         ))}
       </div>
 
       {/* Main Content */}
       {loading ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center text-[13px] text-[#999999]">
+        <div className="bg-white rounded-xl border border-line p-12 text-center text-[13px] text-faint">
           Loading services configuration...
         </div>
       ) : services.length === 0 ? (
         /* Empty State Placeholder */
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-16 flex flex-col items-center text-center">
+        <div className="bg-white rounded-xl border border-line shadow-sm p-16 flex flex-col items-center text-center">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: "#FEF2F2" }}>
             <svg
               className="w-8 h-8"
-              style={{ color: "#E21B23" }}
+              style={{ color: "#c1232c" }}
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
@@ -340,15 +340,15 @@ export default function Services() {
               />
             </svg>
           </div>
-          <h2 className="text-[18px] font-bold text-[#111111] mb-2">No services found.</h2>
-          <p className="text-[13px] text-[#999999] max-w-sm mb-6">
+          <h2 className="text-[18px] font-bold text-ink mb-2">No services found.</h2>
+          <p className="text-[13px] text-faint max-w-sm mb-6">
             Services (for example Airport Taxi or Outstation Cab) are what customers can book. Add the first service to get started.
           </p>
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenAdd}
               className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-opacity cursor-pointer shadow-sm"
-              style={{ background: "#E21B23" }}
+              style={{ background: "#c1232c" }}
             >
               + Add Service
             </button>
@@ -358,10 +358,10 @@ export default function Services() {
         /* Service Grid & Directory View */
         <div className="space-y-4">
           {/* Controls Bar */}
-          <div className="p-4 bg-white rounded-xl border border-[#E5E5E5] shadow-sm flex flex-wrap items-center justify-between gap-3">
+          <div className="p-4 bg-white rounded-xl border border-line shadow-sm flex flex-wrap items-center justify-between gap-3">
             <div className="relative flex-1 min-w-[200px] max-w-md">
               <svg
-                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999999]"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-faint"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -378,7 +378,7 @@ export default function Services() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search service name, type, code..."
-                className="w-full pl-9 pr-4 py-2 text-[12px] bg-[#FAFAFA] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] placeholder-[#999999]"
+                className="w-full pl-9 pr-4 py-2 text-[12px] bg-surface-2 border border-line rounded-lg focus:outline-none focus:border-brand placeholder-faint"
               />
             </div>
 
@@ -386,7 +386,7 @@ export default function Services() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value as any)}
-                className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:border-[#E21B23] text-[#444444]"
+                className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white focus:outline-none focus:border-brand text-body"
               >
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
@@ -396,7 +396,7 @@ export default function Services() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:border-[#E21B23] text-[#444444]"
+                className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white focus:outline-none focus:border-brand text-body"
               >
                 <option value="All">All Service Types</option>
                 <option value="Airport Taxi">Airport Taxi</option>
@@ -410,7 +410,7 @@ export default function Services() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white focus:outline-none focus:border-[#E21B23] text-[#444444]"
+                className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white focus:outline-none focus:border-brand text-body"
               >
                 <option value="order">Display Order</option>
                 <option value="name">Service Name</option>
@@ -422,20 +422,20 @@ export default function Services() {
           {/* Service Cards Grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredServices.length === 0 ? (
-              <div className="col-span-full bg-white rounded-xl border border-[#E5E5E5] p-8 text-center text-xs text-[#999999]">
+              <div className="col-span-full bg-white rounded-xl border border-line p-8 text-center text-xs text-faint">
                 No travel services match your search filters.
               </div>
             ) : (
               filteredServices.map((srv) => (
                 <div
                   key={srv.id}
-                  className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between space-y-4"
+                  className="bg-white rounded-xl border border-line shadow-sm hover:shadow-md transition-all p-5 flex flex-col justify-between space-y-4"
                 >
                   <div className="space-y-3">
                     {/* Header */}
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex items-center gap-3">
-                        <div className="w-11 h-11 rounded-xl bg-[#FEF2F2] flex items-center justify-center text-[22px] border border-[#FEE2E2] shrink-0">
+                        <div className="w-11 h-11 rounded-xl bg-brand-soft flex items-center justify-center text-[22px] border border-[#FEE2E2] shrink-0">
                           {srv.imageUrl ? (
                             <img
                               src={srv.imageUrl}
@@ -451,14 +451,14 @@ export default function Services() {
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-[14px] font-bold text-[#111111]">{srv.name}</h3>
+                            <h3 className="text-[14px] font-bold text-ink">{srv.name}</h3>
                             {srv.featured && (
                               <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">
                                 ★ Featured
                               </span>
                             )}
                           </div>
-                          <span className="text-[10px] font-mono text-[#888888]">
+                          <span className="text-[10px] font-mono text-faint">
                             {srv.code || srv.slug}
                           </span>
                         </div>
@@ -476,13 +476,13 @@ export default function Services() {
                     </div>
 
                     {/* Short Description */}
-                    <p className="text-[12px] text-[#666666] line-clamp-2 leading-relaxed">
+                    <p className="text-[12px] text-muted line-clamp-2 leading-relaxed">
                       {srv.shortDescription || "No short description provided."}
                     </p>
 
                     {/* Service Badges */}
                     <div className="flex flex-wrap gap-1.5 pt-1">
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-red-50 text-[#E21B23] border border-red-100">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-red-50 text-brand border border-red-100">
                         {srv.serviceType}
                       </span>
                       {srv.onlineBookingEnabled && (
@@ -499,8 +499,8 @@ export default function Services() {
 
                     {/* Vehicle Category Mappings */}
                     {srv.allowedVehicleCategoryNames && srv.allowedVehicleCategoryNames.length > 0 && (
-                      <div className="pt-2 border-t border-[#F5F5F5]">
-                        <span className="text-[10px] font-semibold text-[#999999] uppercase tracking-wider block mb-1">
+                      <div className="pt-2 border-t border-hover">
+                        <span className="text-[10px] font-semibold text-faint uppercase tracking-wider block mb-1">
                           Vehicle Categories
                         </span>
                         <div className="flex flex-wrap gap-1">
@@ -518,15 +518,15 @@ export default function Services() {
                   </div>
 
                   {/* Actions Footer */}
-                  <div className="pt-3 border-t border-[#E5E5E5] flex items-center justify-between">
-                    <span className="text-[10px] text-[#999999] font-mono">
+                  <div className="pt-3 border-t border-line flex items-center justify-between">
+                    <span className="text-[10px] text-faint font-mono">
                       Order: {srv.displayOrder || 1}
                     </span>
 
                     <div className="flex items-center gap-1.5">
                       <button
                         onClick={() => handleOpenEdit(srv)}
-                        className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-line text-gray-700 hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         Edit
                       </button>
@@ -546,7 +546,7 @@ export default function Services() {
                           setDeleteError(null);
                           setDeleteTarget(srv);
                         }}
-                        className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-[#E21B23] hover:bg-red-100 transition-colors cursor-pointer"
+                        className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-brand hover:bg-red-100 transition-colors cursor-pointer"
                       >
                         Delete
                       </button>
@@ -564,12 +564,12 @@ export default function Services() {
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden my-8">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2">
               <div>
-                <h3 className="text-[16px] font-bold text-[#111111]">
+                <h3 className="text-[16px] font-bold text-ink">
                   {isEditing ? "Edit Travel Service" : "+ Add Travel Service"}
                 </h3>
-                <p className="text-[11px] text-[#666666]">
+                <p className="text-[11px] text-muted">
                   Configure service details, vehicle category mappings, and availability.
                 </p>
               </div>
@@ -585,7 +585,7 @@ export default function Services() {
               </button>
             </div>
             {/* Navigation Tabs */}
-            <div className="flex border-b border-[#E5E5E5] bg-[#F5F5F5] px-6 pt-2">
+            <div className="flex border-b border-line bg-hover px-6 pt-2">
               {([
                 { id: "basic", label: "Basic Info" },
                 { id: "booking", label: "Availability & Categories" },
@@ -597,8 +597,8 @@ export default function Services() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`px-4 py-2 text-[12px] font-semibold border-b-2 transition-colors cursor-pointer flex items-center gap-1.5 ${
                     activeTab === tab.id
-                      ? "border-[#E21B23] text-[#E21B23] bg-white rounded-t-lg"
-                      : "border-transparent text-[#666666] hover:text-[#111111]"
+                      ? "border-brand text-brand bg-white rounded-t-lg"
+                      : "border-transparent text-muted hover:text-ink"
                   }`}
                 >
                   {tab.label}
@@ -621,7 +621,7 @@ export default function Services() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Service Name *
                         </label>
                         <input
@@ -630,19 +630,19 @@ export default function Services() {
                           placeholder="e.g. Airport Taxi, Outstation Cab"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("name")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Service Type
                         </label>
                         <select
                           value={formData.serviceType}
                           onChange={(e) => setFormData({ ...formData, serviceType: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="">Choose service type</option>
                           <option value="Airport Taxi">Airport Taxi</option>
@@ -658,7 +658,7 @@ export default function Services() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Service Code / Unique Identifier
                         </label>
                         <input
@@ -666,13 +666,13 @@ export default function Services() {
                           placeholder="e.g. AIRPORT_TAXI"
                           value={formData.code}
                           onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] font-mono focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] font-mono focus:outline-none focus:border-brand"
                         />
                         {errNode("code")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           URL Slug
                         </label>
                         <input
@@ -680,14 +680,14 @@ export default function Services() {
                           placeholder="e.g. airport-taxi"
                           value={formData.slug}
                           onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase() })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] font-mono focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] font-mono focus:outline-none focus:border-brand"
                         />
                         {errNode("slug")}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-bold text-ink mb-1">
                         Short Description
                       </label>
                       <input
@@ -695,13 +695,13 @@ export default function Services() {
                         placeholder="Brief 1-sentence tagline for cards and lists..."
                         value={formData.shortDescription}
                         onChange={(e) => setFormData({ ...formData, shortDescription: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                         {errNode("shortDescription")}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-bold text-ink mb-1">
                         Full Overview Description
                       </label>
                       <textarea
@@ -709,19 +709,19 @@ export default function Services() {
                         placeholder="Detailed service overview, features, terms..."
                         value={formData.fullDescription}
                         onChange={(e) => setFormData({ ...formData, fullDescription: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Icon Emoji
                         </label>
                         <select
                           value={formData.icon}
                           onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="✈️">✈️ Airport</option>
                           <option value="🗺️">🗺️ Outstation</option>
@@ -733,7 +733,7 @@ export default function Services() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                        <label className="block text-[11px] font-bold text-ink mb-1">
                           Display Order
                         </label>
                         <input
@@ -743,17 +743,17 @@ export default function Services() {
                           onChange={(e) =>
                             setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 1 })
                           }
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
                         {errNode("displayOrder")}
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Status</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Status</label>
                         <select
                           value={formData.status}
                           onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="Active">Active (Selectable)</option>
                           <option value="Inactive">Inactive (Hidden)</option>
@@ -761,11 +761,11 @@ export default function Services() {
                       </div>
 
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Featured</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Featured</label>
                         <select
                           value={formData.featured ? "Yes" : "No"}
                           onChange={(e) => setFormData({ ...formData, featured: e.target.value === "Yes" })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         >
                           <option value="No">No</option>
                           <option value="Yes">Yes (Promoted)</option>
@@ -780,7 +780,7 @@ export default function Services() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {errNode("channels")}
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-line">
                         <input
                           type="checkbox"
                           id="onlineBook"
@@ -788,17 +788,17 @@ export default function Services() {
                           onChange={(e) =>
                             setFormData({ ...formData, onlineBookingEnabled: e.target.checked })
                           }
-                          className="w-4 h-4 accent-[#E21B23]"
+                          className="w-4 h-4 accent-brand"
                         />
                         <div>
-                          <label htmlFor="onlineBook" className="text-[12px] font-bold text-[#111111] block">
+                          <label htmlFor="onlineBook" className="text-[12px] font-bold text-ink block">
                             Enable Online Customer Booking
                           </label>
                           <span className="text-[10px] text-gray-500">Available on public website & mobile app</span>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                      <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-line">
                         <input
                           type="checkbox"
                           id="adminBook"
@@ -806,10 +806,10 @@ export default function Services() {
                           onChange={(e) =>
                             setFormData({ ...formData, adminBookingEnabled: e.target.checked })
                           }
-                          className="w-4 h-4 accent-[#E21B23]"
+                          className="w-4 h-4 accent-brand"
                         />
                         <div>
-                          <label htmlFor="adminBook" className="text-[12px] font-bold text-[#111111] block">
+                          <label htmlFor="adminBook" className="text-[12px] font-bold text-ink block">
                             Enable Admin Booking Panel
                           </label>
                           <span className="text-[10px] text-gray-500">Selectable in + New Booking form</span>
@@ -819,7 +819,7 @@ export default function Services() {
 
                     {/* Allowed Vehicle Categories */}
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-2">
+                      <label className="block text-[11px] font-bold text-ink mb-2">
                         Allowed Vehicle Categories for this Service
                       </label>
                       {vehicleCategories.length === 0 ? (
@@ -827,7 +827,7 @@ export default function Services() {
                           No vehicle categories configured. Configure categories in Fleet &gt; Vehicle Categories.
                         </div>
                       ) : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl border border-line">
                           {vehicleCategories
                             .filter((c) => c.status === "Active")
                             .map((cat) => {
@@ -837,7 +837,7 @@ export default function Services() {
                                   key={cat.id}
                                   className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer transition-all ${
                                     checked
-                                      ? "bg-red-50 border-red-200 text-[#E21B23] font-bold"
+                                      ? "bg-red-50 border-red-200 text-brand font-bold"
                                       : "bg-white border-gray-200 text-gray-700"
                                   }`}
                                 >
@@ -845,7 +845,7 @@ export default function Services() {
                                     type="checkbox"
                                     checked={checked}
                                     onChange={() => handleToggleCategory(cat.id)}
-                                    className="accent-[#E21B23]"
+                                    className="accent-brand"
                                   />
                                   <span>
                                     {cat.icon || "🚘"} {cat.name} ({cat.seatingCapacity} Seats)
@@ -863,7 +863,7 @@ export default function Services() {
                 {activeTab === "seo" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-bold text-ink mb-1">
                         SEO Page Title
                       </label>
                       <input
@@ -871,13 +871,13 @@ export default function Services() {
                         placeholder="e.g. Book Airport Taxi in Tamil Nadu | Nesam Tours"
                         value={formData.seoTitle}
                         onChange={(e) => setFormData({ ...formData, seoTitle: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                         {errNode("seoTitle")}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-bold text-ink mb-1">
                         SEO Meta Description
                       </label>
                       <textarea
@@ -885,7 +885,7 @@ export default function Services() {
                         placeholder="Compelling page meta description for Google search results..."
                         value={formData.seoDescription}
                         onChange={(e) => setFormData({ ...formData, seoDescription: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]"
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                         {errNode("seoDescription")}
                     </div>
@@ -894,11 +894,11 @@ export default function Services() {
               </div>
 
               {/* Modal Footer */}
-              <div className="px-6 py-4 border-t border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
+              <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-surface-2">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
+                  className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 transition-colors"
                 >
                   Cancel
                 </button>
@@ -907,7 +907,7 @@ export default function Services() {
                   type="submit"
                   disabled={saving}
                   className="px-6 py-2 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all flex items-center gap-2 cursor-pointer disabled:opacity-50"
-                  style={{ background: "#E21B23" }}
+                  style={{ background: "#c1232c" }}
                 >
                   {saving && (
                     <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">

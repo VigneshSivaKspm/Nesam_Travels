@@ -88,7 +88,7 @@ export default function Settings() {
   return (
     <div className="p-6 space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 bg-white rounded-xl border border-[#E5E5E5] p-1 w-fit shadow-sm">
+        <div className="flex gap-1 bg-white rounded-xl border border-line p-1 w-fit shadow-sm">
           {tabs.map((tab) => (
             <button
               key={tab}
@@ -96,9 +96,9 @@ export default function Settings() {
               className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${
                 activeTab === tab
                   ? "text-white shadow-sm"
-                  : "text-[#666] hover:text-[#111]"
+                  : "text-muted hover:text-ink"
               }`}
-              style={activeTab === tab ? { background: "#E21B23" } : {}}
+              style={activeTab === tab ? { background: "#c1232c" } : {}}
             >
               {tab}
             </button>
@@ -111,15 +111,15 @@ export default function Settings() {
           {error}
         </div>
       )}
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-6">
+      <div className="bg-white rounded-xl border border-line shadow-sm p-6">
         {activeTab === "Operations & Security" && (<><OperationsSettingsCard /><DispatchRulesCard /></>)}
         {activeTab === "Company" && (
           <div className="space-y-6 max-w-2xl">
             <div>
-              <h3 className="text-[15px] font-bold text-[#111] mb-4 flex items-center gap-2">
+              <h3 className="text-[15px] font-bold text-ink mb-4 flex items-center gap-2">
                 <span
                   className="w-1 h-4 rounded-full"
-                  style={{ background: "#E21B23" }}
+                  style={{ background: "#c1232c" }}
                 />
                 Company Information
               </h3>
@@ -135,7 +135,7 @@ export default function Settings() {
                   { label: "Website", key: "website" },
                 ].map((f) => (
                   <div key={f.label}>
-                    <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+                    <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                       {f.label}
                     </label>
                     <input
@@ -143,12 +143,12 @@ export default function Settings() {
                       onChange={(e) =>
                         setFormData({ ...formData, [f.key]: e.target.value })
                       }
-                      className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] focus:ring-1 focus:ring-[#E21B23]/20 text-[#111]"
+                      className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 text-ink"
                     />
                   </div>
                 ))}
                 <div className="md:col-span-2">
-                  <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+                  <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                     Address
                   </label>
                   <textarea
@@ -157,7 +157,7 @@ export default function Settings() {
                       setFormData({ ...formData, address: e.target.value })
                     }
                     rows={3}
-                    className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] focus:ring-1 focus:ring-[#E21B23]/20 text-[#111] resize-none"
+                    className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand focus:ring-1 focus:ring-brand/20 text-ink resize-none"
                   />
                 </div>
               </div>
@@ -167,10 +167,10 @@ export default function Settings() {
 
         {activeTab === "Booking" && (
           <div className="space-y-5 max-w-xl">
-            <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2">
+            <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
-                style={{ background: "#E21B23" }}
+                style={{ background: "#c1232c" }}
               />
               Booking Rules
             </h3>
@@ -187,7 +187,7 @@ export default function Settings() {
               { label: "Cancellation Charge (%)", key: "cancelCharge" },
             ].map((f) => (
               <div key={f.label}>
-                <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+                <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                   {f.label}
                 </label>
                 <input
@@ -196,12 +196,12 @@ export default function Settings() {
                   onChange={(e) =>
                     setFormData({ ...formData, [f.key]: e.target.value })
                   }
-                  className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] text-[#111]"
+                  className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand text-ink"
                 />
               </div>
             ))}
             <div>
-              <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+              <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                 Allow Cash on Delivery
               </label>
               <label className="flex items-center gap-3 cursor-pointer">
@@ -214,10 +214,10 @@ export default function Settings() {
                     }
                     className="sr-only peer"
                   />
-                  <div className="w-10 h-5 bg-[#E5E5E5] rounded-full peer peer-checked:bg-[#E21B23] transition-colors" />
+                  <div className="w-10 h-5 bg-line rounded-full peer peer-checked:bg-brand transition-colors" />
                   <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
                 </div>
-                <span className="text-[13px] text-[#444]">Enabled</span>
+                <span className="text-[13px] text-body">Enabled</span>
               </label>
             </div>
           </div>
@@ -225,10 +225,10 @@ export default function Settings() {
 
         {activeTab === "Notifications" && (
           <div className="space-y-4 max-w-xl">
-            <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2">
+            <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
-                style={{ background: "#E21B23" }}
+                style={{ background: "#c1232c" }}
               />
               Notification Channels
             </h3>
@@ -256,13 +256,13 @@ export default function Settings() {
             ].map((n) => (
               <div
                 key={n.label}
-                className="flex items-center justify-between p-4 border border-[#E5E5E5] rounded-xl"
+                className="flex items-center justify-between p-4 border border-line rounded-xl"
               >
                 <div>
-                  <div className="text-[13px] font-semibold text-[#111]">
+                  <div className="text-[13px] font-semibold text-ink">
                     {n.label}
                   </div>
-                  <div className="text-[11px] text-[#999] mt-0.5">{n.desc}</div>
+                  <div className="text-[11px] text-faint mt-0.5">{n.desc}</div>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
                   <div className="relative">
@@ -274,7 +274,7 @@ export default function Settings() {
                       }
                       className="sr-only peer"
                     />
-                    <div className="w-10 h-5 bg-[#E5E5E5] rounded-full peer peer-checked:bg-[#E21B23] transition-colors" />
+                    <div className="w-10 h-5 bg-line rounded-full peer peer-checked:bg-brand transition-colors" />
                     <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform peer-checked:translate-x-5" />
                   </div>
                 </label>
@@ -285,10 +285,10 @@ export default function Settings() {
 
         {activeTab === "General" && (
           <div className="space-y-5 max-w-xl">
-            <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2">
+            <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
-                style={{ background: "#E21B23" }}
+                style={{ background: "#c1232c" }}
               />
               General Settings
             </h3>
@@ -300,7 +300,7 @@ export default function Settings() {
                 { label: "GST Rate (%)", key: "gstRate" },
               ].map((f) => (
                 <div key={f.label}>
-                  <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+                  <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                     {f.label}
                   </label>
                   <input
@@ -308,7 +308,7 @@ export default function Settings() {
                     onChange={(e) =>
                       setFormData({ ...formData, [f.key]: e.target.value })
                     }
-                    className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] text-[#111]"
+                    className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand text-ink"
                   />
                 </div>
               ))}
@@ -318,10 +318,10 @@ export default function Settings() {
 
         {activeTab === "Payment" && (
           <div className="space-y-5 max-w-xl">
-            <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2">
+            <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
-                style={{ background: "#E21B23" }}
+                style={{ background: "#c1232c" }}
               />
               Payment Settings
             </h3>
@@ -336,7 +336,7 @@ export default function Settings() {
               </div>
             </div>
             <div>
-              <label className="text-[11px] font-semibold text-[#999] uppercase tracking-wide block mb-1.5">
+              <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
                 UPI ID (for manual payments)
               </label>
               <input
@@ -344,7 +344,7 @@ export default function Settings() {
                 onChange={(e) =>
                   setFormData({ ...formData, upi: e.target.value })
                 }
-                className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] text-[#111] font-mono"
+                className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand text-ink font-mono"
                 placeholder="e.g. company@bank"
               />
             </div>
@@ -352,12 +352,12 @@ export default function Settings() {
         )}
 
         {activeTab !== "Operations & Security" && (
-        <div className="mt-8 pt-5 border-t border-[#E5E5E5] flex gap-3">
+        <div className="mt-8 pt-5 border-t border-line flex gap-3">
           <button
             onClick={() => void handleSave()}
             disabled={saving}
             className={`px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg transition-all disabled:opacity-50 ${saved ? "bg-green-600" : "hover:opacity-90"}`}
-            style={!saved ? { background: "#E21B23" } : {}}
+            style={!saved ? { background: "#c1232c" } : {}}
           >
             {saving ? "Saving…" : saved ? "✓ Saved!" : "Save Changes"}
           </button>
@@ -367,7 +367,7 @@ export default function Settings() {
               setError(null);
             }}
             disabled={saving}
-            className="px-6 py-2.5 text-[13px] font-semibold text-[#666] border border-[#E5E5E5] rounded-lg hover:bg-[#F5F5F5] transition-colors cursor-pointer"
+            className="px-6 py-2.5 text-[13px] font-semibold text-muted border border-line rounded-lg hover:bg-hover transition-colors cursor-pointer"
           >
             Cancel
           </button>

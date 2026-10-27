@@ -68,7 +68,7 @@ const pill: Record<LinkStatus, string> = {
   "Awaiting OTP": "bg-blue-50 text-blue-700 border-blue-200",
   "Office review": "bg-amber-50 text-amber-800 border-amber-200",
   Completed: "bg-green-50 text-green-700 border-green-200",
-  Rejected: "bg-red-50 text-[#E21B23] border-red-200",
+  Rejected: "bg-red-50 text-brand border-red-200",
   Cancelled: "bg-gray-100 text-gray-600 border-gray-300",
 };
 
@@ -154,8 +154,8 @@ export default function PartnerLinks() {
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
       <div>
-        <h1 className="text-xl font-bold text-[#111]">Partner links</h1>
-        <p className="text-sm text-[#555]">
+        <h1 className="text-xl font-bold text-ink">Partner links</h1>
+        <p className="text-sm text-muted">
           Owner-drivers and vendor drivers joining a fleet, and vehicles changing hands. A driver confirms with a code sent to their own phone; a vehicle is confirmed by the driver of its last trip.
           Anything that cannot finish automatically waits here for you.
         </p>
@@ -168,9 +168,9 @@ export default function PartnerLinks() {
           { label: "Completed (7 days)", value: stats.done, tone: "text-green-700" },
           { label: "All requests", value: stats.total, tone: "" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
-            <div className={`text-2xl font-bold ${s.tone || "text-[#111]"}`}>{loading ? "—" : s.value}</div>
-            <div className="text-sm text-[#555] mt-0.5">{s.label}</div>
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
+            <div className={`text-2xl font-bold ${s.tone || "text-ink"}`}>{loading ? "—" : s.value}</div>
+            <div className="text-sm text-muted mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -178,15 +178,15 @@ export default function PartnerLinks() {
       <div role="tablist" className="flex flex-wrap gap-2">
         {tabs.map(([id, label, n]) => (
           <button key={id} role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border ${tab === id ? "bg-[#111] text-white border-[#111]" : "bg-white text-[#333] border-[#D4D4D4] hover:bg-gray-50"}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border ${tab === id ? "bg-ink text-white border-ink" : "bg-white text-body border-line-strong hover:bg-gray-50"}`}>
             {label}{n !== undefined && n > 0 ? <span className="ml-2 text-xs bg-white/20 rounded-full px-1.5 py-0.5">{n}</span> : null}
           </button>
         ))}
       </div>
 
       {(tab === "review" || tab === "all") && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#E5E5E5] bg-[#FAFAFA] flex flex-wrap items-center gap-2">
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-line bg-surface-2 flex flex-wrap items-center gap-2">
             <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search driver, plate or vendor…" aria-label="Search requests" className={`${inputCls} min-w-[14rem] !w-auto`} />
             <select aria-label="Type" value={kindFilter} onChange={(e) => setKindFilter(e.target.value as typeof kindFilter)} className={`${inputCls} !w-auto`}>
               <option value="All">Drivers & vehicles</option>
@@ -194,30 +194,30 @@ export default function PartnerLinks() {
               <option value="vehicle">Vehicles</option>
             </select>
           </div>
-          {loading && <div className="py-12 text-center text-sm text-[#555]" role="status">Loading requests…</div>}
+          {loading && <div className="py-12 text-center text-sm text-muted" role="status">Loading requests…</div>}
           {!loading && list.length === 0 && (
-            <div className="py-12 text-center text-sm text-[#555]">{tab === "review" ? "Nothing is waiting for the office." : "No requests match."}</div>
+            <div className="py-12 text-center text-sm text-muted">{tab === "review" ? "Nothing is waiting for the office." : "No requests match."}</div>
           )}
           {!loading && list.length > 0 && (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-[#555] bg-[#FAFAFA]">
+                <thead className="text-left text-xs uppercase tracking-wide text-muted bg-surface-2">
                   <tr><th className="px-4 py-2.5">Request</th><th className="px-4 py-2.5">From</th><th className="px-4 py-2.5">To vendor</th><th className="px-4 py-2.5">Status</th><th className="px-4 py-2.5">Asked</th><th className="px-4 py-2.5" /></tr>
                 </thead>
-                <tbody className="divide-y divide-[#EEE]">
+                <tbody className="divide-y divide-line">
                   {list.map((l) => (
-                    <tr key={l.id} className="hover:bg-[#FAFAFA]">
+                    <tr key={l.id} className="hover:bg-surface-2">
                       <td className="px-4 py-3">
-                        <div className="font-semibold text-[#111]">{l.subjectLabel}</div>
-                        <div className="text-xs text-[#555]">{l.kind === "driver" ? (l.subjectKind === "owner_driver" ? "Owner-driver joins a fleet" : "Driver changes fleet") : "Vehicle attachment"}</div>
+                        <div className="font-semibold text-ink">{l.subjectLabel}</div>
+                        <div className="text-xs text-muted">{l.kind === "driver" ? (l.subjectKind === "owner_driver" ? "Owner-driver joins a fleet" : "Driver changes fleet") : "Vehicle attachment"}</div>
                       </td>
-                      <td className="px-4 py-3 text-[#333]">{fromLabel(l)}</td>
-                      <td className="px-4 py-3 text-[#333]">{l.toVendorName}</td>
+                      <td className="px-4 py-3 text-body">{fromLabel(l)}</td>
+                      <td className="px-4 py-3 text-body">{l.toVendorName}</td>
                       <td className="px-4 py-3">
                         <span className={`inline-block px-2 py-0.5 rounded-md border text-xs font-semibold ${pill[l.status]}`}>{l.status}</span>
-                        {l.blockedReason && l.status === "Office review" && <div className="text-xs text-[#555] mt-1 max-w-[18rem]">{l.blockedReason}</div>}
+                        {l.blockedReason && l.status === "Office review" && <div className="text-xs text-muted mt-1 max-w-[18rem]">{l.blockedReason}</div>}
                       </td>
-                      <td className="px-4 py-3 text-xs text-[#555] whitespace-nowrap">{formatDateTime12(l.createdAt) || "—"}</td>
+                      <td className="px-4 py-3 text-xs text-muted whitespace-nowrap">{formatDateTime12(l.createdAt) || "—"}</td>
                       <td className="px-4 py-3 text-right"><button className={secondaryBtn} onClick={() => setSelected(l.id)}>{OPEN.includes(l.status) ? "Review" : "History"}</button></td>
                     </tr>
                   ))}
@@ -234,25 +234,25 @@ export default function PartnerLinks() {
       )}
 
       {tab === "agreements" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="px-4 py-3 border-b border-[#E5E5E5] bg-[#FAFAFA] text-sm text-[#555]">
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-line bg-surface-2 text-sm text-muted">
             Who accepted which version of the vendor and driver agreements, and when. Texts are edited under Terms &amp; Privacy.
           </div>
-          {acceptances.length === 0 ? <div className="py-12 text-center text-sm text-[#555]">No acceptances recorded yet.</div> : (
+          {acceptances.length === 0 ? <div className="py-12 text-center text-sm text-muted">No acceptances recorded yet.</div> : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
-                <thead className="text-left text-xs uppercase tracking-wide text-[#555] bg-[#FAFAFA]">
+                <thead className="text-left text-xs uppercase tracking-wide text-muted bg-surface-2">
                   <tr><th className="px-4 py-2.5">Document</th><th className="px-4 py-2.5">Role</th><th className="px-4 py-2.5">Partner</th><th className="px-4 py-2.5">Version</th><th className="px-4 py-2.5">Accepted</th><th className="px-4 py-2.5">Source</th></tr>
                 </thead>
-                <tbody className="divide-y divide-[#EEE]">
+                <tbody className="divide-y divide-line">
                   {acceptances.map((a) => (
                     <tr key={a.id}>
-                      <td className="px-4 py-2.5 font-semibold text-[#111]">{a.title}</td>
+                      <td className="px-4 py-2.5 font-semibold text-ink">{a.title}</td>
                       <td className="px-4 py-2.5 capitalize">{a.role}</td>
-                      <td className="px-4 py-2.5 text-xs text-[#555]">{a.role === "vendor" ? vendorName(a.userId) : a.userId.slice(0, 10)}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted">{a.role === "vendor" ? vendorName(a.userId) : a.userId.slice(0, 10)}</td>
                       <td className="px-4 py-2.5">v{a.version}</td>
-                      <td className="px-4 py-2.5 text-xs text-[#555] whitespace-nowrap">{formatDateTime12(a.acceptedAt) || "—"}</td>
-                      <td className="px-4 py-2.5 text-xs text-[#555]">{a.source || "app"}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted whitespace-nowrap">{formatDateTime12(a.acceptedAt) || "—"}</td>
+                      <td className="px-4 py-2.5 text-xs text-muted">{a.source || "app"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -318,12 +318,12 @@ function StartLink({ vendors, canPeople, canFleet, onDone, onError }: {
   };
 
   return (
-    <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5 max-w-2xl space-y-4">
-      <p className="text-sm text-[#555]">Start a link on a vendor's behalf, for example when they phone the office. You can send the confirmation code, or put it straight in the queue and approve it yourself with a written reason.</p>
+    <div className="bg-white rounded-xl border border-line shadow-sm p-5 max-w-2xl space-y-4">
+      <p className="text-sm text-muted">Start a link on a vendor's behalf, for example when they phone the office. You can send the confirmation code, or put it straight in the queue and approve it yourself with a written reason.</p>
       <div className="flex gap-2">
         {([["driver", "Driver", canPeople], ["vehicle", "Vehicle", canFleet]] as const).map(([k, label, ok]) => (
           <button key={k} disabled={!ok} onClick={() => { setKind(k); setFound(null); setError(""); setSubject(""); }}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold border disabled:opacity-40 ${kind === k ? "bg-[#111] text-white border-[#111]" : "bg-white border-[#D4D4D4]"}`}>{label}</button>
+            className={`px-4 py-2 rounded-lg text-sm font-semibold border disabled:opacity-40 ${kind === k ? "bg-ink text-white border-ink" : "bg-white border-line-strong"}`}>{label}</button>
         ))}
       </div>
       {!allowed && <Notice tone="warn">Your role does not include {kind === "driver" ? "People" : "Fleet"} access.</Notice>}
@@ -334,9 +334,9 @@ function StartLink({ vendors, canPeople, canFleet, onDone, onError }: {
         </div>
       </Field>
       {found && (
-        <div className="rounded-lg border border-[#E5E5E5] p-3 space-y-1">
-          <div className="font-semibold text-[#111]">{found.label}</div>
-          {found.lines.map((l) => <div key={l} className="text-sm text-[#555]">{l}</div>)}
+        <div className="rounded-lg border border-line p-3 space-y-1">
+          <div className="font-semibold text-ink">{found.label}</div>
+          {found.lines.map((l) => <div key={l} className="text-sm text-muted">{l}</div>)}
           {found.warn && <Notice tone="warn">{found.warn}</Notice>}
         </div>
       )}
@@ -399,7 +399,7 @@ function LinkDialog({ link, canAct, onClose, onToast }: { link: PartnerLink; can
         <div className="flex flex-wrap items-center gap-2">
           <span className={`inline-block px-2 py-0.5 rounded-md border text-xs font-semibold ${pill[link.status]}`}>{link.status}</span>
           {link.officeHelp && <span className="text-xs font-semibold text-amber-800 bg-amber-50 border border-amber-200 rounded-md px-2 py-0.5">Vendor asked for help</span>}
-          {link.method && <span className="text-xs text-[#555]">Finished by: {link.method}</span>}
+          {link.method && <span className="text-xs text-muted">Finished by: {link.method}</span>}
         </div>
 
         <div className="grid grid-cols-2 gap-3 text-sm">
@@ -416,11 +416,11 @@ function LinkDialog({ link, canAct, onClose, onToast }: { link: PartnerLink; can
         {link.blockedReason && open && <Notice tone="warn">{link.blockedReason}</Notice>}
         {link.overrideReason && <Notice tone="info">Override reason: {link.overrideReason}</Notice>}
         {link.rejectedReason && <Notice tone="error">Declined: {link.rejectedReason}</Notice>}
-        {link.blockedReason.includes("duties") && open && <p className="text-xs text-[#555]">Reassign the open duties from Bookings first, then approve. An override never moves a car or driver that has an open duty.</p>}
+        {link.blockedReason.includes("duties") && open && <p className="text-xs text-muted">Reassign the open duties from Bookings first, then approve. An override never moves a car or driver that has an open duty.</p>}
 
         {open && canAct && (
-          <div className="rounded-lg border border-[#E5E5E5] p-4 space-y-3">
-            <div className="text-sm font-bold text-[#111]">Decision</div>
+          <div className="rounded-lg border border-line p-4 space-y-3">
+            <div className="text-sm font-bold text-ink">Decision</div>
             {link.hasReceiver || link.kind === "driver" ? (
               <div className="flex flex-wrap items-end gap-2">
                 <Field label="Code the driver read out" className="min-w-[10rem]">
@@ -433,14 +433,14 @@ function LinkDialog({ link, canAct, onClose, onToast }: { link: PartnerLink; can
 
             {!confirmed && <Notice tone="warn">{link.kind === "driver" ? "The driver's consent is not confirmed yet." : "The last-trip driver has not confirmed with a code."} You can still approve with an override, which is recorded with your name and reason.</Notice>}
             {confirmed && (
-              <label className="flex items-center gap-2 text-sm text-[#333]"><input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} /> Approve as an override (hold or verification skipped)</label>
+              <label className="flex items-center gap-2 text-sm text-body"><input type="checkbox" checked={override} onChange={(e) => setOverride(e.target.checked)} /> Approve as an override (hold or verification skipped)</label>
             )}
             {overrideNeeded && (
               <>
                 <Field label="Reason for the override" hint="At least 5 characters. It is kept in the history.">
                   <input className={inputCls} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. Driver confirmed on a recorded call" />
                 </Field>
-                <label className="flex items-start gap-2 text-sm text-[#333]"><input type="checkbox" className="mt-1" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I am moving this without the normal code check. This is recorded against my name.</label>
+                <label className="flex items-start gap-2 text-sm text-body"><input type="checkbox" className="mt-1" checked={ack} onChange={(e) => setAck(e.target.checked)} /> I am moving this without the normal code check. This is recorded against my name.</label>
               </>
             )}
             {error && <Notice tone="error">{error}</Notice>}
@@ -454,14 +454,14 @@ function LinkDialog({ link, canAct, onClose, onToast }: { link: PartnerLink; can
         {open && !canAct && <Notice tone="warn">Your role cannot decide this kind of request.</Notice>}
 
         <div>
-          <div className="text-sm font-bold text-[#111] mb-2">History</div>
-          {events.length === 0 ? <p className="text-sm text-[#555]">No events yet.</p> : (
+          <div className="text-sm font-bold text-ink mb-2">History</div>
+          {events.length === 0 ? <p className="text-sm text-muted">No events yet.</p> : (
             <ol className="space-y-2">
               {events.map((e) => (
-                <li key={e.id} className="text-sm border-l-2 border-[#E5E5E5] pl-3">
-                  <div className="font-semibold text-[#111] capitalize">{e.type.replace(/_/g, " ")}{e.method ? ` · ${e.method}` : ""}</div>
-                  <div className="text-xs text-[#555]">{e.actorName} ({e.actorRole}) · {formatDateTime12(e.at) || "—"}</div>
-                  {e.reason && <div className="text-xs text-[#555]">“{e.reason}”</div>}
+                <li key={e.id} className="text-sm border-l-2 border-line pl-3">
+                  <div className="font-semibold text-ink capitalize">{e.type.replace(/_/g, " ")}{e.method ? ` · ${e.method}` : ""}</div>
+                  <div className="text-xs text-muted">{e.actorName} ({e.actorRole}) · {formatDateTime12(e.at) || "—"}</div>
+                  {e.reason && <div className="text-xs text-muted">“{e.reason}”</div>}
                 </li>
               ))}
             </ol>
@@ -496,8 +496,8 @@ function RejectDialog({ busy, error, onCancel, onConfirm }: { busy: boolean; err
 function Info({ label, value, tone }: { label: string; value: string; tone?: "ok" | "warn" }) {
   return (
     <div>
-      <div className="text-xs text-[#555]">{label}</div>
-      <div className={`font-semibold ${tone === "ok" ? "text-green-700" : tone === "warn" ? "text-amber-800" : "text-[#111]"}`}>{value}</div>
+      <div className="text-xs text-muted">{label}</div>
+      <div className={`font-semibold ${tone === "ok" ? "text-green-700" : tone === "warn" ? "text-amber-800" : "text-ink"}`}>{value}</div>
     </div>
   );
 }

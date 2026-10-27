@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import Button from "./ui/Button";
+import Icon from "./ui/Icon";
 
 export type ToastType = "success" | "error";
 export interface ToastState {
@@ -27,13 +29,8 @@ export function useToast(durationMs = 3500) {
 export function Toast({ toast }: { toast: ToastState | null }) {
   if (!toast) return null;
   return (
-    <div
-      role={toast.type === "error" ? "alert" : "status"}
-      className={`fixed bottom-6 right-6 z-[60] max-w-sm flex items-start gap-2.5 px-4 py-3 rounded-xl shadow-xl text-xs font-semibold text-white ${
-        toast.type === "success" ? "bg-emerald-600" : "bg-red-600"
-      }`}
-    >
-      <span>{toast.type === "success" ? "✓" : "⚠️"}</span>
+    <div role={toast.type === "error" ? "alert" : "status"} className="ds-toast" data-type={toast.type}>
+      <Icon name={toast.type === "success" ? "circle-check" : "circle-alert"} size={16} />
       <span>{toast.message}</span>
     </div>
   );
@@ -42,56 +39,102 @@ export function Toast({ toast }: { toast: ToastState | null }) {
 interface ModalProps {
   title: string;
   subtitle?: string;
+  /** Small caps line above the title; the reference labels every control sheet this way. */
+  eyebrow?: string;
   onClose: () => void;
   /** Blocks closing (backdrop, Escape, ✕) while a save is in flight. */
   busy?: boolean;
   size?: "md" | "lg" | "xl";
+  /**
+   * Every reference control sheet opens from the right; `centered` keeps a small centred dialog
+   * (confirmations). `drawer` is accepted for older call sites and means the default.
+   */
+  centered?: boolean;
+  drawer?: boolean;
+  /** Extra-wide sheet (tables, documents). */
+  wide?: boolean;
   children: ReactNode;
   footer?: ReactNode;
+  /** Left side of the footer (e.g. "Customer fare stays unchanged"). */
+  footNote?: ReactNode;
 }
 
-const SIZES = { md: "max-w-md", lg: "max-w-2xl", xl: "max-w-4xl" };
+const MAX_WIDTH = { md: 480, lg: 672, xl: 896 };
+const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
-export function Modal({ title, subtitle, onClose, busy, size = "md", children, footer }: ModalProps) {
+/** Dialog with focus trap, Escape-to-close and focus restore. Used for modals and drawers alike. */
+export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClose, busy, size = "md", centered, wide, children, footer, footNote }: ModalProps) {
+  const drawer = !centered;
+  const dialog = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    const el = dialog.current;
+    // Land on the first control inside the body; fall back to the dialog itself.
+    const first = el?.querySelector<HTMLElement>(".ds-dialog-body " + FOCUSABLE.split(",").join(", .ds-dialog-body "));
+    (first ?? el)?.focus({ preventScroll: true });
+    return () => previous?.focus?.({ preventScroll: true });
+  }, []);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onClose();
+      if (e.key === "Escape" && !busy) onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
+  }, [busy]);
+
+  const trap = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Tab" || !dialog.current) return;
+    const items = Array.from(dialog.current.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((n) => n.offsetParent !== null);
+    if (items.length === 0) {
+      e.preventDefault();
+      return;
+    }
+    const firstItem = items[0];
+    const lastItem = items[items.length - 1];
+    if (e.shiftKey && document.activeElement === firstItem) {
+      e.preventDefault();
+      lastItem.focus();
+    } else if (!e.shiftKey && document.activeElement === lastItem) {
+      e.preventDefault();
+      firstItem.focus();
+    }
+  };
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+      className={`ds-overlay ${drawer ? "ds-drawer-overlay" : ""}`}
       onMouseDown={(e) => {
         if (e.target === e.currentTarget && !busy) onClose();
       }}
     >
       <div
+        ref={dialog}
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className={`bg-white rounded-2xl w-full ${SIZES[size]} shadow-2xl my-8 flex flex-col max-h-[calc(100vh-4rem)]`}
+        tabIndex={-1}
+        onKeyDown={trap}
+        className={`ds-dialog ${drawer ? "ds-drawer" : ""}`}
+        data-wide={wide || size === "xl" ? "true" : undefined}
+        data-size={size}
+        style={drawer ? undefined : { maxWidth: MAX_WIDTH[size] }}
       >
-        <div className="px-6 py-4 border-b border-[#E5E5E5] flex items-start justify-between gap-3 bg-[#FAFAFA] rounded-t-2xl">
+        <div className="ds-dialog-head">
           <div className="min-w-0">
-            <h3 className="text-[15px] font-bold text-[#111] truncate">{title}</h3>
-            {subtitle && <p className="text-[11px] text-[#666] mt-0.5">{subtitle}</p>}
+            {eyebrow && <span className="ds-dialog-eyebrow">{eyebrow}</span>}
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={busy}
-            aria-label="Close"
-            className="w-8 h-8 shrink-0 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-sm disabled:opacity-40"
-          >
-            ✕
-          </button>
+          <Button variant="ghost" iconOnly icon="x" onClick={onClose} disabled={busy} aria-label="Close" />
         </div>
-        <div className="px-6 py-5 overflow-y-auto flex-1">{children}</div>
-        {footer && (
-          <div className="px-6 py-4 border-t border-[#E5E5E5] bg-[#FAFAFA] rounded-b-2xl flex flex-wrap items-center justify-end gap-2">
+        <div className="ds-dialog-body">{children}</div>
+        {(footer || footNote) && (
+          <div className="ds-dialog-foot">
+            {footNote && <span className="ds-dialog-footnote">{footNote}</span>}
             {footer}
           </div>
         )}
@@ -117,34 +160,24 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, busy, erro
       title={title}
       onClose={onCancel}
       busy={busy}
+      centered
       footer={
         <>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={busy}
-            className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-          >
+          <Button onClick={onCancel} disabled={busy}>
             Cancel
-          </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            disabled={busy}
-            className={`px-5 py-2 rounded-lg text-[12px] font-bold text-white shadow-sm disabled:opacity-50 ${
-              danger ? "bg-red-600 hover:bg-red-700" : "bg-[#E21B23] hover:bg-[#c4151c]"
-            }`}
-          >
+          </Button>
+          <Button variant={danger ? "danger" : "primary"} onClick={onConfirm} loading={busy}>
             {busy ? "Please wait…" : confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >
-      <div className="text-[13px] text-gray-700 space-y-3">
+      <div className="text-[13px] text-body space-y-3">
         <div>{message}</div>
         {error && (
-          <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold">
-            {error}
+          <div role="alert" className="ds-error" style={{ margin: 0 }}>
+            <Icon name="circle-alert" />
+            <span>{error}</span>
           </div>
         )}
       </div>
@@ -155,12 +188,15 @@ export function ConfirmDialog({ title, message, confirmLabel, danger, busy, erro
 /** Inline error banner used for load failures. */
 export function ErrorBanner({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-semibold flex items-center justify-between gap-3">
-      <span>{message}</span>
+    <div role="alert" className="ds-error" style={{ justifyContent: "space-between", margin: 0 }}>
+      <span className="flex items-center gap-2">
+        <Icon name="circle-alert" />
+        {message}
+      </span>
       {onRetry && (
-        <button type="button" onClick={onRetry} className="underline shrink-0">
+        <Button size="sm" onClick={onRetry}>
           Retry
-        </button>
+        </Button>
       )}
     </div>
   );

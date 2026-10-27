@@ -183,6 +183,7 @@ export const saveTariffConfig = onCall(async (request) => {
 import { mapCategory, mapCoupon, normalizeCode, validateCoupon } from './domain/pricing';
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
+import { assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
 import { approved, inIndia, routeFor } from './shared';
 
 function placeOf(v: any, role: string): GeoPlace {
@@ -215,16 +216,18 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   if (problem || !when) throw new HttpsError('invalid-argument', problem || 'Choose the pickup date and time.');
   const tripEndAt = tripType === 'Round Trip' ? parsePickupInstant(input.tripEndAt) : null;
   const route = await routeFor(pickup, drop);
-  const [categories, tariff, adjustmentDoc, customer, coupons, history] = await Promise.all([
+  const [categories, tariff, adjustmentDoc, customer, coupons, history, serviceRules] = await Promise.all([
     db.collection('vehicle_categories').where('status', '==', 'Active').get(),
     loadTariffConfig(),
     loadFareAdjustment(),
     db.doc(`customers/${uid}`).get(),
     input.couponCode ? db.collection('coupons').get() : Promise.resolve(null),
     input.couponCode ? db.collection('bookings').where('customerId', '==', uid).get() : Promise.resolve(null),
+    loadServiceRules(),
   ]);
   if (!customer.exists || !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
-  const adjustment = effectiveAdjustment(adjustmentDoc, now);
+  const rules = evaluateRules(serviceRules, pickup, drop, when, tripType);
+  const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
   const quotes = categories.docs
@@ -235,12 +238,16 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
       const base = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment };
       try {
+        assertBookable(rules, category.name);
         const before = priceBooking(base);
         let couponMessage = '', discount = 0;
         if (code && coupons) {
           const r = validateCoupon(coupons.docs.map((x) => mapCoupon(x.id, x.data())), code, {
             subtotal: before.fare.subtotal, categoryId: c.id, service: before.service, isFirstBooking: prior.length === 0,
             customerUses: prior.filter((b) => normalizeCode(b.couponCode || '') === code).length,
+            pickupAt: when, completedTrips: prior.filter((b) => b.status === 'Completed').length,
+            pickupText: `${pickup.name} ${pickup.address ?? ''}`, dropText: `${drop.name} ${drop.address ?? ''}`,
+            fixedRoute: before.pricing.model === 'city_drop_package', peakAdjusted: adjustment?.direction === 'increase',
           });
           if (r.ok) { discount = r.coupon.discount; couponMessage = r.coupon.message; } else couponMessage = r.message;
         }

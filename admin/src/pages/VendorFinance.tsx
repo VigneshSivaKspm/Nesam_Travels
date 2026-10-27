@@ -186,26 +186,26 @@ export default function VendorFinance() {
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
       <div>
-        <h1 className="text-[20px] font-bold text-[#111]">Vendor Finance</h1>
-        <p className="text-[13px] text-[#666]">Fleet vendors earn the payout agreed for each trip (fixed when the trip is finalized) plus approved tolls. All figures come from the partner ledger kept by the server.</p>
+        <h1 className="text-[20px] font-bold text-ink">Vendor Finance</h1>
+        <p className="text-[13px] text-muted">Fleet vendors earn the payout agreed for each trip (fixed when the trip is finalized) plus approved tolls. All figures come from the partner ledger kept by the server.</p>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Gross Fares on Vendor Trips (period)", value: formatINR(kpis.gross), color: "#E21B23" },
+          { label: "Gross Fares on Vendor Trips (period)", value: formatINR(kpis.gross), color: "#c1232c" },
           { label: "Vendor Earnings (period)", value: formatINR(kpis.earnings), color: "#111" },
           { label: `Open Payout Requests (${kpis.openCount})`, value: formatINR(kpis.openAmount), color: "#F59E0B" },
           { label: "Paid Out to Vendors (all time)", value: formatINR(kpis.paidOut), color: "#10B981" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
             <div className="text-[20px] font-bold" style={{ color: s.color }}>{loading ? "—" : s.value}</div>
-            <div className="text-[11px] text-[#999] mt-0.5">{s.label}</div>
+            <div className="text-[11px] text-faint mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
-        <div className="flex gap-1 bg-white rounded-xl border border-[#E5E5E5] p-1 w-fit shadow-sm">
+        <div className="flex gap-1 bg-white rounded-xl border border-line p-1 w-fit shadow-sm">
           {[
             { key: "ledger" as const, label: "Vendor Ledger" },
             { key: "payouts" as const, label: `Payout Requests (${kpis.openCount})` },
@@ -214,8 +214,8 @@ export default function VendorFinance() {
             <button
               key={t.key}
               onClick={() => setActiveTab(t.key)}
-              className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${activeTab === t.key ? "text-white shadow-sm" : "text-[#666] hover:text-[#111]"}`}
-              style={activeTab === t.key ? { background: "#E21B23" } : {}}
+              className={`px-5 py-2 rounded-lg text-[13px] font-semibold transition-all cursor-pointer ${activeTab === t.key ? "text-white shadow-sm" : "text-muted hover:text-ink"}`}
+              style={activeTab === t.key ? { background: "#c1232c" } : {}}
             >
               {t.label}
             </button>
@@ -223,7 +223,7 @@ export default function VendorFinance() {
         </div>
         {activeTab === "ledger" && (
           <div className="flex flex-wrap items-center gap-2">
-            <select aria-label="Period" value={preset} onChange={(e) => setPreset(e.target.value as Preset)} className="px-3 py-2 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
+            <select aria-label="Period" value={preset} onChange={(e) => setPreset(e.target.value as Preset)} className="px-3 py-2 text-[12px] border border-line rounded-lg bg-white">
               <option value="this-month">This month</option>
               <option value="last-month">Last month</option>
               <option value="last-30">Last 30 days</option>
@@ -232,8 +232,8 @@ export default function VendorFinance() {
             </select>
             {preset === "custom" && (
               <>
-                <input type="date" aria-label="From" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-2 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg" />
-                <input type="date" aria-label="To" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-2 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg" />
+                <input type="date" aria-label="From" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} className="px-2 py-1.5 text-[12px] border border-line rounded-lg" />
+                <input type="date" aria-label="To" value={customTo} onChange={(e) => setCustomTo(e.target.value)} className="px-2 py-1.5 text-[12px] border border-line rounded-lg" />
               </>
             )}
             {rangeError && <span className="text-[11px] text-red-600">{rangeError}</span>}
@@ -242,35 +242,35 @@ export default function VendorFinance() {
       </div>
 
       {activeTab === "ledger" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-[#E5E5E5] bg-[#FAFAFA]">
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4 border-b border-line bg-surface-2">
             <div className="flex flex-wrap items-center gap-2">
-              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendor, contact, GSTIN…" className="px-3 py-1.5 text-[12px] border border-[#DDD] rounded-lg min-w-[220px]" />
-              <select aria-label="Vendor status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="px-3 py-1.5 text-[12px] border border-[#DDD] rounded-lg bg-white">
+              <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search vendor, contact, GSTIN…" className="px-3 py-1.5 text-[12px] border border-line rounded-lg min-w-[220px]" />
+              <select aria-label="Vendor status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)} className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white">
                 <option value="All">All vendors</option>
                 <option value="APPROVED">Approved</option>
                 <option value="SUSPENDED">Suspended</option>
               </select>
             </div>
-            <button onClick={exportLedger} disabled={filteredRows.length === 0} className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-[#E5E5E5] bg-white text-[#E21B23] hover:bg-[#FEF2F2] disabled:opacity-40">
+            <button onClick={exportLedger} disabled={filteredRows.length === 0} className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-line bg-white text-brand hover:bg-brand-soft disabled:opacity-40">
               📥 Export CSV
             </button>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1100px]">
               <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
+                <tr className="bg-surface-2 border-b border-line">
                   {["Vendor", "Status", "Trips", "Gross Fares", "Vendor Earnings", "Tolls", "Platform Share", "Commission", "Available", "Reserved", ""].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {filteredRows.map(({ vendor: v, status, s }) => (
-                  <tr key={v.id} className="border-b border-[#F5F5F5] last:border-0 hover:bg-[#FAFAFA]">
+                  <tr key={v.id} className="border-b border-hover last:border-0 hover:bg-surface-2">
                     <td className="px-4 py-3">
-                      <div className="text-[12px] font-semibold text-[#111]">{vendorName(v)}</div>
-                      <div className="text-[10px] text-[#999]">{v.gstin || v.business?.gstNumber || "GSTIN not provided"}</div>
+                      <div className="text-[12px] font-semibold text-ink">{vendorName(v)}</div>
+                      <div className="text-[10px] text-faint">{v.gstin || v.business?.gstNumber || "GSTIN not provided"}</div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${VENDOR_STATUS_META[status].badge}`}>{VENDOR_STATUS_META[status].label}</span>
@@ -282,26 +282,26 @@ export default function VendorFinance() {
                       {s.awaitingFinance > 0 && <div className="text-[10px] font-normal text-amber-700">{s.awaitingFinance} trip(s) awaiting fare verification</div>}
                     </td>
                     <td className="px-4 py-3 text-[12px]">{rupees(s.tolls)}</td>
-                    <td className="px-4 py-3 text-[12px]" style={{ color: "#E21B23" }}>{rupees(s.platformShare)}</td>
-                    <td className="px-4 py-3 text-[12px] text-[#666]">{commissionPct(s)}</td>
+                    <td className="px-4 py-3 text-[12px]" style={{ color: "#c1232c" }}>{rupees(s.platformShare)}</td>
+                    <td className="px-4 py-3 text-[12px] text-muted">{commissionPct(s)}</td>
                     <td className={`px-4 py-3 text-[12px] font-bold ${s.available < 0 ? "text-red-700" : ""}`}>
                       {rupees(s.available)}
-                      {s.pending > 0 && <div className="text-[10px] font-normal text-[#888]">+{rupees(s.pending)} awaiting payment</div>}
+                      {s.pending > 0 && <div className="text-[10px] font-normal text-faint">+{rupees(s.pending)} awaiting payment</div>}
                     </td>
                     <td className="px-4 py-3 text-[12px] text-amber-700">{s.reserved ? rupees(s.reserved) : "—"}</td>
                     <td className="px-4 py-3">
-                      <button onClick={() => setDetailId(v.id)} className="text-[11px] px-2.5 py-1 rounded-md border border-[#E5E5E5] hover:bg-[#FEF2F2] text-[#E21B23] font-medium">Details</button>
+                      <button onClick={() => setDetailId(v.id)} className="text-[11px] px-2.5 py-1 rounded-md border border-line hover:bg-brand-soft text-brand font-medium">Details</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
             {!loading && filteredRows.length === 0 && (
-              <div className="py-12 text-center text-[13px] text-[#999]">{rows.length === 0 ? "No approved vendors yet." : "No vendors match your filters."}</div>
+              <div className="py-12 text-center text-[13px] text-faint">{rows.length === 0 ? "No approved vendors yet." : "No vendors match your filters."}</div>
             )}
-            {loading && <div className="py-12 text-center text-[13px] text-[#999]">Loading vendor finance…</div>}
+            {loading && <div className="py-12 text-center text-[13px] text-faint">Loading vendor finance…</div>}
           </div>
-          <div className="px-5 py-3 text-[11px] text-[#888] border-t border-[#F0F0F0]">
+          <div className="px-5 py-3 text-[11px] text-faint border-t border-line-soft">
             Commission is the platform's share of the pre-GST fare on credited trips in the period. Cash fares collected by the vendor's drivers are debited from the balance, which can therefore go negative.
           </div>
         </div>
@@ -311,7 +311,7 @@ export default function VendorFinance() {
         <div className="space-y-3">
           <div className="flex gap-1">
             {(["Open", "Paid", "Rejected", "All"] as const).map((f) => (
-              <button key={f} onClick={() => setPayoutFilter(f)} className={`px-3 py-1 rounded-lg text-[11px] font-semibold ${payoutFilter === f ? "bg-[#111] text-white" : "bg-white border border-[#E5E5E5] text-[#666]"}`}>
+              <button key={f} onClick={() => setPayoutFilter(f)} className={`px-3 py-1 rounded-lg text-[11px] font-semibold ${payoutFilter === f ? "bg-ink text-white" : "bg-white border border-line text-muted"}`}>
                 {f === "Open" ? "Pending & deferred" : f}
               </button>
             ))}
@@ -322,25 +322,25 @@ export default function VendorFinance() {
             const status = p.status || "Pending";
             const open = status === "Pending" || status === "Deferred";
             return (
-              <div key={p.id} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
+              <div key={p.id} className="bg-white rounded-xl border border-line shadow-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-3">
                 <div>
-                  <div className="text-[13px] font-bold text-[#111]">{p.vendorName || (v ? vendorName(v) : p.vendorId)}</div>
-                  <div className="text-[11px] text-[#888]">Requested {dateLabel(payoutRequestedAt(p))} • {p.method || "—"}: <span className="font-mono">{p.details || "—"}</span></div>
+                  <div className="text-[13px] font-bold text-ink">{p.vendorName || (v ? vendorName(v) : p.vendorId)}</div>
+                  <div className="text-[11px] text-faint">Requested {dateLabel(payoutRequestedAt(p))} • {p.method || "—"}: <span className="font-mono">{p.details || "—"}</span></div>
                   {bal && open && (
-                    <div className="text-[11px] text-[#666] mt-0.5">Balance after reserving requests {rupees(bal.available)} • reserved incl. this request {rupees(bal.reserved)} • paid out {rupees(bal.paidOut)}</div>
+                    <div className="text-[11px] text-muted mt-0.5">Balance after reserving requests {rupees(bal.available)} • reserved incl. this request {rupees(bal.reserved)} • paid out {rupees(bal.paidOut)}</div>
                   )}
                   {p.utr && <div className="text-[11px] text-green-700 mt-0.5">UTR {p.utr}</div>}
-                  {p.adminNote && <div className="text-[11px] text-[#666] mt-0.5">Note: {p.adminNote}</div>}
+                  {p.adminNote && <div className="text-[11px] text-muted mt-0.5">Note: {p.adminNote}</div>}
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="text-right">
-                    <div className="text-[16px] font-bold text-[#111]">{rupees(parseAmount(p.amount))}</div>
+                    <div className="text-[16px] font-bold text-ink">{rupees(parseAmount(p.amount))}</div>
                     <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${payoutStyle[status] || payoutStyle.Cancelled}`}>{status}</span>
                   </div>
                   {open && (
                     <div className="flex gap-2">
                       <button onClick={() => setAction({ kind: "pay", payout: p })} className="text-[12px] font-semibold px-3 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700">Mark Paid</button>
-                      {status === "Pending" && <button onClick={() => setAction({ kind: "defer", payout: p })} className="text-[12px] font-semibold px-3 py-2 rounded-lg border border-[#E5E5E5] text-[#555] hover:bg-[#F5F5F5]">Defer</button>}
+                      {status === "Pending" && <button onClick={() => setAction({ kind: "defer", payout: p })} className="text-[12px] font-semibold px-3 py-2 rounded-lg border border-line text-muted hover:bg-hover">Defer</button>}
                       <button onClick={() => setAction({ kind: "reject", payout: p })} className="text-[12px] font-semibold px-3 py-2 rounded-lg border border-red-200 text-red-700 hover:bg-red-50">Reject</button>
                     </div>
                   )}
@@ -348,23 +348,23 @@ export default function VendorFinance() {
               </div>
             );
           })}
-          {!loading && shownPayouts.length === 0 && <div className="bg-white rounded-xl border border-[#E5E5E5] py-14 text-center text-[13px] text-[#999]">No vendor payout requests in this view.</div>}
+          {!loading && shownPayouts.length === 0 && <div className="bg-white rounded-xl border border-line py-14 text-center text-[13px] text-faint">No vendor payout requests in this view.</div>}
         </div>
       )}
 
       {activeTab === "monthly" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E5E5E5] bg-[#FAFAFA] flex flex-wrap items-center justify-between gap-2">
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-line bg-surface-2 flex flex-wrap items-center justify-between gap-2">
             <div>
-              <div className="text-[13px] font-bold text-[#111]">Vendor Trips by Month</div>
-              <p className="text-[11px] text-[#888]">Platform GST on customer fares is reported in Reports & Analytics → GST Summary.</p>
+              <div className="text-[13px] font-bold text-ink">Vendor Trips by Month</div>
+              <p className="text-[11px] text-faint">Platform GST on customer fares is reported in Reports & Analytics → GST Summary.</p>
             </div>
             <button
               onClick={() =>
                 downloadCsv("nesam_vendor_monthly.csv", ["Month", "Completed Trips", "Gross Fares", "Vendor Earnings incl. Tolls", "Paid Out"], monthly.map((m) => [m.label, m.trips, m.gross, m.earnings, m.paid]))
               }
               disabled={monthly.length === 0}
-              className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-[#E5E5E5] bg-white text-[#E21B23] hover:bg-[#FEF2F2] disabled:opacity-40"
+              className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-line bg-white text-brand hover:bg-brand-soft disabled:opacity-40"
             >
               📥 Export CSV
             </button>
@@ -372,15 +372,15 @@ export default function VendorFinance() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[650px]">
               <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
+                <tr className="bg-surface-2 border-b border-line">
                   {["Month", "Completed Trips", "Gross Fares", "Vendor Earnings (incl. tolls)", "Paid Out"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {monthly.map((m) => (
-                  <tr key={m.label} className="border-b border-[#F5F5F5] last:border-0">
+                  <tr key={m.label} className="border-b border-hover last:border-0">
                     <td className="px-4 py-3 text-[12px] font-semibold">{m.label}</td>
                     <td className="px-4 py-3 text-[12px]">{m.trips}</td>
                     <td className="px-4 py-3 text-[12px]">{rupees(m.gross)}</td>
@@ -390,7 +390,7 @@ export default function VendorFinance() {
                 ))}
               </tbody>
             </table>
-            {monthly.length === 0 && <div className="py-12 text-center text-[13px] text-[#999]">No completed vendor trips or payouts yet.</div>}
+            {monthly.length === 0 && <div className="py-12 text-center text-[13px] text-faint">No completed vendor trips or payouts yet.</div>}
           </div>
         </div>
       )}
@@ -418,7 +418,7 @@ export default function VendorFinance() {
             <div className="overflow-x-auto">
               <table className="w-full min-w-[700px]">
                 <thead>
-                  <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5] text-[10px] uppercase text-[#888]">
+                  <tr className="bg-surface-2 border-b border-line text-[10px] uppercase text-faint">
                     {["Completed", "Booking", "Route", "Fare", "Vendor Payout", "Tolls", "Payment", "Ledger"].map((h) => (
                       <th key={h} className="px-3 py-2 text-left">{h}</th>
                     ))}
@@ -429,9 +429,9 @@ export default function VendorFinance() {
                     .filter((b) => b.assignedVendorId === detail.vendor.id && b.status === "Completed" && inRange(tripDate(b), range))
                     .sort((a, b) => (tripDate(b)?.getTime() ?? 0) - (tripDate(a)?.getTime() ?? 0))
                     .map((b) => (
-                      <tr key={b.id} className="border-b border-[#F5F5F5]">
+                      <tr key={b.id} className="border-b border-hover">
                         <td className="px-3 py-2">{dateLabel(tripDate(b))}</td>
-                        <td className="px-3 py-2 font-mono text-[#E21B23]">{b.bookingId || b.id}</td>
+                        <td className="px-3 py-2 font-mono text-brand">{b.bookingId || b.id}</td>
                         <td className="px-3 py-2 max-w-[200px] truncate">{b.pickup} → {b.drop}</td>
                         <td className="px-3 py-2">{rupees(parseAmount(b.fare))}</td>
                         <td className="px-3 py-2">{tripPayout(b) !== null ? rupees(tripPayout(b)!) : "Not finalized"}</td>

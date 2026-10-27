@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
+import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import type { Booking, Invoice } from "../types";
-import { subscribeBookings, subscribeInvoices, subscribeSettings } from "../services/adminFirestoreService";
+import { subscribeBookings, subscribeInvoices, subscribeSettings, subscribeToDocument } from "../services/adminFirestoreService";
 import {
   InvoiceActionError,
   amountInWords,
@@ -13,9 +14,12 @@ import {
   voidInvoice,
   type BillingDetails,
 } from "../services/invoiceService";
-import { auth } from "../services/firebase";
-import { parseAmount } from "../utils/analytics";
+import { auth, db } from "../services/firebase";
 import { ConfirmDialog, ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
+import { useCan } from "../components/AccessContext";
+import { Badge, Button, DataTable, EmptyState, Icon, PageHeader } from "../components/ui";
+import MenuButton from "../components/ui/MenuButton";
+import { GST_STATES, stateOfGstin } from "../domain/gstStates";
 
 function formatCurrency(n: number): string {
   return "₹" + (n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -26,101 +30,95 @@ const actionError = (e: unknown) =>
 
 const invoiceTime = (inv: Invoice) => new Date(inv.invoiceDate || 0).getTime() || 0;
 
+const SERVICES = ["One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"] as const;
+export interface TaxPolicy {
+  services: Record<string, { classification: "Passenger transportation" | "Vehicle rental"; sac: string }>;
+  approved: boolean;
+  reference: string;
+  approvedByName?: string;
+}
+const DEFAULT_POLICY: TaxPolicy = {
+  services: Object.fromEntries(SERVICES.map((s) => [s, { classification: s === "Local Rental" ? "Vehicle rental" : "Passenger transportation", sac: s === "Local Rental" ? "996601" : "996412" }])),
+  approved: false,
+  reference: "",
+};
+
+interface Draft extends BillingDetails {
+  id: string;
+  bookingId: string;
+  documentType: string;
+  recipientState: string;
+  boardingState: string;
+  createdBy: string;
+  updatedAt?: unknown;
+}
+
+/** Payment words used in the reference list. */
+const paymentWord = (p: string) => (p === "Paid" ? "Paid" : p === "Partially Paid" ? "Part paid" : "Due");
+
 export default function Invoices() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [settings, setSettings] = useState<Record<string, unknown>>({});
+  const [policy, setPolicy] = useState<TaxPolicy>(DEFAULT_POLICY);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
-
+  const [docStatus, setDocStatus] = useState("All");
+  const [payStatus, setPayStatus] = useState("All");
   const [search, setSearch] = useState("");
-  const [paymentFilter, setPaymentFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-  const [dateFilter, setDateFilter] = useState("All");
-  const [sortBy, setSortBy] = useState<"newest" | "oldest" | "amount">("newest");
-
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [create, setCreate] = useState<Draft | "new" | null>(null);
+  const [showPolicy, setShowPolicy] = useState(false);
   const [voidTarget, setVoidTarget] = useState<Invoice | null>(null);
   const [voidReason, setVoidReason] = useState("");
   const [voiding, setVoiding] = useState(false);
   const [voidError, setVoidError] = useState<string | null>(null);
+  const canFinance = useCan("finance");
   const { toast, show } = useToast();
 
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
-    const fail = (m: string) => {
-      setLoadError(m);
-      setLoading(false);
-    };
+    const fail = (m: string) => { setLoadError(m); setLoading(false); };
     const unsubs = [
-      subscribeInvoices((data) => {
-        setInvoices(data);
-        setLoading(false);
-      }, fail),
+      subscribeInvoices((data) => { setInvoices(data); setLoading(false); }, fail),
       subscribeBookings(setBookings, fail),
       subscribeSettings((data) => setSettings(data || {})),
+      subscribeToDocument<TaxPolicy>("settings/tax_policy", (p) => setPolicy(p ? { ...DEFAULT_POLICY, ...p, services: { ...DEFAULT_POLICY.services, ...(p.services ?? {}) } } : DEFAULT_POLICY), () => undefined),
+      onSnapshot(collection(db, "invoice_drafts"), (s) => setDrafts(s.docs.map((d) => ({ ...(d.data() as Omit<Draft, "id">), id: d.id }))), () => setDrafts([])),
     ];
     return () => unsubs.forEach((u) => u());
   }, [retryKey]);
 
   const company = useMemo(() => companyFromSettings(settings), [settings]);
   const missingCompany = companyProblems(company);
-  // Payment status comes from the booking (it changes after the invoice is issued).
   const paymentByInvoice = useMemo(() => {
     const byId = new Map(bookings.map((b) => [b.id, b]));
     const byCode = new Map(bookings.map((b) => [b.bookingId || b.id, b]));
-    return new Map(
-      invoices.map((inv) => [
-        inv.id,
-        livePaymentStatus(inv, byId.get(inv.bookingDocumentId || "") ?? byId.get(inv.bookingId) ?? byCode.get(inv.bookingId)),
-      ]),
-    );
+    return new Map(invoices.map((inv) => [inv.id, livePaymentStatus(inv, byId.get(inv.bookingDocumentId || "") ?? byId.get(inv.bookingId) ?? byCode.get(inv.bookingId))]));
   }, [invoices, bookings]);
   const paymentOf = (inv: Invoice) => paymentByInvoice.get(inv.id) ?? inv.paymentStatus;
 
-  const stats = useMemo(() => {
-    const isPaid = (i: Invoice) => (paymentByInvoice.get(i.id) ?? i.paymentStatus) === "Paid";
-    const active = invoices.filter((i) => i.invoiceStatus !== "Cancelled");
-    const paid = active.filter(isPaid);
-    return {
-      totalCount: active.length,
-      paidCount: paid.length,
-      pendingCount: active.length - paid.length,
-      totalAmount: active.reduce((s, i) => s + (i.grandTotal || 0), 0),
-      outstanding: active.filter((i) => !isPaid(i)).reduce((s, i) => s + (i.grandTotal || 0), 0),
-      voided: invoices.length - active.length,
-    };
-  }, [invoices, paymentByInvoice]);
-
-  const filteredInvoices = useMemo(() => {
+  type Row = { key: string; number: string; date: string; billTo: string; booking: string; document: "Draft" | "Issued" | "Voided"; payment: string; total: number; balance: number; inv?: Invoice; draft?: Draft };
+  const rows = useMemo<Row[]>(() => {
     const q = search.trim().toLowerCase();
-    const now = new Date();
-    return invoices
-      .filter((inv) => {
-        const matchSearch =
-          !q ||
-          [inv.invoiceNumber, inv.bookingId, inv.customerSnapshot?.name, inv.customerSnapshot?.phone, inv.customerSnapshot?.gstin]
-            .some((v) => (v || "").toLowerCase().includes(q));
-        if (!matchSearch) return false;
-        if (paymentFilter !== "All" && (paymentByInvoice.get(inv.id) ?? inv.paymentStatus) !== paymentFilter) return false;
-        if (statusFilter !== "All" && inv.invoiceStatus !== statusFilter) return false;
-        if (dateFilter !== "All") {
-          const d = new Date(inv.invoiceDate || 0);
-          if (dateFilter === "Today" && d.toDateString() !== now.toDateString()) return false;
-          if (dateFilter === "Last 7 Days" && now.getTime() - d.getTime() > 7 * 86400000) return false;
-          if (dateFilter === "This Month" && (d.getMonth() !== now.getMonth() || d.getFullYear() !== now.getFullYear())) return false;
-        }
-        return true;
-      })
-      .sort((a, b) => {
-        if (sortBy === "oldest") return invoiceTime(a) - invoiceTime(b) || a.invoiceNumber.localeCompare(b.invoiceNumber);
-        if (sortBy === "amount") return (b.grandTotal || 0) - (a.grandTotal || 0);
-        return invoiceTime(b) - invoiceTime(a) || b.invoiceNumber.localeCompare(a.invoiceNumber);
-      });
-  }, [invoices, paymentByInvoice, search, paymentFilter, statusFilter, dateFilter, sortBy]);
+    const issued: Row[] = invoices.map((inv) => {
+      const pay = paymentOf(inv);
+      return { key: inv.id, number: inv.invoiceNumber, date: inv.invoiceDate, billTo: inv.customerSnapshot?.name || "—", booking: inv.bookingId, document: inv.invoiceStatus === "Cancelled" ? "Voided" : "Issued", payment: paymentWord(pay), total: inv.grandTotal, balance: pay === "Paid" ? 0 : inv.balanceAmount ?? inv.grandTotal, inv };
+    });
+    const draftRows: Row[] = drafts.map((d) => {
+      const b = bookings.find((x) => x.id === d.bookingId);
+      const lines = b ? buildInvoiceLines(b) : null;
+      return { key: d.id, number: "Draft", date: "", billTo: d.name || b?.customer || "—", booking: b?.bookingId || d.bookingId, document: "Draft", payment: b && (b.payment === "Paid" || b.paymentStatus === "Paid") ? "Paid" : "Due", total: lines?.grandTotal ?? 0, balance: lines?.grandTotal ?? 0, draft: d };
+    });
+    return [...draftRows, ...issued]
+      .filter((r) => docStatus === "All" || r.document === docStatus)
+      .filter((r) => payStatus === "All" || r.payment === payStatus)
+      .filter((r) => !q || [r.number, r.booking, r.billTo].some((v) => v.toLowerCase().includes(q)))
+      .sort((a, b) => (a.document === "Draft" ? -1 : b.document === "Draft" ? 1 : (invoiceTime(b.inv!) - invoiceTime(a.inv!)) || b.number.localeCompare(a.number)));
+  }, [invoices, drafts, bookings, docStatus, payStatus, search, paymentByInvoice]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const confirmVoid = async () => {
     if (!voidTarget || voiding) return;
@@ -130,7 +128,6 @@ export default function Invoices() {
       await voidInvoice(voidTarget, voidReason, auth.currentUser?.uid || "");
       show(`Invoice ${voidTarget.invoiceNumber} voided. The trip can be invoiced again.`);
       setVoidTarget(null);
-      if (selectedInvoice?.id === voidTarget.id) setSelectedInvoice(null);
     } catch (e) {
       setVoidError(actionError(e));
     } finally {
@@ -138,11 +135,8 @@ export default function Invoices() {
     }
   };
 
-  const openCreate = () => setShowCreateModal(true);
-
   return (
-    <div className="p-6 space-y-6">
-      {/* Print stylesheet isolates the invoice document */}
+    <div className="ds-page-body">
       <style>{`
         @media print {
           body * { visibility: hidden; }
@@ -151,181 +145,59 @@ export default function Invoices() {
           .no-print { display: none !important; }
         }
       `}</style>
-
       <Toast toast={toast} />
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
-      {missingCompany.length > 0 && (
-        <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-semibold">
-          Invoices cannot be issued until Settings → Company has {missingCompany.join(", ")}.
-        </div>
-      )}
-
-      {/* Header Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">Invoices</h1>
-          <p className="text-[13px] text-[#666666]">GST tax invoices for completed trips. Print or save as PDF from the invoice preview.</p>
-        </div>
-        <button
-          onClick={openCreate}
-          className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all cursor-pointer"
-          style={{ background: "#E21B23" }}
-        >
-          + Create Invoice
-        </button>
+      {missingCompany.length > 0 && <p className="ds-note mb-3">Invoices cannot be issued until Settings → Company has {missingCompany.join(", ")}.</p>}
+      <PageHeader title="Invoices" subtitle="Document lifecycle and collection status are tracked separately." actions={canFinance ? <><Button variant="primary" icon="plus" onClick={() => setCreate("new")}>Create invoice</Button><Button icon="settings-2" onClick={() => setShowPolicy(true)}>Tax automation</Button></> : undefined} />
+      <div className="ds-filterbar">
+        <div className="ds-search" style={{ flex: "1 1 280px" }}><Icon name="search" /><input className="ds-input" type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Invoice, booking or customer" aria-label="Search invoices" /></div>
+        <label className="ds-field"><span>Document status</span><select className="ds-select" value={docStatus} onChange={(e) => setDocStatus(e.target.value)}>{["All", "Draft", "Issued", "Voided"].map((x) => <option key={x}>{x}</option>)}</select></label>
+        <label className="ds-field"><span>Payment status</span><select className="ds-select" value={payStatus} onChange={(e) => setPayStatus(e.target.value)}>{["All", "Paid", "Part paid", "Due"].map((x) => <option key={x}>{x}</option>)}</select></label>
       </div>
-
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Issued Invoices", value: stats.totalCount.toString(), color: "#E21B23", sub: stats.voided ? `${stats.voided} voided` : "Active tax records" },
-          { label: "Paid Invoices", value: stats.paidCount.toString(), color: "#10B981", sub: "Trip payment recorded" },
-          { label: "Awaiting Payment", value: stats.pendingCount.toString(), color: "#F59E0B", sub: `${formatCurrency(stats.outstanding)} outstanding` },
-          { label: "Total Invoiced Amount", value: formatCurrency(stats.totalAmount), color: "#3B82F6", sub: "Active invoices, incl. GST" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
-            <div className="text-[22px] font-bold" style={{ color: s.color }}>{loading ? "—" : s.value}</div>
-            <div className="text-[12px] font-semibold text-[#111111] mt-0.5">{s.label}</div>
-            <div className="text-[10px] text-[#999999]">{s.sub}</div>
-          </div>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center text-[13px] text-[#999999]">Loading invoices…</div>
-      ) : invoices.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-16 flex flex-col items-center text-center">
-          <h2 className="text-[18px] font-bold text-[#111111] mb-2">No invoices found.</h2>
-          <p className="text-[13px] text-[#999999] max-w-sm mb-6">GST tax invoices are issued for completed trips. Create the first invoice from a completed booking.</p>
-          <button onClick={openCreate} className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 cursor-pointer shadow-sm" style={{ background: "#E21B23" }}>
-            + Create Invoice
-          </button>
-        </div>
+      {loading ? <p className="text-[12px] text-muted">Loading invoices…</p> : rows.length === 0 ? (
+        <div className="ds-panel"><EmptyState title="No invoices in this view" hint="Create an invoice from a completed trip or change the filters." /></div>
       ) : (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-[#E5E5E5] flex flex-wrap items-center justify-between gap-3 bg-[#FAFAFA]">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search invoice no., booking, customer, GSTIN…"
-              className="flex-1 min-w-[200px] max-w-md px-3 py-2 text-[12px] bg-white border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23]"
-            />
-            <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Payment status" value={paymentFilter} onChange={(e) => setPaymentFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
-                <option value="All">All payment statuses</option>
-                <option value="Paid">Paid</option>
-                <option value="Pending">Pending</option>
-              </select>
-              <select aria-label="Invoice status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
-                <option value="All">Issued & voided</option>
-                <option value="Issued">Issued</option>
-                <option value="Cancelled">Voided</option>
-              </select>
-              <select aria-label="Date" value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
-                <option value="All">All dates</option>
-                <option value="Today">Today</option>
-                <option value="Last 7 Days">Last 7 days</option>
-                <option value="This Month">This month</option>
-              </select>
-              <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-                <option value="amount">Highest amount</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[950px]">
-              <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
-                  {["Invoice No.", "Booking", "Customer", "Invoice Date", "Total", "Payment", "Status", "Actions"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#999999] uppercase tracking-wide whitespace-nowrap">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredInvoices.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-[12px] text-[#999999]">No invoices match your filters.</td>
-                  </tr>
-                ) : (
-                  filteredInvoices.map((inv) => {
-                    const payment = paymentOf(inv);
-                    return (
-                      <tr key={inv.id} className={`border-b border-[#F5F5F5] hover:bg-[#FAFAFA] ${inv.invoiceStatus === "Cancelled" ? "opacity-60" : ""}`}>
-                        <td className="px-4 py-3.5 text-[12px] font-bold font-mono text-[#111111] whitespace-nowrap">{inv.invoiceNumber}</td>
-                        <td className="px-4 py-3.5 text-[11px] font-mono font-semibold text-[#E21B23]">{inv.bookingId}</td>
-                        <td className="px-4 py-3.5">
-                          <div className="text-[12px] font-semibold text-[#111111]">{inv.customerSnapshot?.name || "—"}</div>
-                          <div className="text-[10px] text-[#999999]">{inv.customerSnapshot?.gstin ? `GSTIN ${inv.customerSnapshot.gstin}` : inv.customerSnapshot?.phone || "—"}</div>
-                        </td>
-                        <td className="px-4 py-3.5 text-[12px] text-[#666666] whitespace-nowrap">{inv.invoiceDate || "—"}</td>
-                        <td className="px-4 py-3.5 text-[12px] font-bold text-[#111111]">{formatCurrency(inv.grandTotal)}</td>
-                        <td className="px-4 py-3.5">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold border ${payment === "Paid" ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-700 border-amber-200"}`}>
-                            {payment}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-semibold border ${inv.invoiceStatus === "Issued" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-gray-100 text-gray-600 border-gray-200"}`}>
-                            {inv.invoiceStatus === "Cancelled" ? "Voided" : inv.invoiceStatus}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3.5">
-                          <div className="flex items-center gap-1.5">
-                            <button onClick={() => setSelectedInvoice(inv)} className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 hover:bg-gray-50 cursor-pointer">
-                              View / Print
-                            </button>
-                            {inv.invoiceStatus !== "Cancelled" && (
-                              <button
-                                onClick={() => {
-                                  setVoidReason("");
-                                  setVoidError(null);
-                                  setVoidTarget(inv);
-                                }}
-                                className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-[#E21B23] hover:bg-red-100 cursor-pointer"
-                              >
-                                Void
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <DataTable label="Invoices" minWidth={980} fixed hasActions>
+          <colgroup><col style={{ width: 190 }} /><col style={{ width: 220 }} /><col style={{ width: 120 }} /><col style={{ width: 120 }} /><col style={{ width: 160 }} /><col style={{ width: 190 }} /></colgroup>
+          <thead><tr><th>INVOICE / DATE</th><th>BILL TO / BOOKING</th><th>DOCUMENT</th><th>PAYMENT</th><th className="ds-num">TOTAL / BALANCE</th><th className="ds-actions">ACTION</th></tr></thead>
+          <tbody>{rows.map((r) => (
+            <tr key={r.key} className={r.document === "Voided" ? "opacity-60" : undefined}>
+              <td><strong>{r.number}</strong><small>{r.date || "Not issued"}</small></td>
+              <td><strong>{r.billTo}</strong><small>{r.booking}</small></td>
+              <td><Badge tone={r.document === "Issued" ? "blue" : r.document === "Draft" ? "amber" : "neutral"}>{r.document}</Badge></td>
+              <td><Badge tone={r.payment === "Paid" ? "green" : r.payment === "Part paid" ? "amber" : "red"}>{r.payment}</Badge></td>
+              <td className="ds-num"><strong>{formatCurrency(r.total)}</strong><small>Balance {formatCurrency(r.balance)}</small></td>
+              <td className="ds-actions"><div>
+                {r.inv && <Button size="sm" onClick={() => setSelectedInvoice(r.inv!)}>View / Print</Button>}
+                {r.draft && canFinance && <Button size="sm" variant="primary" onClick={() => setCreate(r.draft!)}>Continue draft</Button>}
+                {r.inv && r.document === "Issued" && canFinance && <MenuButton iconOnly label={`More for ${r.number}`} items={[{ label: "Void invoice", icon: "ban", danger: true, onSelect: () => { setVoidReason(""); setVoidError(null); setVoidTarget(r.inv!); } }]} />}
+                {r.draft && canFinance && <MenuButton iconOnly label="More for draft" items={[{ label: "Discard draft", icon: "trash-2", danger: true, onSelect: () => deleteDoc(doc(db, "invoice_drafts", r.draft!.id)).then(() => show("Draft discarded.")) }]} />}
+              </div></td>
+            </tr>
+          ))}</tbody>
+        </DataTable>
       )}
 
-      {showCreateModal && (
+      {create && (
         <CreateInvoiceModal
           bookings={bookings}
           invoices={invoices}
+          draft={create === "new" ? null : create}
           companyReady={missingCompany.length === 0}
           company={company}
-          onClose={() => setShowCreateModal(false)}
-          onCreated={(number) => {
-            setShowCreateModal(false);
-            show(`Tax invoice ${number} issued.`);
-          }}
+          policy={policy}
+          onClose={() => setCreate(null)}
+          onDone={(text) => { setCreate(null); show(text); }}
         />
       )}
-
+      {showPolicy && <TaxPolicyDialog policy={policy} onClose={() => setShowPolicy(false)} onSaved={() => { setShowPolicy(false); show("Approved tax policy saved."); }} />}
       {voidTarget && (
         <ConfirmDialog
           title={`Void invoice ${voidTarget.invoiceNumber}?`}
           message={
             <div className="space-y-2">
               <p>Voided invoices are kept for tax records and cannot be reissued under the same number. The trip can then be invoiced again.</p>
-              <label className="block">
-                <span className="text-[11px] font-bold text-gray-800">Reason *</span>
-                <textarea rows={2} value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={300} placeholder="e.g. Customer requested billing under company GSTIN" className="mt-1 w-full p-2 border border-[#E5E5E5] rounded-lg text-[12px]" />
-              </label>
+              <label className="ds-field"><span>Reason *</span><textarea rows={2} value={voidReason} onChange={(e) => setVoidReason(e.target.value)} maxLength={300} className="ds-input" /></label>
             </div>
           }
           confirmLabel="Void Invoice"
@@ -336,116 +208,150 @@ export default function Invoices() {
           onCancel={() => setVoidTarget(null)}
         />
       )}
-
-      {selectedInvoice && (
-        <InvoicePreview invoice={selectedInvoice} payment={paymentOf(selectedInvoice)} onClose={() => setSelectedInvoice(null)} />
-      )}
+      {selectedInvoice && <InvoicePreview invoice={selectedInvoice} payment={paymentOf(selectedInvoice)} onClose={() => setSelectedInvoice(null)} />}
     </div>
   );
 }
 
-function CreateInvoiceModal({
-  bookings,
-  invoices,
-  companyReady,
-  company,
-  onClose,
-  onCreated,
-}: {
+function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, policy, onClose, onDone }: {
   bookings: Booking[];
   invoices: Invoice[];
+  draft: Draft | null;
   companyReady: boolean;
   company: ReturnType<typeof companyFromSettings>;
+  policy: TaxPolicy;
   onClose: () => void;
-  onCreated: (invoiceNumber: string) => void;
+  onDone: (text: string) => void;
 }) {
-  const [bookingId, setBookingId] = useState("");
-  const [billing, setBilling] = useState<BillingDetails>({ name: "", gstin: "", address: "", email: "" });
-  const [busy, setBusy] = useState(false);
+  const [bookingId, setBookingId] = useState(draft?.bookingId ?? "");
+  const [docType, setDocType] = useState(draft?.documentType ?? "Tax invoice");
+  const [billing, setBilling] = useState<BillingDetails>({ name: draft?.name ?? "", gstin: draft?.gstin ?? "", address: draft?.address ?? "", email: draft?.email ?? "" });
+  const [recipientState, setRecipientState] = useState(draft?.recipientState ?? "");
+  const [boardingState, setBoardingState] = useState(draft?.boardingState ?? "");
+  const [verified, setVerified] = useState(false);
+  const [busy, setBusy] = useState<"draft" | "issue" | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  const eligible = useMemo(
-    () =>
-      bookings
-        .filter((b) => !invoiceBlocker(b, invoices))
-        .sort((a, b) => String(b.bookingId || b.id).localeCompare(String(a.bookingId || a.id))),
-    [bookings, invoices],
-  );
-  const booking = eligible.find((b) => b.id === bookingId) || null;
+  const eligible = useMemo(() => bookings.filter((b) => !invoiceBlocker(b, invoices)).sort((a, b) => String(b.bookingId || b.id).localeCompare(String(a.bookingId || a.id))), [bookings, invoices]);
+  const booking = eligible.find((b) => b.id === bookingId) || bookings.find((b) => b.id === bookingId) || null;
   const lines = booking ? buildInvoiceLines(booking) : null;
+  const svc = SERVICES.find((s) => booking && new RegExp(s.split(" ")[0], "i").test(booking.service || "")) ?? "One Way";
+  const rule = policy.services[svc];
+  const supplierState = stateOfGstin(company.gstin) ?? "";
+  const registered = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(billing.gstin.trim().toUpperCase());
+  const recipientCode = registered ? stateOfGstin(billing.gstin) ?? recipientState : recipientState;
+  // Passenger transport (IGST Act 12(9)): registered recipient's state, else where the passenger boards.
+  const placeOfSupply = rule?.classification === "Vehicle rental" ? recipientCode || supplierState : registered ? recipientCode : boardingState;
+  const taxSplit: "CGST + SGST" | "IGST" = placeOfSupply && supplierState && placeOfSupply !== supplierState ? "IGST" : "CGST + SGST";
+  const name = (code: string) => GST_STATES.find(([c]) => c === code)?.[1] ?? "Not determined";
+  const problems = [
+    !policy.approved && "Approve the service classification and SAC in Tax automation.",
+    !company.gstin && "Review the supplier GSTIN, registered state and billing address.",
+    !placeOfSupply && "Select the recipient / boarding state to determine the place of supply.",
+    booking && booking.status !== "Completed" && "Issue is enabled only after the final trip bill is ready.",
+  ].filter(Boolean) as string[];
 
-  const create = async () => {
-    if (busy || !booking) return;
-    setBusy(true);
-    setError(null);
+  const saveDraft = async () => {
+    if (!booking) return setError("Choose the completed booking.");
+    setBusy("draft");
     try {
-      const { invoiceNumber } = await createInvoice({ booking, company, billing, actorId: auth.currentUser?.uid || "" });
-      onCreated(invoiceNumber);
-    } catch (e) {
-      setError(actionError(e));
-    } finally {
-      setBusy(false);
+      await setDoc(doc(db, "invoice_drafts", draft?.id ?? `draft-${booking.id}`), { bookingId: booking.id, documentType: docType, ...billing, recipientState, boardingState, createdBy: auth.currentUser?.uid ?? "", updatedAt: serverTimestamp() });
+      onDone("Invoice draft saved.");
+    } catch {
+      setError("The draft was not saved.");
+      setBusy(null);
     }
   };
+  const issue = async () => {
+    if (!booking) return setError("Choose the completed booking.");
+    if (problems.length) return setError(problems[0]);
+    if (!verified) return setError("Confirm the office verified the customer / supplier locations and tax determination.");
+    setBusy("issue");
+    setError(null);
+    try {
+      const { invoiceNumber } = await createInvoice({ booking, company, billing, actorId: auth.currentUser?.uid || "", extra: { documentType: docType, recipientState: name(recipientCode), boardingState: name(boardingState), placeOfSupply: name(placeOfSupply), taxSplit, sac: rule?.sac, classification: rule?.classification } });
+      if (draft) await deleteDoc(doc(db, "invoice_drafts", draft.id)).catch(() => undefined);
+      onDone(`${docType} ${invoiceNumber} issued.`);
+    } catch (e) {
+      setError(actionError(e));
+      setBusy(null);
+    }
+  };
+  const stateSelect = (value: string, set: (v: string) => void, placeholder: string) => (
+    <select className="ds-select" value={value} onChange={(e) => set(e.target.value)}><option value="">{placeholder}</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}</select>
+  );
 
   return (
-    <Modal
-      title="Issue Tax Invoice"
-      subtitle="Choose a completed trip. Amounts come from the booking's server-priced fare breakdown."
-      onClose={onClose}
-      busy={busy}
-      size="lg"
-      footer={
-        <>
-          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50">
-            Cancel
-          </button>
-          <button onClick={() => void create()} disabled={busy || !booking || !companyReady} className="px-6 py-2 text-[12px] font-bold text-white rounded-lg shadow-sm hover:opacity-90 disabled:opacity-50" style={{ background: "#E21B23" }}>
-            {busy ? "Issuing…" : "Issue Invoice"}
-          </button>
-        </>
-      }
-    >
-      <div className="space-y-4 text-xs">
-        {error && <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl font-semibold">{error}</div>}
-        {!companyReady && <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl font-semibold">Complete Settings → Company (name, GSTIN, address) first.</div>}
-        <label className="block">
-          <span className="text-[11px] font-bold text-[#111]">Completed trip *</span>
-          <select value={bookingId} onChange={(e) => setBookingId(e.target.value)} className="mt-1 w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] bg-white">
+    <Modal title="Create invoice" onClose={onClose} busy={!!busy} size="lg" footNote="Document status and payment status are tracked separately." footer={<><Button onClick={saveDraft} loading={busy === "draft"} disabled={!!busy}>Save draft</Button><Button variant="primary" onClick={issue} loading={busy === "issue"} disabled={!!busy || !companyReady}>Issue invoice</Button></>}>
+      <div className="ds-form-grid">
+        {error && <div className="ds-error" role="alert" data-span="2"><Icon name="circle-alert" />{error}</div>}
+        <label className="ds-field" data-span="2"><span>Completed booking</span>
+          <select className="ds-select" value={bookingId} onChange={(e) => setBookingId(e.target.value)}>
             <option value="">{eligible.length ? "Choose a completed trip without an invoice" : "No completed trips are waiting for an invoice"}</option>
-            {eligible.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.bookingId || b.id} — {b.customer || b.customerName || "Customer"} — ₹{parseAmount(b.fare).toLocaleString("en-IN")}
-              </option>
-            ))}
+            {eligible.map((b) => <option key={b.id} value={b.id}>{b.bookingId || b.id} · {b.pickup} → {b.drop}</option>)}
           </select>
         </label>
-
-        {booking && lines && (
-          <div className="p-4 bg-gray-50 rounded-xl border border-[#E5E5E5] space-y-1.5">
-            <div className="font-semibold text-gray-900">{booking.pickup} → {booking.drop}</div>
-            <div className="text-gray-600">{booking.service || "—"} • {booking.vehicle || booking.vehicleCategory || "—"} • {booking.date} {booking.time}</div>
-            <div className="grid grid-cols-2 gap-x-4 pt-2 border-t border-gray-200">
-              <span>Taxable value</span><span className="text-right font-semibold">{formatCurrency(lines.taxableAmount)}</span>
-              {lines.discount > 0 && (<><span>Discount (included)</span><span className="text-right">- {formatCurrency(lines.discount)}</span></>)}
-              <span>GST ({(lines.gstRate * 100).toFixed(1).replace(/\.0$/, "")}%)</span><span className="text-right font-semibold">{formatCurrency(lines.totalTax)}</span>
-              {lines.tolls > 0 && (<><span>Tolls (non-taxable)</span><span className="text-right">{formatCurrency(lines.tolls)}</span></>)}
-              <span className="font-bold">Invoice total</span><span className="text-right font-bold text-[#E21B23]">{formatCurrency(lines.grandTotal)}</span>
-            </div>
-            <div className="text-gray-500">Payment: {booking.payment === "Paid" ? "recorded" : "not recorded yet (the invoice will show it as pending)"}</div>
-          </div>
-        )}
-
-        <div className="pt-2 border-t border-gray-100">
-          <div className="text-[11px] font-bold text-gray-900 mb-2">Billing details (optional — for business customers)</div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <input value={billing.name} onChange={(e) => setBilling({ ...billing, name: e.target.value })} placeholder={booking?.customer ? `Bill to (default: ${booking.customer})` : "Bill to name"} className="p-2.5 border border-[#E5E5E5] rounded-lg" />
-            <input value={billing.gstin} onChange={(e) => setBilling({ ...billing, gstin: e.target.value.toUpperCase() })} placeholder="Customer GSTIN" maxLength={15} className="p-2.5 border border-[#E5E5E5] rounded-lg font-mono" />
-            <input value={billing.email} onChange={(e) => setBilling({ ...billing, email: e.target.value })} placeholder="Billing email" className="p-2.5 border border-[#E5E5E5] rounded-lg" />
-            <input value={billing.address} onChange={(e) => setBilling({ ...billing, address: e.target.value })} placeholder="Billing address" className="p-2.5 border border-[#E5E5E5] rounded-lg" />
-          </div>
-        </div>
+        <label className="ds-field"><span>Document type</span><select className="ds-select" value={docType} onChange={(e) => setDocType(e.target.value)}><option>Tax invoice</option><option>Bill</option><option>Pro forma</option></select></label>
+        <label className="ds-field"><span>Bill to · Customer / Company</span><input className="ds-input" value={billing.name} placeholder={booking?.customer} onChange={(e) => setBilling({ ...billing, name: e.target.value })} /></label>
+        <label className="ds-field"><span>Customer GSTIN · If registered</span><input className="ds-input" maxLength={15} value={billing.gstin} onChange={(e) => setBilling({ ...billing, gstin: e.target.value.toUpperCase() })} /></label>
+        <label className="ds-field"><span>Billing email</span><input className="ds-input" value={billing.email} onChange={(e) => setBilling({ ...billing, email: e.target.value })} /></label>
+        <label className="ds-field" data-span="2"><span>Billing address</span><input className="ds-input" value={billing.address} onChange={(e) => setBilling({ ...billing, address: e.target.value })} /></label>
+        <label className="ds-field"><span>Recipient state · Address on record</span>{stateSelect(recipientState, setRecipientState, "Select state")}</label>
+        <label className="ds-field"><span>Outward boarding state</span>{stateSelect(boardingState, setBoardingState, "Verify boarding state")}</label>
+        <section className="ds-panel ds-panel-pad" data-span="2">
+          <div className="flex items-center justify-between mb-2"><strong className="text-[13px] text-ink">Automatic tax determination</strong><Badge tone={problems.length ? "amber" : "green"}>{problems.length ? "Review required" : "Ready"}</Badge></div>
+          <dl className="ds-facts" data-cols={3}>
+            <div><dt>Classification / SAC</dt><dd>{rule?.classification ?? "—"} · {policy.approved ? rule?.sac : "Pending approval"}</dd></div>
+            <div><dt>Supplier state</dt><dd>{supplierState ? `${name(supplierState)} (${supplierState})` : "Not determined"}</dd></div>
+            <div><dt>Recipient GST status</dt><dd>{registered ? "Registered" : "Unregistered"}</dd></div>
+            <div><dt>Place of supply</dt><dd>{placeOfSupply ? `${name(placeOfSupply)} (${placeOfSupply})` : "Not determined"}</dd></div>
+            <div><dt>Tax split</dt><dd>{taxSplit}</dd></div>
+            <div><dt>Saved fare / GST</dt><dd>{lines ? `${formatCurrency(lines.taxableAmount)} / ${formatCurrency(lines.totalTax)}` : "—"}</dd></div>
+          </dl>
+          {problems.length > 0 && <ul className="text-[11px] text-warn mt-3 list-disc ml-4">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
+        </section>
+        {booking && lines && <p className="text-[11px] text-muted" data-span="2">Invoice total {formatCurrency(lines.grandTotal)} · {amountInWords(lines.grandTotal)}</p>}
+        <label className="ds-check" data-span="2"><input type="checkbox" checked={verified} onChange={(e) => setVerified(e.target.checked)} />Office verified the customer / supplier locations and tax determination</label>
+        <p className="text-[11px] text-faint" data-span="2">Save a draft while details are being checked. Issue is enabled only after the final trip bill and approved tax determination are ready.</p>
       </div>
+    </Modal>
+  );
+}
+
+export function TaxPolicyDialog({ policy, onClose, onSaved }: { policy: TaxPolicy; onClose: () => void; onSaved: () => void }) {
+  const [p, setP] = useState<TaxPolicy>(policy);
+  const [ok, setOk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const save = async () => {
+    if (p.reference.trim().length < 3) return setError("Record the accountant / tax-policy review reference.");
+    if (!ok) return setError("Confirm the accountant approved the classifications and SAC codes.");
+    setBusy(true);
+    try {
+      await setDoc(doc(db, "settings", "tax_policy"), { ...p, approved: true, approvedByName: auth.currentUser?.displayName || auth.currentUser?.email || "", updatedAt: serverTimestamp() });
+      onSaved();
+    } catch { setError("The policy was not saved."); setBusy(false); }
+  };
+  return (
+    <Modal title="Tax automation · Approved policy" onClose={onClose} busy={busy} size="lg" footer={<Button variant="primary" loading={busy} onClick={save}>Save approved policy</Button>}>
+      <p className="text-[12px] text-muted mb-3">Classify passenger transportation and vehicle rental separately. The engine uses the approved classification, supplier location, recipient GST status and boarding / return locations.</p>
+      {error && <div className="ds-error" role="alert">{error}</div>}
+      <DataTable label="Service classification" minWidth={600} hideTools>
+        <thead><tr><th>SERVICE</th><th>CLASSIFICATION</th><th>APPROVED SAC</th><th>REVIEW</th></tr></thead>
+        <tbody>{SERVICES.map((s) => {
+          const r = p.services[s];
+          return (
+            <tr key={s}>
+              <td>{s}</td>
+              <td><select className="ds-select" value={r.classification} onChange={(e) => setP({ ...p, services: { ...p.services, [s]: { ...r, classification: e.target.value as TaxPolicy["services"][string]["classification"] } } })}><option>Passenger transportation</option><option>Vehicle rental</option></select></td>
+              <td><input className="ds-input" style={{ width: 110 }} value={r.sac} onChange={(e) => setP({ ...p, services: { ...p.services, [s]: { ...r, sac: e.target.value.replace(/\D/g, "").slice(0, 8) } } })} /></td>
+              <td><Badge tone={policy.approved ? "green" : "amber"}>{policy.approved ? "Approved" : "Pending"}</Badge></td>
+            </tr>
+          );
+        })}</tbody>
+      </DataTable>
+      <label className="ds-field mt-4"><span>Accountant / tax-policy review reference</span><input className="ds-input" value={p.reference} onChange={(e) => setP({ ...p, reference: e.target.value })} /></label>
+      <label className="ds-check mt-3"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />Accountant approved the selected service classifications and SAC codes</label>
+      <p className="text-[11px] text-faint mt-3">Passenger transport: IGST Act 12(9). Rental: approved classification and applicable general place-of-supply rule. Return transportation is evaluated as a separate journey. GST rates continue to come from the saved trip tax configuration.</p>
     </Modal>
   );
 }
@@ -457,8 +363,8 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden my-6" role="dialog" aria-modal="true" aria-label={`Invoice ${inv.invoiceNumber}`}>
-        <div className="no-print px-6 py-4 border-b border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
-          <span className="text-[14px] font-bold text-[#111111]">Tax Invoice {inv.invoiceNumber}</span>
+        <div className="no-print px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2">
+          <span className="text-[14px] font-bold text-ink">Tax Invoice {inv.invoiceNumber}</span>
           <div className="flex items-center gap-2">
             <button onClick={() => window.print()} className="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-[12px] font-semibold hover:bg-gray-800 cursor-pointer">
               Print / Save as PDF
@@ -467,7 +373,7 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
           </div>
         </div>
 
-        <div id="printable-invoice" className="p-8 space-y-6 text-[#111111] bg-white max-h-[75vh] overflow-y-auto relative">
+        <div id="printable-invoice" className="p-8 space-y-6 text-ink bg-white max-h-[75vh] overflow-y-auto relative">
           {inv.invoiceStatus === "Cancelled" && (
             <div className="border-2 border-red-500 text-red-600 font-black text-center py-2 rounded-lg tracking-widest">
               VOID{(inv as Invoice & { voidReason?: string }).voidReason ? ` — ${(inv as Invoice & { voidReason?: string }).voidReason}` : ""}
@@ -475,7 +381,7 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
           )}
           <div className="flex justify-between gap-6 border-b pb-6">
             <div>
-              <div className="text-[20px] font-black text-[#E21B23] tracking-wide uppercase">{inv.companySnapshot?.name}</div>
+              <div className="text-[20px] font-black text-brand tracking-wide uppercase">{inv.companySnapshot?.name}</div>
               <div className="text-[11px] text-gray-600 max-w-sm mt-1 whitespace-pre-line">{inv.companySnapshot?.address}</div>
               <div className="text-[11px] text-gray-600 mt-1">
                 {[inv.companySnapshot?.phone && `Phone: ${inv.companySnapshot.phone}`, inv.companySnapshot?.email && `Email: ${inv.companySnapshot.email}`].filter(Boolean).join(" • ")}
@@ -484,7 +390,7 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
             </div>
             <div className="text-right shrink-0">
               <div className="text-[18px] font-black text-gray-900 tracking-wider">TAX INVOICE</div>
-              <div className="text-[13px] font-mono font-bold text-[#E21B23] mt-2">{inv.invoiceNumber}</div>
+              <div className="text-[13px] font-mono font-bold text-brand mt-2">{inv.invoiceNumber}</div>
               <div className="text-[11px] text-gray-600 mt-0.5">Date: {inv.invoiceDate}</div>
               <div className="text-[11px] text-gray-600">Booking: {inv.bookingId}</div>
               <div className="mt-2">
@@ -551,7 +457,7 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
               <div className="flex justify-between text-gray-600"><span>CGST ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.cgst)}</span></div>
               <div className="flex justify-between text-gray-600"><span>SGST ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.sgst)}</span></div>
               {tolls > 0 && <div className="flex justify-between text-gray-600"><span>Tolls (non-taxable):</span><span className="font-semibold text-gray-900">{formatCurrency(tolls)}</span></div>}
-              <div className="flex justify-between text-gray-900 font-bold border-t pt-2 text-sm"><span>Grand Total:</span><span className="text-[#E21B23]">{formatCurrency(inv.grandTotal)}</span></div>
+              <div className="flex justify-between text-gray-900 font-bold border-t pt-2 text-sm"><span>Grand Total:</span><span className="text-brand">{formatCurrency(inv.grandTotal)}</span></div>
               <div className="flex justify-between text-gray-600 pt-1"><span>Paid:</span><span className="font-semibold">{formatCurrency(paid ? inv.grandTotal : 0)}</span></div>
               <div className="flex justify-between text-gray-600"><span>Balance due:</span><span className="font-semibold">{formatCurrency(paid ? 0 : inv.grandTotal)}</span></div>
             </div>

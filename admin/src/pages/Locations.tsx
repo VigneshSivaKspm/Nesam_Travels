@@ -270,8 +270,8 @@ export default function Locations() {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-[#111111] tracking-tight">Locations</h1>
-          <p className="text-xs text-[#666] mt-0.5">
+          <h1 className="text-xl font-bold text-ink tracking-tight">Locations</h1>
+          <p className="text-xs text-muted mt-0.5">
             Manage master cities, airports, railway stations, bus stands, and pickup points across Tamil Nadu & beyond.
           </p>
         </div>
@@ -280,7 +280,7 @@ export default function Locations() {
           <button
             onClick={handleOpenCreate}
             className="px-4 py-2 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-2"
-            style={{ background: "#E21B23" }}
+            style={{ background: "#c1232c" }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -293,52 +293,52 @@ export default function Locations() {
       {/* Summary Dashboard Cards (Only when real data exists) */}
       {locations.length > 0 && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E21B23] flex items-center justify-center font-bold">
+          <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-red-50 text-brand flex items-center justify-center font-bold">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
             </div>
             <div>
-              <div className="text-[11px] font-medium text-[#666]">Total Locations</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.total}</div>
+              <div className="text-[11px] font-medium text-muted">Total Locations</div>
+              <div className="text-lg font-bold text-ink">{stats.total}</div>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
             <div>
-              <div className="text-[11px] font-medium text-[#666]">Cities & Towns</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.cities}</div>
+              <div className="text-[11px] font-medium text-muted">Cities & Towns</div>
+              <div className="text-lg font-bold text-ink">{stats.cities}</div>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
               </svg>
             </div>
             <div>
-              <div className="text-[11px] font-medium text-[#666]">Transport Hubs</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.transportHubs}</div>
+              <div className="text-[11px] font-medium text-muted">Transport Hubs</div>
+              <div className="text-lg font-bold text-ink">{stats.transportHubs}</div>
             </div>
           </div>
 
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
+          <div className="bg-white p-4 rounded-2xl border border-line shadow-xs flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
             <div>
-              <div className="text-[11px] font-medium text-[#666]">Active Locations</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.active}</div>
+              <div className="text-[11px] font-medium text-muted">Active Locations</div>
+              <div className="text-lg font-bold text-ink">{stats.active}</div>
             </div>
           </div>
         </div>
@@ -346,35 +346,35 @@ export default function Locations() {
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-12 text-center shadow-xs">
-          <div className="w-8 h-8 border-2 border-[#E21B23] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs text-[#666]">Loading Master Locations from Firestore…</p>
+        <div className="bg-white rounded-2xl border border-line p-12 text-center shadow-xs">
+          <div className="w-8 h-8 border-2 border-brand border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
+          <p className="text-xs text-muted">Loading Master Locations from Firestore…</p>
         </div>
       ) : locations.length === 0 ? (
         /* Empty State Placeholder (Matches Screenshot & Prompt Instructions) */
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-10 sm:p-16 text-center max-w-2xl mx-auto my-8 shadow-xs">
-          <div className="w-16 h-16 rounded-2xl bg-red-50 text-[#E21B23] flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
+        <div className="bg-white rounded-2xl border border-line p-10 sm:p-16 text-center max-w-2xl mx-auto my-8 shadow-xs">
+          <div className="w-16 h-16 rounded-2xl bg-red-50 text-brand flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
             <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
             </svg>
           </div>
-          <h2 className="text-lg font-bold text-[#111111] mb-2">No locations found.</h2>
-          <p className="text-xs text-[#666] mb-6 leading-relaxed max-w-md mx-auto">
+          <h2 className="text-lg font-bold text-ink mb-2">No locations found.</h2>
+          <p className="text-xs text-muted mb-6 leading-relaxed max-w-md mx-auto">
             Add the cities, airports, stations and pickup points your services operate from.
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={handleOpenCreate}
               className="w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md"
-              style={{ background: "#E21B23" }}
+              style={{ background: "#c1232c" }}
             >
               Add Location
             </button>
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-4 sm:p-5 space-y-4 shadow-xs">
+        <div className="bg-white rounded-2xl border border-line p-4 sm:p-5 space-y-4 shadow-xs">
           {/* Controls Bar: Search, Filters, Sort, View Toggle */}
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
             {/* Search Input */}
@@ -387,7 +387,7 @@ export default function Locations() {
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search locations by name, code, city, district, pincode…"
-                className="w-full pl-9 pr-4 py-2 border border-[#E5E5E5] rounded-xl text-xs focus:outline-none focus:border-[#E21B23] transition-colors"
+                className="w-full pl-9 pr-4 py-2 border border-line rounded-xl text-xs focus:outline-none focus:border-brand transition-colors"
               />
             </div>
 
@@ -397,7 +397,7 @@ export default function Locations() {
               <select
                 value={typeFilter}
                 onChange={(e) => setTypeFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
+                className="px-3 py-2 border border-line rounded-xl text-xs bg-white text-ink focus:outline-none focus:border-brand"
               >
                 <option value="All">All Types</option>
                 {LOCATION_TYPES.map((t) => (
@@ -411,7 +411,7 @@ export default function Locations() {
               <select
                 value={stateFilter}
                 onChange={(e) => setStateFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
+                className="px-3 py-2 border border-line rounded-xl text-xs bg-white text-ink focus:outline-none focus:border-brand"
               >
                 <option value="All">All States</option>
                 {STATES_LIST.map((s) => (
@@ -425,7 +425,7 @@ export default function Locations() {
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
+                className="px-3 py-2 border border-line rounded-xl text-xs bg-white text-ink focus:outline-none focus:border-brand"
               >
                 <option value="All">All Statuses</option>
                 <option value="Active">Active</option>
@@ -436,7 +436,7 @@ export default function Locations() {
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
+                className="px-3 py-2 border border-line rounded-xl text-xs bg-white text-ink focus:outline-none focus:border-brand"
               >
                 <option value="displayOrder">Sort: Order</option>
                 <option value="name">Sort: Name</option>
@@ -445,11 +445,11 @@ export default function Locations() {
               </select>
 
               {/* View Switcher */}
-              <div className="flex border border-[#E5E5E5] rounded-xl p-0.5 bg-gray-50">
+              <div className="flex border border-line rounded-xl p-0.5 bg-gray-50">
                 <button
                   onClick={() => setViewMode("grid")}
                   className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
-                    viewMode === "grid" ? "bg-white text-[#111111] shadow-xs" : "text-[#666] hover:text-[#111111]"
+                    viewMode === "grid" ? "bg-white text-ink shadow-xs" : "text-muted hover:text-ink"
                   }`}
                   title="Grid view"
                 >
@@ -458,7 +458,7 @@ export default function Locations() {
                 <button
                   onClick={() => setViewMode("table")}
                   className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-all ${
-                    viewMode === "table" ? "bg-white text-[#111111] shadow-xs" : "text-[#666] hover:text-[#111111]"
+                    viewMode === "table" ? "bg-white text-ink shadow-xs" : "text-muted hover:text-ink"
                   }`}
                   title="Table view"
                 >
@@ -469,16 +469,16 @@ export default function Locations() {
           </div>
 
           {/* Results Info */}
-          <div className="text-[11px] text-[#666] flex items-center justify-between border-t border-[#E5E5E5] pt-3">
+          <div className="text-[11px] text-muted flex items-center justify-between border-t border-line pt-3">
             <span>
-              Showing <strong className="text-[#111111]">{filteredLocations.length}</strong> of {locations.length} location records
+              Showing <strong className="text-ink">{filteredLocations.length}</strong> of {locations.length} location records
             </span>
           </div>
 
           {/* Locations Directory Display */}
           {filteredLocations.length === 0 ? (
-            <div className="p-8 text-center border border-dashed border-[#E5E5E5] rounded-xl bg-gray-50">
-              <p className="text-xs text-[#666]">No locations match your current search or filters.</p>
+            <div className="p-8 text-center border border-dashed border-line rounded-xl bg-gray-50">
+              <p className="text-xs text-muted">No locations match your current search or filters.</p>
               <button
                 onClick={() => {
                   setSearch("");
@@ -486,7 +486,7 @@ export default function Locations() {
                   setStateFilter("All");
                   setStatusFilter("All");
                 }}
-                className="mt-2 text-xs font-semibold text-[#E21B23] hover:underline"
+                className="mt-2 text-xs font-semibold text-brand hover:underline"
               >
                 Clear all filters
               </button>
@@ -499,7 +499,7 @@ export default function Locations() {
                 return (
                   <div
                     key={loc.id}
-                    className="bg-white border border-[#E5E5E5] rounded-2xl p-4 space-y-3 hover:border-gray-300 transition-all hover:shadow-sm flex flex-col justify-between"
+                    className="bg-white border border-line rounded-2xl p-4 space-y-3 hover:border-gray-300 transition-all hover:shadow-sm flex flex-col justify-between"
                   >
                     <div className="space-y-2">
                       {/* Top Header */}
@@ -515,7 +515,7 @@ export default function Locations() {
                               </span>
                             )}
                           </div>
-                          <h3 className="text-sm font-bold text-[#111111] mt-1.5 leading-snug">{loc.name}</h3>
+                          <h3 className="text-sm font-bold text-ink mt-1.5 leading-snug">{loc.name}</h3>
                         </div>
 
                         <span
@@ -530,8 +530,8 @@ export default function Locations() {
                       </div>
 
                       {/* City & Geography */}
-                      <div className="text-xs text-[#666] space-y-1">
-                        <div className="flex items-center gap-1 text-[#111111] font-medium">
+                      <div className="text-xs text-muted space-y-1">
+                        <div className="flex items-center gap-1 text-ink font-medium">
                           <svg className="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                           </svg>
@@ -542,11 +542,11 @@ export default function Locations() {
                         </div>
 
                         {loc.area && (
-                          <div className="text-[11px] text-[#666] pl-4">Locality: {loc.area}</div>
+                          <div className="text-[11px] text-muted pl-4">Locality: {loc.area}</div>
                         )}
 
                         {loc.address && (
-                          <p className="text-[11px] text-[#666] line-clamp-2 pl-4 italic">
+                          <p className="text-[11px] text-muted line-clamp-2 pl-4 italic">
                             "{loc.address}"
                           </p>
                         )}
@@ -580,7 +580,7 @@ export default function Locations() {
                     </div>
 
                     {/* Card Actions Footer */}
-                    <div className="flex items-center justify-between pt-3 border-t border-[#E5E5E5]">
+                    <div className="flex items-center justify-between pt-3 border-t border-line">
                       <button
                         onClick={() => handleToggleStatus(loc)}
                         className={`text-[11px] font-semibold ${
@@ -593,7 +593,7 @@ export default function Locations() {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEdit(loc)}
-                          className="px-2.5 py-1 text-[11px] font-semibold text-[#111111] bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+                          className="px-2.5 py-1 text-[11px] font-semibold text-ink bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
                         >
                           Edit
                         </button>
@@ -611,9 +611,9 @@ export default function Locations() {
             </div>
           ) : (
             /* Table View */
-            <div className="overflow-x-auto border border-[#E5E5E5] rounded-xl">
+            <div className="overflow-x-auto border border-line rounded-xl">
               <table className="w-full text-left text-xs">
-                <thead className="bg-gray-50 border-b border-[#E5E5E5] text-[#666] font-semibold">
+                <thead className="bg-gray-50 border-b border-line text-muted font-semibold">
                   <tr>
                     <th className="py-3 px-3">Location</th>
                     <th className="py-3 px-3">Type</th>
@@ -624,12 +624,12 @@ export default function Locations() {
                     <th className="py-3 px-3 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E5E5E5]">
+                <tbody className="divide-y divide-line">
                   {filteredLocations.map((loc) => {
                     const badge = TYPE_BADGES[loc.type] || TYPE_BADGES.Other;
                     return (
                       <tr key={loc.id} className="hover:bg-gray-50/80 transition-colors">
-                        <td className="py-3 px-3 font-semibold text-[#111111]">
+                        <td className="py-3 px-3 font-semibold text-ink">
                           <div>{loc.name}</div>
                           {loc.code && <div className="text-[10px] font-mono text-gray-500">{loc.code}</div>}
                         </td>
@@ -638,10 +638,10 @@ export default function Locations() {
                             {loc.type}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-[#111111]">
+                        <td className="py-3 px-3 text-ink">
                           {loc.city}, {loc.state}
                         </td>
-                        <td className="py-3 px-3 text-[#666] font-mono">{loc.pincode || "—"}</td>
+                        <td className="py-3 px-3 text-muted font-mono">{loc.pincode || "—"}</td>
                         <td className="py-3 px-3">
                           <div className="flex gap-1">
                             {loc.pickupEnabled && <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">Pickup</span>}
@@ -662,7 +662,7 @@ export default function Locations() {
                         <td className="py-3 px-3 text-right space-x-2">
                           <button
                             onClick={() => handleOpenEdit(loc)}
-                            className="text-[#111111] hover:underline font-semibold"
+                            className="text-ink hover:underline font-semibold"
                           >
                             Edit
                           </button>
@@ -686,14 +686,14 @@ export default function Locations() {
       {/* Add / Edit Location Modal Form */}
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-[#E5E5E5] max-h-[92vh] flex flex-col">
+          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-line max-h-[92vh] flex flex-col">
             {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-[#E5E5E5] flex items-center justify-between bg-gray-50/50">
+            <div className="p-4 sm:p-5 border-b border-line flex items-center justify-between bg-gray-50/50">
               <div>
-                <h3 className="text-base font-bold text-[#111111]">
+                <h3 className="text-base font-bold text-ink">
                   {editingLocation ? "Edit Master Location" : "Add Master Location"}
                 </h3>
-                <p className="text-[11px] text-[#666]">
+                <p className="text-[11px] text-muted">
                   Configure reusable location data for bookings, services, and tour packages.
                 </p>
               </div>
@@ -706,14 +706,14 @@ export default function Locations() {
             </div>
 
             {/* Modal Form Tabs */}
-            <div className="flex border-b border-[#E5E5E5] bg-white px-5 pt-2 gap-4 text-xs font-semibold">
+            <div className="flex border-b border-line bg-white px-5 pt-2 gap-4 text-xs font-semibold">
               <button
                 type="button"
                 onClick={() => setActiveTab("basic")}
                 className={`pb-2.5 border-b-2 transition-all ${
                   activeTab === "basic"
-                    ? "border-[#E21B23] text-[#E21B23]"
-                    : "border-transparent text-[#666] hover:text-[#111111]"
+                    ? "border-brand text-brand"
+                    : "border-transparent text-muted hover:text-ink"
                 }`}
               >
                 1. Basic Info & Type
@@ -724,8 +724,8 @@ export default function Locations() {
                 onClick={() => setActiveTab("geo")}
                 className={`pb-2.5 border-b-2 transition-all ${
                   activeTab === "geo"
-                    ? "border-[#E21B23] text-[#E21B23]"
-                    : "border-transparent text-[#666] hover:text-[#111111]"
+                    ? "border-brand text-brand"
+                    : "border-transparent text-muted hover:text-ink"
                 }`}
               >
                 2. Geography & Coordinates
@@ -736,8 +736,8 @@ export default function Locations() {
                 onClick={() => setActiveTab("services")}
                 className={`pb-2.5 border-b-2 transition-all ${
                   activeTab === "services"
-                    ? "border-[#E21B23] text-[#E21B23]"
-                    : "border-transparent text-[#666] hover:text-[#111111]"
+                    ? "border-brand text-brand"
+                    : "border-transparent text-muted hover:text-ink"
                 }`}
               >
                 3. Availability & Services
@@ -761,7 +761,7 @@ export default function Locations() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Location Name *
                       </label>
                       <input
@@ -769,20 +769,20 @@ export default function Locations() {
                         value={formData.name}
                         onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                         placeholder="e.g. Chennai International Airport (MAA), Madurai Jn"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                         required
                       />
                       {errNode("name")}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Location Type *
                       </label>
                       <select
                         value={formData.type}
                         onChange={(e) => setFormData({ ...formData, type: e.target.value as LocationType })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs bg-white focus:border-brand focus:outline-none"
                       >
                         {LOCATION_TYPES.map((t) => (
                           <option key={t} value={t}>
@@ -793,7 +793,7 @@ export default function Locations() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Location Code / IATA
                       </label>
                       <input
@@ -801,19 +801,19 @@ export default function Locations() {
                         value={formData.code}
                         onChange={(e) => setFormData({ ...formData, code: e.target.value })}
                         placeholder="e.g. MAA, CJB, MDU"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs uppercase font-mono focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs uppercase font-mono focus:border-brand focus:outline-none"
                       />
                       {errNode("code")}
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Parent Location (Optional Hierarchy)
                       </label>
                       <select
                         value={formData.parentLocationId}
                         onChange={(e) => setFormData({ ...formData, parentLocationId: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs bg-white focus:border-brand focus:outline-none"
                       >
                         <option value="">No Parent (Top-level)</option>
                         {locations
@@ -825,7 +825,7 @@ export default function Locations() {
                           ))}
                       </select>
                       {errNode("parentLocationId")}
-                      <span className="text-[10px] text-[#666] mt-0.5 block">
+                      <span className="text-[10px] text-muted mt-0.5 block">
                         Allows linking an airport or bus stand to a master parent city.
                       </span>
                     </div>
@@ -838,13 +838,13 @@ export default function Locations() {
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         State *
                       </label>
                       <select
                         value={formData.state}
                         onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs bg-white focus:border-brand focus:outline-none"
                       >
                         {STATES_LIST.map((s) => (
                           <option key={s} value={s}>
@@ -856,7 +856,7 @@ export default function Locations() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         District / Region
                       </label>
                       <input
@@ -864,12 +864,12 @@ export default function Locations() {
                         value={formData.district}
                         onChange={(e) => setFormData({ ...formData, district: e.target.value })}
                         placeholder="e.g. Chengalpattu, Coimbatore, Erode"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         City / Town *
                       </label>
                       <input
@@ -877,14 +877,14 @@ export default function Locations() {
                         value={formData.city}
                         onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                         placeholder="e.g. Chennai, Coimbatore, Salem"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                         required
                       />
                       {errNode("city")}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Area / Locality
                       </label>
                       <input
@@ -892,12 +892,12 @@ export default function Locations() {
                         value={formData.area}
                         onChange={(e) => setFormData({ ...formData, area: e.target.value })}
                         placeholder="e.g. Meenambakkam, Peelamedu, Gandhipuram"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Pincode
                       </label>
                       <input
@@ -905,13 +905,13 @@ export default function Locations() {
                         value={formData.pincode}
                         onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                         placeholder="e.g. 600027, 641014"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs font-mono focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs font-mono focus:border-brand focus:outline-none"
                       />
                       {errNode("pincode")}
                     </div>
 
                     <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Full Address Description
                       </label>
                       <textarea
@@ -919,13 +919,13 @@ export default function Locations() {
                         value={formData.address}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         placeholder="Full street address, landmark description..."
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                       />
                     </div>
 
                     {/* Coordinates */}
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Latitude (-90 to +90)
                       </label>
                       <input
@@ -933,13 +933,13 @@ export default function Locations() {
                         value={formData.lat}
                         onChange={(e) => setFormData({ ...formData, lat: e.target.value })}
                         placeholder="e.g. 12.9941"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs font-mono focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs font-mono focus:border-brand focus:outline-none"
                       />
                       {errNode("lat")}
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Longitude (-180 to +180)
                       </label>
                       <input
@@ -947,7 +947,7 @@ export default function Locations() {
                         value={formData.lng}
                         onChange={(e) => setFormData({ ...formData, lng: e.target.value })}
                         placeholder="e.g. 80.1709"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs font-mono focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs font-mono focus:border-brand focus:outline-none"
                       />
                       {errNode("lng")}
                     </div>
@@ -958,48 +958,48 @@ export default function Locations() {
               {/* TAB 3: AVAILABILITY & SERVICES */}
               {activeTab === "services" && (
                 <div className="space-y-4">
-                  <div className="p-3 bg-gray-50 border border-[#E5E5E5] rounded-xl space-y-2">
-                    <div className="text-[11px] font-bold text-[#111111]">Booking Availability Config</div>
+                  <div className="p-3 bg-gray-50 border border-line rounded-xl space-y-2">
+                    <div className="text-[11px] font-bold text-ink">Booking Availability Config</div>
                     {errNode("usage")}
                   <div className="grid grid-cols-2 gap-2 text-xs">
-                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-[#E5E5E5]">
+                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-line">
                         <input
                           type="checkbox"
                           checked={formData.pickupEnabled}
                           onChange={(e) => setFormData({ ...formData, pickupEnabled: e.target.checked })}
-                          className="accent-[#E21B23]"
+                          className="accent-brand"
                         />
-                        <span className="text-[#111111] font-medium">Pickup Allowed</span>
+                        <span className="text-ink font-medium">Pickup Allowed</span>
                       </label>
 
-                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-[#E5E5E5]">
+                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-line">
                         <input
                           type="checkbox"
                           checked={formData.dropEnabled}
                           onChange={(e) => setFormData({ ...formData, dropEnabled: e.target.checked })}
-                          className="accent-[#E21B23]"
+                          className="accent-brand"
                         />
-                        <span className="text-[#111111] font-medium">Drop Allowed</span>
+                        <span className="text-ink font-medium">Drop Allowed</span>
                       </label>
 
-                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-[#E5E5E5]">
+                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-line">
                         <input
                           type="checkbox"
                           checked={formData.onlineBookingEnabled}
                           onChange={(e) => setFormData({ ...formData, onlineBookingEnabled: e.target.checked })}
-                          className="accent-[#E21B23]"
+                          className="accent-brand"
                         />
-                        <span className="text-[#111111] font-medium">Online Customer Booking</span>
+                        <span className="text-ink font-medium">Online Customer Booking</span>
                       </label>
 
-                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-[#E5E5E5]">
+                      <label className="flex items-center gap-2 cursor-pointer p-2 bg-white rounded-lg border border-line">
                         <input
                           type="checkbox"
                           checked={formData.adminBookingEnabled}
                           onChange={(e) => setFormData({ ...formData, adminBookingEnabled: e.target.checked })}
-                          className="accent-[#E21B23]"
+                          className="accent-brand"
                         />
-                        <span className="text-[#111111] font-medium">Admin Booking Only</span>
+                        <span className="text-ink font-medium">Admin Booking Only</span>
                       </label>
                     </div>
                   </div>
@@ -1007,13 +1007,13 @@ export default function Locations() {
                   {/* Status & Display Order */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Master Status
                       </label>
                       <select
                         value={formData.status}
                         onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs bg-white focus:border-brand focus:outline-none"
                       >
                         <option value="Active">Active</option>
                         <option value="Inactive">Inactive</option>
@@ -1021,14 +1021,14 @@ export default function Locations() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                      <label className="block text-[11px] font-semibold text-ink mb-1">
                         Display Order Sequence
                       </label>
                       <input
                         type="number"
                         value={formData.displayOrder}
                         onChange={(e) => setFormData({ ...formData, displayOrder: parseInt(e.target.value) || 1 })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
+                        className="w-full p-2.5 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
                       />
                       {errNode("displayOrder")}
                     </div>
@@ -1036,12 +1036,12 @@ export default function Locations() {
 
                   {/* Associated Services */}
                   <div>
-                    <label className="block text-[11px] font-semibold text-[#111111] mb-1">
+                    <label className="block text-[11px] font-semibold text-ink mb-1">
                       Associated Travel Services
                     </label>
-                    <div className="border border-[#E5E5E5] rounded-xl p-3 bg-white space-y-1.5 max-h-36 overflow-y-auto">
+                    <div className="border border-line rounded-xl p-3 bg-white space-y-1.5 max-h-36 overflow-y-auto">
                       {services.length === 0 ? (
-                        <div className="text-[11px] text-[#666]">No travel services configured yet.</div>
+                        <div className="text-[11px] text-muted">No travel services configured yet.</div>
                       ) : (
                         services.map((srv) => (
                           <label key={srv.id} className="flex items-center gap-2 cursor-pointer text-xs">
@@ -1054,10 +1054,10 @@ export default function Locations() {
                                   : formData.serviceIds.filter((id) => id !== srv.id);
                                 setFormData({ ...formData, serviceIds: next });
                               }}
-                              className="accent-[#E21B23]"
+                              className="accent-brand"
                             />
-                            <span className="text-[#111111] font-medium">{srv.name}</span>
-                            <span className="text-[10px] text-[#666]">({srv.serviceType})</span>
+                            <span className="text-ink font-medium">{srv.name}</span>
+                            <span className="text-[10px] text-muted">({srv.serviceType})</span>
                           </label>
                         ))
                       )}
@@ -1067,13 +1067,13 @@ export default function Locations() {
               )}
 
               {/* Modal Footer */}
-              <div className="pt-4 border-t border-[#E5E5E5] flex items-center justify-between gap-3">
+              <div className="pt-4 border-t border-line flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   {activeTab !== "basic" && (
                     <button
                       type="button"
                       onClick={() => setActiveTab(activeTab === "services" ? "geo" : "basic")}
-                      className="px-3 py-2 border border-[#E5E5E5] text-[#111111] rounded-xl font-semibold text-xs"
+                      className="px-3 py-2 border border-line text-ink rounded-xl font-semibold text-xs"
                     >
                       ← Back
                     </button>
@@ -1082,7 +1082,7 @@ export default function Locations() {
                     <button
                       type="button"
                       onClick={() => setActiveTab(activeTab === "basic" ? "geo" : "services")}
-                      className="px-3 py-2 bg-gray-100 text-[#111111] rounded-xl font-semibold text-xs hover:bg-gray-200"
+                      className="px-3 py-2 bg-gray-100 text-ink rounded-xl font-semibold text-xs hover:bg-gray-200"
                     >
                       Next Step →
                     </button>
@@ -1093,7 +1093,7 @@ export default function Locations() {
                   <button
                     type="button"
                     onClick={() => setShowModal(false)}
-                    className="px-4 py-2 border border-[#E5E5E5] text-[#666] rounded-xl font-semibold text-xs hover:bg-gray-50"
+                    className="px-4 py-2 border border-line text-muted rounded-xl font-semibold text-xs hover:bg-gray-50"
                   >
                     Cancel
                   </button>
@@ -1101,7 +1101,7 @@ export default function Locations() {
                     type="submit"
                     disabled={isSubmitting}
                     className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
-                    style={{ background: "#E21B23" }}
+                    style={{ background: "#c1232c" }}
                   >
                     {isSubmitting && (
                       <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -1122,7 +1122,7 @@ export default function Locations() {
           busy={deleteBusy}
           footer={
             <>
-              <button onClick={() => setDeletingLocation(null)} disabled={deleteBusy} className="px-4 py-2 border border-[#E5E5E5] text-[#111111] text-xs font-semibold rounded-xl disabled:opacity-50">
+              <button onClick={() => setDeletingLocation(null)} disabled={deleteBusy} className="px-4 py-2 border border-line text-ink text-xs font-semibold rounded-xl disabled:opacity-50">
                 Cancel
               </button>
               {deletingLocation.status === "Active" && (
@@ -1147,7 +1147,7 @@ export default function Locations() {
             </>
           }
         >
-          <div className="space-y-3 text-xs text-[#444]">
+          <div className="space-y-3 text-xs text-body">
             {!deleteRefs && !deleteError && <p>Checking where this location is used…</p>}
             {deleteRefs && blockingRefs > 0 && (
               <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 rounded-xl">

@@ -47,26 +47,26 @@ export default function SettlementQueue({ onOpenBooking }: { onOpenBooking?: (id
       {error && <Notice tone="error">{error}</Notice>}
       <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${filter === f ? "bg-[#E21B23] text-white border-[#E21B23]" : "bg-white text-[#333] border-[#D4D4D4]"}`}>{f}</button>
+          <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border ${filter === f ? "bg-brand text-white border-brand" : "bg-white text-body border-line-strong"}`}>{f}</button>
         ))}
-        <span className="ml-auto text-sm font-semibold text-[#111]">Outstanding in view: ₹{total.toLocaleString("en-IN")}</span>
+        <span className="ml-auto text-sm font-semibold text-ink">Outstanding in view: ₹{total.toLocaleString("en-IN")}</span>
       </div>
-      <div className="bg-white rounded-xl border border-[#E5E5E5] overflow-x-auto">
+      <div className="bg-white rounded-xl border border-line overflow-x-auto">
         <table className="w-full min-w-[760px] text-sm">
-          <thead><tr className="text-left text-xs text-[#555] uppercase"><th className="p-3">Booking</th><th>Partner</th><th>Amount</th><th>Due</th><th>Status</th><th /></tr></thead>
+          <thead><tr className="text-left text-xs text-muted uppercase"><th className="p-3">Booking</th><th>Partner</th><th>Amount</th><th>Due</th><th>Status</th><th /></tr></thead>
           <tbody>
-            {rows === null && <tr><td colSpan={6} className="p-6 text-center text-[#555]">Loading…</td></tr>}
-            {rows !== null && shown.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-[#555]">No settlements in this view.</td></tr>}
+            {rows === null && <tr><td colSpan={6} className="p-6 text-center text-muted">Loading…</td></tr>}
+            {rows !== null && shown.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted">No settlements in this view.</td></tr>}
             {shown.map((r) => {
               const overdue = (r.dueAt?.toMillis?.() ?? Infinity) < now && !["Paid", "Wallet"].includes(r.status);
               return (
-                <tr key={r.id} className="border-t border-[#F0F0F0]">
+                <tr key={r.id} className="border-t border-line-soft">
                   <td className="p-3 font-semibold">{r.bookingCode || r.id}</td>
-                  <td>{r.partnerName || r.partnerType}<div className="text-xs text-[#555] capitalize">{r.partnerType}</div></td>
+                  <td>{r.partnerName || r.partnerType}<div className="text-xs text-muted capitalize">{r.partnerType}</div></td>
                   <td className="font-bold">₹{r.amount.toLocaleString("en-IN")}</td>
                   <td className={overdue ? "text-red-700 font-semibold" : ""}>{when(r.dueAt)}{overdue ? " · overdue" : ""}</td>
-                  <td>{r.status}{r.channel === "wallet" ? " (wallet)" : ""}{r.reference ? <div className="text-xs text-[#555]">{r.reference}</div> : null}</td>
-                  <td className="pr-3 text-right">{onOpenBooking && <button onClick={() => onOpenBooking(r.id)} className="text-[#E21B23] font-semibold hover:underline">Open</button>}</td>
+                  <td>{r.status}{r.channel === "wallet" ? " (wallet)" : ""}{r.reference ? <div className="text-xs text-muted">{r.reference}</div> : null}</td>
+                  <td className="pr-3 text-right">{onOpenBooking && <button onClick={() => onOpenBooking(r.id)} className="text-brand font-semibold hover:underline">Open</button>}</td>
                 </tr>
               );
             })}

@@ -1,172 +1,140 @@
-import { useState, useEffect, useRef } from "react";
-import { CATEGORIES, CATEGORY_LABEL, TONE_CLASSES, categoryOf, ctaLabelOf, toneOf, type NotificationCategory } from "../services/notificationModel";
+import { useState } from "react";
+import { CATEGORY_LABEL, TONE_CLASSES, categoryOf, ctaLabelOf, toneOf } from "../services/notificationModel";
 import { useNotifications } from "./NotificationHost";
 import { formatTimeAgo } from "../services/adminNotificationService";
+import { useAccess } from "./AccessContext";
+import { canAccessPage } from "../config/permissions";
+import Button from "./ui/Button";
+import { AlertsDialog, useBookingAlerts } from "./shell/AlertDialogs";
+import { LockScreen, PrivacyDialog, ProfileDialog, SearchDialog } from "./shell/HeaderDialogs";
 
 interface HeaderProps {
   title: string;
   breadcrumb: string[];
   onNavigate: (page: string) => void;
+  /** Opens a page or, with a booking id, that booking's details. */
+  onOpen: (page: string, bookingId?: string) => void;
   onCreateBooking?: () => void;
+  onOpenMenu: () => void;
   userName?: string | null;
   userEmail?: string | null;
   userRole?: string | null;
   onSignOut?: () => void;
 }
 
-export default function Header({ title, breadcrumb, onNavigate, onCreateBooking, userName, userEmail, userRole, onSignOut }: HeaderProps) {
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfile, setShowProfile] = useState(false);
-  const [tab, setTab] = useState<"all" | NotificationCategory>("all");
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const { notifications, unread, unreadByCategory, loading, markAllRead, open, soundOn, setSoundOn, audio } = useNotifications();
+type Sheet = "alerts" | "privacy" | "search" | "profile" | null;
 
+/** Master Admin top bar: lock · sign out · privacy · search · new booking · alerts · account. */
+export default function Header({ title, onNavigate, onOpen, onCreateBooking, onOpenMenu, userName, userEmail, userRole, onSignOut }: HeaderProps) {
+  const [sheet, setSheet] = useState<Sheet>(null);
+  const [locked, setLocked] = useState(false);
+  const access = useAccess();
+  const canOps = canAccessPage(access, "bookings");
+  const { rows } = useBookingAlerts(canOps);
+  const { unread } = useNotifications();
   const displayName = userName || userEmail?.split("@")[0] || "Admin";
-  const initials = displayName.split(/\s+/).map((w) => w[0]).filter(Boolean).join("").slice(0, 2).toUpperCase() || "A";
-  const roleLabel = userRole ? userRole.charAt(0).toUpperCase() + userRole.slice(1) : "Administrator";
-
-  useEffect(() => {
-    if (!showNotifications) return;
-    const onDown = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowNotifications(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShowNotifications(false);
-    document.addEventListener("mousedown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [showNotifications]);
-
-  const list = (tab === "all" ? notifications : notifications.filter((n) => categoryOf(n) === tab)).slice(0, 40);
+  const roleLabel = (userRole || "Administrator").toUpperCase();
+  const alertCount = (canOps ? rows.length : 0) + unread;
 
   return (
-    <header className="sticky top-0 z-30 bg-white border-b border-[#E5E5E5] h-16 flex items-center px-4 md:px-6 gap-3">
-      <div className="flex-1 min-w-0 pl-12 lg:pl-0">
-        <h1 className="text-[17px] font-bold text-[#111111] leading-tight truncate">{title}</h1>
-        <div className="hidden sm:flex items-center gap-1.5 text-xs text-[#666]">
-          <span>Nesam Admin</span>
-          {breadcrumb.map((crumb, i) => (
-            <span key={i} className="flex items-center gap-1.5">
-              <span>/</span>
-              <span className={i === breadcrumb.length - 1 ? "text-[#E21B23] font-medium" : ""}>{crumb}</span>
-            </span>
-          ))}
+    <header className="ds-header">
+      <div className="flex items-center gap-3 min-w-0">
+        <Button className="ds-menu-toggle" variant="secondary" iconOnly icon="menu" aria-label="Open navigation menu" onClick={onOpenMenu} />
+        <div className="ds-header-title">
+          <span>{roleLabel} · DESKTOP</span>
+          <strong>{title}</strong>
         </div>
       </div>
 
-      {onCreateBooking && (
-        <button className="flex items-center gap-2 px-3 sm:px-4 py-2.5 text-sm font-semibold text-white rounded-lg bg-[#E21B23] hover:bg-[#c4151c] active:scale-95 transition-all" onClick={onCreateBooking}>
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-          <span className="hidden sm:inline">Create New Booking</span>
-          <span className="sm:hidden">New</span>
-        </button>
+      <div className="ds-header-actions">
+        <Button variant="ghost" iconOnly icon="lock" onClick={() => setLocked(true)} aria-label="Lock workspace" title="Lock workspace" />
+        <Button variant="ghost" iconOnly icon="log-out" onClick={() => onSignOut?.()} aria-label="Sign out" title="Sign out" />
+        <Button iconOnly icon="shield-check" onClick={() => setSheet("privacy")} aria-label="Privacy" title="Customer privacy & access" />
+        <Button iconOnly icon="search" onClick={() => setSheet("search")} aria-label="Search records" title="Search records" />
+        {onCreateBooking && (
+          <Button variant="primary" icon="plus" onClick={onCreateBooking}>
+            <span className="ds-btn-label">New booking</span>
+          </Button>
+        )}
+        <Button icon="bell" onClick={() => setSheet("alerts")} aria-label={`Alerts, ${alertCount}`}>
+          <span className="ds-btn-label">Alerts · {alertCount > 99 ? "99+" : alertCount}</span>
+        </Button>
+        <Button variant="ghost" icon="shield-check" onClick={() => setSheet("profile")} aria-label={`Account, ${displayName}`}>
+          <span className="ds-btn-label">{access.isSuper ? "Super Admin" : displayName}</span>
+        </Button>
+      </div>
+
+      {sheet === "alerts" && <AlertsSheet canOps={canOps} onClose={() => setSheet(null)} onOpen={onOpen} onNavigate={onNavigate} />}
+      {sheet === "privacy" && <PrivacyDialog isSuper={access.isSuper} onClose={() => setSheet(null)} />}
+      {sheet === "search" && <SearchDialog onClose={() => setSheet(null)} onOpen={onOpen} />}
+      {sheet === "profile" && (
+        <ProfileDialog access={access} name={displayName} email={userEmail || ""} onClose={() => setSheet(null)} onNavigate={onNavigate} onSignOut={() => onSignOut?.()} />
       )}
-
-      {/* Notifications */}
-      <div className="relative" ref={dropdownRef}>
-        <button
-          onClick={() => { setShowNotifications(!showNotifications); setShowProfile(false); }}
-          className="relative p-2 text-[#555] hover:text-[#111] hover:bg-[#F5F5F5] rounded-lg transition-all"
-          aria-label={`Notifications${unread ? `, ${unread} unread` : ""}`}
-          aria-expanded={showNotifications}
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} aria-hidden="true">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-          </svg>
-          {unread > 0 && (
-            <span className="absolute top-0.5 right-0.5 min-w-[18px] h-[18px] px-1 text-[11px] font-bold text-white rounded-full flex items-center justify-center bg-[#E21B23]">{unread > 99 ? "99+" : unread}</span>
-          )}
-        </button>
-
-        {showNotifications && (
-          <div className="absolute right-0 top-12 w-[min(26rem,calc(100vw-1.5rem))] bg-white rounded-xl shadow-2xl border border-[#E5E5E5] z-50 overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E5E5] bg-[#FAFAFA]">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-[#111]">Notifications</span>
-                {unread > 0 && <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white bg-[#E21B23]">{unread} unread</span>}
-              </div>
-              {unread > 0 && <button onClick={() => markAllRead()} className="text-xs font-semibold text-[#555] hover:text-[#E21B23]">Mark all read</button>}
-            </div>
-
-            <div role="tablist" aria-label="Notification categories" className="flex gap-1 overflow-x-auto px-2 pt-2 border-b border-[#EEE]">
-              {(["all", ...CATEGORIES] as const).map((k) => {
-                const count = k === "all" ? unread : unreadByCategory[k];
-                return (
-                  <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-2.5 py-2 text-xs font-semibold whitespace-nowrap border-b-2 -mb-px ${tab === k ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#555] hover:text-[#111]"}`}>
-                    {k === "all" ? "All" : CATEGORY_LABEL[k]}{count > 0 && <span className="ml-1 px-1.5 rounded-full bg-[#E21B23] text-white text-[10px]">{count}</span>}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="max-h-80 overflow-y-auto divide-y divide-[#F0F0F0]">
-              {loading ? (
-                <div className="py-8 text-center text-sm text-[#555]" role="status">Loading…</div>
-              ) : list.length === 0 ? (
-                <div className="py-8 px-4 text-center">
-                  <div className="text-sm font-semibold text-[#111]">All caught up</div>
-                  <div className="text-xs text-[#555] mt-0.5">{tab === "all" ? "No notifications or alerts." : `No ${CATEGORY_LABEL[tab].toLowerCase()} notifications.`}</div>
-                </div>
-              ) : (
-                list.map((n) => {
-                  const tone = TONE_CLASSES[toneOf(n)];
-                  return (
-                    <button key={n.id} onClick={() => { setShowNotifications(false); open(n); }} className={`w-full text-left p-3.5 flex gap-3 items-start group ${!n.read ? "bg-[#FFF8F8] hover:bg-[#FFF0F0]" : "bg-white hover:bg-[#F9FAFB]"}`}>
-                      <span className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ background: n.read ? "#D1D5DB" : tone.dot }} aria-hidden="true" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-1.5 mb-0.5">
-                          <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wide ${tone.chip}`}>{CATEGORY_LABEL[categoryOf(n)]}</span>
-                          <span className="text-xs text-[#555] shrink-0">{n.time || formatTimeAgo(n.createdAt)}</span>
-                        </div>
-                        <div className="text-sm font-semibold text-[#111] group-hover:text-[#E21B23] leading-snug">{n.title}</div>
-                        <div className="text-xs text-[#444] mt-0.5 line-clamp-2">{n.message}</div>
-                        <div className="mt-1 text-xs font-semibold text-[#E21B23]">{ctaLabelOf(n)} →</div>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-
-            <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-t border-[#E5E5E5] bg-[#FAFAFA]">
-              <label className="flex items-center gap-2 text-xs font-semibold text-[#333]">
-                <input type="checkbox" checked={soundOn} onChange={(e) => setSoundOn(e.target.checked)} className="w-4 h-4 accent-[#E21B23]" />
-                Sound
-                {soundOn && audio === "locked" && <span className="font-normal text-amber-800">(click anywhere once to enable)</span>}
-                {audio === "unsupported" && <span className="font-normal text-[#777]">(not supported)</span>}
-              </label>
-              <button className="text-sm font-bold text-[#E21B23] hover:underline" onClick={() => { setShowNotifications(false); onNavigate("notifications"); }}>
-                Open Notification Center →
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Profile */}
-      <div className="relative">
-        <button onClick={() => { setShowProfile(!showProfile); setShowNotifications(false); }} className="flex items-center gap-2 pl-2 pr-2 md:pr-3 py-1.5 hover:bg-[#F5F5F5] rounded-lg transition-all" aria-label="Account menu">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 uppercase bg-[#E21B23]">{initials}</div>
-          <div className="hidden md:block text-left">
-            <div className="text-sm font-semibold text-[#111] leading-tight">{displayName}</div>
-            <div className="text-xs text-[#555] leading-tight">{roleLabel}</div>
-          </div>
-        </button>
-        {showProfile && (
-          <div className="absolute right-0 top-12 w-56 bg-white rounded-xl shadow-2xl border border-[#E5E5E5] z-50 overflow-hidden">
-            <div className="px-4 py-3 border-b border-[#E5E5E5]">
-              <div className="text-sm font-semibold text-[#111]">{displayName}</div>
-              <div className="text-xs text-[#555] break-all">{userEmail || "—"}</div>
-            </div>
-            <button onClick={() => { setShowProfile(false); onNavigate("settings"); }} className="w-full text-left px-4 py-2.5 text-sm text-[#333] hover:bg-[#F5F5F5]">Settings</button>
-            <div className="border-t border-[#E5E5E5]">
-              <button onClick={() => onSignOut?.()} className="w-full text-left px-4 py-2.5 text-sm font-medium text-[#E21B23] hover:bg-[#FEF2F2]">Sign Out</button>
-            </div>
-          </div>
-        )}
-      </div>
+      {locked && <LockScreen email={userEmail || ""} onUnlock={() => setLocked(false)} onSignOut={() => onSignOut?.()} />}
+      <span className="sr-only">{title}</span>
     </header>
+  );
+}
+
+/** Booking alerts & assignment, followed by the latest notifications (kept from the earlier panel). */
+function AlertsSheet({ canOps, onClose, onOpen, onNavigate }: { canOps: boolean; onClose: () => void; onOpen: (page: string, bookingId?: string) => void; onNavigate: (page: string) => void }) {
+  const { notifications, unread, markAllRead, open } = useNotifications();
+  if (!canOps) {
+    return (
+      <NotificationsOnly onClose={onClose} unread={unread} notifications={notifications} markAllRead={markAllRead} open={open} onNavigate={onNavigate} />
+    );
+  }
+  return (
+    <AlertsDialog onClose={onClose} onOpenBooking={(id) => onOpen("booking-detail", id)}>
+      <RecentNotifications notifications={notifications} unread={unread} markAllRead={markAllRead} open={(n) => { onClose(); open(n); }} onNavigate={(p) => { onClose(); onNavigate(p); }} />
+    </AlertsDialog>
+  );
+}
+
+type Ctx = ReturnType<typeof useNotifications>;
+
+function RecentNotifications({ notifications, unread, markAllRead, open, onNavigate }: { notifications: Ctx["notifications"]; unread: number; markAllRead: Ctx["markAllRead"]; open: Ctx["open"]; onNavigate: (p: string) => void }) {
+  const list = notifications.slice(0, 6);
+  if (!list.length) return null;
+  return (
+    <div className="ds-alerts-notes" role="region" aria-label="Recent notifications">
+      <div className="flex items-center justify-between mb-2">
+        <strong className="text-[12px] text-ink">Notifications{unread ? ` · ${unread} unread` : ""}</strong>
+        <div className="flex gap-3">
+          {unread > 0 && <button type="button" className="ds-link" onClick={() => markAllRead()}>Mark all read</button>}
+          <button type="button" className="ds-link" onClick={() => onNavigate("notifications")}>Open Communication →</button>
+        </div>
+      </div>
+      <ul className="grid gap-1.5">
+        {list.map((n) => {
+          const tone = TONE_CLASSES[toneOf(n)];
+          return (
+            <li key={n.id}>
+              <button type="button" onClick={() => open(n)} className={`w-full text-left px-3 py-2 rounded-md flex gap-2 items-start ${n.read ? "hover:bg-hover" : "bg-brand-soft"}`}>
+                <span className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: n.read ? "#c3ccd8" : tone.dot }} aria-hidden="true" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[12px] font-semibold text-ink truncate">{n.title}</span>
+                  <span className="block text-[11px] text-muted truncate">{CATEGORY_LABEL[categoryOf(n)]} · {n.time || formatTimeAgo(n.createdAt)} · {ctaLabelOf(n)}</span>
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function NotificationsOnly(p: { onClose: () => void; unread: number; notifications: Ctx["notifications"]; markAllRead: Ctx["markAllRead"]; open: Ctx["open"]; onNavigate: (p: string) => void }) {
+  return (
+    <div className="ds-overlay ds-drawer-overlay" onMouseDown={(e) => e.target === e.currentTarget && p.onClose()}>
+      <div className="ds-dialog ds-drawer" role="dialog" aria-modal="true" aria-label="Alerts">
+        <div className="ds-dialog-head"><div><span className="ds-dialog-eyebrow">NESAM MASTER CONTROL</span><h2>Alerts</h2></div><Button variant="ghost" iconOnly icon="x" aria-label="Close" onClick={p.onClose} /></div>
+        <div className="ds-dialog-body">
+          <RecentNotifications notifications={p.notifications} unread={p.unread} markAllRead={p.markAllRead} open={(n) => { p.onClose(); p.open(n); }} onNavigate={(x) => { p.onClose(); p.onNavigate(x); }} />
+          {!p.notifications.length && <p className="text-[12px] text-muted">All caught up · No notifications or alerts.</p>}
+        </div>
+      </div>
+    </div>
   );
 }

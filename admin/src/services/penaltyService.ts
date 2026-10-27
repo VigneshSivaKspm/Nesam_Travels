@@ -18,7 +18,13 @@ export const PENALTY_CATEGORIES = [
   "Document / Insurance Lapse",
   "Vehicle Condition",
   "Other",
+  "Assignment deadline missed",
+  "Accepted duty not fulfilled",
+  "Cancellation after driver arrival",
+  "Service / conduct issue",
 ] as const;
+/** The reasons the Master Admin "Apply penalty" sheet offers. */
+export const REFERENCE_REASONS = ["Assignment deadline missed", "Accepted duty not fulfilled", "Cancellation after driver arrival", "Service / conduct issue", "Other"] as const;
 
 export const PENALTY_STATUSES: PenaltyStatus[] = ["Pending", "Acknowledged", "Paid", "Deducted", "Waived", "Disputed"];
 /** Owed by the partner until paid, deducted or waived. */

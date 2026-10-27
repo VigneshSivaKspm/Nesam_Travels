@@ -23,7 +23,7 @@ const coords = (v: unknown): { lat: number; lng: number } | null => {
 
 const statusConfig: Record<string, { color: string; bg: string; dot: string }> =
   {
-    "Trip Started": { color: "#E21B23", bg: "#FEF2F2", dot: "bg-[#E21B23]" },
+    "Trip Started": { color: "#c1232c", bg: "#FEF2F2", dot: "bg-brand" },
     "Waiting at Pickup": {
       color: "#F59E0B",
       bg: "#FFFBEB",
@@ -142,13 +142,13 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
           {
             label: "Active Trips",
             value: liveTripsList.length,
-            color: "#E21B23",
+            color: "#c1232c",
           },
           {
             label: "Trip Started",
             value: liveTripsList.filter((t) => t.status === "Trip Started")
               .length,
-            color: "#E21B23",
+            color: "#c1232c",
           },
           {
             label: "Going to Pickup",
@@ -166,14 +166,14 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4"
+            className="bg-white rounded-xl border border-line shadow-sm p-4"
           >
             <div className="flex items-center gap-2 mb-1">
               <div
                 className="w-2 h-2 rounded-full animate-pulse"
                 style={{ background: s.color }}
               />
-              <span className="text-[11px] text-[#999]">{s.label}</span>
+              <span className="text-[11px] text-faint">{s.label}</span>
             </div>
             <div className="text-[26px] font-bold" style={{ color: s.color }}>
               {s.value}
@@ -185,30 +185,30 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         {/* Trip List */}
         <div className="space-y-3">
-          <h3 className="text-[13px] font-bold text-[#111]">Live Trip Feed</h3>
+          <h3 className="text-[13px] font-bold text-ink">Live Trip Feed</h3>
           {liveTripsList.map((t) => {
             const sc = statusConfig[t.status] || statusConfig["Trip Started"];
             return (
               <div
                 key={t.id}
                 onClick={() => setSelectedTrip(t.id)}
-                className={`bg-white rounded-xl border-2 shadow-sm p-4 cursor-pointer transition-all hover:shadow-md ${bookingSourceRowCls(t)} ${selectedTrip === t.id ? "border-[#E21B23]" : "border-[#E5E5E5]"}`}
+                className={`bg-white rounded-xl border-2 shadow-sm p-4 cursor-pointer transition-all hover:shadow-md ${bookingSourceRowCls(t)} ${selectedTrip === t.id ? "border-brand" : "border-line"}`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div>
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <div
                         className="text-[11px] font-mono font-bold"
-                        style={{ color: "#E21B23" }}
+                        style={{ color: "#c1232c" }}
                       >
                         {t.bookingId}
                       </div>
                       <BookingSourceBadge booking={t} size="sm" />
                     </div>
-                    <div className="text-[12px] font-semibold text-[#111] mt-0.5">
+                    <div className="text-[12px] font-semibold text-ink mt-0.5">
                       {t.driver}
                     </div>
-                    <div className="text-[10px] text-[#999]">{t.vehicle}</div>
+                    <div className="text-[10px] text-faint">{t.vehicle}</div>
                   </div>
                   <span
                     className={`text-[10px] font-semibold px-2 py-0.5 rounded-full`}
@@ -224,28 +224,28 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                 <div className="flex items-center gap-2 text-[11px]">
                   <div className="flex flex-col items-center gap-0.5">
                     <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                    <div className="w-px h-4 bg-[#E5E5E5]" />
+                    <div className="w-px h-4 bg-line" />
                     <div
                       className="w-1.5 h-1.5 rounded-full"
-                      style={{ background: "#E21B23" }}
+                      style={{ background: "#c1232c" }}
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <div className="text-[#666] truncate max-w-[160px]">
+                    <div className="text-muted truncate max-w-[160px]">
                       {t.pickup}
                     </div>
-                    <div className="text-[#666] truncate max-w-[160px]">
+                    <div className="text-muted truncate max-w-[160px]">
                       {t.drop}
                     </div>
                   </div>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-[11px] text-[#999]">
+                  <span className="text-[11px] text-faint">
                     {t.location ? `📍 Reported at pickup${t.locationAt ? ` ${t.locationAt}` : ""}` : "No location reported"}
                   </span>
                   <span
                     className="text-[11px] font-semibold"
-                    style={{ color: "#E21B23" }}
+                    style={{ color: "#c1232c" }}
                   >
                     {t.fare}
                   </span>
@@ -259,7 +259,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
         {trip && (
           <div className="lg:col-span-2 space-y-4">
             {/* Map Placeholder */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
               <div
                 className="relative"
                 style={{
@@ -270,7 +270,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
               >
                 <div className="absolute inset-0 flex items-center justify-center flex-col gap-2">
                   <svg
-                    className="w-10 h-10 text-[#E21B23]"
+                    className="w-10 h-10 text-brand"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -284,27 +284,27 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                   </svg>
                   {trip.location ? (
                     <>
-                      <p className="text-[12px] text-[#555] font-medium">
+                      <p className="text-[12px] text-muted font-medium">
                         Last reported position: {trip.location.lat.toFixed(5)}, {trip.location.lng.toFixed(5)}
                       </p>
-                      <p className="text-[11px] text-[#999]">Reported when the driver reached pickup{trip.locationAt ? ` (${trip.locationAt})` : ""}</p>
+                      <p className="text-[11px] text-faint">Reported when the driver reached pickup{trip.locationAt ? ` (${trip.locationAt})` : ""}</p>
                       <a
                         href={`https://www.google.com/maps?q=${trip.location.lat},${trip.location.lng}`}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-[11px] font-semibold text-[#E21B23] underline"
+                        className="text-[11px] font-semibold text-brand underline"
                       >
                         Open in Google Maps
                       </a>
                     </>
                   ) : (
-                    <p className="text-[12px] text-[#999] font-medium">No position reported for this trip yet.</p>
+                    <p className="text-[12px] text-faint font-medium">No position reported for this trip yet.</p>
                   )}
-                  <p className="text-[10px] text-[#AAA]">Continuous live GPS tracking and ETA are not enabled yet.</p>
+                  <p className="text-[10px] text-subtle">Continuous live GPS tracking and ETA are not enabled yet.</p>
                 </div>
                 <div
-                  className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 text-[11px] font-semibold shadow-sm border border-[#E5E5E5]"
-                  style={{ color: "#E21B23" }}
+                  className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 text-[11px] font-semibold shadow-sm border border-line"
+                  style={{ color: "#c1232c" }}
                 >
                   {trip.status}
                 </div>
@@ -313,11 +313,11 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
 
             {/* Trip Info & OTP */}
             <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
-                <h4 className="text-[12px] font-bold text-[#111] mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-xl border border-line shadow-sm p-4">
+                <h4 className="text-[12px] font-bold text-ink mb-3 flex items-center gap-2">
                   <span
                     className="w-1 h-3.5 rounded-full"
-                    style={{ background: "#E21B23" }}
+                    style={{ background: "#c1232c" }}
                   />
                   Trip Details
                 </h4>
@@ -333,8 +333,8 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                       key={f.label}
                       className="flex justify-between text-[12px]"
                     >
-                      <span className="text-[#999]">{f.label}</span>
-                      <span className="font-semibold text-[#111]">
+                      <span className="text-faint">{f.label}</span>
+                      <span className="font-semibold text-ink">
                         {f.value}
                       </span>
                     </div>
@@ -342,11 +342,11 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                 </div>
               </div>
 
-              <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
-                <h4 className="text-[12px] font-bold text-[#111] mb-3 flex items-center gap-2">
+              <div className="bg-white rounded-xl border border-line shadow-sm p-4">
+                <h4 className="text-[12px] font-bold text-ink mb-3 flex items-center gap-2">
                   <span
                     className="w-1 h-3.5 rounded-full"
-                    style={{ background: "#E21B23" }}
+                    style={{ background: "#c1232c" }}
                   />
                   Boarding OTP
                 </h4>
@@ -370,11 +370,11 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                     </div>
                     <div
                       className="text-[28px] font-bold tracking-widest"
-                      style={{ color: "#E21B23" }}
+                      style={{ color: "#c1232c" }}
                     >
                       {trip.boardingOTPVerified ? "••••" : "—"}
                     </div>
-                    <div className="text-[10px] text-[#999] mt-1">
+                    <div className="text-[10px] text-faint mt-1">
                       Customer boarded successfully
                     </div>
                   </div>
@@ -398,7 +398,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                     <div className="text-[12px] font-semibold text-yellow-700">
                       Awaiting OTP Verification
                     </div>
-                    <div className="text-[10px] text-[#999] mt-1">
+                    <div className="text-[10px] text-faint mt-1">
                       Customer has not boarded yet
                     </div>
                   </div>
@@ -418,33 +418,33 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                 (p) => typeof p.src === "string" && p.src.length > 0,
               );
               return (
-                <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
-                  <h4 className="text-[12px] font-bold text-[#111] mb-3 flex items-center gap-2">
+                <div className="bg-white rounded-xl border border-line shadow-sm p-4">
+                  <h4 className="text-[12px] font-bold text-ink mb-3 flex items-center gap-2">
                     <span
                       className="w-1 h-3.5 rounded-full"
-                      style={{ background: "#E21B23" }}
+                      style={{ background: "#c1232c" }}
                     />
                     Pre-Trip Verification Photos
                     <span
-                      className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${trip.hasVerificationPhotos || submitted.length === 4 ? "text-green-600 bg-green-50" : "text-[#999] bg-[#F5F5F5]"}`}
+                      className={`ml-auto text-[10px] font-semibold px-2 py-0.5 rounded-full ${trip.hasVerificationPhotos || submitted.length === 4 ? "text-green-600 bg-green-50" : "text-faint bg-hover"}`}
                     >
                       {trip.hasVerificationPhotos ? "Camera verification submitted" : `${submitted.length}/4 Submitted`}
                     </span>
                   </h4>
                   {trip.hasVerificationPhotos ? (
-                    <div className="py-3 text-[12px] text-[#333] space-y-2">
+                    <div className="py-3 text-[12px] text-body space-y-2">
                       <div>
                         The driver's selfie and the front, rear and dashboard photos were captured live with the camera
                         {trip.vehicleVerification?.riskLevel ? ` — fraud risk: ${String(trip.vehicleVerification.riskLevel).toUpperCase()}` : ""}.
                       </div>
                       {onOpenBooking && (
-                        <button onClick={() => onOpenBooking(trip.id)} className="px-3 py-1.5 rounded-lg border border-[#D4D4D4] text-[12px] font-semibold hover:bg-gray-50">
+                        <button onClick={() => onOpenBooking(trip.id)} className="px-3 py-1.5 rounded-lg border border-line-strong text-[12px] font-semibold hover:bg-gray-50">
                           Review photos in booking details
                         </button>
                       )}
                     </div>
                   ) : submitted.length === 0 ? (
-                    <div className="py-6 text-center text-[11px] text-[#999]">
+                    <div className="py-6 text-center text-[11px] text-faint">
                       Driver has not uploaded verification photos yet
                     </div>
                   ) : (
@@ -457,7 +457,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                               p.src &&
                               setPhotoModal({ title: p.label, src: p.src })
                             }
-                            className="block w-full aspect-square rounded-xl border-2 border-[#E5E5E5] overflow-hidden hover:border-[#E21B23] transition-colors relative group disabled:opacity-40 disabled:hover:border-[#E5E5E5]"
+                            className="block w-full aspect-square rounded-xl border-2 border-line overflow-hidden hover:border-brand transition-colors relative group disabled:opacity-40 disabled:hover:border-line"
                           >
                             {p.src ? (
                               <img
@@ -466,7 +466,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                                 className="w-full h-full object-cover"
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[9px] text-[#BBB]">
+                              <div className="w-full h-full flex items-center justify-center text-[9px] text-subtle">
                                 Missing
                               </div>
                             )}
@@ -488,7 +488,7 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
                               </div>
                             )}
                           </button>
-                          <div className="text-[10px] text-[#999] mt-1.5 font-medium">
+                          <div className="text-[10px] text-faint mt-1.5 font-medium">
                             {p.label}
                           </div>
                         </div>
@@ -504,29 +504,29 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
               {trip.driverPhone ? (
                 <a
                   href={`tel:${trip.driverPhone}`}
-                  className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-[#E5E5E5] rounded-xl hover:bg-[#F5F5F5] text-[#444] transition-colors cursor-pointer block"
+                  className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-line rounded-xl hover:bg-hover text-body transition-colors cursor-pointer block"
                 >
                   Contact Driver
                 </a>
               ) : (
-                <span className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-[#E5E5E5] rounded-xl text-[#BBB] block">No driver phone</span>
+                <span className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-line rounded-xl text-subtle block">No driver phone</span>
               )}
               {trip.customerPhone ? (
                 <a
                   href={`tel:${trip.customerPhone}`}
-                  className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-[#E5E5E5] rounded-xl hover:bg-[#F5F5F5] text-[#444] transition-colors cursor-pointer block"
+                  className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-line rounded-xl hover:bg-hover text-body transition-colors cursor-pointer block"
                 >
                   Contact Customer
                 </a>
               ) : (
-                <span className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-[#E5E5E5] rounded-xl text-[#BBB] block">No customer phone</span>
+                <span className="flex-1 text-center py-2.5 text-[12px] font-semibold border border-line rounded-xl text-subtle block">No customer phone</span>
               )}
               <button
                 onClick={() => {
                   setCancelError(null);
                   setCancelTarget({ id: trip.id, bookingId: trip.bookingId });
                 }}
-                className="flex-1 py-2.5 text-[12px] font-semibold border border-[#E5E5E5] rounded-xl hover:bg-[#FEF2F2] text-[#E21B23] transition-colors cursor-pointer"
+                className="flex-1 py-2.5 text-[12px] font-semibold border border-line rounded-xl hover:bg-brand-soft text-brand transition-colors cursor-pointer"
               >
                 Emergency Cancel
               </button>
@@ -558,13 +558,13 @@ export default function LiveTrips({ onOpenBooking }: { onOpenBooking?: (id: stri
             className="bg-white rounded-2xl overflow-hidden shadow-2xl max-w-sm w-full"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E5E5E5]">
-              <span className="font-semibold text-[#111] text-[13px]">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+              <span className="font-semibold text-ink text-[13px]">
                 {photoModal.title}
               </span>
               <button
                 onClick={() => setPhotoModal(null)}
-                className="text-[#999] hover:text-[#111]"
+                className="text-faint hover:text-ink"
               >
                 <svg
                   className="w-5 h-5"

@@ -83,6 +83,22 @@ service firebase.storage {
       allow write: if can('fleet') && validUpload();
     }
 
+    // Bills and payment receipts attached to the Accounts registers.
+    match /accounts/{allPaths=**} {
+      allow read: if isAdmin();
+      allow create: if can('finance') && validUpload();
+      allow update, delete: if false;
+    }
+
+    // Greeting images on Communication notices (JPG / PNG / WebP up to 2 MB). Recipients open
+    // them through the download URL stored on the notification.
+    match /notices/{allPaths=**} {
+      allow read: if isSignedIn();
+      allow create: if can('engagement') && request.resource.size < 2 * 1024 * 1024
+                     && request.resource.contentType.matches('image/(jpeg|png|webp)');
+      allow update, delete: if false;
+    }
+
     // Customer profile photos: customers/{uid}/profile/avatar-{ts}.jpg
     match /customers/{customerId}/{allPaths=**} {
       allow read: if isAdmin() || (isSignedIn() && uid() == customerId);

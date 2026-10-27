@@ -259,12 +259,23 @@ export interface CreatedAdminBooking {
   otp?: string;
 }
 
-export function createAdminBooking(f: ManualBookingForm, requestId: string, expectedFare: number): Promise<CreatedAdminBooking> {
+/** Optional Master Admin booking details stored with the booking (see officeBookingExtras on the server). */
+export interface OfficeBookingExtras {
+  passenger?: { name: string; phone: string; whatsapp?: string } | null;
+  enquirySource?: "Phone" | "WhatsApp" | "Office" | "App";
+  businessAccountId?: string;
+  businessBilledTo?: "Company pays" | "Passenger pays";
+  tripExtras?: { hillTravel: boolean; roofCarrier: boolean; waitingMinutes: number };
+  enquiryId?: string;
+  termsAccepted?: boolean;
+}
+
+export function createAdminBooking(f: ManualBookingForm, requestId: string, expectedFare: number, extras: OfficeBookingExtras = {}): Promise<CreatedAdminBooking> {
   const override = f.overrideEnabled ? { fare: Number(f.overrideFare), reason: f.overrideReason.trim() } : null;
   const advance = f.advanceEnabled
     ? { amount: Number(f.advanceAmount), method: f.advanceMethod, reference: f.advanceReference.trim() }
     : null;
-  return callFunction<unknown, CreatedAdminBooking>("createAdminBooking", { ...bookingRequest(f, requestId), expectedFare, override, advance });
+  return callFunction<unknown, CreatedAdminBooking>("createAdminBooking", { ...bookingRequest(f, requestId), expectedFare, override, advance, ...extras });
 }
 
 /** Why a booking's fare cannot be changed now ("" when it can). Mirrors the server checks. */

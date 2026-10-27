@@ -19,6 +19,7 @@ import { distanceKm } from './domain/verification';
 import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
 import { FareBreakdown, GeoPlace, TripType } from './domain/types';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
+import { adjustPartner, assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
 import { loadCommissionPolicy } from './commission';
 import { createContactInTx, maskPhone } from './contacts';
 import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
@@ -77,13 +78,16 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     return { id: requestId, bookingId: existing.data()!.bookingId, fare: existing.data()!.fare };
   }
 
+  // Quick fare: the office gives the estimate before collecting any customer details, so a
+  // quote-only request needs no name, mobile or payment method. Nothing is written for a quote.
+  const quoteOnly = input.quoteOnly === true;
   const name = text(input.customerName, 80);
-  if (name.length < 2) throw new HttpsError('invalid-argument', 'Enter the customer name.');
-  const phone = indianPhone(input.customerPhone);
-  const whatsapp = whatsappContact(input.customerWhatsapp, phone);
-  const email = optionalEmail(input.customerEmail);
+  if (!quoteOnly && name.length < 2) throw new HttpsError('invalid-argument', 'Enter the customer name.');
+  const phone = quoteOnly && !input.customerPhone ? '' : indianPhone(input.customerPhone);
+  const whatsapp = quoteOnly && !phone ? null : whatsappContact(input.customerWhatsapp, phone);
+  const email = quoteOnly ? '' : optionalEmail(input.customerEmail);
   const paymentMethod = PAYMENT_METHODS.includes(input.paymentMethod) ? input.paymentMethod : null;
-  if (!paymentMethod) throw new HttpsError('invalid-argument', `Choose how the customer will pay: ${PAYMENT_METHODS.join(', ')}.`);
+  if (!paymentMethod && !quoteOnly) throw new HttpsError('invalid-argument', `Choose how the customer will pay: ${PAYMENT_METHODS.join(', ')}.`);
   const tripType: TripType =
     input.tripType === 'Round Trip'
       ? 'Round Trip'
@@ -125,6 +129,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     if (advanceIn.method !== 'Cash' && text(advanceIn.reference, 120).length < 4) throw new HttpsError('invalid-argument', `Enter the ${advanceIn.method === 'UPI' ? 'UPI transaction' : 'transfer'} reference for the advance.`);
   }
   const pushes: { id: string; input: NotifyInput }[] = [];
+  const serviceRules = await loadServiceRules();
 
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
@@ -158,10 +163,13 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       serviceId = serviceSnap.id;
     }
 
-    const adjustment = effectiveAdjustment(adjustmentDoc, now);
-    const priced = priceBooking({
+    const rules = evaluateRules(serviceRules, pickup, drop, when, `${service} ${tripType}`);
+    assertBookable(rules, category.name);
+    const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
+    const pricedRaw = priceBooking({
       category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn,
     });
+    const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
     const calculated = priced.fare;
     const breakup = priced.breakup;
     const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId, categoryId: category.id }) : null;
@@ -211,6 +219,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       ...(tripEndAt ? { tripEndAt: Timestamp.fromDate(tripEndAt), endDate: pricing.endDate, billableDays: pricing.days } : {}),
       discountDetails: fare.discountDetail ? { ...fare.discountDetail, byUid: admin.uid, byName: admin.name } : null,
       globalAdjustmentApplied: fare.globalAdjustment ?? null,
+      ...officeBookingExtras(input, admin),
       routeEstimated: false, couponCode: '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
       paymentSummary: { ...summary, updatedAt: Timestamp.now() }, paymentMethod,
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
@@ -218,7 +227,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     });
     const otp = String(randomInt(1000, 10000));
     tx.create(db.doc(`booking_secrets/${requestId}`), { customerId, otp, createdAt: stamp });
-    createContactInTx(tx, requestId, { customerId, name, phone, whatsapp, email: email || (customer ? text(customer.data()!.email) : '') });
+    createContactInTx(tx, requestId, { customerId, name, phone, whatsapp: whatsapp!, email: email || (customer ? text(customer.data()!.email) : '') });
     // No marketplace record: partners see a booking only after an admin approves and publishes it.
     if (advanceTxn) {
       tx.create(db.doc(`bookings/${requestId}/payment_transactions/${advanceTxn.id}`), advanceTxn);
@@ -256,6 +265,37 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   await pushAfterCommit(pushes);
   return result;
 });
+
+/**
+ * Office booking details from the Master Admin New booking flow: who travels when it is booked for
+ * someone else, how the enquiry came in, the business account it is booked for, the extras the
+ * customer asked for and the customer's acceptance of the fare and terms. All optional.
+ */
+function officeBookingExtras(input: any, admin: { uid: string; name: string }): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  const p = input?.passenger && typeof input.passenger === 'object' ? input.passenger : null;
+  if (p && text(p.name, 80).length >= 2) {
+    const phone = String(p.phone ?? '').replace(/\D/g, '').slice(-10);
+    if (!/^[6-9]\d{9}$/.test(phone)) throw new HttpsError('invalid-argument', 'Enter a valid 10-digit passenger mobile.');
+    out.passenger = { name: text(p.name, 80), phone: `+91${phone}`, whatsapp: text(p.whatsapp, 20) };
+  }
+  const src = text(input?.enquirySource, 20);
+  if (['Phone', 'WhatsApp', 'Office', 'App'].includes(src)) out.enquirySource = src;
+  const biz = text(input?.businessAccountId, 128);
+  if (biz && /^[A-Za-z0-9_-]+$/.test(biz)) {
+    out.businessAccountId = biz;
+    out.businessBilledTo = input?.businessBilledTo === 'Passenger pays' ? 'Passenger pays' : 'Company pays';
+  }
+  const ex = input?.tripExtras && typeof input.tripExtras === 'object' ? input.tripExtras : null;
+  if (ex) {
+    const waiting = Number(ex.waitingMinutes);
+    out.tripExtras = { hillTravel: ex.hillTravel === true, roofCarrier: ex.roofCarrier === true, waitingMinutes: Number.isFinite(waiting) && waiting >= 0 && waiting <= 1440 ? Math.round(waiting) : 0 };
+  }
+  const enquiry = text(input?.enquiryId, 40);
+  if (enquiry && /^NSM-QT-\d{6}$/.test(enquiry)) out.enquiryId = enquiry;
+  if (input?.termsAccepted === true) out.termsAcceptance = { acceptedBy: 'customer', recordedBy: admin.uid, recordedByName: admin.name, at: Timestamp.now() };
+  return out;
+}
 
 /** Legacy bookings (no server breakdown) get a breakdown whose only component is the admin fare. */
 function baseBreakdown(b: FirebaseFirestore.DocumentData): FareBreakdown {

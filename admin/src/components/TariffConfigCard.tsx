@@ -63,11 +63,11 @@ export default function TariffConfigCard() {
   };
 
   return (
-    <section className="bg-white rounded-xl border border-[#E5E5E5] p-5 space-y-4" aria-labelledby="tariff-h">
+    <section className="bg-white rounded-xl border border-line p-5 space-y-4" aria-labelledby="tariff-h">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="tariff-h" className="text-[15px] font-bold text-[#111]">Confirmed tariff (customer and normal partner rates)</h2>
-          <p className="text-sm text-[#555]">One-way (130 km floor + bata), round trip by Indian calendar day, local rental time fare and city-drop packages. Partner rates replace the older percentage commission for these duties.</p>
+          <h2 id="tariff-h" className="text-[15px] font-bold text-ink">Confirmed tariff (customer and normal partner rates)</h2>
+          <p className="text-sm text-muted">One-way (130 km floor + bata), round trip by Indian calendar day, local rental time fare and city-drop packages. Partner rates replace the older percentage commission for these duties.</p>
         </div>
         <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${t?.enabled ? "bg-emerald-50 text-emerald-800 border-emerald-300" : "bg-gray-100 text-gray-700 border-gray-300"}`}>
           {t === undefined ? "Loading…" : t?.enabled ? `On · v${t.version}` : "Off — category fares apply"}
@@ -78,14 +78,14 @@ export default function TariffConfigCard() {
       {t && (
         <div className="grid md:grid-cols-2 gap-4 text-sm">
           <table className="w-full text-left">
-            <caption className="text-xs font-semibold text-[#555] uppercase text-left mb-1">One-way (minimum {t.oneWay?.minKm ?? 130} km)</caption>
-            <thead><tr className="text-xs text-[#555]"><th>Class</th><th>Customer /km</th><th>Bata</th><th>Partner /km</th><th>Bata</th></tr></thead>
-            <tbody>{CLASSES.map((c) => { const r = t.oneWay?.classes?.[c]; return <tr key={c} className="border-t border-[#F0F0F0]"><td className="py-1 font-semibold">{LABEL[c]}</td><td>{inr(r?.customerRate)}</td><td>{inr(r?.customerBata)}</td><td>{inr(r?.partnerRate)}</td><td>{inr(r?.partnerBata)}</td></tr>; })}</tbody>
+            <caption className="text-xs font-semibold text-muted uppercase text-left mb-1">One-way (minimum {t.oneWay?.minKm ?? 130} km)</caption>
+            <thead><tr className="text-xs text-muted"><th>Class</th><th>Customer /km</th><th>Bata</th><th>Partner /km</th><th>Bata</th></tr></thead>
+            <tbody>{CLASSES.map((c) => { const r = t.oneWay?.classes?.[c]; return <tr key={c} className="border-t border-line-soft"><td className="py-1 font-semibold">{LABEL[c]}</td><td>{inr(r?.customerRate)}</td><td>{inr(r?.customerBata)}</td><td>{inr(r?.partnerRate)}</td><td>{inr(r?.partnerBata)}</td></tr>; })}</tbody>
           </table>
           <table className="w-full text-left">
-            <caption className="text-xs font-semibold text-[#555] uppercase text-left mb-1">Round trip (per calendar day)</caption>
-            <thead><tr className="text-xs text-[#555]"><th>Class</th><th>Customer /km</th><th>Bata/day</th><th>Partner /km</th><th>Min km/day</th></tr></thead>
-            <tbody>{CLASSES.map((c) => { const r = t.roundTrip?.classes?.[c]; return <tr key={c} className="border-t border-[#F0F0F0]"><td className="py-1 font-semibold">{LABEL[c]}</td><td>{inr(r?.customerRate)}</td><td>{inr(r?.customerBata)}</td><td>{inr(r?.partnerRate)}</td><td>{r?.minKmPerDay ?? "—"}</td></tr>; })}</tbody>
+            <caption className="text-xs font-semibold text-muted uppercase text-left mb-1">Round trip (per calendar day)</caption>
+            <thead><tr className="text-xs text-muted"><th>Class</th><th>Customer /km</th><th>Bata/day</th><th>Partner /km</th><th>Min km/day</th></tr></thead>
+            <tbody>{CLASSES.map((c) => { const r = t.roundTrip?.classes?.[c]; return <tr key={c} className="border-t border-line-soft"><td className="py-1 font-semibold">{LABEL[c]}</td><td>{inr(r?.customerRate)}</td><td>{inr(r?.customerBata)}</td><td>{inr(r?.partnerRate)}</td><td>{r?.minKmPerDay ?? "—"}</td></tr>; })}</tbody>
           </table>
         </div>
       )}
@@ -104,7 +104,7 @@ export default function TariffConfigCard() {
             <button disabled={busy} onClick={() => save({ enabled: true })} className={primaryBtn}>{t?.enabled ? "Reload confirmed values (keep on)" : "Load confirmed values and turn on"}</button>
             {t?.enabled && <button disabled={busy} onClick={() => save({ enabled: false })} className={secondaryBtn}>Turn off</button>}
           </div>
-          <details className="rounded-lg border border-[#E5E5E5] p-3">
+          <details className="rounded-lg border border-line p-3">
             <summary className="text-sm font-semibold cursor-pointer">Add a city zone for local city-drop packages</summary>
             <div className="grid sm:grid-cols-4 gap-2 mt-2">
               <Field label="City"><input value={zone.name} onChange={(e) => setZone({ ...zone, name: e.target.value })} className={inputCls} /></Field>
@@ -116,7 +116,7 @@ export default function TariffConfigCard() {
           </details>
         </div>
       ) : (
-        <p className="text-sm text-[#555]">Changing the tariff needs pricing access.</p>
+        <p className="text-sm text-muted">Changing the tariff needs pricing access.</p>
       )}
       {msg && <Notice tone={msg.tone === "ok" ? "ok" : "error"}>{msg.text}</Notice>}
     </section>

@@ -43,6 +43,8 @@ export interface NotifyInput {
   push?: boolean;
   /** Who caused it, for the audit view. */
   sentBy?: string;
+  /** Extra fields stored on the in-app record (e.g. campaignId, requiresAck, imageUrl). */
+  meta?: Record<string, string | boolean>;
 }
 
 const clip = (s: string, n: number) => s.slice(0, n);
@@ -72,6 +74,7 @@ function record(n: NotifyInput) {
     read: false,
     sentBy: n.sentBy ?? 'system',
     createdAt: FieldValue.serverTimestamp(),
+    ...(n.meta ?? {}),
   };
 }
 
@@ -117,7 +120,7 @@ export async function notify(n: NotifyInput, store: Firestore = db): Promise<str
 export const notifyAdmins = (n: Omit<NotifyInput, 'recipientType' | 'recipientId'>) =>
   notify({ ...n, recipientType: 'admin', recipientId: 'admin' });
 
-export function deliveryRow(notificationId: string, n: Pick<NotifyInput, 'recipientId' | 'recipientType' | 'category' | 'title' | 'message' | 'bookingId'>, channel: DeliveryChannel, status: DeliveryStatus, extra: Record<string, unknown> = {}) {
+export function deliveryRow(notificationId: string, n: Pick<NotifyInput, 'recipientId' | 'recipientType' | 'category' | 'title' | 'message' | 'bookingId' | 'meta'>, channel: DeliveryChannel, status: DeliveryStatus, extra: Record<string, unknown> = {}) {
   return {
     notificationId,
     recipientId: n.recipientId,
@@ -132,6 +135,7 @@ export function deliveryRow(notificationId: string, n: Pick<NotifyInput, 'recipi
     providerMessageId: '',
     error: '',
     sentAt: FieldValue.serverTimestamp(),
+    ...(typeof n.meta?.campaignId === 'string' ? { campaignId: n.meta.campaignId } : {}),
     ...extra,
   };
 }

@@ -34,7 +34,7 @@ export default function DateTime12Input({ value, onChange, disabled, id, min, ha
     onChange(`${date}T${pad(h24)}:${pad(minute)}`);
   };
 
-  const base = `px-2.5 py-2.5 border rounded-lg text-sm bg-white text-[#111] focus:border-[#E21B23] focus:outline-none disabled:bg-gray-100 ${hasError ? "border-red-500" : "border-[#D4D4D4]"}`;
+  const base = `px-2.5 py-2.5 border rounded-lg text-sm bg-white text-ink focus:border-brand focus:outline-none disabled:bg-gray-100 ${hasError ? "border-red-500" : "border-line-strong"}`;
   return (
     <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Date and time">
       <input id={id} type="date" value={parts.date} min={min} disabled={disabled} onChange={(e) => emit(e.target.value, parts.hour12, parts.minute, parts.pm)} className={`${base} flex-1 min-w-[9.5rem]`} />
@@ -44,7 +44,7 @@ export default function DateTime12Input({ value, onChange, disabled, id, min, ha
             <option key={h} value={h}>{pad(h)}</option>
           ))}
         </select>
-        <span className="font-bold text-[#555]">:</span>
+        <span className="font-bold text-muted">:</span>
         <select aria-label="Minute" value={parts.minute} disabled={disabled || !parts.date} onChange={(e) => emit(parts.date, parts.hour12, Number(e.target.value), parts.pm)} className={base}>
           {MINUTES.map((m) => (
             <option key={m} value={m}>{pad(m)}</option>

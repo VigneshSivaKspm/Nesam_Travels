@@ -1,922 +1,245 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import type { Booking, Customer } from "../types";
-import {
-  subscribeBookings,
-  subscribeCustomers,
-  addFirestoreDocument,
-  updateFirestoreDocument,
-  COLLECTIONS,
-} from "../services/adminFirestoreService";
-import { buildCustomerStats, EMPTY_STATS } from "../services/customerStats";
-import { ErrorBanner } from "../components/Feedback";
+import { addFirestoreDocument, updateFirestoreDocument, COLLECTIONS } from "../services/adminFirestoreService";
+import { buildCustomerStats, EMPTY_STATS, type CustomerStats } from "../services/customerStats";
+import { useBookings, useCustomers } from "../hooks/useOfficeData";
+import { ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
+import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, Tabs, TableSkeleton, toneForStatus } from "../components/ui";
+import { ExportDialog, Initials, SimplePager, useSelection, type ExportSpec } from "../components/ui/RecordKit";
+import MenuButton from "../components/ui/MenuButton";
+import { paymentOf } from "../domain/bookingFlow";
+import { refDateTime, rupee } from "../domain/officeStage";
+import { bookingPickupDate } from "../utils/time";
 
-const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹${v.toLocaleString("en-IN", Number.isInteger(v) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`; };
-const dateLabel = (d: Date | null) => (d ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+/** Last 10 digits of an Indian mobile ("+91 98765 43210" → "9876543210"). */
+export function getCanonicalPhoneDigits(input: string): string {
+  if (!input) return "";
+  const digits = input.replace(/\D/g, "");
+  return digits.length >= 10 ? digits.slice(-10) : digits;
+}
+
+/** "+91 98765 43210" */
+export function formatIndianPhone(input: string): string {
+  const d = getCanonicalPhoneDigits(input);
+  return d.length === 10 ? `+91 ${d.slice(0, 5)} ${d.slice(5)}` : input.trim();
+}
+
+const CUSTOMER_ACTIVE = "Active";
+const CUSTOMER_BLOCKED = "Blocked";
+const isActive = (s: string) => !s || /^active$/i.test(s);
 /** Older records stored N/A as the email when none was given. */
 const emailOf = (c: Customer) => (c.email && c.email !== "N/A" ? c.email : "");
+export const customerCode = (c: { id: string; customerCode?: string }) => c.customerCode || `NSM-CU-${c.id.slice(0, 6).toUpperCase()}`;
 
-// Phone normalization utilities
-export function getCanonicalPhoneDigits(input: string): string {
-  const digits = input.replace(/\D/g, "");
-  if (digits.length === 12 && digits.startsWith("91")) {
-    return digits.slice(2);
-  }
-  if (digits.length === 11 && digits.startsWith("0")) {
-    return digits.slice(1);
-  }
-  return digits;
-}
+type Group = "New" | "Returning" | "Regular";
+const groupOf = (s: CustomerStats): Group => (s.completed >= 3 ? "Regular" : s.completed >= 1 ? "Returning" : "New");
+const GROUP_TONE: Record<Group, "green" | "amber" | "blue"> = { New: "green", Returning: "amber", Regular: "blue" };
+const PAGE = 10;
 
-export function formatIndianPhone(input: string): string {
-  const cleanDigits = getCanonicalPhoneDigits(input);
-  if (cleanDigits.length === 10) {
-    return `+91 ${cleanDigits.slice(0, 5)} ${cleanDigits.slice(5)}`;
-  }
-  return input.trim();
-}
+export default function Customers({ onNavigate }: { onNavigate?: (page: string, tab?: string) => void }) {
+  const customers = useCustomers();
+  const bookingsQ = useBookings();
+  const all = customers.rows ?? [];
+  const bookings = bookingsQ.rows ?? [];
+  const [q, setQ] = useState("");
+  const [group, setGroup] = useState<"All" | Group>("All");
+  const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
+  const [viewing, setViewing] = useState<Customer | null>(null);
+  const [editing, setEditing] = useState<Customer | "new" | null>(null);
+  const sel = useSelection();
+  const { toast, show } = useToast(6000);
 
-// Stored customer statuses: "Approved" (shown as Active) or "Blocked".
-// Legacy "Active" still counts as active; any other value (or none) blocks
-// the account, exactly as firestore.rules and the booking server do.
-export const CUSTOMER_ACTIVE = "Approved";
-export const CUSTOMER_BLOCKED = "Blocked";
-export const isCustomerActive = (status?: string) => status === CUSTOMER_ACTIVE || status === "Active";
-const statusLabel = (status?: string) => (isCustomerActive(status) ? "Active" : "Blocked");
-
-export default function Customers() {
-  const [customerList, setCustomerList] = useState<Customer[]>([]);
-  const [bookings, setBookings] = useState<Booking[]>([]);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [editError, setEditError] = useState<string | null>(null);
-  const [search, setSearch] = useState("");
-
-  // Modals & Drawers State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [selectedViewCustomer, setSelectedViewCustomer] = useState<Customer | null>(null);
-  const [selectedEditCustomer, setSelectedEditCustomer] = useState<Customer | null>(null);
-
-  // Form State for Add Customer
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [status, setStatus] = useState<string>(CUSTOMER_ACTIVE);
-  const [gender, setGender] = useState<string>("");
-  const [city, setCity] = useState("");
-  const [notes, setNotes] = useState("");
-
-  // Validation & Saving State
-  const [saving, setSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [duplicateWarning, setDuplicateWarning] = useState<Customer | null>(null);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Edit Form State
-  const [editName, setEditName] = useState("");
-  const [editEmail, setEditEmail] = useState("");
-  const [editStatus, setEditStatus] = useState<string>(CUSTOMER_ACTIVE);
-  const [editCity, setEditCity] = useState("");
-  const [savingEdit, setSavingEdit] = useState(false);
-
-  useEffect(() => {
-    const unsubs = [subscribeCustomers(setCustomerList, setLoadError), subscribeBookings(setBookings, setLoadError)];
-    return () => unsubs.forEach((u) => u());
-  }, []);
-
-  const stats = useMemo(() => buildCustomerStats(customerList, bookings), [customerList, bookings]);
+  const stats = useMemo(() => buildCustomerStats(all, bookings), [all, bookings]);
   const statsOf = (c: Customer) => stats.get(c.id) ?? EMPTY_STATS;
+  const lastCompleted = useMemo(() => {
+    const m = new Map<string, Date>();
+    for (const b of bookings) {
+      if (b.status !== "Completed") continue;
+      const owner = b.customerId || all.find((c) => getCanonicalPhoneDigits(c.phone) === getCanonicalPhoneDigits(b.phone || ""))?.id;
+      const p = bookingPickupDate(b);
+      if (owner && p && (!m.get(owner) || p > m.get(owner)!)) m.set(owner, p);
+    }
+    return m;
+  }, [bookings, all]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+  const filtered = useMemo(() => {
+    const term = q.trim().toLowerCase();
+    const d = getCanonicalPhoneDigits(term);
+    return all
+      .filter((c) => group === "All" || groupOf(statsOf(c)) === group)
+      .filter((c) => !term || [c.name, emailOf(c), c.id, customerCode(c)].some((v) => (v || "").toLowerCase().includes(term)) || (d.length >= 4 && getCanonicalPhoneDigits(c.phone).includes(d)))
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [all, q, group, stats]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE));
+  const cur = Math.min(page, pages);
+  const shown = filtered.slice((cur - 1) * PAGE, cur * PAGE);
+  const filtersOn = q !== "" || group !== "All";
+
+  const spec: ExportSpec<Customer> = {
+    scope: "Customers",
+    headers: ["Customer ID", "Name", "Mobile", "Email", "City", "Customer group", "Completed trips", "Last trip", "Status"],
+    row: (c) => [customerCode(c), c.name, c.phone, emailOf(c), c.city ?? "", groupOf(statsOf(c)), statsOf(c).completed, refDateTime(lastCompleted.get(c.id) ?? null), isActive(c.status) ? "Active" : c.status],
   };
 
-  const resetAddForm = () => {
-    setName("");
-    setPhone("");
-    setEmail("");
-    setStatus(CUSTOMER_ACTIVE);
-    setGender("");
-    setCity("");
-    setNotes("");
-    setFormError(null);
-    setDuplicateWarning(null);
-  };
-
-  // Check phone duplicate as user types or on submit
-  const checkDuplicate = (phoneInput: string): Customer | null => {
-    const canonical = getCanonicalPhoneDigits(phoneInput);
-    if (!canonical || canonical.length < 10) return null;
-    return (
-      customerList.find(
-        (c) => getCanonicalPhoneDigits(c.phone || "") === canonical
-      ) || null
-    );
-  };
-
-  const handlePhoneChange = (val: string) => {
-    setPhone(val);
-    setFormError(null);
-    const dup = checkDuplicate(val);
-    setDuplicateWarning(dup);
-  };
-
-  // Submit Handler for Add Customer
-  const handleSaveCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setFormError(null);
-
-    // 1. Validation: Name
-    if (!name.trim()) {
-      setFormError("Please enter full customer name.");
-      return;
-    }
-
-    // 2. Validation: Phone
-    const canonicalDigits = getCanonicalPhoneDigits(phone);
-    if (canonicalDigits.length !== 10) {
-      setFormError("Please enter a valid 10-digit Indian mobile number.");
-      return;
-    }
-
-    if (!/^[6-9]\d{9}$/.test(canonicalDigits)) {
-      setFormError("Mobile number must start with 6, 7, 8, or 9.");
-      return;
-    }
-
-    // 3. Validation: Email (Optional format check)
-    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      setFormError("Please enter a valid email address.");
-      return;
-    }
-
-    // 4. Duplicate Check
-    const dup = checkDuplicate(phone);
-    if (dup) {
-      setDuplicateWarning(dup);
-      setFormError(
-        `A customer with phone number ${dup.phone} already exists (${dup.name}).`
-      );
-      return;
-    }
-
-    setSaving(true);
-
-    try {
-      const normalizedPhone = formatIndianPhone(phone);
-
-      // Only what the admin entered. Booking counts and spend are derived
-      // from bookings, never stored here.
-      const customerPayload = {
-        name: name.trim(),
-        phone: normalizedPhone,
-        email: email.trim(),
-        status: status,
-        role: "customer",
-        source: "admin",
-        gender: gender,
-        city: city.trim(),
-        notes: notes.trim(),
-      };
-
-      // 5. Database Save
-      const docId = await addFirestoreDocument(
-        COLLECTIONS.CUSTOMERS,
-        customerPayload
-      );
-
-      if (docId) {
-        showToast(`Customer ${name.trim()} added successfully!`);
-        setShowAddModal(false);
-        resetAddForm();
-      } else {
-        setFormError("Failed to save customer to database. Please try again.");
-      }
-    } catch (err: any) {
-      console.error("Save customer error:", err);
-      setFormError(err.message || "An unexpected error occurred while saving.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // Edit Customer Submission
-  const handleSaveEdit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedEditCustomer) return;
-
-    setEditError(null);
-    if (!editName.trim()) {
-      setEditError("Name cannot be empty.");
-      return;
-    }
-    if (editEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(editEmail.trim())) {
-      setEditError("Please enter a valid email address.");
-      return;
-    }
-
-    setSavingEdit(true);
-    const ok = await updateFirestoreDocument(
-      COLLECTIONS.CUSTOMERS,
-      selectedEditCustomer.id,
-      {
-        name: editName.trim(),
-        email: editEmail.trim(),
-        status: editStatus,
-        city: editCity.trim(),
-      }
-    );
-
-    setSavingEdit(false);
-    if (ok) {
-      showToast("Customer profile updated successfully!");
-      setSelectedEditCustomer(null);
-    } else {
-      setEditError("The profile was not updated. Check your connection and permissions, then try again.");
-    }
-  };
-
-  // Block / Unblock Toggle Action
-  const handleToggleBlock = async (c: Customer) => {
-    const newStatus = isCustomerActive(c.status) ? CUSTOMER_BLOCKED : CUSTOMER_ACTIVE;
-    const ok = await updateFirestoreDocument(
-      COLLECTIONS.CUSTOMERS,
-      c.id,
-      { status: newStatus }
-    );
-    showToast(ok ? `Customer ${c.name} is now ${statusLabel(newStatus).toLowerCase()}` : `Could not change ${c.name}'s status. Check your connection and permissions.`);
-  };
-
-  // Open Edit Modal
-  const handleOpenEdit = (c: Customer) => {
-    setSelectedEditCustomer(c);
-    setEditError(null);
-    setEditName(c.name);
-    setEditEmail(emailOf(c));
-    setEditStatus(isCustomerActive(c.status) ? CUSTOMER_ACTIVE : CUSTOMER_BLOCKED);
-    setEditCity(c.city || "");
-  };
-
-  const filtered = customerList.filter(
-    (c) =>
-      search === "" ||
-      (c.name && c.name.toLowerCase().includes(search.toLowerCase())) ||
-      (c.phone && c.phone.includes(search)) ||
-      (c.email && c.email.toLowerCase().includes(search.toLowerCase())) ||
-      (c.id && c.id.toLowerCase().includes(search.toLowerCase()))
-  );
-
-  const statusColor: Record<string, string> = {
-    Active: "text-green-700 bg-green-50 border-green-200",
-    Blocked: "text-[#E21B23] bg-red-50 border-red-200",
+  const toggleBlock = async (c: Customer) => {
+    const next = isActive(c.status) ? CUSTOMER_BLOCKED : CUSTOMER_ACTIVE;
+    const ok = await updateFirestoreDocument(COLLECTIONS.CUSTOMERS, c.id, { status: next });
+    show(ok ? `${c.name} is now ${next.toLowerCase()}.` : `Could not change ${c.name}'s status.`, ok ? "success" : "error");
   };
 
   return (
-    <div className="p-6 space-y-5">
-      {/* Toast */}
-      {toastMessage && (
-        <div className="fixed top-5 right-5 z-50 bg-gray-900 text-white px-4 py-3 rounded-lg shadow-xl text-sm flex items-center gap-2 border border-gray-700 animate-fade-in">
-          <span className="w-2 h-2 rounded-full bg-green-400"></span>
-          {toastMessage}
+    <div className="ds-page-body">
+      <Toast toast={toast} />
+      {customers.error && <ErrorBanner message={customers.error} />}
+      <PageHeader
+        title="Customers"
+        subtitle="Customer contacts, groups and booking history."
+        actions={<><Button icon="download" onClick={() => setExporting(true)}>Export data</Button><Button variant="primary" icon="user-plus" onClick={() => setEditing("new")}>Add customer</Button></>}
+      />
+      <div className="ds-filterbar" role="search">
+        <div className="ds-search" style={{ flex: "1 1 340px" }}>
+          <Icon name="search" />
+          <input type="search" className="ds-input" value={q} onChange={(e) => { setQ(e.target.value); setPage(1); }} placeholder="Name, ID, mobile or DL number" aria-label="Search customers" />
         </div>
-      )}
-
-      {loadError && <ErrorBanner message={loadError} />}
-
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          {
-            label: "Total Customers",
-            value: customerList.length.toString(),
-            color: "#E21B23",
-          },
-          {
-            label: "Active",
-            value: customerList
-              .filter((c) => isCustomerActive(c.status))
-              .length.toString(),
-            color: "#10B981",
-          },
-          {
-            label: "New This Month",
-            value: customerList
-              .filter((c) => {
-                if (!c.createdAt) return false;
-                const date =
-                  typeof c.createdAt.toDate === "function"
-                    ? c.createdAt.toDate()
-                    : new Date(c.createdAt);
-                const now = new Date();
-                return (
-                  date.getMonth() === now.getMonth() &&
-                  date.getFullYear() === now.getFullYear()
-                );
-              })
-              .length.toString(),
-            color: "#3B82F6",
-          },
-          {
-            label: "Blocked",
-            value: customerList
-              .filter((c) => !isCustomerActive(c.status))
-              .length.toString(),
-            color: "#F59E0B",
-          },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4"
-          >
-            <div className="text-[22px] font-bold" style={{ color: s.color }}>
-              {s.value}
-            </div>
-            <div className="text-[11px] text-[#999] mt-0.5">{s.label}</div>
-          </div>
-        ))}
+        <label className="ds-field"><span>Customer group</span>
+          <select className="ds-select" value={group} onChange={(e) => { setGroup(e.target.value as typeof group); setPage(1); }}>{["All", "New", "Returning", "Regular"].map((g) => <option key={g}>{g}</option>)}</select>
+        </label>
       </div>
-
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-        <div className="flex items-center gap-3 px-5 py-4 border-b border-[#E5E5E5]">
-          <div className="relative flex-1 max-w-xs">
-            <svg
-              className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-              />
-            </svg>
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name, phone, email..."
-              className="w-full pl-9 pr-4 py-2 text-[13px] bg-[#F5F5F5] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] placeholder-[#999]"
-            />
-          </div>
-          <button
-            onClick={() => {
-              resetAddForm();
-              setShowAddModal(true);
-            }}
-            className="ml-auto flex items-center gap-2 px-4 py-2 text-[12px] font-semibold text-white rounded-lg transition-all hover:opacity-90 active:scale-95"
-            style={{ background: "#E21B23" }}
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2.5}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 4v16m8-8H4"
-              />
-            </svg>
-            Add Customer
-          </button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[800px]">
-            <thead>
-              <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
-                {[
-                  "Customer",
-                  "Phone",
-                  "Email",
-                  "Bookings",
-                  "Paid",
-                  "Last Booking",
-                  "Status",
-                  "Actions",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide whitespace-nowrap"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="text-center py-10 text-[#999] text-xs">
-                    No customer records found matching your search.
-                  </td>
+      <div className="ds-toolbar-count">
+        <strong>{filtered.length} records · {sel.ids.size} selected</strong>
+        <Button variant="ghost" size="sm" icon="rotate-ccw" disabled={!filtersOn && !sel.ids.size} onClick={() => { setQ(""); setGroup("All"); sel.clear(); }}>Clear filters</Button>
+      </div>
+      {customers.rows === null ? <div className="ds-panel"><TableSkeleton rows={5} cols={5} /></div> : filtered.length === 0 ? <div className="ds-panel"><EmptyState /></div> : (
+        <DataTable label="Customers" minWidth={980} fixed hasActions>
+          <colgroup><col style={{ width: 44 }} /><col style={{ width: 260 }} /><col style={{ width: 200 }} /><col style={{ width: 200 }} /><col style={{ width: 110 }} /><col style={{ width: 200 }} /></colgroup>
+          <thead><tr>
+            <th className="ds-check-cell"><input type="checkbox" aria-label="Select visible records" checked={shown.length > 0 && shown.every((c) => sel.has(c.id))} onChange={(e) => sel.setAll(shown.map((c) => c.id), e.target.checked)} /></th>
+            <th>NAME / ID</th><th>CONTACT</th><th>BOOKING HISTORY</th><th>STATUS</th><th className="ds-actions">ACTIONS</th>
+          </tr></thead>
+          <tbody>
+            {shown.map((c) => {
+              const s = statsOf(c);
+              const g = groupOf(s);
+              return (
+                <tr key={c.id}>
+                  <td className="ds-check-cell"><input type="checkbox" aria-label={`Select ${c.name}`} checked={sel.has(c.id)} onChange={() => sel.toggle(c.id)} /></td>
+                  <td><div className="ds-person"><Initials name={c.name || "?"} /><div><strong>{c.name}</strong><Badge tone={GROUP_TONE[g]}>{g}</Badge><small>{customerCode(c)}</small></div></div></td>
+                  <td><strong>{c.phone}</strong><small>{emailOf(c) || "Email not supplied"}</small></td>
+                  <td><strong>{s.completed} completed trips</strong><small>{lastCompleted.get(c.id) ? refDateTime(lastCompleted.get(c.id)!) : "No completed trips"}</small></td>
+                  <td><Badge tone={toneForStatus(isActive(c.status) ? "Active" : c.status)}>{isActive(c.status) ? "Active" : c.status}</Badge></td>
+                  <td className="ds-actions"><div>
+                    <Button size="sm" onClick={() => setViewing(c)}>View</Button>
+                    <Button size="sm" variant="ghost" onClick={() => onNavigate?.("accounts", `Statements:customer:${c.id}`)}>Statement</Button>
+                    <MenuButton iconOnly label={`More actions for ${c.name}`} items={[
+                      { label: "Edit customer", icon: "pencil", onSelect: () => setEditing(c) },
+                      { label: isActive(c.status) ? "Block customer" : "Unblock customer", icon: isActive(c.status) ? "ban" : "circle-check", danger: isActive(c.status), onSelect: () => toggleBlock(c) },
+                    ]} />
+                  </div></td>
                 </tr>
-              ) : (
-                filtered.map((c, i) => (
-                  <tr
-                    key={c.id || i}
-                    className="table-row border-b border-[#F5F5F5] last:border-0 hover:bg-[#FDFDFD]"
-                  >
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="w-8 h-8 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
-                          style={{ background: "#E21B23" }}
-                        >
-                          {(c.name || "User")
-                            .split(" ")
-                            .map((n: string) => n[0])
-                            .join("")
-                            .slice(0, 2)}
-                        </div>
-                        <div>
-                          <div className="text-[12px] font-semibold text-[#111]">
-                            {c.name}
-                          </div>
-                          <div className="text-[10px] text-[#999]">{c.id}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-[#666] font-mono">
-                      {c.phone}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] text-[#666]">
-                      {emailOf(c) || "—"}
-                    </td>
-                    <td className="px-4 py-3 text-[12px] font-semibold text-[#111] text-center">
-                      {statsOf(c).total}
-                    </td>
-                    <td
-                      className="px-4 py-3 text-[12px] font-semibold"
-                      style={{ color: "#E21B23" }}
-                    >
-                      {rupees(statsOf(c).paid)}
-                    </td>
-                    <td className="px-4 py-3 text-[11px] text-[#666]">
-                      {dateLabel(statsOf(c).lastBookingAt)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`inline-flex px-2 py-0.5 rounded-full text-[11px] font-semibold border ${
-                          statusColor[statusLabel(c.status)]
-                        }`}
-                      >
-                        {statusLabel(c.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => setSelectedViewCustomer(c)}
-                          className="text-[11px] px-2 py-1 rounded-md border border-[#E5E5E5] hover:bg-[#FEF2F2] text-[#E21B23] font-medium transition-colors"
-                        >
-                          View
-                        </button>
-                        <button
-                          onClick={() => handleOpenEdit(c)}
-                          className="text-[11px] px-2 py-1 rounded-md border border-[#E5E5E5] hover:bg-[#F5F5F5] text-[#444] font-medium transition-colors"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handleToggleBlock(c)}
-                          className={`text-[11px] px-2 py-1 rounded-md border border-[#E5E5E5] font-medium transition-colors ${
-                            !isCustomerActive(c.status)
-                              ? "text-green-700 hover:bg-green-50"
-                              : "text-amber-700 hover:bg-amber-50"
-                          }`}
-                        >
-                          {!isCustomerActive(c.status) ? "Unblock" : "Block"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* MODAL: Add Customer */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-5 animate-scale-up border border-[#E5E5E5]">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-[#E5E5E5] pb-3">
-              <div>
-                <h3 className="text-base font-bold text-gray-900">
-                  Add New Customer
-                </h3>
-                <p className="text-[11px] text-gray-500 mt-0.5">
-                  Create a verified customer profile for booking & fleet services.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowAddModal(false)}
-                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Error & Duplicate Banner */}
-            {formError && (
-              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-lg flex items-start gap-2">
-                <svg
-                  className="w-4 h-4 text-red-600 shrink-0 mt-0.5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  />
-                </svg>
-                <div>
-                  <p className="font-semibold">{formError}</p>
-                  {duplicateWarning && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowAddModal(false);
-                        setSelectedViewCustomer(duplicateWarning);
-                      }}
-                      className="text-xs underline font-bold mt-1 text-red-800 hover:text-red-950 block"
-                    >
-                      View Existing Customer Profile ({duplicateWarning.id}) →
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Form */}
-            <form onSubmit={handleSaveCustomer} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                {/* Full Name */}
-                <div className="md:col-span-2">
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Full Name <span className="text-red-600">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Vignesh Kumar"
-                    value={name}
-                    onChange={(e) => {
-                      setName(e.target.value);
-                      setFormError(null);
-                    }}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* Phone */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Mobile Number <span className="text-red-600">*</span>
-                  </label>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3 text-gray-500 font-medium">
-                      +91
-                    </span>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="90801 91679"
-                      value={phone}
-                      onChange={(e) => handlePhoneChange(e.target.value)}
-                      className="w-full pl-11 pr-3 py-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-mono focus:ring-2 focus:ring-red-500 focus:bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* Email */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Email Address <span className="text-gray-400 font-normal">(Optional)</span>
-                  </label>
-                  <input
-                    type="email"
-                    placeholder="customer@email.com"
-                    value={email}
-                    onChange={(e) => {
-                      setEmail(e.target.value);
-                      setFormError(null);
-                    }}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* Status */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Customer Status
-                  </label>
-                  <select
-                    value={status}
-                    onChange={(e) => setStatus(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  >
-                    <option value={CUSTOMER_ACTIVE}>Active</option>
-                    <option value={CUSTOMER_BLOCKED}>Blocked</option>
-                  </select>
-                </div>
-
-                {/* City */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    City / Location
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="City"
-                    value={city}
-                    onChange={(e) => setCity(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  />
-                </div>
-
-                {/* Gender */}
-                <div>
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Gender
-                  </label>
-                  <select
-                    value={gender}
-                    onChange={(e) => setGender(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-medium focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  >
-                    <option value="">Not specified</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-
-                {/* Notes */}
-                <div className="md:col-span-2">
-                  <label className="block font-semibold text-gray-700 mb-1">
-                    Customer Notes / Remarks
-                  </label>
-                  <textarea
-                    rows={2}
-                    placeholder="Optional notes regarding booking preferences or corporate identity..."
-                    value={notes}
-                    onChange={(e) => setNotes(e.target.value)}
-                    className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs focus:ring-2 focus:ring-red-500 focus:bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Form Buttons */}
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-gray-200">
-                <button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={saving}
-                  className="px-4 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="px-5 py-2 text-xs font-semibold text-white rounded-lg shadow-sm flex items-center gap-2 transition-all hover:opacity-95 disabled:opacity-50"
-                  style={{ backgroundColor: "#E21B23" }}
-                >
-                  {saving ? (
-                    <>
-                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving Customer...</span>
-                    </>
-                  ) : (
-                    <span>Save Customer</span>
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+              );
+            })}
+          </tbody>
+        </DataTable>
       )}
+      {filtered.length > 0 && <SimplePager page={cur} pages={pages} from={(cur - 1) * PAGE + 1} to={Math.min(cur * PAGE, filtered.length)} total={filtered.length} onPage={setPage} />}
 
-      {/* MODAL: View Customer Detail */}
-      {selectedViewCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 animate-scale-up border border-[#E5E5E5]">
-            <div className="flex items-center justify-between border-b pb-3">
-              <div className="flex items-center gap-3">
-                <div
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold"
-                  style={{ background: "#E21B23" }}
-                >
-                  {(selectedViewCustomer.name || "U")
-                    .split(" ")
-                    .map((n) => n[0])
-                    .join("")
-                    .slice(0, 2)}
-                </div>
-                <div>
-                  <h3 className="text-base font-bold text-gray-900">
-                    {selectedViewCustomer.name}
-                  </h3>
-                  <p className="text-xs text-gray-500 font-mono">
-                    ID: {selectedViewCustomer.id}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedViewCustomer(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="space-y-2.5 text-xs text-gray-700 bg-gray-50 p-4 rounded-xl border border-gray-200">
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="font-semibold text-gray-500">Mobile Phone:</span>
-                <span className="font-mono font-bold text-gray-900">
-                  {selectedViewCustomer.phone}
-                </span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="font-semibold text-gray-500">Email:</span>
-                <span>{emailOf(selectedViewCustomer) || "—"}</span>
-              </div>
-              <div className="flex justify-between py-1 border-b border-gray-200">
-                <span className="font-semibold text-gray-500">Status:</span>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${statusColor[statusLabel(selectedViewCustomer.status)]}`}>
-                  {statusLabel(selectedViewCustomer.status)}
-                </span>
-              </div>
-              {(() => {
-                const st = statsOf(selectedViewCustomer);
-                return (
-                  <>
-                    <div className="flex justify-between py-1 border-b border-gray-200">
-                      <span className="font-semibold text-gray-500">Bookings:</span>
-                      <span className="font-bold">
-                        {st.total} total • {st.completed} completed • {st.cancelled} cancelled
-                      </span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-gray-200">
-                      <span className="font-semibold text-gray-500">Paid:</span>
-                      <span className="font-bold text-red-600">{rupees(st.paid)}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-gray-200">
-                      <span className="font-semibold text-gray-500">Unpaid completed trips:</span>
-                      <span className="font-bold">{st.outstanding > 0 ? rupees(st.outstanding) : "—"}</span>
-                    </div>
-                    <div className="flex justify-between py-1 border-b border-gray-200">
-                      <span className="font-semibold text-gray-500">Last Booking:</span>
-                      <span>{dateLabel(st.lastBookingAt)}</span>
-                    </div>
-                  </>
-                );
-              })()}
-              <div className="flex justify-between py-1">
-                <span className="font-semibold text-gray-500">City / Location:</span>
-                <span>{selectedViewCustomer.city || "—"}</span>
-              </div>
-            </div>
-
-            <div className="flex justify-end pt-2">
-              <button
-                onClick={() => setSelectedViewCustomer(null)}
-                className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-              >
-                Close Profile
-              </button>
-            </div>
-          </div>
-        </div>
+      {exporting && <ExportDialog spec={spec} all={all} filtered={filtered} selected={all.filter((c) => sel.has(c.id))} filters={{ q, group }} onClose={() => setExporting(false)} />}
+      {viewing && (
+        <CustomerProfile
+          c={all.find((x) => x.id === viewing.id) ?? viewing}
+          stats={statsOf(viewing)}
+          last={lastCompleted.get(viewing.id) ?? null}
+          bookings={bookings}
+          onClose={() => setViewing(null)}
+          onEdit={() => { setEditing(viewing); setViewing(null); }}
+          onStatement={() => onNavigate?.("accounts", `Statements:customer:${viewing.id}`)}
+          onToggle={() => toggleBlock(viewing)}
+        />
       )}
-
-      {/* MODAL: Edit Customer */}
-      {selectedEditCustomer && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4 border border-[#E5E5E5]">
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="text-base font-bold text-gray-900">
-                Edit Customer Profile
-              </h3>
-              <button
-                onClick={() => setSelectedEditCustomer(null)}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveEdit} className="space-y-3 text-xs">
-              {editError && (
-                <div role="alert" className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg font-semibold">
-                  {editError}
-                </div>
-              )}
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Mobile Number (Read-Only)
-                </label>
-                <input
-                  type="text"
-                  disabled
-                  value={selectedEditCustomer.phone}
-                  className="w-full p-2.5 bg-gray-100 border border-gray-300 rounded-lg text-xs font-mono text-gray-600"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Email Address
-                </label>
-                <input
-                  type="email"
-                  value={editEmail}
-                  onChange={(e) => setEditEmail(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  Status
-                </label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs font-medium"
-                >
-                  <option value={CUSTOMER_ACTIVE}>Active</option>
-                  <option value={CUSTOMER_BLOCKED}>Blocked</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={editCity}
-                  onChange={(e) => setEditCity(e.target.value)}
-                  className="w-full p-2.5 bg-gray-50 border border-gray-300 rounded-lg text-xs"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-3 border-t">
-                <button
-                  type="button"
-                  onClick={() => setSelectedEditCustomer(null)}
-                  className="px-4 py-2 text-xs font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingEdit}
-                  className="px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm"
-                  style={{ backgroundColor: "#E21B23" }}
-                >
-                  {savingEdit ? "Updating..." : "Save Changes"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {editing && <CustomerForm c={editing === "new" ? null : editing} all={all} onClose={() => setEditing(null)} onSaved={(t) => { setEditing(null); show(t); }} />}
     </div>
+  );
+}
+
+function CustomerProfile({ c, stats, last, bookings, onClose, onEdit, onStatement, onToggle }: {
+  c: Customer; stats: CustomerStats; last: Date | null; bookings: Booking[]; onClose: () => void; onEdit: () => void; onStatement: () => void; onToggle: () => void;
+}) {
+  const [tab, setTab] = useState<"Overview" | "Bookings" | "Payments">("Overview");
+  const g = groupOf(stats);
+  const mine = bookings.filter((b) => b.customerId === c.id || (!b.customerId && getCanonicalPhoneDigits(b.phone || "") === getCanonicalPhoneDigits(c.phone)))
+    .sort((a, z) => (bookingPickupDate(z)?.getTime() ?? 0) - (bookingPickupDate(a)?.getTime() ?? 0));
+  return (
+    <Modal title="Customer profile" onClose={onClose} size="lg">
+      <div className="ds-profile-head">
+        <Initials name={c.name || "?"} />
+        <div><strong>{c.name}</strong><small>{customerCode(c)}</small></div>
+        <Badge tone={GROUP_TONE[g]}>{g}</Badge>
+      </div>
+      <Tabs label="Customer profile" value={tab} onChange={setTab} tabs={(["Overview", "Bookings", "Payments"] as const).map((t) => ({ id: t, label: t }))} />
+      {tab === "Overview" && (
+        <>
+          <dl className="ds-facts" data-cols={2}>
+            {([
+              ["Customer ID", customerCode(c)], ["Name", c.name], ["Registered mobile", c.phone], ["WhatsApp", c.phone],
+              ["Email", emailOf(c) || "Not supplied"], ["Customer group", g], ["Completed trips", String(stats.completed)], ["Last trip", last ? refDateTime(last) : "Not yet"],
+              ["City", c.city || "—"], ["Status", isActive(c.status) ? "Active" : c.status], ["Total bookings", String(stats.total)], ["Paid · outstanding", `${rupee(stats.paid)} · ${rupee(stats.outstanding)}`],
+            ] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+          </dl>
+          <div className="flex flex-wrap gap-2 mt-5">
+            <Button icon="pencil" onClick={onEdit}>Edit customer</Button>
+            <Button icon="file-text" onClick={onStatement}>View account statement</Button>
+            <Button variant="ghost" icon={isActive(c.status) ? "ban" : "circle-check"} onClick={onToggle}>{isActive(c.status) ? "Block customer" : "Unblock customer"}</Button>
+          </div>
+        </>
+      )}
+      {tab === "Bookings" && (mine.length === 0 ? <EmptyState title="No bookings yet" /> : (
+        <ul className="ds-activity">{mine.map((b) => (
+          <li key={b.id}><strong>{b.bookingId || b.id} · {b.pickup} → {b.drop}</strong><span>{b.status} · {b.vehicleCategory || b.vehicle}</span><small>{refDateTime(bookingPickupDate(b))}</small></li>
+        ))}</ul>
+      ))}
+      {tab === "Payments" && (mine.length === 0 ? <EmptyState title="No payments recorded" /> : (
+        <ul className="ds-activity">{mine.map((b) => {
+          const p = paymentOf(b);
+          return <li key={b.id}><strong>{b.bookingId || b.id} · {rupee(p.amountDue)}</strong><span>{p.status} · paid {rupee(p.totalPaid)} · balance {rupee(p.balanceDue)}</span><small>{refDateTime(bookingPickupDate(b))}</small></li>;
+        })}</ul>
+      ))}
+    </Modal>
+  );
+}
+
+function CustomerForm({ c, all, onClose, onSaved }: { c: Customer | null; all: Customer[]; onClose: () => void; onSaved: (t: string) => void }) {
+  const [f, setF] = useState({ name: c?.name ?? "", phone: c?.phone ?? "", email: c ? emailOf(c) : "", city: c?.city ?? "", gender: c?.gender ?? "", notes: c?.notes ?? "", status: c && !isActive(c.status) ? CUSTOMER_BLOCKED : CUSTOMER_ACTIVE });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const dup = !c ? all.find((x) => getCanonicalPhoneDigits(x.phone) === getCanonicalPhoneDigits(f.phone) && getCanonicalPhoneDigits(f.phone).length === 10) : undefined;
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    if (f.name.trim().length < 2) return setError("Enter the customer name.");
+    if (!c && !/^[6-9]\d{9}$/.test(getCanonicalPhoneDigits(f.phone))) return setError("Enter a valid 10-digit Indian mobile number.");
+    if (f.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email.trim())) return setError("Enter a valid email address.");
+    if (dup) return setError(`A customer with this mobile already exists (${dup.name}).`);
+    setBusy(true);
+    const ok = c
+      ? await updateFirestoreDocument(COLLECTIONS.CUSTOMERS, c.id, { name: f.name.trim(), email: f.email.trim(), city: f.city.trim(), status: f.status })
+      : await addFirestoreDocument(COLLECTIONS.CUSTOMERS, { name: f.name.trim(), phone: formatIndianPhone(f.phone), email: f.email.trim(), status: f.status, role: "customer", source: "admin", gender: f.gender, city: f.city.trim(), notes: f.notes.trim() });
+    setBusy(false);
+    if (ok) onSaved(c ? "Customer profile updated." : `Customer ${f.name.trim()} added.`);
+    else setError("The customer was not saved. Check your connection and permissions, then try again.");
+  };
+  return (
+    <Modal title={c ? "Edit customer" : "Add customer"} onClose={onClose} busy={busy} footer={<Button variant="primary" type="submit" form="customer-form" loading={busy}>{c ? "Save changes" : "Save customer"}</Button>}>
+      <form id="customer-form" onSubmit={save} className="ds-form-grid" noValidate>
+        {error && <div className="ds-error" role="alert" data-span="2">{error}</div>}
+        <label className="ds-field" data-span="2"><span>Full name</span><input className="ds-input" maxLength={80} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} /></label>
+        <label className="ds-field"><span>Mobile</span><input className="ds-input" inputMode="tel" disabled={!!c} value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />{dup && <span className="text-[11px] text-bad">Already registered · {dup.name}</span>}</label>
+        <label className="ds-field"><span>Email · optional</span><input className="ds-input" type="email" value={f.email} onChange={(e) => setF({ ...f, email: e.target.value })} /></label>
+        <label className="ds-field"><span>City</span><input className="ds-input" value={f.city} onChange={(e) => setF({ ...f, city: e.target.value })} /></label>
+        <label className="ds-field"><span>Status</span><select className="ds-select" value={f.status} onChange={(e) => setF({ ...f, status: e.target.value })}><option>{CUSTOMER_ACTIVE}</option><option>{CUSTOMER_BLOCKED}</option></select></label>
+        {!c && <label className="ds-field"><span>Gender · optional</span><select className="ds-select" value={f.gender} onChange={(e) => setF({ ...f, gender: e.target.value })}><option value="">Not specified</option><option>Male</option><option>Female</option><option>Other</option></select></label>}
+        {!c && <label className="ds-field" data-span="2"><span>Notes</span><input className="ds-input" maxLength={300} value={f.notes} onChange={(e) => setF({ ...f, notes: e.target.value })} /></label>}
+      </form>
+    </Modal>
   );
 }

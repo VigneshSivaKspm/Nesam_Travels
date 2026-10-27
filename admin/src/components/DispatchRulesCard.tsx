@@ -101,7 +101,7 @@ export default function DispatchRulesCard() {
     }
   };
 
-  const heading = (t: string) => <h3 className="text-[15px] font-bold text-[#111] flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-[#E21B23]" />{t}</h3>;
+  const heading = (t: string) => <h3 className="text-[15px] font-bold text-ink flex items-center gap-2"><span className="w-1 h-4 rounded-full bg-brand" />{t}</h3>;
   const text = (label: string, k: keyof Form, hint?: string) => (
     <Field label={label} hint={hint}><input value={String(form[k])} onChange={(e) => set(k, digits(e.target.value) as never)} inputMode="decimal" disabled={!canEdit} className={inputCls} /></Field>
   );
@@ -130,7 +130,7 @@ export default function DispatchRulesCard() {
 
       <section className="space-y-3">
         {heading("Driver and vehicle scheduling")}
-        <p className="text-sm text-[#555]">A duty is allowed when the resource finishes its earlier trip, repositions and clears this buffer before the next pickup.</p>
+        <p className="text-sm text-muted">A duty is allowed when the resource finishes its earlier trip, repositions and clears this buffer before the next pickup.</p>
         <div className="grid sm:grid-cols-3 gap-3">
           {text("Operating buffer (minutes)", "buffer")}
           {text("Repositioning speed (km/h)", "speed")}
@@ -140,7 +140,7 @@ export default function DispatchRulesCard() {
 
       <section className="space-y-3">
         {heading("Duty release")}
-        <label className="flex items-center gap-2 text-sm font-semibold text-[#333]"><input type="checkbox" checked={form.waves} onChange={(e) => set("waves", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-[#E21B23]" />Release a published duty in waves (top-rated owner-drivers, then others, then vendors)</label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-body"><input type="checkbox" checked={form.waves} onChange={(e) => set("waves", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-brand" />Release a published duty in waves (top-rated owner-drivers, then others, then vendors)</label>
         <div className="grid sm:grid-cols-3 gap-3">
           {text("Other owner-drivers after (seconds)", "ownersAll")}
           {text("Vendors after (seconds)", "vendors")}
@@ -164,7 +164,7 @@ export default function DispatchRulesCard() {
 
       {problem && dirty && <p className="text-sm font-semibold text-red-700" role="alert">{problem}</p>}
       {msg && <Notice tone={msg.tone === "ok" ? "ok" : "error"}>{msg.text}</Notice>}
-      {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save dispatch rules"}</button> : <p className="text-sm text-[#555]">Changing these needs system access.</p>}
+      {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save dispatch rules"}</button> : <p className="text-sm text-muted">Changing these needs system access.</p>}
     </div>
   );
 }

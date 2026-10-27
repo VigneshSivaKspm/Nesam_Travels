@@ -18,7 +18,7 @@ import { useAccess } from "../components/AccessContext";
 
 const errText = (e: unknown) => (e instanceof CommissionActionError ? e.message : "Something went wrong. Please try again.");
 const inputCls = (bad: boolean) =>
-  `w-24 px-2 py-1.5 text-[12px] border rounded-lg text-right ${bad ? "border-red-400 bg-red-50" : "border-[#DDD]"}`;
+  `w-24 px-2 py-1.5 text-[12px] border rounded-lg text-right ${bad ? "border-red-400 bg-red-50" : "border-line"}`;
 const BASE_LABEL = { taxable: "fare excluding GST", total: "fare including GST" } as const;
 
 function sameForm(a: CommissionForm, b: CommissionForm) {
@@ -139,8 +139,8 @@ export default function CommissionPolicy() {
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
       <div>
-        <h1 className="text-[20px] font-bold text-[#111]">Commission Policy</h1>
-        <p className="text-[13px] text-[#666]">
+        <h1 className="text-[20px] font-bold text-ink">Commission Policy</h1>
+        <p className="text-[13px] text-muted">
           The platform commission decides the payout offered to vendors and independent drivers. Each booking stores the rate it was created with, so a change here
           never alters existing bookings or completed trips.
         </p>
@@ -159,15 +159,15 @@ export default function CommissionPolicy() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5 space-y-4">
+      <div className="bg-white rounded-xl border border-line shadow-sm p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-[13px] font-bold text-[#111]">Platform rules</div>
-          <div className="text-[11px] text-[#888]">
+          <div className="text-[13px] font-bold text-ink">Platform rules</div>
+          <div className="text-[11px] text-faint">
             {policy ? `Version ${policy.version}${policy.updatedByName ? ` • saved by ${policy.updatedByName}` : ""}${policy.updatedAt ? ` • ${policy.updatedAt.toLocaleString("en-IN")}` : ""}` : "No saved version"}
           </div>
         </div>
         <fieldset>
-          <legend className="text-[12px] font-semibold text-[#333] mb-1">Commission is taken from</legend>
+          <legend className="text-[12px] font-semibold text-body mb-1">Commission is taken from</legend>
           <div className="flex flex-wrap gap-4 text-[12px]">
             {(["taxable", "total"] as const).map((b) => (
               <label key={b} className="flex items-center gap-2">
@@ -179,22 +179,22 @@ export default function CommissionPolicy() {
           {errors.base && <p className="text-[11px] text-red-600 mt-1">{errors.base}</p>}
         </fieldset>
         <label className="block text-[12px]">
-          <span className="font-semibold text-[#333]">Global rate (%)</span>
-          <span className="block text-[11px] text-[#888] mb-1">Used when no service or vehicle category rule applies. Leave blank for no global rule.</span>
+          <span className="font-semibold text-body">Global rate (%)</span>
+          <span className="block text-[11px] text-faint mb-1">Used when no service or vehicle category rule applies. Leave blank for no global rule.</span>
           <input inputMode="decimal" aria-label="Global rate" value={form.global} onChange={(e) => setForm((f) => ({ ...f, global: e.target.value }))} className={inputCls(!!errors.global)} />
           {errors.global && <span className="block text-[11px] text-red-600 mt-1">{errors.global}</span>}
         </label>
         {form.base && typeof parseRate(form.global) === "number" && (
-          <p className="text-[11px] text-[#666]">
+          <p className="text-[11px] text-muted">
             Example: on a trip whose {BASE_LABEL[form.base]} is ₹1,000, the partner is offered ₹{Math.max(0, Math.round((1000 * (100 - (parseRate(form.global) as number))) / 100)).toLocaleString("en-IN")} under the global rule.
           </p>
         )}
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#E5E5E5] bg-[#FAFAFA]">
-          <div className="text-[13px] font-bold text-[#111]">Vehicle category rules</div>
-          <p className="text-[11px] text-[#888]">Override the global rate for a category. Blank = use the global rate.</p>
+      <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-line bg-surface-2">
+          <div className="text-[13px] font-bold text-ink">Vehicle category rules</div>
+          <p className="text-[11px] text-faint">Override the global rate for a category. Blank = use the global rate.</p>
         </div>
         <table className="w-full">
           <tbody>
@@ -202,27 +202,27 @@ export default function CommissionPolicy() {
               const key = `category:${c.id}`;
               const applied = draftPreview({ categoryId: c.id });
               return (
-                <tr key={c.id} className="border-b border-[#F5F5F5] last:border-0">
-                  <td className="px-5 py-2.5 text-[12px] font-semibold text-[#111]">
+                <tr key={c.id} className="border-b border-hover last:border-0">
+                  <td className="px-5 py-2.5 text-[12px] font-semibold text-ink">
                     {c.name}
-                    {c.status !== "Active" && <span className="ml-2 text-[10px] font-normal text-[#999]">Inactive</span>}
+                    {c.status !== "Active" && <span className="ml-2 text-[10px] font-normal text-faint">Inactive</span>}
                   </td>
                   <td className="px-5 py-2.5">
                     <input inputMode="decimal" aria-label={`${c.name} rate`} value={form.categories[c.id] ?? ""} onChange={(e) => setRate("categories", c.id, e.target.value)} className={inputCls(!!errors[key])} />
                   </td>
-                  <td className={`px-5 py-2.5 text-[11px] ${applied ? "text-[#666]" : "text-red-700 font-semibold"}`}>{applied ? `Applies: ${applied}` : "No rate — bookings refused"}</td>
+                  <td className={`px-5 py-2.5 text-[11px] ${applied ? "text-muted" : "text-red-700 font-semibold"}`}>{applied ? `Applies: ${applied}` : "No rate — bookings refused"}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {!loading && categories.length === 0 && <div className="py-8 text-center text-[12px] text-[#999]">No vehicle categories yet.</div>}
+        {!loading && categories.length === 0 && <div className="py-8 text-center text-[12px] text-faint">No vehicle categories yet.</div>}
       </div>
 
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-        <div className="px-5 py-4 border-b border-[#E5E5E5] bg-[#FAFAFA]">
-          <div className="text-[13px] font-bold text-[#111]">Service rules</div>
-          <p className="text-[11px] text-[#888]">
+      <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+        <div className="px-5 py-4 border-b border-line bg-surface-2">
+          <div className="text-[13px] font-bold text-ink">Service rules</div>
+          <p className="text-[11px] text-faint">
             Most specific rule. Applied to bookings created with a service selected (admin bookings). Customer app bookings use the vehicle category or global rule.
           </p>
         </div>
@@ -231,21 +231,21 @@ export default function CommissionPolicy() {
             {services.map((s) => {
               const key = `service:${s.id}`;
               return (
-                <tr key={s.id} className="border-b border-[#F5F5F5] last:border-0">
-                  <td className="px-5 py-2.5 text-[12px] font-semibold text-[#111]">
+                <tr key={s.id} className="border-b border-hover last:border-0">
+                  <td className="px-5 py-2.5 text-[12px] font-semibold text-ink">
                     {s.name}
-                    {s.status !== "Active" && <span className="ml-2 text-[10px] font-normal text-[#999]">Inactive</span>}
+                    {s.status !== "Active" && <span className="ml-2 text-[10px] font-normal text-faint">Inactive</span>}
                   </td>
                   <td className="px-5 py-2.5">
                     <input inputMode="decimal" aria-label={`${s.name} rate`} value={form.services[s.id] ?? ""} onChange={(e) => setRate("services", s.id, e.target.value)} className={inputCls(!!errors[key])} />
                   </td>
-                  <td className="px-5 py-2.5 text-[11px] text-[#666]">{form.services[s.id]?.trim() ? "Overrides category and global rules" : "Not set"}</td>
+                  <td className="px-5 py-2.5 text-[11px] text-muted">{form.services[s.id]?.trim() ? "Overrides category and global rules" : "Not set"}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
-        {!loading && services.length === 0 && <div className="py-8 text-center text-[12px] text-[#999]">No services yet.</div>}
+        {!loading && services.length === 0 && <div className="py-8 text-center text-[12px] text-faint">No services yet.</div>}
       </div>
 
       {orphanRules.length > 0 && (
@@ -265,11 +265,11 @@ export default function CommissionPolicy() {
           type="button"
           disabled={!dirty || !valid || busy || staleEdit}
           onClick={() => { setActionError(null); setConfirm(true); }}
-          className="px-5 py-2 rounded-lg text-[12px] font-bold text-white bg-[#E21B23] hover:bg-[#c4151c] disabled:opacity-40"
+          className="px-5 py-2 rounded-lg text-[12px] font-bold text-white bg-brand hover:bg-brand-dark disabled:opacity-40"
         >
           Save policy
         </button>
-        <button type="button" disabled={!dirty || busy} onClick={() => setForm(stored)} className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
+        <button type="button" disabled={!dirty || busy} onClick={() => setForm(stored)} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
           Discard changes
         </button>
         {dirty && !valid && <span className="text-[11px] text-red-600">Fix the highlighted fields.</span>}
@@ -277,26 +277,26 @@ export default function CommissionPolicy() {
       </div>
 
       {access.isSuper && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5 space-y-3">
+        <div className="bg-white rounded-xl border border-line shadow-sm p-5 space-y-3">
           <div>
-            <div className="text-[13px] font-bold text-[#111]">Partner ledger maintenance</div>
-            <p className="text-[11px] text-[#888]">
+            <div className="text-[13px] font-bold text-ink">Partner ledger maintenance</div>
+            <p className="text-[11px] text-faint">
               Adds finance records and ledger entries for completed trips and payout requests created before the ledger existed. A check changes nothing; applying
               only adds missing records and never edits finalized ones.
             </p>
           </div>
           <div className="flex gap-2">
-            <button type="button" disabled={busy} onClick={() => void runRebuild(true)} className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
+            <button type="button" disabled={busy} onClick={() => void runRebuild(true)} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
               {busy && !confirmRebuild ? "Checking…" : "Check what is missing"}
             </button>
             {report?.dryRun && (report.tripsToFinalize + report.tripEntriesToCreate + report.payoutEntriesToCreate > 0) && (
-              <button type="button" disabled={busy} onClick={() => { setActionError(null); setConfirmRebuild(true); }} className="px-4 py-2 rounded-lg text-[12px] font-bold text-white bg-[#111] disabled:opacity-40">
+              <button type="button" disabled={busy} onClick={() => { setActionError(null); setConfirmRebuild(true); }} className="px-4 py-2 rounded-lg text-[12px] font-bold text-white bg-ink disabled:opacity-40">
                 Apply
               </button>
             )}
           </div>
           {report && (
-            <div className="text-[12px] text-[#444] space-y-1">
+            <div className="text-[12px] text-body space-y-1">
               <div className="font-semibold">{report.dryRun ? "Check result (nothing changed)" : "Applied"}</div>
               <div>Trips to finalize: {report.tripsToFinalize} • Trip earnings to record: {report.tripEntriesToCreate} • Payout requests to record: {report.payoutEntriesToCreate}</div>
               {report.skippedUnverified.length > 0 && <div className="text-amber-700">Skipped — fare not verified: {report.skippedUnverified.join(", ")}</div>}

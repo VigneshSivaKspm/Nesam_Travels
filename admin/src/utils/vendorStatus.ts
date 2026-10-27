@@ -75,9 +75,9 @@ export const VENDOR_STATUS_META: Record<
   },
   REJECTED: {
     label: "Rejected",
-    badge: "bg-red-50 text-[#E21B23] border-red-200",
-    dot: "bg-[#E21B23]",
-    color: "#E21B23",
+    badge: "bg-red-50 text-brand border-red-200",
+    dot: "bg-brand",
+    color: "#c1232c",
   },
   SUSPENDED: {
     label: "Suspended",

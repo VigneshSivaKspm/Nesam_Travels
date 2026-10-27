@@ -31,15 +31,15 @@ export default function SecurityEvents({ onOpenBooking }: { onOpenBooking?: (id:
   return (
     <div className="p-4 md:p-6 space-y-4">
       <div>
-        <h1 className="text-xl font-bold text-[#111]">Security & Audit</h1>
-        <p className="text-sm text-[#555]">Reports from devices are signals for review, not proof. The server’s own checks and every important action are recorded here.</p>
+        <h1 className="text-xl font-bold text-ink">Security & Audit</h1>
+        <p className="text-sm text-muted">Reports from devices are signals for review, not proof. The server’s own checks and every important action are recorded here.</p>
       </div>
-      <div role="tablist" className="flex gap-1 border-b border-[#D4D4D4]">
+      <div role="tablist" className="flex gap-1 border-b border-line-strong">
         {([["security", "Security events"], ["audit", "Audit log"]] as const).map(([k, l]) => (
-          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${tab === k ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#555]"}`}>{l}</button>
+          <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px ${tab === k ? "border-brand text-brand" : "border-transparent text-muted"}`}>{l}</button>
         ))}
       </div>
-      {tab === "security" ? <Events onOpenBooking={onOpenBooking} /> : canAudit ? <Audit onOpenBooking={onOpenBooking} /> : <p className="text-sm text-[#555]">The audit log needs reports, compliance or system access.</p>}
+      {tab === "security" ? <Events onOpenBooking={onOpenBooking} /> : canAudit ? <Audit onOpenBooking={onOpenBooking} /> : <p className="text-sm text-muted">The audit log needs reports, compliance or system access.</p>}
     </div>
   );
 }
@@ -76,26 +76,26 @@ function Events({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
     <div className="space-y-3">
       <Toast toast={toast} />
       {error && <ErrorBanner message={error} onRetry={retry} />}
-      <div className="flex flex-wrap gap-2 bg-white rounded-xl border border-[#E5E5E5] p-3">
+      <div className="flex flex-wrap gap-2 bg-white rounded-xl border border-line p-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search type, user or booking…" aria-label="Search" className={`${inputCls} !w-auto min-w-[14rem]`} />
         <select value={sev} onChange={(e) => setSev(e.target.value)} aria-label="Severity" className={`${inputCls} !w-auto`}><option value="">All severities</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>
         <select value={open} onChange={(e) => setOpen(e.target.value as typeof open)} aria-label="State" className={`${inputCls} !w-auto`}><option value="open">Needs review</option><option value="resolved">Reviewed</option><option value="all">All</option></select>
       </div>
-      <div className="bg-white rounded-xl border border-[#E5E5E5] overflow-hidden">
-        {rows === null && !error && <div className="py-12 text-center text-sm text-[#555]" role="status">Loading security events…</div>}
-        {rows !== null && shown.length === 0 && <div className="py-12 text-center text-sm text-[#555]">{rows.length === 0 ? "No security events recorded." : "Nothing matches these filters."}</div>}
-        <ul className="divide-y divide-[#F0F0F0]">
+      <div className="bg-white rounded-xl border border-line overflow-hidden">
+        {rows === null && !error && <div className="py-12 text-center text-sm text-muted" role="status">Loading security events…</div>}
+        {rows !== null && shown.length === 0 && <div className="py-12 text-center text-sm text-muted">{rows.length === 0 ? "No security events recorded." : "Nothing matches these filters."}</div>}
+        <ul className="divide-y divide-line-soft">
           {shown.map((r) => (
             <li key={r.id} className="p-4 flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-0.5 min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded border uppercase ${SEV[r.severity]}`}>{r.severity}</span>
-                  <span className="text-sm font-bold text-[#111]">{LABEL[r.type] ?? r.type.replace(/_/g, " ")}</span>
+                  <span className="text-sm font-bold text-ink">{LABEL[r.type] ?? r.type.replace(/_/g, " ")}</span>
                   {r.resolved && <span className="text-xs font-semibold text-green-700">✓ reviewed</span>}
                 </div>
-                <div className="text-xs text-[#555]">{r.role} {r.userId.slice(0, 10)} · {r.source === "server" ? "detected by the server" : "reported by the device"}{r.platform ? ` · ${r.platform}` : ""} · {formatDateTime12(toDate(r.at as never))}</div>
-                {r.details && Object.keys(r.details).length > 0 && <div className="text-xs text-[#333]">{Object.entries(r.details).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join(" · ")}</div>}
-                {r.bookingId && onOpenBooking && <button onClick={() => onOpenBooking(r.bookingId!)} className="text-xs font-semibold text-[#E21B23] hover:underline">Open booking</button>}
+                <div className="text-xs text-muted">{r.role} {r.userId.slice(0, 10)} · {r.source === "server" ? "detected by the server" : "reported by the device"}{r.platform ? ` · ${r.platform}` : ""} · {formatDateTime12(toDate(r.at as never))}</div>
+                {r.details && Object.keys(r.details).length > 0 && <div className="text-xs text-body">{Object.entries(r.details).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join(" · ")}</div>}
+                {r.bookingId && onOpenBooking && <button onClick={() => onOpenBooking(r.bookingId!)} className="text-xs font-semibold text-brand hover:underline">Open booking</button>}
               </div>
               {canResolve && !r.resolved && <button onClick={() => resolve(r)} className={secondaryBtn}>Mark reviewed</button>}
             </li>
@@ -116,23 +116,23 @@ function Audit({ onOpenBooking }: { onOpenBooking?: (id: string) => void }) {
   return (
     <div className="space-y-3">
       {error && <ErrorBanner message={error} onRetry={retry} />}
-      <div className="flex flex-wrap gap-2 bg-white rounded-xl border border-[#E5E5E5] p-3">
+      <div className="flex flex-wrap gap-2 bg-white rounded-xl border border-line p-3">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search action, person, booking or reason…" aria-label="Search audit log" className={`${inputCls} !w-auto min-w-[16rem]`} />
         <select value={entity} onChange={(e) => setEntity(e.target.value)} aria-label="Entity" className={`${inputCls} !w-auto`}><option value="">All records</option>{entities.map((e) => <option key={e}>{e}</option>)}</select>
       </div>
-      <div className="bg-white rounded-xl border border-[#E5E5E5] overflow-hidden">
-        {rows === null && !error && <div className="py-12 text-center text-sm text-[#555]" role="status">Loading audit log…</div>}
-        {rows !== null && shown.length === 0 && <div className="py-12 text-center text-sm text-[#555]">{rows.length === 0 ? "No actions recorded yet." : "Nothing matches these filters."}</div>}
-        <ul className="divide-y divide-[#F0F0F0]">
+      <div className="bg-white rounded-xl border border-line overflow-hidden">
+        {rows === null && !error && <div className="py-12 text-center text-sm text-muted" role="status">Loading audit log…</div>}
+        {rows !== null && shown.length === 0 && <div className="py-12 text-center text-sm text-muted">{rows.length === 0 ? "No actions recorded yet." : "Nothing matches these filters."}</div>}
+        <ul className="divide-y divide-line-soft">
           {shown.map((r) => (
             <li key={r.id} className="p-3 space-y-0.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="text-sm font-bold text-[#111]">{r.action.replace(/_/g, " ")} <span className="font-normal text-[#555]">· {r.entity}</span></span>
-                <span className="text-xs text-[#555]">{formatDateTime12(toDate(r.at as never))}</span>
+                <span className="text-sm font-bold text-ink">{r.action.replace(/_/g, " ")} <span className="font-normal text-muted">· {r.entity}</span></span>
+                <span className="text-xs text-muted">{formatDateTime12(toDate(r.at as never))}</span>
               </div>
-              <div className="text-xs text-[#444]">By {r.performedByName || r.performedBy.slice(0, 10)} ({r.role}){r.bookingId && onOpenBooking ? <> · <button onClick={() => onOpenBooking(r.bookingId!)} className="font-semibold text-[#E21B23] hover:underline">booking</button></> : null}</div>
-              {(r.previous != null || r.next != null) && <div className="text-xs text-[#555] break-words">{brief(r.previous)}{r.previous != null && r.next != null ? " → " : ""}{brief(r.next)}</div>}
-              {r.reason && <div className="text-xs text-[#333]">Reason: {r.reason}</div>}
+              <div className="text-xs text-body">By {r.performedByName || r.performedBy.slice(0, 10)} ({r.role}){r.bookingId && onOpenBooking ? <> · <button onClick={() => onOpenBooking(r.bookingId!)} className="font-semibold text-brand hover:underline">booking</button></> : null}</div>
+              {(r.previous != null || r.next != null) && <div className="text-xs text-muted break-words">{brief(r.previous)}{r.previous != null && r.next != null ? " → " : ""}{brief(r.next)}</div>}
+              {r.reason && <div className="text-xs text-body">Reason: {r.reason}</div>}
             </li>
           ))}
         </ul>

@@ -200,8 +200,8 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
       {/* Header and Title */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl md:text-2xl font-bold text-[#111111]">Open Trip Marketplace</h1>
-          <p className="text-sm text-[#666666] mt-0.5">
+          <h1 className="text-xl md:text-2xl font-bold text-ink">Open Trip Marketplace</h1>
+          <p className="text-sm text-muted mt-0.5">
             Publish approved bookings to eligible independent drivers and partner vendors, review bids, and award assignments. Approving a booking does not publish it — you publish it here or from the booking.
           </p>
         </div>
@@ -211,7 +211,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
             onClick={() => setShowPostingForm((prev) => !prev)}
             className={`px-4 py-2.5 rounded-lg text-sm font-semibold transition-all shadow-sm ${
               showPostingForm
-                ? "bg-gray-100 text-[#333333] border border-[#D4D4D4] hover:bg-gray-200"
+                ? "bg-gray-100 text-body border border-line-strong hover:bg-gray-200"
                 : primaryBtn
             }`}
           >
@@ -235,16 +235,16 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
       {showPostingForm && (
         <section
           aria-label="Post booking form"
-          className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-5 space-y-4 transition-all"
+          className="bg-white rounded-2xl border border-line shadow-sm p-5 space-y-4 transition-all"
         >
-          <div className="flex items-center justify-between pb-3 border-b border-[#F0F0F0]">
+          <div className="flex items-center justify-between pb-3 border-b border-line-soft">
             <div>
-              <h2 className="text-base font-bold text-[#111111]">Post Booking to Open Marketplace</h2>
-              <p className="text-xs text-[#666666] mt-0.5">
+              <h2 className="text-base font-bold text-ink">Post Booking to Open Marketplace</h2>
+              <p className="text-xs text-muted mt-0.5">
                 The booking must be fare-verified and approved. Partners will receive real-time notifications based on eligibility.
               </p>
             </div>
-            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-[#E21B23] border border-red-200">
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-red-50 text-brand border border-red-200">
               Operations Action
             </span>
           </div>
@@ -281,9 +281,9 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                   />
                 </Field>
               ) : (
-                <div className="bg-gray-50 rounded-xl p-3 border border-[#E5E5E5] flex flex-col justify-center">
-                  <span className="text-xs font-semibold text-[#555555]">Partner Payout</span>
-                  <span className="text-xs text-[#777777] mt-1">
+                <div className="bg-gray-50 rounded-xl p-3 border border-line flex flex-col justify-center">
+                  <span className="text-xs font-semibold text-muted">Partner Payout</span>
+                  <span className="text-xs text-faint mt-1">
                     Derived automatically from the active Commission Policy (Finance restricted).
                   </span>
                 </div>
@@ -302,7 +302,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
 
             <PostingOptions value={posting.value} onChange={posting.set} />
 
-            <p className="text-xs text-[#777777] bg-gray-50 rounded-lg p-2.5 border border-gray-100">
+            <p className="text-xs text-faint bg-gray-50 rounded-lg p-2.5 border border-gray-100">
               ℹ️ When posted, vendors will see this trip under their Marketplace offers. If no custom payout is specified by Finance, the platform commission rule calculates the offer rate automatically.
             </p>
           </form>
@@ -312,21 +312,21 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
       {/* Stats Counter Bar */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
         {[
-          { label: "All Marketplace", count: stats.total, color: "text-[#111111]" },
+          { label: "All Marketplace", count: stats.total, color: "text-ink" },
           { label: "Open for Claims", count: stats.openCount, color: "text-emerald-700" },
           { label: "Bids Active", count: stats.biddingCount, color: "text-amber-700" },
           { label: "Assigned", count: stats.assignedCount, color: "text-blue-700" },
           { label: "Closed", count: stats.closedCount, color: "text-gray-500" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-xs p-3.5 flex flex-col">
-            <span className="text-xs font-medium text-[#666666]">{s.label}</span>
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-xs p-3.5 flex flex-col">
+            <span className="text-xs font-medium text-muted">{s.label}</span>
             <span className={`text-2xl font-extrabold mt-1 ${s.color}`}>{loading ? "…" : s.count}</span>
           </div>
         ))}
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-xs p-3.5 flex flex-wrap items-center justify-between gap-3">
+      <div className="bg-white rounded-xl border border-line shadow-xs p-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5 flex-1 min-w-[280px]">
           <div className="relative flex-1 min-w-[200px] max-w-md">
             <input
@@ -343,7 +343,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="text-xs font-semibold text-[#555555]">Status:</span>
+            <span className="text-xs font-semibold text-muted">Status:</span>
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -359,7 +359,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
           </div>
         </div>
 
-        <div className="text-xs font-medium text-[#666666]">
+        <div className="text-xs font-medium text-muted">
           Showing <strong>{filteredTrips.length}</strong> of {trips.length} trips
         </div>
       </div>
@@ -367,17 +367,17 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
       {/* Trips List / Table Container */}
       <div className="space-y-3.5">
         {loading && (
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-12 text-center text-sm text-[#666666] shadow-xs" role="status">
-            <div className="inline-block w-6 h-6 border-2 border-[#E21B23] border-t-transparent rounded-full animate-spin mb-2" />
+          <div className="bg-white rounded-2xl border border-line p-12 text-center text-sm text-muted shadow-xs" role="status">
+            <div className="inline-block w-6 h-6 border-2 border-brand border-t-transparent rounded-full animate-spin mb-2" />
             <p>Loading marketplace listings…</p>
           </div>
         )}
 
         {!loading && filteredTrips.length === 0 && (
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-12 text-center space-y-2 shadow-xs">
+          <div className="bg-white rounded-2xl border border-line p-12 text-center space-y-2 shadow-xs">
             <div className="text-3xl">🚖</div>
-            <h3 className="text-base font-bold text-[#111111]">No Marketplace Trips Found</h3>
-            <p className="text-sm text-[#666666] max-w-md mx-auto">
+            <h3 className="text-base font-bold text-ink">No Marketplace Trips Found</h3>
+            <p className="text-sm text-muted max-w-md mx-auto">
               {search || statusFilter !== "All"
                 ? "No trips matched your search or status criteria. Try resetting the filters."
                 : "No trips are currently posted on the marketplace. Verified bookings can be broadcast using the button above."}
@@ -415,7 +415,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
               <article
                 key={trip.id}
                 className={`bg-white rounded-2xl border transition-all shadow-xs ${
-                  isExpanded ? "border-[#E21B23] ring-1 ring-[#E21B23]/20" : "border-[#E5E5E5] hover:border-[#D0D0D0]"
+                  isExpanded ? "border-brand ring-1 ring-brand/20" : "border-line hover:border-[#D0D0D0]"
                 }`}
               >
                 {/* Trip Card Summary Header */}
@@ -423,12 +423,12 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                   {/* Left Column: ID, Category & Route */}
                   <div className="space-y-2 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2.5">
-                      <strong className="text-base font-bold text-[#111111] tracking-tight">{code}</strong>
+                      <strong className="text-base font-bold text-ink tracking-tight">{code}</strong>
                       <span className="text-xs font-semibold px-2.5 py-0.5 rounded-md bg-gray-100 text-gray-700 border border-gray-200">
                         {vehicle}
                       </span>
                       {trip.distanceKm ? (
-                        <span className="text-xs text-[#666666] font-medium">· {trip.distanceKm} km</span>
+                        <span className="text-xs text-muted font-medium">· {trip.distanceKm} km</span>
                       ) : null}
                       <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
                         {trip.mode === "bid_review" ? "Bids reviewed by NESAM" : trip.mode === "accept_offer" ? "Accept current offer" : "Offer or bid (older post)"}
@@ -442,7 +442,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                         <button
                           type="button"
                           onClick={() => onSelectBooking(trip.id)}
-                          className="text-xs text-[#E21B23] hover:underline font-semibold"
+                          className="text-xs text-brand hover:underline font-semibold"
                           title="View complete booking details"
                         >
                           View booking ↗
@@ -451,19 +451,19 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                     </div>
 
                     {/* Route Display */}
-                    <div className="flex items-start gap-2 text-sm text-[#333333]">
+                    <div className="flex items-start gap-2 text-sm text-body">
                       <div className="flex flex-col items-center mt-1 shrink-0">
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 ring-2 ring-emerald-100" />
                         <span className="w-0.5 h-4 bg-gray-300 my-0.5" />
-                        <span className="w-2.5 h-2.5 rounded-xs bg-[#E21B23] ring-2 ring-red-100" />
+                        <span className="w-2.5 h-2.5 rounded-xs bg-brand ring-2 ring-red-100" />
                       </div>
                       <div className="min-w-0 flex-1 space-y-0.5">
                         <div className="font-medium truncate" title={pickupAddr}>
-                          <span className="text-xs text-[#777777] uppercase font-semibold mr-1.5">Pickup:</span>
+                          <span className="text-xs text-faint uppercase font-semibold mr-1.5">Pickup:</span>
                           {pickupAddr}
                         </div>
                         <div className="font-medium truncate" title={dropAddr}>
-                          <span className="text-xs text-[#777777] uppercase font-semibold mr-1.5">Drop:</span>
+                          <span className="text-xs text-faint uppercase font-semibold mr-1.5">Drop:</span>
                           {dropAddr}
                         </div>
                       </div>
@@ -471,10 +471,10 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                   </div>
 
                   {/* Right Column: Payout, Status Badge & Expand Action */}
-                  <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-[#F0F0F0]">
+                  <div className="flex md:flex-col items-center md:items-end justify-between md:justify-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-line-soft">
                     <div className="text-left md:text-right">
-                      <div className="text-xs text-[#777777] font-semibold uppercase">Offered Payout</div>
-                      <div className="text-xl md:text-2xl font-extrabold text-[#111111]">{payoutAmount}</div>
+                      <div className="text-xs text-faint font-semibold uppercase">Offered Payout</div>
+                      <div className="text-xl md:text-2xl font-extrabold text-ink">{payoutAmount}</div>
                     </div>
 
                     <div className="flex items-center gap-2">
@@ -490,8 +490,8 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                         onClick={() => setExpanded(isExpanded ? "" : trip.id)}
                         className={`px-3 py-1.5 text-xs font-bold rounded-lg border transition-all ${
                           isExpanded
-                            ? "bg-red-50 text-[#E21B23] border-red-200"
-                            : "bg-white text-[#333333] border-[#D4D4D4] hover:bg-gray-50"
+                            ? "bg-red-50 text-brand border-red-200"
+                            : "bg-white text-body border-line-strong hover:bg-gray-50"
                         }`}
                         aria-expanded={isExpanded}
                       >
@@ -503,11 +503,11 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
 
                 {/* Expanded Drawer: Bids and Driver Assignment */}
                 {isExpanded && (
-                  <div className="border-t border-[#EAEAEA] bg-[#FAFAFA] p-4 md:p-5 rounded-b-2xl space-y-5 animate-in fade-in duration-150">
+                  <div className="border-t border-line bg-surface-2 p-4 md:p-5 rounded-b-2xl space-y-5 animate-in fade-in duration-150">
                     {/* Bids Section */}
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
-                        <h3 className="text-sm font-bold text-[#111111] uppercase tracking-wide flex items-center gap-2">
+                        <h3 className="text-sm font-bold text-ink uppercase tracking-wide flex items-center gap-2">
                           <span>Vendor Bids</span>
                           <span className="text-xs bg-gray-200 text-gray-800 px-2 py-0.5 rounded-full font-semibold">
                             {bids.length}
@@ -523,7 +523,7 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                       )}
 
                       {!bidsLoading && bids.length === 0 && (
-                        <div className="bg-white rounded-xl border border-dashed border-[#D4D4D4] p-4 text-center text-xs text-[#777777]">
+                        <div className="bg-white rounded-xl border border-dashed border-line-strong p-4 text-center text-xs text-faint">
                           No vendor bids received yet for this listing.
                         </div>
                       )}
@@ -538,33 +538,33 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                             return (
                               <div
                                 key={b.id}
-                                className="bg-white rounded-xl border border-[#E5E5E5] p-3.5 shadow-2xs space-y-2.5"
+                                className="bg-white rounded-xl border border-line p-3.5 shadow-2xs space-y-2.5"
                               >
                                 <div className="flex items-start justify-between gap-2">
                                   <div>
-                                    <div className="text-sm font-bold text-[#111111]">{b.vendorName || (b.bidderType === "driver" ? "Owner driver" : "Partner Vendor")}{b.bidderType === "driver" ? " · owner-driver" : ""}</div>
-                                    <div className="text-xs text-[#666666] font-mono mt-0.5">ID: {b.vendorId || b.id}</div>
+                                    <div className="text-sm font-bold text-ink">{b.vendorName || (b.bidderType === "driver" ? "Owner driver" : "Partner Vendor")}{b.bidderType === "driver" ? " · owner-driver" : ""}</div>
+                                    <div className="text-xs text-muted font-mono mt-0.5">ID: {b.vendorId || b.id}</div>
                                   </div>
                                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-md border ${statusCls}`}>
                                     {bStatus}
                                   </span>
                                 </div>
 
-                                <div className="flex items-baseline justify-between pt-1 border-t border-[#F0F0F0]">
-                                  <span className="text-xs text-[#666666] font-medium">Counter Offer:</span>
-                                  <span className="text-base font-extrabold text-[#E21B23]">
+                                <div className="flex items-baseline justify-between pt-1 border-t border-line-soft">
+                                  <span className="text-xs text-muted font-medium">Counter Offer:</span>
+                                  <span className="text-base font-extrabold text-brand">
                                     {rupees(b.vendorCounterRate || 0)}
                                   </span>
                                 </div>
 
                                 {b.biddingNote ? (
-                                  <p className="text-xs text-[#555555] bg-gray-50 rounded-md p-2 italic">
+                                  <p className="text-xs text-muted bg-gray-50 rounded-md p-2 italic">
                                     "{b.biddingNote}"
                                   </p>
                                 ) : null}
 
                                 {canReview && (
-                                  <div className="flex items-center gap-2 pt-2 border-t border-[#F0F0F0]">
+                                  <div className="flex items-center gap-2 pt-2 border-t border-line-soft">
                                     <button
                                       type="button"
                                       disabled={busy}
@@ -602,8 +602,8 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
 
                     {/* Direct Independent Driver Assignment Section */}
                     {["Open", "Bidding"].includes(trip.status) && (
-                      <div className="pt-3 border-t border-[#E5E5E5] space-y-2.5">
-                        <h4 className="text-xs font-bold text-[#111111] uppercase tracking-wide">
+                      <div className="pt-3 border-t border-line space-y-2.5">
+                        <h4 className="text-xs font-bold text-ink uppercase tracking-wide">
                           Direct Assignment (Independent Driver)
                         </h4>
                         <div className="flex flex-wrap items-center gap-2.5">
@@ -630,12 +630,12 @@ export default function Marketplace({ onSelectBooking }: MarketplaceProps) {
                                 "Independent driver assigned successfully."
                               )
                             }
-                            className={`px-4 py-2 rounded-lg text-xs font-bold text-white bg-[#E21B23] hover:bg-[#c4151c] disabled:opacity-50 transition-all`}
+                            className={`px-4 py-2 rounded-lg text-xs font-bold text-white bg-brand hover:bg-brand-dark disabled:opacity-50 transition-all`}
                           >
                             Assign Driver Now
                           </button>
                         </div>
-                        <p className="text-[11px] text-[#777777]">
+                        <p className="text-[11px] text-faint">
                           Assigning directly immediately locks the trip and dispatches it to the driver's mobile dashboard.
                         </p>
                       </div>

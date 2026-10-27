@@ -224,6 +224,12 @@ export function mapCoupon(id: string, d: Record<string, any>): Coupon {
     perCustomerLimit: num(d.perCustomerLimit),
     status: str(d.status),
     adminBookingOnly: Boolean(d.adminBookingOnly),
+    ...(['All', 'New', 'Returning', 'Regular'].includes(d.audience) ? {
+      audience: d.audience,
+      bookFrom: str(d.bookFrom), bookUntil: str(d.bookUntil), pickupFrom: str(d.pickupFrom), pickupUntil: str(d.pickupUntil),
+      scope: ['Pickup city', 'Exact route'].includes(d.scope) ? d.scope : 'Any', city: str(d.city), dropCity: str(d.dropCity),
+      allowFixed: d.allowFixed === true, allowBusiness: d.allowBusiness === true, allowPeak: d.allowPeak === true,
+    } : {}),
   };
 }
 
@@ -250,6 +256,44 @@ export interface CouponContext {
   isFirstBooking: boolean;
   /** How many of this customer's non-cancelled bookings already used the code. */
   customerUses: number;
+  /** For Master Admin coupons (audience set): pickup instant, completed trips, places and fare kind. */
+  pickupAt?: Date;
+  completedTrips?: number;
+  pickupText?: string;
+  dropText?: string;
+  fixedRoute?: boolean;
+  business?: boolean;
+  peakAdjusted?: boolean;
+}
+
+/** New: no completed trips · Returning: 1–2 · Regular: 3 or more (same rule as the admin lists). */
+export function customerGroupOf(completedTrips: number): 'New' | 'Returning' | 'Regular' {
+  return completedTrips >= 3 ? 'Regular' : completedTrips >= 1 ? 'Returning' : 'New';
+}
+
+/** Reference-form coupon checks: windows (end exclusive), audience, area and fare kind. */
+function masterCouponFailure(c: Coupon, ctx: CouponContext, now: Date): string | null {
+  if (!c.audience) return null;
+  const at = (v?: string) => (v ? Date.parse(v) : NaN);
+  const t = now.getTime();
+  if ((Number.isFinite(at(c.bookFrom)) && t < at(c.bookFrom)) || (Number.isFinite(at(c.bookUntil)) && t >= at(c.bookUntil)))
+    return `${c.code}: booking date is outside the coupon validity.`;
+  if (ctx.pickupAt) {
+    const p = ctx.pickupAt.getTime();
+    if ((Number.isFinite(at(c.pickupFrom)) && p < at(c.pickupFrom)) || (Number.isFinite(at(c.pickupUntil)) && p >= at(c.pickupUntil)))
+      return `${c.code}: pickup date is outside the travel window.`;
+  }
+  if (ctx.fixedRoute && !c.allowFixed) return `${c.code}: fixed route fares are excluded.`;
+  if (ctx.business && !c.allowBusiness) return `${c.code}: B2B bookings are excluded.`;
+  if (ctx.peakAdjusted && !c.allowPeak) return `${c.code}: peak-adjusted fares are excluded.`;
+  const has = (place: string | undefined, city: string | undefined) => !city || (place ?? '').toLowerCase().includes(city.toLowerCase());
+  if (c.scope && c.scope !== 'Any' && !has(ctx.pickupText, c.city)) return `${c.code}: pickup city is not eligible.`;
+  if (c.scope === 'Exact route' && !has(ctx.dropText, c.dropCity)) return `${c.code}: this directional route is not eligible.`;
+  if (c.audience !== 'All') {
+    const group = customerGroupOf(ctx.completedTrips ?? (ctx.isFirstBooking ? 0 : 1));
+    if (group !== c.audience) return `${c.code} is for ${c.audience.toLowerCase()} customers.`;
+  }
+  return null;
 }
 
 export type CouponResult = { ok: true; coupon: AppliedCoupon } | { ok: false; message: string };
@@ -271,6 +315,8 @@ export function validateCoupon(coupons: Coupon[], input: string, ctx: CouponCont
   if (c.minimumBookingAmount > 0 && ctx.subtotal < c.minimumBookingAmount)
     return { ok: false, message: `${c.code} needs a minimum fare of ₹${c.minimumBookingAmount}.` };
   if (c.firstBookingOnly && !ctx.isFirstBooking) return { ok: false, message: `${c.code} is for your first ride only.` };
+  const master = masterCouponFailure(c, ctx, new Date());
+  if (master) return { ok: false, message: master };
   if (c.vehicleCategoryIds.length && !c.vehicleCategoryIds.includes(ctx.categoryId))
     return { ok: false, message: `${c.code} isn't valid for this ride type.` };
   if (c.serviceNames.length) {

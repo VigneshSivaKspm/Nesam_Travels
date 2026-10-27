@@ -153,15 +153,15 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
       <div className="space-y-4 text-sm">
         {error && <Notice tone="error">{error}</Notice>}
         {(hasDriver || hasVendorOnly) && (
-          <div className="rounded-lg border border-[#E5E5E5] bg-gray-50 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <div><div className="text-xs font-semibold text-[#555] uppercase">Current driver</div><div className="font-semibold text-[#111]">{booking.assignedDriverName || booking.driver || (hasVendorOnly ? `Held by ${booking.assignedVendorName || "a vendor"} (no driver yet)` : "—")}</div></div>
-            <div><div className="text-xs font-semibold text-[#555] uppercase">Current vehicle</div><div className="font-semibold text-[#111]">{oldVehicle}</div></div>
+          <div className="rounded-lg border border-line bg-gray-50 p-3 grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div><div className="text-xs font-semibold text-muted uppercase">Current driver</div><div className="font-semibold text-ink">{booking.assignedDriverName || booking.driver || (hasVendorOnly ? `Held by ${booking.assignedVendorName || "a vendor"} (no driver yet)` : "—")}</div></div>
+            <div><div className="text-xs font-semibold text-muted uppercase">Current vehicle</div><div className="font-semibold text-ink">{oldVehicle}</div></div>
           </div>
         )}
         {booking.status === "Pending" && <Notice tone="warn">Approve this booking before assigning a driver.</Notice>}
         {hasDriver && (
-          <label className="flex items-center gap-2 font-semibold text-[#333]">
-            <input type="checkbox" checked={removing} onChange={(e) => { setRemoving(e.target.checked); setError(null); }} className="w-4 h-4 accent-[#E21B23]" />
+          <label className="flex items-center gap-2 font-semibold text-body">
+            <input type="checkbox" checked={removing} onChange={(e) => { setRemoving(e.target.checked); setError(null); }} className="w-4 h-4 accent-brand" />
             Remove the assignment only (the booking returns to approved, awaiting fulfilment)
           </label>
         )}
@@ -177,7 +177,7 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
                   </option>
                 ))}
               </select>
-              <span className="block text-xs text-[#555] mt-1">● online   ○ offline — only approved, non-suspended drivers are listed.</span>
+              <span className="block text-xs text-muted mt-1">● online   ○ offline — only approved, non-suspended drivers are listed.</span>
             </Field>
             {chosen && (
               <Field label="Vehicle" hint={pairedVehicle ? `Paired vehicle: ${pairedVehicle.vehicleNumber}` : "This driver has no paired vehicle record."}>
@@ -194,25 +194,25 @@ export function AssignDriverModal({ booking, drivers, vehicles, vendors, onClose
             <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="e.g. Driver unavailable, customer request" className={`${inputCls} ${error && action !== "assign" && reason.trim().length < 5 ? inputErrCls : ""}`} />
           </Field>
         )}
-        {action === "assign" && !reason && <button type="button" onClick={() => setReason(" ")} className="text-xs text-[#E21B23] font-semibold hover:underline">+ Add a reason (optional)</button>}
+        {action === "assign" && !reason && <button type="button" onClick={() => setReason(" ")} className="text-xs text-brand font-semibold hover:underline">+ Add a reason (optional)</button>}
 
         {(chosen || removing) && (
-          <div className="rounded-lg border-2 border-[#F5D0D0] bg-[#FEF2F2] p-3 space-y-1" aria-label="Summary of the change">
-            <div className="text-xs font-bold uppercase text-[#E21B23]">Review the change</div>
+          <div className="rounded-lg border-2 border-[#F5D0D0] bg-brand-soft p-3 space-y-1" aria-label="Summary of the change">
+            <div className="text-xs font-bold uppercase text-brand">Review the change</div>
             {removing ? (
               <div>{booking.assignedDriverName || booking.driver || "The current driver"} ({oldVehicle}) will be removed and the booking returns to <strong>Approved</strong>.</div>
             ) : (
               <>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4">
-                  <div><span className="text-[#555]">Current driver:</span> <strong>{booking.assignedDriverName || booking.driver || "none"}</strong></div>
-                  <div><span className="text-[#555]">Current vehicle:</span> <strong>{oldVehicle}</strong></div>
-                  <div><span className="text-[#555]">New driver:</span> <strong>{chosen?.name}</strong></div>
-                  <div><span className="text-[#555]">New vehicle:</span> <strong>{effectiveVehicle?.vehicleNumber || chosen?.assignedVehicleNumber || chosen?.vehicleNumber || "—"}</strong></div>
+                  <div><span className="text-muted">Current driver:</span> <strong>{booking.assignedDriverName || booking.driver || "none"}</strong></div>
+                  <div><span className="text-muted">Current vehicle:</span> <strong>{oldVehicle}</strong></div>
+                  <div><span className="text-muted">New driver:</span> <strong>{chosen?.name}</strong></div>
+                  <div><span className="text-muted">New vehicle:</span> <strong>{effectiveVehicle?.vehicleNumber || chosen?.assignedVehicleNumber || chosen?.vehicleNumber || "—"}</strong></div>
                 </div>
                 {chosen?.presenceStatus !== "Online" && <div className="text-amber-800">This driver is currently offline.</div>}
               </>
             )}
-            <div className="text-xs text-[#555]">The change, who made it, when and why is kept permanently in the booking’s assignment history.</div>
+            <div className="text-xs text-muted">The change, who made it, when and why is kept permanently in the booking’s assignment history.</div>
           </div>
         )}
       </div>
@@ -251,7 +251,7 @@ export function PublishDialog({ booking, canSetPayout, onClose, onDone }: { book
           {canSetPayout ? (
             <Field label="Partner payout (₹)" hint="Leave blank to use the commission policy offer."><input value={payout} onChange={(e) => setPayout(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className={inputCls} /></Field>
           ) : (
-            <p className="text-xs text-[#555]">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
+            <p className="text-xs text-muted">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
           )}
           <PostingOptions value={options.value} onChange={options.set} />
         </div>
@@ -302,10 +302,10 @@ export function AssignVendorModal({ booking, vendors, canSetPayout, onClose, onD
         {canSetPayout ? (
           <Field label="Agreed payout (₹)" hint="Leave blank to use the commission policy offer."><input value={payout} onChange={(e) => setPayout(e.target.value.replace(/\D/g, ""))} inputMode="numeric" className={inputCls} /></Field>
         ) : (
-          <p className="text-xs text-[#555]">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
+          <p className="text-xs text-muted">The payout comes from the commission policy. Setting it by hand needs finance access.</p>
         )}
         <Field label="Note (optional)"><input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} placeholder="e.g. Regular partner for this route" className={inputCls} /></Field>
-        {chosen && <p className="text-xs text-[#555]">After assigning, only {chosen.companyName || chosen.name}’s own drivers can be given this booking.</p>}
+        {chosen && <p className="text-xs text-muted">After assigning, only {chosen.companyName || chosen.name}’s own drivers can be given this booking.</p>}
       </div>
     </Modal>
   );
@@ -352,7 +352,7 @@ export function CancelBookingModal({ booking, canCharge, onClose, onDone }: { bo
       <div className="space-y-3 text-sm">
         {error && <Notice tone="error">{error}</Notice>}
         <Field label="Cancellation reason" required><input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} className={inputCls} /></Field>
-        <div className="rounded-lg border border-[#E5E5E5] bg-gray-50 p-3 flex justify-between"><span>Customer has paid</span><strong>{rupees(pay.totalPaid)}</strong></div>
+        <div className="rounded-lg border border-line bg-gray-50 p-3 flex justify-between"><span>Customer has paid</span><strong>{rupees(pay.totalPaid)}</strong></div>
         {canCharge ? (
           <Field label="Cancellation charge (₹)" hint="Deducted from what the customer paid."><input value={charge} onChange={(e) => setCharge(e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" className={inputCls} /></Field>
         ) : (
@@ -360,7 +360,7 @@ export function CancelBookingModal({ booking, canCharge, onClose, onDone }: { bo
         )}
         {pay.totalPaid > 0 && (
           <div className="space-y-2">
-            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={refundEligible} onChange={(e) => setRefundEligible(e.target.checked)} className="w-4 h-4 accent-[#E21B23]" />Customer is eligible for a refund</label>
+            <label className="flex items-center gap-2 font-semibold"><input type="checkbox" checked={refundEligible} onChange={(e) => setRefundEligible(e.target.checked)} className="w-4 h-4 accent-brand" />Customer is eligible for a refund</label>
             {refundEligible && refundable > 0 && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Field label="Refund amount (₹)" hint={`Up to ${rupees(refundable)}`}><input value={refundAmount} onChange={(e) => setRefundAmount(e.target.value.replace(/[^\d.]/g, ""))} placeholder={String(refundable)} inputMode="decimal" className={inputCls} /></Field>
@@ -426,7 +426,7 @@ export function RecordPaymentModal({ booking, onClose, onDone }: { booking: Book
           {method !== "Cash" && <Field label={method === "UPI" ? "UPI transaction ID" : "Transfer reference"} required><input value={reference} onChange={(e) => setReference(e.target.value)} maxLength={120} className={inputCls} /></Field>}
         </div>
         <Field label="Notes"><input value={notes} onChange={(e) => setNotes(e.target.value)} maxLength={300} className={inputCls} /></Field>
-        <p className="text-xs text-[#555]">Each payment is its own permanent record. Earlier payments are never overwritten; a mistake is voided with a reason, not edited.</p>
+        <p className="text-xs text-muted">Each payment is its own permanent record. Earlier payments are never overwritten; a mistake is voided with a reason, not edited.</p>
       </div>
     </Modal>
   );
@@ -494,8 +494,8 @@ export function RefundModal({ booking, onClose, onDone }: { booking: Booking; on
           </>
         )}
         {(r?.history?.length ?? 0) > 0 && (
-          <div><div className="text-xs font-bold uppercase text-[#555] mb-1">History</div>
-            <ul className="text-xs text-[#333] space-y-1">{r!.history!.map((h, i) => <li key={i}>{h.status} · {rupees(h.amount)}{h.reference ? ` · ${h.reference}` : ""} · {h.byName} · {formatDateTime12(h.at)}</li>)}</ul></div>
+          <div><div className="text-xs font-bold uppercase text-muted mb-1">History</div>
+            <ul className="text-xs text-body space-y-1">{r!.history!.map((h, i) => <li key={i}>{h.status} · {rupees(h.amount)}{h.reference ? ` · ${h.reference}` : ""} · {h.byName} · {formatDateTime12(h.at)}</li>)}</ul></div>
         )}
       </div>
     </Modal>

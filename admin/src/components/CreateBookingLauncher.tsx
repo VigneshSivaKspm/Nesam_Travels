@@ -28,7 +28,7 @@ export default function CreateBookingLauncher({ onClose, onCreated }: { onClose:
   if (!customers || !services || !locations || !fareRules || !categories) {
     return (
       <Modal title="Create New Booking" onClose={onClose}>
-        <p className="text-sm text-[#555]" role="status">Loading booking form…</p>
+        <p className="text-sm text-muted" role="status">Loading booking form…</p>
       </Modal>
     );
   }

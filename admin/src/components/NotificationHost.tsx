@@ -2,8 +2,10 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import type { NotificationRecord } from "../types";
 import { subscribeAdminNotifications, markAdminNotificationRead, markAllAdminNotificationsRead, dismissAdminNotification } from "../services/adminNotificationService";
 import { CATEGORIES, CATEGORY_LABEL, TONE_CLASSES, categoryOf, createdMs, ctaLabelOf, severityOf, soundOf, targetOf, toneOf, type NotificationCategory } from "../services/notificationModel";
-import { playTone, setSoundEnabled, soundEnabled, soundState, unlockSound } from "../utils/notificationSound";
+import { playAlert, playTone, setSoundEnabled, soundEnabled, soundState, unlockSound } from "../utils/notificationSound";
 import { formatDateTime12 } from "../utils/time";
+import Button from "./ui/Button";
+import Icon from "./ui/Icon";
 
 interface Ctx {
   notifications: NotificationRecord[];
@@ -78,7 +80,10 @@ export function NotificationProvider({ onOpen, children }: { onOpen: (page: stri
       setPopups((cur) => [...cur, ...show.map((n) => ({ key: `${n.id}-${now}`, n }))].slice(-8));
       // One tone per batch: the most important one.
       const lead = [...show].sort((a, b) => Number(severityOf(b) === "critical") - Number(severityOf(a) === "critical"))[0];
-      playTone(soundOf(lead), severityOf(lead) === "critical" ? 2 : 1);
+      // Office alert sounds: urgent first, then unassigned reminders, then new bookings / the rest.
+      const kind = severityOf(lead) === "critical" ? "Urgent booking" : /unassigned|assignment/i.test(`${lead.title} ${lead.type ?? ""}`) ? "Unassigned booking" : "New booking";
+      if (soundOf(lead) === "new_booking" || kind !== "New booking") playAlert(kind);
+      else playTone(soundOf(lead), 1);
     });
     return () => unsub();
   }, []);
@@ -117,7 +122,7 @@ export function NotificationProvider({ onOpen, children }: { onOpen: (page: stri
   return (
     <NotificationsContext.Provider value={value}>
       {children}
-      <div className="fixed top-20 right-4 z-[70] w-[min(24rem,calc(100vw-2rem))] space-y-2 pointer-events-none" aria-live="polite">
+      <div className="fixed bottom-20 right-4 sm:right-6 z-[70] w-[min(24rem,calc(100vw-2rem))] space-y-2 pointer-events-none flex flex-col" aria-live="polite">
         {visible.map((p) => (
           <PopupCard key={p.key} n={p.n} onClose={() => close(p.key)} onAct={() => { close(p.key); open(p.n); }} />
         ))}
@@ -137,24 +142,20 @@ function PopupCard({ n, onClose, onAct }: { n: NotificationRecord; onClose: () =
   }, [sev, onClose]);
   const ref = n.bookingCode || n.bookingId;
   return (
-    <div role={sev === "critical" ? "alert" : "status"} className={`pointer-events-auto relative overflow-hidden rounded-xl border shadow-xl ${tone.box}`}>
-      <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${tone.accent}`} />
-      <div className="pl-4 pr-3 py-3">
+    <div role={sev === "critical" ? "alert" : "status"} className="pointer-events-auto relative overflow-hidden rounded-[10px] border border-line bg-white shadow-xl" style={{ borderTop: `3px solid ${sev === "critical" ? "#c1232c" : tone.dot}` }}>
+      <div className="px-[18px] py-4">
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-0.5">
-              <span className={`text-[11px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded ${tone.chip}`}>{sev === "critical" ? "Critical" : CATEGORY_LABEL[categoryOf(n)]}</span>
-              <span className="text-xs text-[#555]">{formatDateTime12(n.createdAt as never) || "Just now"}</span>
-            </div>
-            <div className="text-sm font-bold text-[#111] leading-snug">{n.title}</div>
-          </div>
-          <button onClick={onClose} aria-label="Dismiss notification" className="shrink-0 w-7 h-7 rounded-full hover:bg-black/10 text-[#444] font-bold">✕</button>
+          <span className="flex items-center gap-2 text-[12px] font-semibold" style={{ color: sev === "critical" ? "#b62025" : tone.dot }}>
+            <Icon name="bell-ring" size={15} />
+            {n.title || (sev === "critical" ? "Critical" : CATEGORY_LABEL[categoryOf(n)])}
+          </span>
+          <Button variant="ghost" size="sm" iconOnly icon="x" onClick={onClose} aria-label="Dismiss notification" />
         </div>
-        <p className="text-sm text-[#333] mt-1 leading-snug">{n.message}</p>
-        {ref && <p className="text-xs font-mono text-[#555] mt-1">Ref {ref}</p>}
-        <div className="mt-2.5 flex gap-2">
-          <button onClick={onAct} className={`px-3 py-1.5 rounded-lg text-sm font-semibold text-white ${tone.accent} hover:opacity-90`}>{ctaLabelOf(n)}</button>
-          <button onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm font-semibold text-[#333] border border-[#BDBDBD] bg-white/70 hover:bg-white">Dismiss</button>
+        <div className="text-[17px] font-bold text-ink-2 leading-snug mt-1">{n.message}</div>
+        <p className="text-[11px] text-faint mt-2">{ref ? `${ref} · ` : ""}{CATEGORY_LABEL[categoryOf(n)]} · {formatDateTime12(n.createdAt as never) || "Just now"}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <Button size="sm" icon="arrow-up-right" onClick={onAct}>{ctaLabelOf(n)}</Button>
+          <Button size="sm" variant="ghost" onClick={onClose}>Dismiss</Button>
         </div>
       </div>
     </div>

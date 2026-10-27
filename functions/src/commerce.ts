@@ -12,6 +12,7 @@ import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
 import { GeoPlace, TripType } from './domain/types';
 import { loadCommissionPolicy } from './commission';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
+import { adjustPartner, assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
 import { createContactInTx, maskPhone } from './contacts';
 import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
 import { assertLegalAccepted } from './legal';
@@ -66,6 +67,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (tripEndAt.getTime() < when.getTime()) throw new HttpsError('invalid-argument', 'The trip cannot end before it starts.');
   }
   const pushes: { id: string; input: NotifyInput }[] = [];
+  const serviceRules = await loadServiceRules();
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
     const [previous, customer, categories, coupons, history, policy, adjustmentDoc, tariff] = await Promise.all([
@@ -124,7 +126,9 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       c.id.replace('cat-', '') === catReq.replace('cat-', '')
     ) ?? configured[0];
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is no longer available.');
-    const adjustment = effectiveAdjustment(adjustmentDoc, now);
+    const rules = evaluateRules(serviceRules, pickup, drop, when, tripType);
+    assertBookable(rules, category.name);
+    const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
@@ -141,12 +145,16 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       const result = validateCoupon(coupons.docs.map(d => mapCoupon(d.id, d.data())), couponCode, {
         subtotal: beforeDiscount.fare.subtotal, categoryId: category.id, service,
         isFirstBooking: prior.length === 0, customerUses: prior.filter(b => normalizeCode(b.couponCode || '') === couponCode).length,
+        pickupAt: when, completedTrips: prior.filter(b => b.status === 'Completed').length,
+        pickupText: `${pickup.name} ${pickup.address ?? ''}`, dropText: `${drop.name} ${drop.address ?? ''}`,
+        fixedRoute: beforeDiscount.pricing.model === 'city_drop_package', peakAdjusted: adjustment?.direction === 'increase',
       });
       if (!result.ok) throw new HttpsError('failed-precondition', result.message);
       discount = result.coupon.discount;
       usedCoupon = coupons.docs.find(d => normalizeCode(d.data().code || '') === couponCode);
     }
-    const priced = priceBooking({ ...priceInput, discount });
+    const pricedRaw = priceBooking({ ...priceInput, discount });
+    const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
     const fare = priced.fare, breakup = priced.breakup;
     if (!Number.isFinite(input.expectedFare) || fare.total !== input.expectedFare) {
       throw new HttpsError('failed-precondition', `The current fare is ₹${fare.total}. Review the updated fare and book again.`, { fare, breakup, pricing: priced.pricing });

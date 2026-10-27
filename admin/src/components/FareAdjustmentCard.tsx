@@ -89,11 +89,11 @@ export default function FareAdjustmentCard() {
   const example = form.percent && Number.isFinite(pct) ? Math.round(10000 * (1 + (form.direction === "increase" ? 1 : -1) * (pct / 100))) : null;
 
   return (
-    <section className="bg-white rounded-2xl border border-[#E5E5E5] shadow-sm p-5 space-y-4" aria-label="Global fare adjustment">
+    <section className="bg-white rounded-2xl border border-line shadow-sm p-5 space-y-4" aria-label="Global fare adjustment">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 className="text-base font-bold text-[#111]">Global fare adjustment</h2>
-          <p className="text-sm text-[#555]">Raise or lower every vehicle category’s package fare by a percentage.</p>
+          <h2 className="text-base font-bold text-ink">Global fare adjustment</h2>
+          <p className="text-sm text-muted">Raise or lower every vehicle category’s package fare by a percentage.</p>
         </div>
         <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${st.tone === "ok" ? "bg-green-50 text-green-800 border-green-300" : st.tone === "warn" ? "bg-amber-50 text-amber-900 border-amber-300" : "bg-gray-100 text-gray-700 border-gray-300"}`}>
           {stored === undefined ? "Loading…" : st.label}
@@ -104,8 +104,8 @@ export default function FareAdjustmentCard() {
         <Notice tone="info"><strong>{stored.name}</strong>: {stored.direction === "increase" ? "+" : "−"}{stored.percent}% is being applied to all new bookings{stored.endDate ? ` until ${stored.endDate}` : ""}. It appears as its own line on each booking’s fare.</Notice>
       )}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-        <label className="flex items-center gap-2 text-sm font-semibold text-[#333] sm:col-span-2 lg:col-span-4">
-          <input type="checkbox" checked={form.enabled} onChange={(e) => set("enabled", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-[#E21B23]" />
+        <label className="flex items-center gap-2 text-sm font-semibold text-body sm:col-span-2 lg:col-span-4">
+          <input type="checkbox" checked={form.enabled} onChange={(e) => set("enabled", e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-brand" />
           Adjustment is on
         </label>
         <Field label="Name" hint="Shown on the fare, e.g. Festival pricing"><input value={form.name} onChange={(e) => set("name", e.target.value)} maxLength={80} disabled={!canEdit} className={inputCls} /></Field>
@@ -125,10 +125,10 @@ export default function FareAdjustmentCard() {
       {problem && dirty && <p className="text-sm font-semibold text-red-700" role="alert">{problem}</p>}
       {msg && <Notice tone={msg.tone === "ok" ? "ok" : "error"}>{msg.text}</Notice>}
       <div className="flex items-center gap-3">
-        {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save adjustment"}</button> : <span className="text-sm text-[#555]">Changing this needs pricing access.</span>}
-        {stored?.updatedByName && <span className="text-xs text-[#555]">Last changed by {stored.updatedByName} (version {stored.version}).</span>}
+        {canEdit ? <button onClick={save} disabled={!dirty || !!problem || busy} className={primaryBtn}>{busy ? "Saving…" : "Save adjustment"}</button> : <span className="text-sm text-muted">Changing this needs pricing access.</span>}
+        {stored?.updatedByName && <span className="text-xs text-muted">Last changed by {stored.updatedByName} (version {stored.version}).</span>}
       </div>
-      <p className="text-xs text-[#555]">The adjustment applies once to the package total — it is never added on top of an earlier adjustment. A discount, if given, is taken off after it.</p>
+      <p className="text-xs text-muted">The adjustment applies once to the package total — it is never added on top of an earlier adjustment. A discount, if given, is taken off after it.</p>
     </section>
   );
 }

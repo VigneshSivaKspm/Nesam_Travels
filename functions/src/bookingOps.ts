@@ -17,7 +17,7 @@ import { REFUND_STATUSES, RefundStatus, maxRefund, refundBlocker, summarizePayme
 import { formatDateTime12, pickupInstant } from './domain/time';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { txnsRef } from './bookingPayments';
-import { approved, requireAdmin, requirePermission, requireSuperAdmin, text } from './shared';
+import { approved, requireAdmin, requirePermission, requireSuperAdmin, text, requireDuty } from './shared';
 
 const code = (b: DocumentData, id: string) => text(b.bookingId) || id;
 
@@ -31,6 +31,7 @@ const code = (b: DocumentData, id: string) => text(b.bookingId) || id;
  */
 export const approveBooking = onCall({ timeoutSeconds: 120 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'approve');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const note = text(request.data?.note, 300);
   const ref = db.doc(`bookings/${bookingId}`);
@@ -292,6 +293,7 @@ const CONFLICT_WINDOW_MS = 3 * 3600000;
  */
 export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'assign');
   const input = request.data ?? {};
   const bookingId = docId(input.bookingId, 'booking');
   const newDriverId = input.driverId ? docId(input.driverId, 'driver') : '';

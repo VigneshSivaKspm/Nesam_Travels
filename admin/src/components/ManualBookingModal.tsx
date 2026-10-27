@@ -152,8 +152,8 @@ export default function ManualBookingModal({ customers, services, locations, cat
 
   const footer = (
     <>
-      <div className="mr-auto text-sm text-[#333]">
-        {quoteBusy ? "Calculating fare…" : liveQuote ? <>Payable <strong className="text-base text-[#111]">{rupees(payable)}</strong></> : "Fare appears once pickup, drop and vehicle are set."}
+      <div className="mr-auto text-sm text-body">
+        {quoteBusy ? "Calculating fare…" : liveQuote ? <>Payable <strong className="text-base text-ink">{rupees(payable)}</strong></> : "Fare appears once pickup, drop and vehicle are set."}
       </div>
       <button onClick={onClose} disabled={busy} className={secondaryBtn}>Cancel</button>
       <button onClick={create} disabled={busy || quoteBusy || !liveQuote} className={primaryBtn}>
@@ -188,8 +188,8 @@ export default function ManualBookingModal({ customers, services, locations, cat
               <input value={form.customerPhone} onChange={(e) => set("customerPhone", e.target.value)} inputMode="tel" placeholder="10-digit mobile" className={`${inputCls} ${errors.customerPhone ? inputErrCls : ""}`} />
             </Field>
             <div className="sm:col-span-2 space-y-2">
-              <label className="flex items-center gap-2 text-sm font-semibold text-[#333]">
-                <input type="checkbox" checked={form.whatsappSame} onChange={(e) => set("whatsappSame", e.target.checked)} className="w-4 h-4 accent-[#E21B23]" />
+              <label className="flex items-center gap-2 text-sm font-semibold text-body">
+                <input type="checkbox" checked={form.whatsappSame} onChange={(e) => set("whatsappSame", e.target.checked)} className="w-4 h-4 accent-brand" />
                 WhatsApp number is same as mobile number
               </label>
               {!form.whatsappSame && (
@@ -288,7 +288,7 @@ export default function ManualBookingModal({ customers, services, locations, cat
           )}
           {liveQuote && (
             <div className="space-y-3">
-              <div className="flex flex-wrap justify-between gap-2 text-sm text-[#444]">
+              <div className="flex flex-wrap justify-between gap-2 text-sm text-body">
                 <span>{liveQuote.categoryName} · {liveQuote.service} · {liveQuote.quote.distanceKm} km · {liveQuote.quote.durationMin} min</span>
               </div>
               {liveQuote.quote.globalAdjustment && (
@@ -297,7 +297,7 @@ export default function ManualBookingModal({ customers, services, locations, cat
                 </Notice>
               )}
               <FareBreakupView breakup={liveQuote.breakup} total={liveQuote.quote.total} />
-              <div className="rounded-lg border border-[#E5E5E5] bg-gray-50 p-3 text-sm space-y-1">
+              <div className="rounded-lg border border-line bg-gray-50 p-3 text-sm space-y-1">
                 <div className="flex justify-between"><span>Original fare (before discount)</span><span className="font-semibold">{rupees(liveQuote.quote.subtotal + Math.round(liveQuote.quote.subtotal * liveQuote.quote.gstRate))}</span></div>
                 {liveQuote.quote.discount > 0 && <div className="flex justify-between text-green-700"><span>Discount{liveQuote.quote.discountDetail?.type === "percentage" ? ` (${liveQuote.quote.discountDetail.value}%)` : ""}</span><span className="font-semibold">− {rupees(liveQuote.quote.discount)} <span className="font-normal text-xs">(before GST)</span></span></div>}
                 <div className="flex justify-between text-base font-bold border-t pt-1"><span>Final payable</span><span>{rupees(liveQuote.quote.total)}</span></div>
@@ -337,13 +337,13 @@ export default function ManualBookingModal({ customers, services, locations, cat
                 {PAYMENT_METHODS.map((m) => <option key={m}>{m}</option>)}
               </select>
             </Field>
-            <label className="flex items-center gap-2 text-sm font-semibold text-[#333] self-end pb-2.5">
-              <input type="checkbox" checked={form.advanceEnabled} onChange={(e) => set("advanceEnabled", e.target.checked)} className="w-4 h-4 accent-[#E21B23]" />
+            <label className="flex items-center gap-2 text-sm font-semibold text-body self-end pb-2.5">
+              <input type="checkbox" checked={form.advanceEnabled} onChange={(e) => set("advanceEnabled", e.target.checked)} className="w-4 h-4 accent-brand" />
               Customer paid an advance now
             </label>
           </div>
           {form.advanceEnabled && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg border border-[#E5E5E5] bg-gray-50">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 p-3 rounded-lg border border-line bg-gray-50">
               <Field label="Advance amount (₹)" required error={errors.advanceAmount}>
                 <input value={form.advanceAmount} onChange={(e) => set("advanceAmount", e.target.value.replace(/[^\d.]/g, ""))} inputMode="decimal" className={`${inputCls} ${errors.advanceAmount ? inputErrCls : ""}`} />
               </Field>
@@ -357,7 +357,7 @@ export default function ManualBookingModal({ customers, services, locations, cat
                   <input value={form.advanceReference} onChange={(e) => set("advanceReference", e.target.value)} maxLength={120} className={`${inputCls} ${errors.advanceReference ? inputErrCls : ""}`} />
                 </Field>
               )}
-              <p className="sm:col-span-3 text-xs text-[#555]">Recorded as collected by you ({`admin`}). More payments can be added from the booking later.</p>
+              <p className="sm:col-span-3 text-xs text-muted">Recorded as collected by you ({`admin`}). More payments can be added from the booking later.</p>
             </div>
           )}
           <Field label="Notes">
@@ -373,8 +373,8 @@ export default function ManualBookingModal({ customers, services, locations, cat
             {showOverride && (
               <div className="space-y-3">
                 <p className="text-xs text-amber-900">The calculated fare is the normal price. Overriding it is recorded with your name, the old and new fare and your reason, and cannot be done silently.</p>
-                <label className="flex items-center gap-2 text-sm font-semibold text-[#111]">
-                  <input type="checkbox" checked={form.overrideEnabled} onChange={(e) => set("overrideEnabled", e.target.checked)} className="w-4 h-4 accent-[#E21B23]" />
+                <label className="flex items-center gap-2 text-sm font-semibold text-ink">
+                  <input type="checkbox" checked={form.overrideEnabled} onChange={(e) => set("overrideEnabled", e.target.checked)} className="w-4 h-4 accent-brand" />
                   Charge a different fare
                 </label>
                 {rateCard && rateCard.total !== liveQuote.quote.total && (

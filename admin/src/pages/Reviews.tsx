@@ -936,7 +936,7 @@ export default function Reviews() {
                     <button
                       type="submit"
                       className="px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm transition-all hover:opacity-95"
-                      style={{ backgroundColor: "#E21B23" }}
+                      style={{ backgroundColor: "#c1232c" }}
                     >
                       Post Official Response
                     </button>
@@ -1039,7 +1039,7 @@ export default function Reviews() {
                   setShowConfigModal(false);
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm"
-                style={{ backgroundColor: "#E21B23" }}
+                style={{ backgroundColor: "#c1232c" }}
               >
                 Save Settings
               </button>

@@ -37,18 +37,18 @@ export default function PostingOptions({ value, onChange }: { value: PostingOpti
   return (
     <div className="space-y-3 text-sm">
       <fieldset className="space-y-2">
-        <legend className="font-semibold text-[#111]">How partners take this duty</legend>
+        <legend className="font-semibold text-ink">How partners take this duty</legend>
         <label className="flex items-start gap-2">
-          <input type="radio" name="posting-mode" checked={value.mode === "accept_offer"} onChange={() => set({ mode: "accept_offer" })} className="mt-1 accent-[#E21B23]" />
+          <input type="radio" name="posting-mode" checked={value.mode === "accept_offer"} onChange={() => set({ mode: "accept_offer" })} className="mt-1 accent-brand" />
           <span><strong>Accept the current offer</strong> — the first eligible partner to accept gets it; bids are not accepted.</span>
         </label>
         <label className="flex items-start gap-2">
-          <input type="radio" name="posting-mode" checked={value.mode === "bid_review"} onChange={() => set({ mode: "bid_review" })} className="mt-1 accent-[#E21B23]" />
+          <input type="radio" name="posting-mode" checked={value.mode === "bid_review"} onChange={() => set({ mode: "bid_review" })} className="mt-1 accent-brand" />
           <span><strong>Bids reviewed by NESAM</strong> — partners send a counter amount; you choose a bid and assign.</span>
         </label>
       </fieldset>
-      <label className="flex items-center gap-2 font-semibold text-[#333]">
-        <input type="checkbox" checked={value.escalate} onChange={(e) => set({ escalate: e.target.checked })} className="w-4 h-4 accent-[#E21B23]" />
+      <label className="flex items-center gap-2 font-semibold text-body">
+        <input type="checkbox" checked={value.escalate} onChange={(e) => set({ escalate: e.target.checked })} className="w-4 h-4 accent-brand" />
         Raise the offer 5% every hour until a partner takes it
       </label>
       {value.escalate && (

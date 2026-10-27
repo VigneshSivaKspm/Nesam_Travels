@@ -19,6 +19,7 @@ import { runSettlementOverdue } from './settlement';
 import { formatDate, pickupInstant } from './domain/time';
 import { expiryMs } from './domain/eligibility';
 import { text } from './shared';
+import { runScheduledNotices } from './noticeCampaigns';
 
 const STATE_DOC = 'system/reconcile_state';
 
@@ -212,6 +213,7 @@ export async function runPeriodicJobs(): Promise<Record<string, unknown>> {
   await step('waves', () => runReleaseWaves());
   await step('settlementOverdue', () => runSettlementOverdue());
   await step('documentExpiry', () => runDocumentExpiryReminders());
+  await step('scheduledNotices', () => runScheduledNotices());
   return report;
 }
 

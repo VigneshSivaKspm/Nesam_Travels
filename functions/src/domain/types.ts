@@ -269,6 +269,18 @@ export interface Coupon {
   perCustomerLimit: number;
   status: string;
   adminBookingOnly: boolean;
+  /** Master Admin coupon form (Communication › Offers & Coupons); absent on older coupons. */
+  audience?: 'All' | 'New' | 'Returning' | 'Regular';
+  bookFrom?: string;
+  bookUntil?: string;
+  pickupFrom?: string;
+  pickupUntil?: string;
+  scope?: 'Any' | 'Pickup city' | 'Exact route';
+  city?: string;
+  dropCity?: string;
+  allowFixed?: boolean;
+  allowBusiness?: boolean;
+  allowPeak?: boolean;
 }
 
 export interface AppliedCoupon {

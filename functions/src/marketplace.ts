@@ -23,7 +23,7 @@ import { releaseConfigOf } from './release';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { sendCustomerMessage } from './customerComms';
 import { AdminAccess } from './permissions';
-import { approved, requirePermission, text } from './shared';
+import { approved, requirePermission, text, requireDuty } from './shared';
 
 export const docId = (v: unknown, what: string): string => {
   if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(v)) throw new HttpsError('invalid-argument', `Invalid ${what}.`);
@@ -115,6 +115,23 @@ function escalationOf(v: any, start: number, fare: number) {
   return { enabled: true, ceilingPaise: Math.round(ceiling * 100), stepPercent, intervalMinutes, step: 0 };
 }
 
+/**
+ * Agreed expense & extra-km terms published with a duty (Master Admin "Publish duty"). Frozen on
+ * the offer and the booking when published; a partner accepts the duty on these terms.
+ */
+const TERM_KEYS = ['driverBata', 'toll', 'parking', 'stateTax', 'nightAllowance'] as const;
+const TERM_VALUES = ['Included', 'At actuals', 'Not applicable'];
+export function dutyTermsOf(v: any): DocumentData | null {
+  if (!v || typeof v !== 'object') return null;
+  const customerExtraKm = money(v.customerExtraKm);
+  const partnerExtraKm = money(v.partnerExtraKm);
+  if (!(customerExtraKm > 0) || !(partnerExtraKm > 0)) throw new HttpsError('invalid-argument', 'Enter separate positive customer and partner extra-km rates.');
+  if (customerExtraKm > 1000 || partnerExtraKm > 1000) throw new HttpsError('invalid-argument', 'Extra-km rates look too high. Check the ₹ / km values.');
+  const items: Record<string, string> = {};
+  for (const k of TERM_KEYS) items[k] = TERM_VALUES.includes(v.items?.[k]) ? v.items[k] : 'At actuals';
+  return { customerExtraKm, partnerExtraKm, items, receiptRequired: v.receiptRequired !== false };
+}
+
 // ── Publish to the marketplace ────────────────────────────────────────────
 
 /** Tell eligible approved partners a published trip is available. Best effort, de-duplicated. */
@@ -162,6 +179,7 @@ export async function announceToPartners(bookingId: string, b: DocumentData, off
  */
 export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'publish');
   const value = text(request.data?.booking, 128);
   if (!value) throw new HttpsError('invalid-argument', 'Enter the booking code or ID.');
   const manual = request.data?.payout ?? null;
@@ -170,6 +188,8 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
   const mode = request.data?.mode === 'bid_review' ? 'bid_review' : 'accept_offer';
   const esc = request.data?.escalation && typeof request.data.escalation === 'object' ? request.data.escalation : null;
   const cutoffMinutes = typeof request.data?.cutoffMinutes === 'number' && request.data.cutoffMinutes >= 0 && request.data.cutoffMinutes <= 10080 ? Math.round(request.data.cutoffMinutes) : 0;
+  const terms = dutyTermsOf(request.data?.terms);
+  const note = text(request.data?.note, 300);
   const byCode = await db.collection('bookings').where('bookingId', '==', value).get();
   if (byCode.size > 1) throw new HttpsError('failed-precondition', 'Duplicate booking code. Use the document ID.');
   const bookingId = byCode.empty ? docId(value, 'booking') : byCode.docs[0].id;
@@ -183,6 +203,8 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
     if (!awaitingFulfilment(b)) throw new HttpsError('failed-precondition', 'Only an approved booking that has no vendor or driver yet can be published.');
     const priorStatus = prior.exists ? String(prior.data()!.status) : '';
     if (prior.exists && priorStatus === 'Assigned') throw new HttpsError('failed-precondition', 'This marketplace trip is already in progress.');
+    // Re-posting an open duty changes its payout or mode.
+    if (priorStatus === 'Open' || priorStatus === 'Bidding') requireDuty(admin, 'payout');
     if (b.fareVerified !== true) throw new HttpsError('failed-precondition', 'Verify the fare first (Booking Details → Verify / set fare).');
     const categoryDoc = text(b.vehicleCategoryId) ? await tx.get(db.doc(`vehicle_categories/${text(b.vehicleCategoryId)}`)) : null;
     const category = categoryDoc?.exists ? mapCategory(categoryDoc.id, categoryDoc.data()!) : null;
@@ -203,14 +225,16 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
       ...(esc && money(esc.ceiling) > 0 ? { ceiling: money(esc.ceiling) } : {}), startOffer: payout.amount,
       ...(cutoffMinutes && pickupAt ? { cutoffAt: Timestamp.fromMillis(pickupAt.getTime() - cutoffMinutes * 60000) } : {}),
       distanceKm: money(b.distanceKm), offeredPayout: payout.amount, ...(pickupAt ? { pickupAt: Timestamp.fromDate(pickupAt) } : {}),
+      ...(terms ? { terms } : {}),
       status: 'Open', publishedAt: stamp, publishedBy: admin.uid, createdAt: prior.exists ? prior.data()!.createdAt ?? stamp : stamp, updatedAt: stamp,
     };
     tx.set(market, offer);
     tx.update(ref, {
       ...(payout.commission ? { commission: payout.commission } : {}), payoutSource: payout.source,
       fulfilmentRoute: 'marketplace', marketplacePublishedAt: stamp, marketplacePublishedBy: admin.uid, updatedAt: stamp,
+      ...(terms ? { dutyTerms: terms } : {}), ...(note ? { publicationNote: note } : {}),
     });
-    tx.create(ref.collection('events').doc(), { type: 'posted_to_marketplace', actorId: admin.uid, actorRole: 'admin', payout: payout.amount, payoutSource: payout.source, at: stamp });
+    tx.create(ref.collection('events').doc(), { type: 'posted_to_marketplace', actorId: admin.uid, actorRole: 'admin', payout: payout.amount, payoutSource: payout.source, ...(note ? { note } : {}), at: stamp });
     auditInTx(tx, { action: 'booking_published', entity: 'booking', entityId: bookingId, performedBy: admin.uid, performedByName: admin.name, role: 'admin', bookingId, previous: { marketplace: priorStatus || 'none' }, next: { marketplace: 'Open', offeredPayout: payout.amount, payoutSource: payout.source } });
     return { bookingId, offeredPayout: payout.amount, booking: b, offer, republished: priorStatus === 'Open' || priorStatus === 'Bidding' };
   });
@@ -234,6 +258,7 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
  */
 export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'assign');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const vendorId = docId(request.data?.vendorId, 'vendor');
   const reason = text(request.data?.reason, 300);
@@ -301,6 +326,7 @@ const unassigned = (b: DocumentData) => awaitingFulfilment(b);
 
 export const awardMarketplaceBid = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'payout');
   const tripId = docId(request.data?.tripId, 'trip');
   const bidId = docId(request.data?.bidId, 'bid');
   const market = db.doc(`marketplace_trips/${tripId}`);
@@ -377,6 +403,7 @@ export const rejectMarketplaceBid = onCall(async (request) => {
 
 export const assignIndependentDriver = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'assign');
   const tripId = docId(request.data?.tripId, 'trip');
   const driverId = docId(request.data?.driverId, 'driver');
   const booking = db.doc(`bookings/${tripId}`);

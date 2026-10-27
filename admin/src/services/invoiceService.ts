@@ -155,8 +155,10 @@ export async function createInvoice(params: {
   company: CompanySnapshot;
   billing: BillingDetails;
   actorId: string;
+  /** Document type, place of supply and tax split chosen in the Master Admin "Create invoice" sheet. */
+  extra?: { documentType?: string; recipientState?: string; boardingState?: string; placeOfSupply?: string; taxSplit?: "CGST + SGST" | "IGST"; sac?: string; classification?: string };
 }): Promise<{ id: string; invoiceNumber: string }> {
-  const { booking, company, billing, actorId } = params;
+  const { booking, company, billing, actorId, extra } = params;
   const missing = companyProblems(company);
   if (missing.length) throw new InvoiceActionError(`Add ${missing.join(", ")} in Settings → Company before issuing invoices.`);
   const billingError = validateBilling(billing);
@@ -222,6 +224,11 @@ export async function createInvoice(params: {
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       };
+      if (extra) {
+        Object.assign(invoice, Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined && v !== "")));
+        // Inter-state supply: the whole GST is IGST.
+        if (extra.taxSplit === "IGST") Object.assign(invoice, { igst: (invoice.cgst as number) + (invoice.sgst as number), cgst: 0, sgst: 0 });
+      }
       tx.set(invoiceRef, { ...invoice, id: invoiceRef.id });
       tx.set(counterRef, { [String(year)]: seq, updatedAt: serverTimestamp() }, { merge: true });
       tx.update(bookingRef, { invoiceId: invoiceRef.id, invoiceNumber, updatedAt: serverTimestamp() });

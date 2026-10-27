@@ -1,5 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { signUpAdmin, describeAuthError } from "../services/authService";
+import AuthShell from "../components/shell/AuthShell";
+import Button from "../components/ui/Button";
+import Icon from "../components/ui/Icon";
 
 export default function Signup({
   onBackToLogin,
@@ -13,6 +16,7 @@ export default function Signup({
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const ids = { name: useId(), email: useId(), password: useId(), confirm: useId(), error: useId() };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -37,160 +41,57 @@ export default function Signup({
     }
   };
 
-  const inputClass =
-    "w-full mb-4 px-3.5 py-2.5 text-[13px] bg-[#F5F5F5] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] focus:ring-1 focus:ring-[#E21B23]/20 transition-all";
-  const labelClass = "block text-[12px] font-semibold text-[#444] mb-1.5";
+  const invalid = error ? true : undefined;
+  const described = error ? ids.error : undefined;
+
+  if (done) {
+    return (
+      <AuthShell icon="circle-check" title="Request received" subtitle="Your account is pending approval." footer="Official NESAM Tours & Travels admin portal">
+        <p className="text-[13px] text-muted" style={{ lineHeight: 1.7, marginBottom: 22 }}>
+          Your request is pending approval. A super admin will assign a role to <strong className="text-ink">{email}</strong>. You can sign in once it is approved.
+        </p>
+        <Button variant="primary" onClick={onBackToLogin}>
+          Back to sign in
+        </Button>
+      </AuthShell>
+    );
+  }
 
   return (
-    <div
-      className="h-screen w-screen flex items-center justify-center px-4"
-      style={{ background: "#F5F5F5" }}
-    >
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <img
-            src="/icons/logo.png"
-            alt="Nesam Admin"
-            className="w-16 h-16 rounded-2xl object-contain bg-white border border-[#E5E5E5] p-2 mx-auto mb-4 shadow-sm"
-          />
-          <h1 className="text-[19px] font-bold text-[#111111]">Nesam Admin</h1>
-          <p className="text-[13px] text-[#999] mt-1">
-            Request access to the Super Admin Panel
-          </p>
-        </div>
-
-        {done ? (
-          <div className="bg-white rounded-2xl border border-[#E5E5E5] p-6 shadow-sm text-center">
-            <div
-              className="w-12 h-12 rounded-full mx-auto mb-4 flex items-center justify-center"
-              style={{ background: "#ECFDF5" }}
-            >
-              <svg
-                className="w-6 h-6 text-[#059669]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={2}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M5 13l4 4L19 7"
-                />
-              </svg>
-            </div>
-            <h2 className="text-[15px] font-bold text-[#111111] mb-2">
-              Account created
-            </h2>
-            <p className="text-[12px] text-[#666] mb-6">
-              Your request is pending approval. The platform team will grant
-              Super Admin access to{" "}
-              <span className="font-semibold">{email}</span>. You'll be able to
-              sign in once approved.
-            </p>
-            <button
-              onClick={onBackToLogin}
-              className="w-full py-2.5 text-[13px] font-semibold text-white rounded-lg transition-all hover:opacity-90 active:scale-95"
-              style={{ background: "#E21B23" }}
-            >
-              Back to Sign In
-            </button>
+    <AuthShell icon="user-plus" title="Request access" subtitle="Create a staff account. A super admin approves it and assigns your role." footer="Official NESAM Tours & Travels admin portal">
+      <form onSubmit={handleSubmit} className="ds-auth-form" noValidate>
+        {error && (
+          <div id={ids.error} role="alert" className="ds-error" style={{ margin: 0 }}>
+            <Icon name="circle-alert" />
+            <span>{error}</span>
           </div>
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            className="bg-white rounded-2xl border border-[#E5E5E5] p-6 shadow-sm"
-          >
-            {error && (
-              <div className="mb-4 px-3 py-2.5 rounded-lg text-[12px] font-medium text-[#E21B23] bg-[#FEF2F2] border border-[#FBD5D5]">
-                {error}
-              </div>
-            )}
-
-            <label className={labelClass}>Full Name</label>
-            <input
-              type="text"
-              autoComplete="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Jane Doe"
-              className={inputClass}
-              required
-            />
-
-            <label className={labelClass}>Email</label>
-            <input
-              type="email"
-              autoComplete="username"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@nesam.in"
-              className={inputClass}
-              required
-            />
-
-            <label className={labelClass}>Password</label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className={inputClass}
-              required
-            />
-
-            <label className={labelClass}>Confirm Password</label>
-            <input
-              type="password"
-              autoComplete="new-password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="••••••••"
-              className="w-full mb-6 px-3.5 py-2.5 text-[13px] bg-[#F5F5F5] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] focus:ring-1 focus:ring-[#E21B23]/20 transition-all"
-              required
-            />
-
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full py-2.5 text-[13px] font-semibold text-white rounded-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-60 disabled:active:scale-100"
-              style={{ background: "#E21B23" }}
-            >
-              {submitting ? "Creating account…" : "Create Account"}
-            </button>
-          </form>
         )}
-
-        {!done && (
-          <p className="text-center text-[12px] text-[#999] mt-6">
-            Already have an account?{" "}
-            <button
-              onClick={onBackToLogin}
-              className="font-semibold text-[#E21B23] hover:underline"
-            >
-              Sign in
-            </button>
-          </p>
-        )}
-
-        <div className="text-center mt-6 flex items-center justify-center gap-2 text-[11px] text-[#AAA]">
-          <svg
-            className="w-3.5 h-3.5 text-emerald-600"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={2}
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"
-            />
-          </svg>
-          <span>Official NESAM Tours & Travels Admin Portal</span>
+        <div className="ds-field">
+          <label htmlFor={ids.name}>Full name</label>
+          <input id={ids.name} type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" className="ds-input" required />
         </div>
+        <div className="ds-field">
+          <label htmlFor={ids.email}>Email address</label>
+          <input id={ids.email} type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@nesam.in" className="ds-input" required />
+        </div>
+        <div className="ds-field">
+          <label htmlFor={ids.password}>Password</label>
+          <input id={ids.password} type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} className="ds-input" aria-invalid={invalid} aria-describedby={described} required />
+        </div>
+        <div className="ds-field">
+          <label htmlFor={ids.confirm}>Confirm password</label>
+          <input id={ids.confirm} type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} className="ds-input" aria-invalid={invalid} aria-describedby={described} required />
+        </div>
+        <Button type="submit" variant="primary" loading={submitting} disabled={!name || !email || !password}>
+          {submitting ? "Creating account…" : "Create account"}
+        </Button>
+      </form>
+      <div className="ds-auth-links">
+        <span>Already have an account?</span>
+        <button type="button" className="ds-link" onClick={onBackToLogin}>
+          Sign in
+        </button>
       </div>
-    </div>
+    </AuthShell>
   );
 }

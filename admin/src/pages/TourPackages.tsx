@@ -296,7 +296,7 @@ export default function TourPackages() {
     }
   };
 
-  const inputCls = "w-full p-2.5 border border-[#E5E5E5] rounded-lg text-[12px] focus:outline-none focus:border-[#E21B23]";
+  const inputCls = "w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand";
   const numberValue = (n: number) => (n ? String(n) : "");
   const toWhole = (v: string) => Number(v.replace(/[^\d]/g, "").slice(0, 8)) || 0;
 
@@ -307,58 +307,58 @@ export default function TourPackages() {
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-[#111111]">Tour Packages</h1>
-          <p className="text-[13px] text-[#666666]">Create and manage tour packages with itineraries, pricing, departures and vehicle options.</p>
+          <h1 className="text-[20px] font-bold text-ink">Tour Packages</h1>
+          <p className="text-[13px] text-muted">Create and manage tour packages with itineraries, pricing, departures and vehicle options.</p>
         </div>
-        <button onClick={() => openForm(null)} className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all" style={{ background: "#E21B23" }}>
+        <button onClick={() => openForm(null)} className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all" style={{ background: "#c1232c" }}>
           + Add Tour Package
         </button>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: "Total Packages", value: stats.totalCount, color: "#E21B23", sub: "Excluding archived" },
+          { label: "Total Packages", value: stats.totalCount, color: "#c1232c", sub: "Excluding archived" },
           { label: "Active Packages", value: stats.activeCount, color: "#10B981", sub: "Visible to customers" },
           { label: "Draft Packages", value: stats.draftCount, color: "#F59E0B", sub: "In preparation" },
           { label: "Upcoming Departures", value: stats.departuresCount, color: "#3B82F6", sub: "On active packages" },
         ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
+          <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
             <div className="text-[24px] font-bold" style={{ color: s.color }}>{loading ? "—" : s.value}</div>
-            <div className="text-[12px] font-semibold text-[#111111] mt-0.5">{s.label}</div>
-            <div className="text-[10px] text-[#999999]">{s.sub}</div>
+            <div className="text-[12px] font-semibold text-ink mt-0.5">{s.label}</div>
+            <div className="text-[10px] text-faint">{s.sub}</div>
           </div>
         ))}
       </div>
 
       {loading ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center text-[13px] text-[#999999]">Loading tour packages…</div>
+        <div className="bg-white rounded-xl border border-line p-12 text-center text-[13px] text-faint">Loading tour packages…</div>
       ) : tourPackages.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-16 flex flex-col items-center text-center">
-          <h2 className="text-[18px] font-bold text-[#111111] mb-2">No tour packages found.</h2>
-          <p className="text-[13px] text-[#999999] max-w-sm mb-6">Create a tour package with its itinerary, pricing and allowed vehicle categories to get started.</p>
-          <button onClick={() => openForm(null)} className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 shadow-sm" style={{ background: "#E21B23" }}>
+        <div className="bg-white rounded-xl border border-line shadow-sm p-16 flex flex-col items-center text-center">
+          <h2 className="text-[18px] font-bold text-ink mb-2">No tour packages found.</h2>
+          <p className="text-[13px] text-faint max-w-sm mb-6">Create a tour package with its itinerary, pricing and allowed vehicle categories to get started.</p>
+          <button onClick={() => openForm(null)} className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 shadow-sm" style={{ background: "#c1232c" }}>
             + Add Tour Package
           </button>
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="p-4 bg-white rounded-xl border border-[#E5E5E5] shadow-sm flex flex-wrap items-center justify-between gap-3">
-            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search package name, code, destination…" className="flex-1 min-w-[200px] max-w-md px-3 py-2 text-[12px] bg-[#FAFAFA] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23]" />
+          <div className="p-4 bg-white rounded-xl border border-line shadow-sm flex flex-wrap items-center justify-between gap-3">
+            <input type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search package name, code, destination…" className="flex-1 min-w-[200px] max-w-md px-3 py-2 text-[12px] bg-surface-2 border border-line rounded-lg focus:outline-none focus:border-brand" />
             <div className="flex flex-wrap items-center gap-2">
-              <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
+              <select aria-label="Status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white">
                 <option value="All">All (except archived)</option>
                 <option value="Active">Active</option>
                 <option value="Draft">Draft</option>
                 <option value="Inactive">Inactive</option>
                 <option value="Archived">Archived</option>
               </select>
-              <select aria-label="Duration" value={durationFilter} onChange={(e) => setDurationFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
+              <select aria-label="Duration" value={durationFilter} onChange={(e) => setDurationFilter(e.target.value)} className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white">
                 <option value="All">All durations</option>
                 <option value="Short">Short (1–3 days)</option>
                 <option value="Medium">Medium (4–7 days)</option>
                 <option value="Long">Long (8+ days)</option>
               </select>
-              <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-3 py-1.5 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
+              <select aria-label="Sort" value={sortBy} onChange={(e) => setSortBy(e.target.value as typeof sortBy)} className="px-3 py-1.5 text-[12px] border border-line rounded-lg bg-white">
                 <option value="order">Display order</option>
                 <option value="name">Package name</option>
                 <option value="price_asc">Price: low to high</option>
@@ -369,19 +369,19 @@ export default function TourPackages() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {filteredPackages.length === 0 ? (
-              <div className="col-span-full bg-white rounded-xl border border-[#E5E5E5] p-8 text-center text-xs text-[#999999]">No tour packages match your filters.</div>
+              <div className="col-span-full bg-white rounded-xl border border-line p-8 text-center text-xs text-faint">No tour packages match your filters.</div>
             ) : (
               filteredPackages.map((pkg) => {
                 const next = upcomingDepartures(pkg)[0];
                 const busy = busyId === pkg.id;
                 return (
-                  <div key={pkg.id} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
+                  <div key={pkg.id} className="bg-white rounded-xl border border-line shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col justify-between">
                     <div>
                       <div className="relative h-40 bg-gray-100 overflow-hidden">
                         {pkg.coverImageUrl ? (
                           <img src={pkg.coverImageUrl} alt={pkg.name} className="w-full h-full object-cover" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center bg-[#FEF2F2] text-[40px]">🏝️</div>
+                          <div className="w-full h-full flex items-center justify-center bg-brand-soft text-[40px]">🏝️</div>
                         )}
                         <div className="absolute top-3 left-3 flex gap-1.5">
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold border shadow-xs ${statusBadge[pkg.status] || statusBadge.Inactive}`}>{pkg.status}</span>
@@ -394,27 +394,27 @@ export default function TourPackages() {
                       <div className="p-4 space-y-3">
                         <div>
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-[10px] font-mono text-[#888888] font-bold uppercase truncate">{pkg.code}</span>
-                            <span className="text-[14px] font-black text-[#E21B23] whitespace-nowrap">
+                            <span className="text-[10px] font-mono text-faint font-bold uppercase truncate">{pkg.code}</span>
+                            <span className="text-[14px] font-black text-brand whitespace-nowrap">
                               {pkg.offerPrice ? (
                                 <>
-                                  <span className="line-through text-[#999] text-[11px] font-semibold mr-1">{formatCurrency(pkg.basePrice)}</span>
+                                  <span className="line-through text-faint text-[11px] font-semibold mr-1">{formatCurrency(pkg.basePrice)}</span>
                                   {formatCurrency(pkg.offerPrice)}
                                 </>
                               ) : (
                                 formatCurrency(pkg.basePrice)
                               )}
-                              <span className="text-[10px] font-semibold text-[#888] ml-1">
+                              <span className="text-[10px] font-semibold text-faint ml-1">
                                 {pkg.pricingModel === "Per Person" ? "/ adult" : pkg.pricingModel === "Vehicle Based" ? "onwards" : ""}
                               </span>
                             </span>
                           </div>
-                          <h3 className="text-[14px] font-bold text-[#111111] line-clamp-1 mt-0.5">{pkg.name}</h3>
+                          <h3 className="text-[14px] font-bold text-ink line-clamp-1 mt-0.5">{pkg.name}</h3>
                         </div>
-                        <div className="text-[11px] text-[#666666] line-clamp-1">📍 {(pkg.destinations || []).join(" → ") || "Route not set"}</div>
-                        <p className="text-[11px] text-[#777777] line-clamp-2">{pkg.shortDescription || "No short description provided."}</p>
-                        <div className="text-[10px] text-[#666]">{next ? `Next departure: ${next.date}${next.time ? ` ${next.time}` : ""} (${next.status})` : "No upcoming departures"}</div>
-                        <div className="pt-2 border-t border-[#F5F5F5] flex items-center justify-between text-[10px] gap-2">
+                        <div className="text-[11px] text-muted line-clamp-1">📍 {(pkg.destinations || []).join(" → ") || "Route not set"}</div>
+                        <p className="text-[11px] text-faint line-clamp-2">{pkg.shortDescription || "No short description provided."}</p>
+                        <div className="text-[10px] text-muted">{next ? `Next departure: ${next.date}${next.time ? ` ${next.time}` : ""} (${next.status})` : "No upcoming departures"}</div>
+                        <div className="pt-2 border-t border-hover flex items-center justify-between text-[10px] gap-2">
                           <div className="flex flex-wrap gap-1">
                             {(pkg.allowedVehicleCategoryNames || []).slice(0, 3).map((c) => (
                               <span key={c} className="px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-medium">{c}</span>
@@ -424,10 +424,10 @@ export default function TourPackages() {
                         </div>
                       </div>
                     </div>
-                    <div className="p-4 bg-[#FAFAFA] border-t border-[#E5E5E5] flex flex-wrap items-center justify-between gap-2">
-                      <button onClick={() => void duplicate(pkg)} disabled={busy} className="text-[11px] font-semibold text-gray-600 hover:text-[#E21B23] disabled:opacity-50">📋 Duplicate</button>
+                    <div className="p-4 bg-surface-2 border-t border-line flex flex-wrap items-center justify-between gap-2">
+                      <button onClick={() => void duplicate(pkg)} disabled={busy} className="text-[11px] font-semibold text-gray-600 hover:text-brand disabled:opacity-50">📋 Duplicate</button>
                       <div className="flex flex-wrap items-center gap-1.5">
-                        <button onClick={() => openForm(pkg)} className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 hover:bg-white">Edit</button>
+                        <button onClick={() => openForm(pkg)} className="px-2.5 py-1 text-[11px] font-medium rounded-lg border border-line text-gray-700 hover:bg-white">Edit</button>
                         {pkg.status !== "Archived" && (
                           <button
                             onClick={() => void changeStatus(pkg, pkg.status === "Active" ? "Inactive" : "Active")}
@@ -438,16 +438,16 @@ export default function TourPackages() {
                           </button>
                         )}
                         {pkg.status === "Archived" ? (
-                          <button onClick={() => void changeStatus(pkg, "Draft")} disabled={busy} className="px-2 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 disabled:opacity-50">Restore</button>
+                          <button onClick={() => void changeStatus(pkg, "Draft")} disabled={busy} className="px-2 py-1 text-[11px] font-medium rounded-lg border border-line text-gray-700 disabled:opacity-50">Restore</button>
                         ) : (
-                          <button onClick={() => void changeStatus(pkg, "Archived")} disabled={busy} className="px-2 py-1 text-[11px] font-medium rounded-lg border border-[#E5E5E5] text-gray-700 disabled:opacity-50">Archive</button>
+                          <button onClick={() => void changeStatus(pkg, "Archived")} disabled={busy} className="px-2 py-1 text-[11px] font-medium rounded-lg border border-line text-gray-700 disabled:opacity-50">Archive</button>
                         )}
                         <button
                           onClick={() => {
                             setDeleteError(null);
                             setDeleteTarget(pkg);
                           }}
-                          className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-[#E21B23] hover:bg-red-100"
+                          className="px-2 py-1 text-[11px] font-medium rounded-lg border border-red-200 bg-red-50 text-brand hover:bg-red-100"
                         >
                           Delete
                         </button>
@@ -464,15 +464,15 @@ export default function TourPackages() {
       {showModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl max-w-3xl w-full shadow-2xl overflow-hidden my-6" role="dialog" aria-modal="true" aria-label="Tour package editor">
-            <div className="px-6 py-4 border-b border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
+            <div className="px-6 py-4 border-b border-line flex items-center justify-between bg-surface-2">
               <div>
-                <h3 className="text-[16px] font-bold text-[#111111]">{editing ? "Edit Tour Package" : "+ Add Tour Package"}</h3>
-                <p className="text-[11px] text-[#666666]">Route, itinerary, pricing, departures and inclusions.</p>
+                <h3 className="text-[16px] font-bold text-ink">{editing ? "Edit Tour Package" : "+ Add Tour Package"}</h3>
+                <p className="text-[11px] text-muted">Route, itinerary, pricing, departures and inclusions.</p>
               </div>
               <button type="button" onClick={() => setShowModal(false)} disabled={saving} aria-label="Close" className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 font-bold text-sm disabled:opacity-40">✕</button>
             </div>
 
-            <div className="flex border-b border-[#E5E5E5] bg-[#F5F5F5] px-6 pt-2 overflow-x-auto">
+            <div className="flex border-b border-line bg-hover px-6 pt-2 overflow-x-auto">
               {([
                 { id: "basic", label: "Basic Info & Route" },
                 { id: "itinerary", label: "Itinerary" },
@@ -484,7 +484,7 @@ export default function TourPackages() {
                   type="button"
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 text-[12px] font-semibold border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === tab.id ? "border-[#E21B23] text-[#E21B23] bg-white rounded-t-lg" : "border-transparent text-[#666666] hover:text-[#111111]"}`}
+                  className={`px-4 py-2 text-[12px] font-semibold border-b-2 whitespace-nowrap flex items-center gap-1.5 ${activeTab === tab.id ? "border-brand text-brand bg-white rounded-t-lg" : "border-transparent text-muted hover:text-ink"}`}
                 >
                   {tab.label}
                   {tabHasError(tab.id) && <span className="w-1.5 h-1.5 rounded-full bg-red-600" aria-label="has errors" />}
@@ -500,26 +500,26 @@ export default function TourPackages() {
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Package Name *</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Package Name *</label>
                         <input type="text" value={formData.name} onChange={(e) => set("name", e.target.value)} className={inputCls} />
                         {errNode("name")}
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">Code</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">Code</label>
                           <input type="text" value={formData.code} placeholder="From name" onChange={(e) => set("code", e.target.value.toUpperCase())} className={`${inputCls} font-mono`} />
                           {errNode("code")}
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">URL Slug</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">URL Slug</label>
                           <input type="text" value={formData.slug} placeholder="From name" onChange={(e) => set("slug", e.target.value.toLowerCase())} className={`${inputCls} font-mono`} />
                           {errNode("slug")}
                         </div>
                       </div>
                     </div>
 
-                    <div className="p-3 bg-gray-50 rounded-xl border border-[#E5E5E5] space-y-2">
-                      <label className="block text-[11px] font-bold text-[#111111]">Route (start → stops → end) *</label>
+                    <div className="p-3 bg-gray-50 rounded-xl border border-line space-y-2">
+                      <label className="block text-[11px] font-bold text-ink">Route (start → stops → end) *</label>
                       <div className="flex flex-wrap items-center gap-2">
                         {formData.destinations.map((dest, idx) => (
                           <span key={`${dest}-${idx}`} className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-gray-300 text-xs font-semibold text-gray-800">
@@ -543,7 +543,7 @@ export default function TourPackages() {
                               addDestination();
                             }
                           }}
-                          className="flex-1 p-2 border border-[#E5E5E5] rounded-lg text-[12px] bg-white focus:outline-none focus:border-[#E21B23]"
+                          className="flex-1 p-2 border border-line rounded-lg text-[12px] bg-white focus:outline-none focus:border-brand"
                         />
                         <datalist id="package-locations">
                           {locationNames.map((n) => (
@@ -557,17 +557,17 @@ export default function TourPackages() {
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Days *</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Days *</label>
                         <input inputMode="numeric" value={numberValue(formData.durationDays)} onChange={(e) => set("durationDays", toWhole(e.target.value))} className={inputCls} />
                         {errNode("durationDays")}
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Nights *</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Nights *</label>
                         <input inputMode="numeric" value={String(formData.durationNights)} onChange={(e) => set("durationNights", toWhole(e.target.value))} className={inputCls} />
                         {errNode("durationNights")}
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Status</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Status</label>
                         <select value={formData.status} onChange={(e) => set("status", e.target.value as PackageStatus)} className={`${inputCls} bg-white`}>
                           <option value="Draft">Draft (internal)</option>
                           <option value="Active">Active (shown to customers)</option>
@@ -576,28 +576,28 @@ export default function TourPackages() {
                         </select>
                       </div>
                       <div>
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Display Order</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Display Order</label>
                         <input inputMode="numeric" value={numberValue(formData.displayOrder)} onChange={(e) => set("displayOrder", toWhole(e.target.value))} className={inputCls} />
                         {errNode("displayOrder")}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Short Description</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Short Description</label>
                       <input type="text" maxLength={160} value={formData.shortDescription} onChange={(e) => set("shortDescription", e.target.value)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Full Description</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Full Description</label>
                       <textarea rows={3} value={formData.fullDescription} onChange={(e) => set("fullDescription", e.target.value)} className={inputCls} />
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
                       <div className="md:col-span-2">
-                        <label className="block text-[11px] font-bold text-[#111111] mb-1">Cover Image URL</label>
+                        <label className="block text-[11px] font-bold text-ink mb-1">Cover Image URL</label>
                         <input type="url" value={formData.coverImageUrl} onChange={(e) => set("coverImageUrl", e.target.value)} placeholder="https://…" className={inputCls} />
                         {errNode("coverImageUrl")}
                       </div>
-                      <label className="flex items-center gap-2 text-[12px] font-semibold text-[#111] pb-2.5">
-                        <input type="checkbox" checked={formData.featured} onChange={(e) => set("featured", e.target.checked)} className="accent-[#E21B23]" />
+                      <label className="flex items-center gap-2 text-[12px] font-semibold text-ink pb-2.5">
+                        <input type="checkbox" checked={formData.featured} onChange={(e) => set("featured", e.target.checked)} className="accent-brand" />
                         Featured package
                       </label>
                     </div>
@@ -607,24 +607,24 @@ export default function TourPackages() {
                 {activeTab === "itinerary" && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-bold text-[#111111]">
+                      <span className="text-[12px] font-bold text-ink">
                         Day-by-Day Itinerary ({formData.itinerary.length} of {formData.durationDays} days)
                       </span>
                       <button
                         type="button"
                         onClick={() => set("itinerary", [...formData.itinerary, { dayNumber: formData.itinerary.length + 1, title: "", description: "", activities: "", meals: "", stay: "" }])}
                         disabled={formData.itinerary.length >= formData.durationDays}
-                        className="px-3 py-1.5 bg-[#E21B23] text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-40"
+                        className="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:opacity-90 disabled:opacity-40"
                       >
                         + Add Day
                       </button>
                     </div>
                     {errNode("itinerary")}
-                    {formData.itinerary.length === 0 && <p className="text-[12px] text-[#999]">No itinerary days yet.</p>}
+                    {formData.itinerary.length === 0 && <p className="text-[12px] text-faint">No itinerary days yet.</p>}
                     {formData.itinerary.map((day, idx) => (
-                      <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-[#E5E5E5] space-y-3">
+                      <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-line space-y-3">
                         <div className="flex items-center justify-between border-b pb-2">
-                          <span className="font-bold text-xs text-[#E21B23] uppercase">Day {idx + 1}</span>
+                          <span className="font-bold text-xs text-brand uppercase">Day {idx + 1}</span>
                           <button type="button" onClick={() => set("itinerary", formData.itinerary.filter((_, i) => i !== idx))} className="text-xs font-semibold text-red-600 hover:text-red-800">Remove Day</button>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -644,7 +644,7 @@ export default function TourPackages() {
                 {activeTab === "pricing" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Pricing Model *</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Pricing Model *</label>
                       <select value={formData.pricingModel} onChange={(e) => set("pricingModel", e.target.value as PackageForm["pricingModel"])} className={`${inputCls} bg-white`}>
                         <option value="">Choose pricing model</option>
                         {PRICING_MODELS.map((m) => (
@@ -656,12 +656,12 @@ export default function TourPackages() {
                     {formData.pricingModel === "Per Person" ? (
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">Adult Price (₹) *</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">Adult Price (₹) *</label>
                           <input inputMode="numeric" value={numberValue(formData.adultPrice)} onChange={(e) => set("adultPrice", toWhole(e.target.value))} className={inputCls} />
                           {errNode("adultPrice")}
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">Child Price (₹)</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">Child Price (₹)</label>
                           <input inputMode="numeric" value={String(formData.childPrice)} onChange={(e) => set("childPrice", toWhole(e.target.value))} className={inputCls} />
                           {errNode("childPrice")}
                         </div>
@@ -669,12 +669,12 @@ export default function TourPackages() {
                     ) : formData.pricingModel ? (
                       <div className="grid grid-cols-2 gap-4">
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">{formData.pricingModel === "Vehicle Based" ? "Starting Price (₹) *" : "Package Price (₹) *"}</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">{formData.pricingModel === "Vehicle Based" ? "Starting Price (₹) *" : "Package Price (₹) *"}</label>
                           <input inputMode="numeric" value={numberValue(formData.basePrice)} onChange={(e) => set("basePrice", toWhole(e.target.value))} className={inputCls} />
                           {errNode("basePrice")}
                         </div>
                         <div>
-                          <label className="block text-[11px] font-bold text-[#111111] mb-1">Offer Price (₹)</label>
+                          <label className="block text-[11px] font-bold text-ink mb-1">Offer Price (₹)</label>
                           <input inputMode="numeric" value={numberValue(formData.offerPrice)} placeholder="No offer" onChange={(e) => set("offerPrice", toWhole(e.target.value))} className={inputCls} />
                           {errNode("offerPrice")}
                         </div>
@@ -682,7 +682,7 @@ export default function TourPackages() {
                     ) : null}
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Preferred Fleet Partner</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Preferred Fleet Partner</label>
                       <select value={formData.preferredVendorId} onChange={(e) => set("preferredVendorId", e.target.value)} className={`${inputCls} bg-white`}>
                         <option value="">No preferred partner (open assignment)</option>
                         {approvedVendors.map((v) => (
@@ -692,27 +692,27 @@ export default function TourPackages() {
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-2">Eligible Vehicle Categories{formData.pricingModel === "Vehicle Based" ? " *" : ""}</label>
-                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                      <label className="block text-[11px] font-bold text-ink mb-2">Eligible Vehicle Categories{formData.pricingModel === "Vehicle Based" ? " *" : ""}</label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-3 bg-gray-50 rounded-xl border border-line">
                         {vehicleCategories
                           .filter((c) => c.status === "Active" || formData.allowedVehicleCategoryIds.includes(c.id))
                           .map((cat) => {
                             const checked = formData.allowedVehicleCategoryIds.includes(cat.id);
                             return (
-                              <label key={cat.id} className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer ${checked ? "bg-red-50 border-red-200 text-[#E21B23] font-bold" : "bg-white border-gray-200 text-gray-700"}`}>
+                              <label key={cat.id} className={`flex items-center gap-2 p-2 rounded-lg border text-xs cursor-pointer ${checked ? "bg-red-50 border-red-200 text-brand font-bold" : "bg-white border-gray-200 text-gray-700"}`}>
                                 <input
                                   type="checkbox"
                                   checked={checked}
                                   onChange={() =>
                                     set("allowedVehicleCategoryIds", checked ? formData.allowedVehicleCategoryIds.filter((id) => id !== cat.id) : [...formData.allowedVehicleCategoryIds, cat.id])
                                   }
-                                  className="accent-[#E21B23]"
+                                  className="accent-brand"
                                 />
                                 <span>{cat.icon || "🚘"} {cat.name} ({cat.seatingCapacity} seats)</span>
                               </label>
                             );
                           })}
-                        {vehicleCategories.length === 0 && <span className="text-[11px] text-[#999]">No vehicle categories yet.</span>}
+                        {vehicleCategories.length === 0 && <span className="text-[11px] text-faint">No vehicle categories yet.</span>}
                       </div>
                       {errNode("allowedVehicleCategoryIds")}
                     </div>
@@ -722,19 +722,19 @@ export default function TourPackages() {
                 {activeTab === "availability" && (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-[12px] font-bold text-[#111]">Scheduled Departures ({formData.departures.length})</span>
+                      <span className="text-[12px] font-bold text-ink">Scheduled Departures ({formData.departures.length})</span>
                       <button
                         type="button"
                         onClick={() => set("departures", [...formData.departures, { id: `dep-${Date.now()}`, date: "", time: "", availableSeats: undefined, status: "Available" }])}
-                        className="px-3 py-1.5 bg-[#E21B23] text-white rounded-lg text-xs font-semibold hover:opacity-90"
+                        className="px-3 py-1.5 bg-brand text-white rounded-lg text-xs font-semibold hover:opacity-90"
                       >
                         + Add Departure
                       </button>
                     </div>
-                    <p className="text-[11px] text-[#888]">Leave empty for packages booked on any date.</p>
+                    <p className="text-[11px] text-faint">Leave empty for packages booked on any date.</p>
                     {errNode("departures")}
                     {formData.departures.map((d, idx) => (
-                      <div key={d.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 rounded-xl border border-[#E5E5E5]">
+                      <div key={d.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 rounded-xl border border-line">
                         <input type="date" aria-label="Departure date" value={d.date} onChange={(e) => updateDeparture(idx, { date: e.target.value })} className={`${inputCls} bg-white`} />
                         <input type="time" aria-label="Departure time" value={d.time || ""} onChange={(e) => updateDeparture(idx, { time: e.target.value })} className={`${inputCls} bg-white`} />
                         <input inputMode="numeric" aria-label="Seats available" value={d.availableSeats === undefined ? "" : String(d.availableSeats)} placeholder="Seats" onChange={(e) => updateDeparture(idx, { availableSeats: e.target.value === "" ? undefined : toWhole(e.target.value) })} className={`${inputCls} bg-white`} />
@@ -752,20 +752,20 @@ export default function TourPackages() {
                 {activeTab === "inclusions" && (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Inclusions (one per line)</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Inclusions (one per line)</label>
                       <textarea rows={4} value={formData.inclusionsText} onChange={(e) => set("inclusionsText", e.target.value)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">Exclusions (one per line)</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">Exclusions (one per line)</label>
                       <textarea rows={4} value={formData.exclusionsText} onChange={(e) => set("exclusionsText", e.target.value)} className={inputCls} />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">SEO Title</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">SEO Title</label>
                       <input type="text" value={formData.seoTitle} onChange={(e) => set("seoTitle", e.target.value)} className={inputCls} />
                       {errNode("seoTitle")}
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-[#111111] mb-1">SEO Description</label>
+                      <label className="block text-[11px] font-bold text-ink mb-1">SEO Description</label>
                       <textarea rows={2} value={formData.seoDescription} onChange={(e) => set("seoDescription", e.target.value)} className={inputCls} />
                       {errNode("seoDescription")}
                     </div>
@@ -773,9 +773,9 @@ export default function TourPackages() {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t border-[#E5E5E5] flex items-center justify-between bg-[#FAFAFA]">
-                <button type="button" onClick={() => setShowModal(false)} disabled={saving} className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50">Cancel</button>
-                <button type="submit" disabled={saving} className="px-6 py-2 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 disabled:opacity-50" style={{ background: "#E21B23" }}>
+              <div className="px-6 py-4 border-t border-line flex items-center justify-between bg-surface-2">
+                <button type="button" onClick={() => setShowModal(false)} disabled={saving} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50">Cancel</button>
+                <button type="submit" disabled={saving} className="px-6 py-2 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 disabled:opacity-50" style={{ background: "#c1232c" }}>
                   {saving ? "Saving…" : editing ? "Update Tour Package" : "Save Tour Package"}
                 </button>
               </div>

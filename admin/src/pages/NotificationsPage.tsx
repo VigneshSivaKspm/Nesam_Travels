@@ -22,7 +22,7 @@ const typeIcon: Record<string, { label: string; color: string; bg: string }> = {
   booking: { label: "Booking", color: "#059669", bg: "#ECFDF5" },
   payment: { label: "Finance", color: "#16A34A", bg: "#F0FDF4" },
   payout: { label: "Payout", color: "#16A34A", bg: "#F0FDF4" },
-  trip: { label: "Trip", color: "#E21B23", bg: "#FEF2F2" },
+  trip: { label: "Trip", color: "#c1232c", bg: "#FEF2F2" },
   alert: { label: "Alert", color: "#DC2626", bg: "#FEF2F2" },
   vendor: { label: "Vendor", color: "#7C3AED", bg: "#F5F3FF" },
   driver: { label: "Driver", color: "#2563EB", bg: "#EFF6FF" },
@@ -250,38 +250,38 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
   return (
     <div className="p-6 space-y-6 max-w-7xl mx-auto">
       {/* Top Banner / Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-[#E5E5E5]">
+      <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-line">
         <div>
           <div className="flex items-center gap-2.5">
-            <h1 className="text-[22px] font-bold text-[#111]">
+            <h1 className="text-[22px] font-bold text-ink">
               Notifications &amp; Alert Center
             </h1>
             <span
               className="text-[11px] font-bold px-2.5 py-0.5 rounded-full text-white"
-              style={{ background: "#E21B23" }}
+              style={{ background: "#c1232c" }}
             >
               Super Admin Console
             </span>
           </div>
-          <p className="text-[13px] text-[#666] mt-0.5">
+          <p className="text-[13px] text-muted mt-0.5">
             Real-time platform operations, live dispatch alerts, driver KYC updates, and communications.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
           {/* Tab Controls */}
-          <div className="flex items-center bg-[#F5F5F5] p-1 rounded-xl border border-[#E5E5E5]">
+          <div className="flex items-center bg-hover p-1 rounded-xl border border-line">
             <button
               onClick={() => { setActiveTab("inbox"); setSearchQuery(""); }}
               className={`px-4 py-2 text-[12px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "inbox"
-                  ? "bg-white text-[#111] shadow-sm"
-                  : "text-[#666] hover:text-[#111]"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               <span>Admin Alerts</span>
               {unreadCount > 0 && (
-                <span className="w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: "#E21B23" }}>
+                <span className="w-4 h-4 rounded-full text-[9px] font-bold text-white flex items-center justify-center" style={{ background: "#c1232c" }}>
                   {unreadCount}
                 </span>
               )}
@@ -291,20 +291,20 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
               onClick={() => { setActiveTab("outbox"); setSearchQuery(""); }}
               className={`px-4 py-2 text-[12px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "outbox"
-                  ? "bg-white text-[#111] shadow-sm"
-                  : "text-[#666] hover:text-[#111]"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               <span>Sent Notices / Outbox</span>
-              <span className="text-[11px] text-[#999]">({outboundNotifs.length})</span>
+              <span className="text-[11px] text-faint">({outboundNotifs.length})</span>
             </button>
 
             <button
               onClick={() => { setActiveTab("delivery"); setSearchQuery(""); }}
               className={`px-4 py-2 text-[12px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "delivery"
-                  ? "bg-white text-[#111] shadow-sm"
-                  : "text-[#666] hover:text-[#111]"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               <span>Delivery log</span>
@@ -314,8 +314,8 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
               onClick={() => { setActiveTab("send"); setSearchQuery(""); }}
               className={`px-4 py-2 text-[12px] font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
                 activeTab === "send"
-                  ? "bg-white text-[#111] shadow-sm"
-                  : "text-[#666] hover:text-[#111]"
+                  ? "bg-white text-ink shadow-sm"
+                  : "text-muted hover:text-ink"
               }`}
             >
               <span>+ Compose &amp; Send</span>
@@ -331,24 +331,24 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
         <div className="space-y-5">
           {/* Key Metrics */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-4 shadow-xs">
-              <div className="text-[11px] font-semibold text-[#888] uppercase tracking-wider">Total Alerts</div>
-              <div className="text-[24px] font-extrabold text-[#111] mt-1">{displayAdminNotifs.length}</div>
+            <div className="bg-white rounded-xl border border-line p-4 shadow-xs">
+              <div className="text-[11px] font-semibold text-faint uppercase tracking-wider">Total Alerts</div>
+              <div className="text-[24px] font-extrabold text-ink mt-1">{displayAdminNotifs.length}</div>
             </div>
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-4 shadow-xs">
-              <div className="text-[11px] font-semibold text-[#888] uppercase tracking-wider">Unread Action Items</div>
-              <div className="text-[24px] font-extrabold mt-1" style={{ color: "#E21B23" }}>
+            <div className="bg-white rounded-xl border border-line p-4 shadow-xs">
+              <div className="text-[11px] font-semibold text-faint uppercase tracking-wider">Unread Action Items</div>
+              <div className="text-[24px] font-extrabold mt-1" style={{ color: "#c1232c" }}>
                 {unreadCount}
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-4 shadow-xs">
-              <div className="text-[11px] font-semibold text-[#888] uppercase tracking-wider">Approvals</div>
+            <div className="bg-white rounded-xl border border-line p-4 shadow-xs">
+              <div className="text-[11px] font-semibold text-faint uppercase tracking-wider">Approvals</div>
               <div className="text-[24px] font-extrabold text-blue-600 mt-1">
                 {displayAdminNotifs.filter((n) => categoryOf(n) === "approvals").length}
               </div>
             </div>
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-4 shadow-xs">
-              <div className="text-[11px] font-semibold text-[#888] uppercase tracking-wider">Bookings &amp; trips</div>
+            <div className="bg-white rounded-xl border border-line p-4 shadow-xs">
+              <div className="text-[11px] font-semibold text-faint uppercase tracking-wider">Bookings &amp; trips</div>
               <div className="text-[24px] font-extrabold text-emerald-600 mt-1">
                 {displayAdminNotifs.filter((n) => ["bookings", "trips"].includes(categoryOf(n))).length}
               </div>
@@ -356,7 +356,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
           </div>
 
           {/* Filter Bar */}
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-[#E5E5E5] p-3 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-line p-3 shadow-xs">
             <div className="flex flex-wrap items-center gap-1.5">
               {typesList.map((t) => {
                 const isSelected = filterType === t;
@@ -368,9 +368,9 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                     className={`px-3 py-1.5 rounded-lg text-[11px] font-bold transition-all capitalize cursor-pointer ${
                       isSelected
                         ? "text-white"
-                        : "text-[#666] bg-[#F5F5F5] hover:bg-[#EAEAEA] hover:text-[#111]"
+                        : "text-muted bg-hover hover:bg-line hover:text-ink"
                     }`}
-                    style={isSelected ? { background: "#E21B23" } : {}}
+                    style={isSelected ? { background: "#c1232c" } : {}}
                   >
                     {t === "All" ? "All" : CATEGORY_LABEL[t as keyof typeof CATEGORY_LABEL]} <span className="opacity-70">({count})</span>
                   </button>
@@ -383,8 +383,8 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 onClick={() => setUnreadOnly(!unreadOnly)}
                 className={`px-3 py-1.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                   unreadOnly
-                    ? "bg-[#FEF2F2] text-[#E21B23] border-[#E21B23]"
-                    : "bg-white text-[#666] border-[#E5E5E5] hover:bg-[#F5F5F5]"
+                    ? "bg-brand-soft text-brand border-brand"
+                    : "bg-white text-muted border-line hover:bg-hover"
                 }`}
               >
                 {unreadOnly ? "Showing: Unread Only" : "Filter: All Status"}
@@ -403,16 +403,16 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
           </div>
 
           {/* Alerts List */}
-          <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-xs overflow-hidden divide-y divide-[#F5F5F5]">
+          <div className="bg-white rounded-xl border border-line shadow-xs overflow-hidden divide-y divide-hover">
             {filteredAdminNotifs.length === 0 ? (
               <div className="py-16 text-center">
-                <div className="w-12 h-12 rounded-full bg-[#F5F5F5] mx-auto flex items-center justify-center text-green-600 mb-3">
+                <div className="w-12 h-12 rounded-full bg-hover mx-auto flex items-center justify-center text-green-600 mb-3">
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <div className="text-[14px] font-bold text-[#111]">No notifications to display</div>
-                <div className="text-[12px] text-[#999] mt-1 mb-4">
+                <div className="text-[14px] font-bold text-ink">No notifications to display</div>
+                <div className="text-[12px] text-faint mt-1 mb-4">
                   {unreadOnly
                     ? "All notifications have been marked as read."
                     : "No active platform alerts match the selected criteria."}
@@ -425,13 +425,13 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                   <div
                     key={n.id}
                     className={`p-4 sm:p-5 flex flex-col sm:flex-row items-start justify-between gap-4 transition-colors ${
-                      !n.read ? "bg-[#FFF9F9]" : "bg-white hover:bg-[#FAFAFA]"
+                      !n.read ? "bg-brand-soft" : "bg-white hover:bg-surface-2"
                     }`}
                   >
                     <div className="flex items-start gap-3.5 flex-1 min-w-0">
                       <div
                         className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0"
-                        style={{ background: !n.read ? "#E21B23" : "#D1D5DB" }}
+                        style={{ background: !n.read ? "#c1232c" : "#D1D5DB" }}
                       />
 
                       <div className="space-y-1 flex-1 min-w-0">
@@ -452,16 +452,16 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                               System Real-time
                             </span>
                           )}
-                          <span className="text-[11px] text-[#999] font-medium ml-auto sm:ml-0">
+                          <span className="text-[11px] text-faint font-medium ml-auto sm:ml-0">
                             {n.time}
                           </span>
                         </div>
 
-                        <div className="text-[13px] font-bold text-[#111] leading-snug">
+                        <div className="text-[13px] font-bold text-ink leading-snug">
                           {n.title}
                         </div>
 
-                        <div className="text-[12px] text-[#555] leading-relaxed">
+                        <div className="text-[12px] text-muted leading-relaxed">
                           {n.message}
                         </div>
                       </div>
@@ -471,7 +471,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                       <button
                         onClick={() => handleAction(n)}
                         className="px-3.5 py-1.5 text-[11px] font-bold text-white rounded-lg transition-all hover:opacity-90 active:scale-95 cursor-pointer flex items-center gap-1 shadow-xs"
-                        style={{ background: "#E21B23" }}
+                        style={{ background: "#c1232c" }}
                       >
                         <span>Take Action</span>
                         <span>&rarr;</span>
@@ -480,7 +480,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                       <button
                         onClick={() => markAdminNotificationRead({ ...n, read: !n.read })}
                         title={n.read ? "Mark as unread" : "Mark as read"}
-                        className="px-2.5 py-1.5 text-[11px] font-semibold text-[#666] hover:text-[#111] border border-[#E5E5E5] rounded-lg hover:bg-[#F5F5F5] transition-colors cursor-pointer"
+                        className="px-2.5 py-1.5 text-[11px] font-semibold text-muted hover:text-ink border border-line rounded-lg hover:bg-hover transition-colors cursor-pointer"
                       >
                         {n.read ? "Mark Unread" : "Mark Read"}
                       </button>
@@ -488,7 +488,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                       <button
                         onClick={() => dismissAdminNotification(n)}
                         title="Dismiss notification"
-                        className="p-1.5 text-[#999] hover:text-[#E21B23] rounded-lg hover:bg-[#FEF2F2] transition-colors cursor-pointer"
+                        className="p-1.5 text-faint hover:text-brand rounded-lg hover:bg-brand-soft transition-colors cursor-pointer"
                       >
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -506,9 +506,9 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
       {/* TAB 2: SENT NOTIFICATIONS / OUTBOX AUDIT LOG */}
       {activeTab === "outbox" && (
         <div className="space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-[#E5E5E5] p-3 shadow-xs">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-white rounded-xl border border-line p-3 shadow-xs">
             <div className="flex items-center gap-2">
-              <span className="text-[12px] font-bold text-[#111]">Recipient Filter:</span>
+              <span className="text-[12px] font-bold text-ink">Recipient Filter:</span>
               {(["all", "driver", "customer", "vendor"] as const).map((r) => (
                 <button
                   key={r}
@@ -516,7 +516,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                   className={`px-3 py-1 rounded-lg text-[11px] font-bold capitalize transition-colors cursor-pointer ${
                     outboundFilter === r
                       ? "text-white"
-                      : "text-[#666] bg-[#F5F5F5] hover:bg-[#EAEAEA]"
+                      : "text-muted bg-hover hover:bg-line"
                   }`}
                   style={outboundFilter === r ? { background: "#111" } : {}}
                 >
@@ -526,7 +526,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
             </div>
 
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#999]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-faint" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
               <input
@@ -534,14 +534,14 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 placeholder="Search outbox..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-3 py-1.5 text-[12px] bg-[#F5F5F5] border border-[#E5E5E5] rounded-lg w-56 focus:outline-none focus:border-[#E21B23]"
+                className="pl-9 pr-3 py-1.5 text-[12px] bg-hover border border-line rounded-lg w-56 focus:outline-none focus:border-brand"
               />
             </div>
           </div>
 
-          <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-xs overflow-hidden divide-y divide-[#F5F5F5]">
+          <div className="bg-white rounded-xl border border-line shadow-xs overflow-hidden divide-y divide-hover">
             {filteredOutboundNotifs.length === 0 ? (
-              <div className="py-16 text-center text-[#999] text-[13px]">
+              <div className="py-16 text-center text-faint text-[13px]">
                 No outbound notifications matching current filter.
               </div>
             ) : (
@@ -574,21 +574,21 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                           </span>
                         )}
 
-                        <span className="text-[11px] text-[#999]">
+                        <span className="text-[11px] text-faint">
                           Sent {n.time}
                         </span>
                       </div>
 
-                      <div className="text-[13px] font-bold text-[#111]">
+                      <div className="text-[13px] font-bold text-ink">
                         {n.title}
                       </div>
 
-                      <div className="text-[12px] text-[#555] leading-relaxed">
+                      <div className="text-[12px] text-muted leading-relaxed">
                         {n.message}
                       </div>
 
                       {n.recipientId && (
-                        <div className="text-[10px] text-[#999] font-mono">
+                        <div className="text-[10px] text-faint font-mono">
                           Recipient ID: {n.recipientId} {n.recipientName ? `• ${n.recipientName}` : ""}
                         </div>
                       )}
@@ -618,10 +618,10 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
       {activeTab === "send" && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form */}
-          <div className="lg:col-span-2 bg-white rounded-xl border border-[#E5E5E5] p-6 shadow-xs space-y-5">
-            <div className="flex items-center justify-between pb-3 border-b border-[#F5F5F5]">
-              <h2 className="text-[15px] font-bold text-[#111] flex items-center gap-2">
-                <span className="w-1.5 h-4 rounded-full" style={{ background: "#E21B23" }} />
+          <div className="lg:col-span-2 bg-white rounded-xl border border-line p-6 shadow-xs space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-hover">
+              <h2 className="text-[15px] font-bold text-ink flex items-center gap-2">
+                <span className="w-1.5 h-4 rounded-full" style={{ background: "#c1232c" }} />
                 Compose Broadcast or Direct Notification
               </h2>
             </div>
@@ -637,7 +637,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
 
             {/* Recipient Target */}
             <div>
-              <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider block mb-2">
+              <label className="text-[11px] font-bold text-faint uppercase tracking-wider block mb-2">
                 Target Audience
               </label>
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
@@ -655,7 +655,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                     className={`py-2 px-2.5 rounded-lg text-[11px] font-bold border transition-all cursor-pointer ${
                       sendTarget === t.id
                         ? "text-white border-transparent shadow-xs"
-                        : "text-[#555] border-[#E5E5E5] hover:bg-[#F5F5F5]"
+                        : "text-muted border-line hover:bg-hover"
                     }`}
                     style={sendTarget === t.id ? { background: "#111" } : {}}
                   >
@@ -666,13 +666,13 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
 
               {sendTarget === "single_user" && (
                 <div className="mt-3">
-                  <label className="text-[11px] font-semibold text-[#888] block mb-1">
+                  <label className="text-[11px] font-semibold text-faint block mb-1">
                     Select User / Driver / Vendor
                   </label>
                   <select
                     value={selectedUserId}
                     onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23]"
+                    className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand"
                   >
                     <option value="">-- Choose recipient --</option>
                     {users.map((u) => (
@@ -687,7 +687,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
 
             {/* Channel Selection */}
             <div>
-              <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider block mb-2">
+              <label className="text-[11px] font-bold text-faint uppercase tracking-wider block mb-2">
                 Delivery Channel
               </label>
               <div className="flex flex-wrap gap-2">
@@ -698,8 +698,8 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                     onClick={() => setSendChannel(ch)}
                     className={`px-3.5 py-1.5 rounded-lg text-[12px] font-bold border transition-all cursor-pointer ${
                       sendChannel === ch
-                        ? "bg-[#FEF2F2] text-[#E21B23] border-[#E21B23]"
-                        : "text-[#666] border-[#E5E5E5] hover:bg-[#F5F5F5]"
+                        ? "bg-brand-soft text-brand border-brand"
+                        : "text-muted border-line hover:bg-hover"
                     }`}
                   >
                     {ch}
@@ -710,13 +710,13 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
 
             {/* Category / Type */}
             <div>
-              <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider block mb-2">
+              <label className="text-[11px] font-bold text-faint uppercase tracking-wider block mb-2">
                 Alert Category
               </label>
               <select
                 value={sendCategory}
                 onChange={(e) => setSendCategory(e.target.value)}
-                className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23]"
+                className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand"
               >
                 <option value="alert">General Alert &amp; Warning</option>
                 <option value="driver">Driver Compliance / Operation</option>
@@ -729,7 +729,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
 
             {/* Title */}
             <div>
-              <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider block mb-2">
+              <label className="text-[11px] font-bold text-faint uppercase tracking-wider block mb-2">
                 Subject / Title
               </label>
               <input
@@ -737,13 +737,13 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 value={sendTitle}
                 onChange={(e) => setSendTitle(e.target.value)}
                 placeholder="e.g. Action Required: Vehicle Inspection"
-                className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23]"
+                className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand"
               />
             </div>
 
             {/* Message Body */}
             <div>
-              <label className="text-[11px] font-bold text-[#888] uppercase tracking-wider block mb-2">
+              <label className="text-[11px] font-bold text-faint uppercase tracking-wider block mb-2">
                 Message Body
               </label>
               <textarea
@@ -751,9 +751,9 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 value={sendMessage}
                 onChange={(e) => setSendMessage(e.target.value)}
                 placeholder="Enter complete notification message..."
-                className="w-full px-3 py-2 text-[13px] border border-[#E5E5E5] rounded-lg focus:outline-none focus:border-[#E21B23] resize-none"
+                className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand resize-none"
               />
-              <div className="flex justify-between items-center text-[11px] text-[#999] mt-1">
+              <div className="flex justify-between items-center text-[11px] text-faint mt-1">
                 <span>Supports markdown and standard emojis</span>
                 <span>{sendMessage.length} chars</span>
               </div>
@@ -766,7 +766,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 disabled={isSending}
                 onClick={handleSend}
                 className="px-6 py-2.5 text-[13px] font-bold text-white rounded-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
-                style={{ background: "#E21B23" }}
+                style={{ background: "#c1232c" }}
               >
                 {isSending ? (
                   <>
@@ -789,33 +789,33 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
           {/* Quick Presets & Live Preview */}
           <div className="space-y-4">
             {/* Live Preview Card */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-xs">
-              <div className="text-[11px] font-bold text-[#888] uppercase tracking-wider mb-3">
+            <div className="bg-white rounded-xl border border-line p-5 shadow-xs">
+              <div className="text-[11px] font-bold text-faint uppercase tracking-wider mb-3">
                 Live Preview (Recipient View)
               </div>
-              <div className="p-3.5 rounded-lg border border-[#E5E5E5] bg-[#FAFAFA] space-y-1.5">
+              <div className="p-3.5 rounded-lg border border-line bg-surface-2 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-red-100 text-red-700 uppercase">
                     {sendCategory}
                   </span>
-                  <span className="text-[10px] text-[#999]">Just now</span>
+                  <span className="text-[10px] text-faint">Just now</span>
                 </div>
-                <div className="text-[13px] font-bold text-[#111]">
+                <div className="text-[13px] font-bold text-ink">
                   {sendTitle.trim() || "Notification Title"}
                 </div>
-                <div className="text-[12px] text-[#666] leading-relaxed">
+                <div className="text-[12px] text-muted leading-relaxed">
                   {sendMessage.trim() || "Notification body text will render here as recipients see it."}
                 </div>
-                <div className="pt-1 text-[10px] text-[#999] flex items-center justify-between border-t border-[#EAEAEA]">
+                <div className="pt-1 text-[10px] text-faint flex items-center justify-between border-t border-line">
                   <span>Via {sendChannel}</span>
-                  <span className="font-semibold text-[#E21B23]">Nesam System</span>
+                  <span className="font-semibold text-brand">Nesam System</span>
                 </div>
               </div>
             </div>
 
             {/* Quick Templates */}
-            <div className="bg-white rounded-xl border border-[#E5E5E5] p-5 shadow-xs space-y-3">
-              <div className="text-[11px] font-bold text-[#888] uppercase tracking-wider">
+            <div className="bg-white rounded-xl border border-line p-5 shadow-xs space-y-3">
+              <div className="text-[11px] font-bold text-faint uppercase tracking-wider">
                 Quick Template Presets
               </div>
               <div className="space-y-2">
@@ -824,12 +824,12 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                     key={tmpl.name}
                     type="button"
                     onClick={() => applyTemplate(tmpl)}
-                    className="w-full text-left p-2.5 rounded-lg border border-[#E5E5E5] hover:border-[#E21B23] hover:bg-[#FFF9F9] transition-all cursor-pointer group"
+                    className="w-full text-left p-2.5 rounded-lg border border-line hover:border-brand hover:bg-brand-soft transition-all cursor-pointer group"
                   >
-                    <div className="text-[12px] font-bold text-[#111] group-hover:text-[#E21B23]">
+                    <div className="text-[12px] font-bold text-ink group-hover:text-brand">
                       {tmpl.name}
                     </div>
-                    <div className="text-[11px] text-[#666] line-clamp-1 mt-0.5">
+                    <div className="text-[11px] text-muted line-clamp-1 mt-0.5">
                       {tmpl.title}
                     </div>
                   </button>

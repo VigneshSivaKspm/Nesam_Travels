@@ -169,12 +169,12 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
   };
 
   const inputCls =
-    "w-full px-3 py-2.5 border border-[#D4D4D4] rounded-lg text-sm bg-white text-[#111] placeholder-[#767676] focus:border-[#E21B23] focus:outline-none disabled:bg-gray-100 disabled:text-[#555]";
+    "w-full px-3 py-2.5 border border-line-strong rounded-lg text-sm bg-white text-ink placeholder-[#767676] focus:border-brand focus:outline-none disabled:bg-gray-100 disabled:text-muted";
 
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[13px] font-semibold text-[#333]">{label} *</span>
+        <span className="text-[13px] font-semibold text-body">{label} *</span>
         {value && (
           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${value.confirmed ? "bg-green-50 text-green-700 border-green-200" : "bg-amber-50 text-amber-800 border-amber-200"}`}>
             {value.confirmed ? "✓ Location confirmed" : "Not confirmed yet"}
@@ -196,14 +196,14 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
           autoComplete="off"
           className={inputCls}
         />
-        {searching && <span className="absolute right-3 top-3 text-[11px] text-[#666]">Searching…</span>}
+        {searching && <span className="absolute right-3 top-3 text-[11px] text-muted">Searching…</span>}
         {open && results.length > 0 && (
-          <ul role="listbox" className="absolute z-[1000] left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-[#D4D4D4] bg-white shadow-lg">
+          <ul role="listbox" className="absolute z-[1000] left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-line-strong bg-white shadow-lg">
             {results.map((r) => (
               <li key={r.id}>
-                <button type="button" role="option" aria-selected="false" onClick={() => choose(r)} className="w-full text-left px-3 py-2 hover:bg-[#FEF2F2] focus:bg-[#FEF2F2] focus:outline-none">
-                  <div className="text-sm font-semibold text-[#111]">{r.name}</div>
-                  <div className="text-xs text-[#555] truncate">{r.address}</div>
+                <button type="button" role="option" aria-selected="false" onClick={() => choose(r)} className="w-full text-left px-3 py-2 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
+                  <div className="text-sm font-semibold text-ink">{r.name}</div>
+                  <div className="text-xs text-muted truncate">{r.address}</div>
                 </button>
               </li>
             ))}
@@ -212,13 +212,13 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
       </div>
       {searchError && <p className="text-xs text-amber-800">{searchError}</p>}
 
-      <div ref={mapEl} className="h-64 w-full rounded-xl border border-[#D4D4D4] overflow-hidden z-0" role="application" aria-label={`${label} map. Click to place the pin, drag the pin to adjust.`} />
-      {!value && <p className="text-xs text-[#555]">Search above, or click the map to drop the pin. You can drag the pin to fine-tune it.</p>}
+      <div ref={mapEl} className="h-64 w-full rounded-xl border border-line-strong overflow-hidden z-0" role="application" aria-label={`${label} map. Click to place the pin, drag the pin to adjust.`} />
+      {!value && <p className="text-xs text-muted">Search above, or click the map to drop the pin. You can drag the pin to fine-tune it.</p>}
 
       {value && (
         <div className="space-y-2">
           <label className="block">
-            <span className="block text-xs font-semibold text-[#444] mb-1">Address {resolving && <em className="font-normal text-[#666]">(finding address…)</em>}</span>
+            <span className="block text-xs font-semibold text-body mb-1">Address {resolving && <em className="font-normal text-muted">(finding address…)</em>}</span>
             <textarea
               value={value.address}
               onChange={(e) => onChange({ ...value, address: e.target.value, confirmed: false })}
@@ -230,11 +230,11 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
           </label>
           <div className="grid grid-cols-2 gap-2">
             <label className="block">
-              <span className="block text-xs font-semibold text-[#444] mb-1">Latitude</span>
+              <span className="block text-xs font-semibold text-body mb-1">Latitude</span>
               <input defaultValue={fmtCoord(value.lat)} key={`lat-${fmtCoord(value.lat)}`} onBlur={(e) => setCoord("lat", e.target.value)} inputMode="decimal" disabled={disabled} className={`${inputCls} font-mono`} />
             </label>
             <label className="block">
-              <span className="block text-xs font-semibold text-[#444] mb-1">Longitude</span>
+              <span className="block text-xs font-semibold text-body mb-1">Longitude</span>
               <input defaultValue={fmtCoord(value.lng)} key={`lng-${fmtCoord(value.lng)}`} onBlur={(e) => setCoord("lng", e.target.value)} inputMode="decimal" disabled={disabled} className={`${inputCls} font-mono`} />
             </label>
           </div>
@@ -247,7 +247,7 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
             >
               {value.confirmed ? "Confirmed" : "Confirm location"}
             </button>
-            <button type="button" disabled={disabled} onClick={() => onChange(null)} className="px-4 py-2 rounded-lg text-sm font-semibold border border-[#D4D4D4] text-[#444] hover:bg-gray-50 disabled:opacity-50">
+            <button type="button" disabled={disabled} onClick={() => onChange(null)} className="px-4 py-2 rounded-lg text-sm font-semibold border border-line-strong text-body hover:bg-gray-50 disabled:opacity-50">
               Clear
             </button>
           </div>

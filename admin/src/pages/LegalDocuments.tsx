@@ -55,26 +55,26 @@ export default function LegalDocuments() {
       {error && <ErrorBanner message={error} onRetry={() => setRetry((n) => n + 1)} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-[#111]">Terms, Privacy & Consent</h1>
-          <p className="text-sm text-[#555]">Role-specific documents. Users must accept the published version before they continue; a new version asks them again. Each acceptance records the user, version, time and device.</p>
+          <h1 className="text-xl font-bold text-ink">Terms, Privacy & Consent</h1>
+          <p className="text-sm text-muted">Role-specific documents. Users must accept the published version before they continue; a new version asks them again. Each acceptance records the user, version, time and device.</p>
         </div>
         {access.isSuper && <button onClick={seed} disabled={seeding} className={secondaryBtn}>{seeding ? "Creating…" : "Create starter templates"}</button>}
       </div>
       <Notice tone="warn">The starter text is a template, not legal advice. Have your legal adviser review and edit every document for how NESAM actually operates before publishing. Drafts are not shown to users or enforced.</Notice>
 
-      {docs === null && !error && <p className="text-sm text-[#555]" role="status">Loading documents…</p>}
-      {docs !== null && docs.length === 0 && !error && <div className="bg-white rounded-xl border border-[#E5E5E5] p-8 text-center text-sm text-[#555]">No documents yet.{access.isSuper ? " Create the starter templates to begin." : " A super admin can create the starter templates."}</div>}
+      {docs === null && !error && <p className="text-sm text-muted" role="status">Loading documents…</p>}
+      {docs !== null && docs.length === 0 && !error && <div className="bg-white rounded-xl border border-line p-8 text-center text-sm text-muted">No documents yet.{access.isSuper ? " Create the starter templates to begin." : " A super admin can create the starter templates."}</div>}
 
       {grouped.filter((g) => g.items.length).map((g) => (
-        <section key={g.role} className="bg-white rounded-xl border border-[#E5E5E5] overflow-hidden">
-          <h2 className="px-4 py-3 text-sm font-bold text-[#111] bg-[#FAFAFA] border-b border-[#E5E5E5]">{ROLE_LABEL[g.role]}</h2>
-          <ul className="divide-y divide-[#F0F0F0]">
+        <section key={g.role} className="bg-white rounded-xl border border-line overflow-hidden">
+          <h2 className="px-4 py-3 text-sm font-bold text-ink bg-surface-2 border-b border-line">{ROLE_LABEL[g.role]}</h2>
+          <ul className="divide-y divide-line-soft">
             {g.items.map((d) => (
               <li key={d.id} className="p-4 flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-bold text-[#111]">{d.title}</div>
-                  <div className="text-xs text-[#555]">{TYPE_LABEL[d.type] ?? d.type}{d.requiresAcceptance ? " · acceptance required" : " · information only"}</div>
-                  <div className="text-xs text-[#555]">{d.status === "Published" ? `Published v${d.version} · ${formatDateTime12(toDate(d.publishedAt as never))}${d.publishedByName ? ` · ${d.publishedByName}` : ""}` : "Draft — not yet published"}</div>
+                  <div className="text-sm font-bold text-ink">{d.title}</div>
+                  <div className="text-xs text-muted">{TYPE_LABEL[d.type] ?? d.type}{d.requiresAcceptance ? " · acceptance required" : " · information only"}</div>
+                  <div className="text-xs text-muted">{d.status === "Published" ? `Published v${d.version} · ${formatDateTime12(toDate(d.publishedAt as never))}${d.publishedByName ? ` · ${d.publishedByName}` : ""}` : "Draft — not yet published"}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${d.status === "Published" ? "bg-green-50 text-green-800 border-green-300" : "bg-amber-50 text-amber-900 border-amber-300"}`}>{d.status}</span>
@@ -124,7 +124,7 @@ function Editor({ doc, canEdit, onClose, onDone }: { doc: LegalDoc; canEdit: boo
         <Field label="Title"><input value={title} onChange={(e) => setTitle(e.target.value)} disabled={!canEdit} maxLength={140} className={inputCls} /></Field>
         <Field label="Text" hint="Plain text. Blank lines separate paragraphs."><textarea value={body} onChange={(e) => setBody(e.target.value)} disabled={!canEdit} rows={16} className={`${inputCls} font-mono`} /></Field>
         <Field label="Checkbox text" hint="Exactly what the user ticks. Keep it honest: it should say only that they have read / agree to this document."><input value={checkbox} onChange={(e) => setCheckbox(e.target.value)} disabled={!canEdit} maxLength={300} className={inputCls} /></Field>
-        <label className="flex items-center gap-2 text-sm font-semibold text-[#333]"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-[#E21B23]" />Users must accept this before continuing</label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-body"><input type="checkbox" checked={required} onChange={(e) => setRequired(e.target.checked)} disabled={!canEdit} className="w-4 h-4 accent-brand" />Users must accept this before continuing</label>
         {canEdit && doc.status === "Published" && <Field label="What changed" required><input value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={300} className={inputCls} /></Field>}
       </div>
     </Modal>

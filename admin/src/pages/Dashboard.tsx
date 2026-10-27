@@ -17,7 +17,9 @@ import {
 import { Booking, Driver, Vehicle, Customer, PenaltyRecord } from "../types";
 import { StatusBadge, PaymentBadge, BookingSourceBadge, bookingSourceRowCls } from "../components/booking/BookingBadges";
 import OperationsSection from "../components/dashboard/OperationsSection";
-import CreateBookingLauncher from "../components/CreateBookingLauncher";
+import OfficeDashboard from "../components/dashboard/OfficeDashboard";
+import type { CategoryEstimate, QuickTrip } from "../components/booking/QuickFare";
+import type { Enquiry } from "../services/enquiryService";
 import { useNow } from "../hooks/useNow";
 import { useOperationsSettings } from "../hooks/useOperationsSettings";
 import { paymentOf } from "../domain/bookingFlow";
@@ -38,7 +40,7 @@ import {
 import { formatDateTime12, formatShortDateTime12, formatHourLabel } from "../utils/time";
 
 const categoryColors: Record<string, string> = {
-  "Airport Taxi": "#E21B23",
+  "Airport Taxi": "#c1232c",
   "Outstation Cab": "#3B82F6",
   "One Way Taxi": "#10B981",
   "Local Rental": "#F59E0B",
@@ -48,18 +50,23 @@ const categoryColors: Record<string, string> = {
 export default function Dashboard({
   onNavigate,
   onSelectBooking,
+  onNewBooking,
+  onProceed,
+  onEnquirySaved,
 }: {
-  onNavigate: (page: string) => void;
+  onNavigate: (page: string, tab?: string) => void;
   onSelectBooking: (id: string) => void;
+  onNewBooking: () => void;
+  onProceed: (trip: QuickTrip, categoryId: string, estimates: CategoryEstimate[]) => void;
+  onEnquirySaved: (e: Enquiry) => void;
 }) {
-  const [showCreate, setShowCreate] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
   const [livePenalties, setLivePenalties] = useState<PenaltyRecord[]>([]);
   const now = useNow(30000);
   const ops = useOperationsSettings();
-  const { toast, show: showToast } = useToast(9000);
+  const { toast } = useToast(9000);
   const [revenueTab, setRevenueTab] = useState("month");
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
   const [liveDrivers, setLiveDrivers] = useState<Driver[]>([]);
@@ -238,16 +245,16 @@ export default function Dashboard({
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-white border border-[#E5E5E5] rounded-xl p-3 shadow-xl text-[12px]">
-          <div className="font-semibold text-[#111] mb-2">{label}</div>
+        <div className="bg-white border border-line rounded-xl p-3 shadow-xl text-[12px]">
+          <div className="font-semibold text-ink mb-2">{label}</div>
           {payload.map((p: any, i: number) => (
             <div key={i} className="flex items-center gap-2">
               <span
                 className="w-2 h-2 rounded-full"
                 style={{ background: p.color }}
               />
-              <span className="text-[#666]">{p.name}:</span>
-              <span className="font-semibold text-[#111]">
+              <span className="text-muted">{p.name}:</span>
+              <span className="font-semibold text-ink">
                 ₹{(p.value / 1000).toFixed(0)}K
               </span>
             </div>
@@ -259,49 +266,30 @@ export default function Dashboard({
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-6">
+    <div className="ds-page-body space-y-6">
       <Toast toast={toast} />
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
-      {/* Primary action + what needs attention now */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-bold text-[#111]">Operations</h2>
-          <p className="text-sm text-[#555]">What needs action now, and today’s and tomorrow’s trips.</p>
-        </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="px-5 py-3 rounded-xl text-sm font-bold text-white bg-[#E21B23] hover:bg-[#c4151c] shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#E21B23]"
-        >
-          + Create New Booking
-        </button>
-      </div>
-      <OperationsSection bookings={liveBookings} penalties={livePenalties} now={now} thresholds={ops} loading={!loaded && !loadError} onNavigate={onNavigate} onSelectBooking={onSelectBooking} />
-      {showCreate && (
-        <CreateBookingLauncher
-          onClose={() => setShowCreate(false)}
-          onCreated={(created) => {
-            setShowCreate(false);
-            showToast(`Booking ${created.bookingId} created and waiting for approval.`);
-          }}
-        />
-      )}
+      <OfficeDashboard onNavigate={onNavigate} onSelectBooking={onSelectBooking} onNewBooking={onNewBooking} onProceed={onProceed} onEnquirySaved={onEnquirySaved} />
 
-      <h2 className="text-lg font-bold text-[#111] pt-2">Business overview</h2>
+      <h2 className="text-lg font-bold text-ink pt-2">Today &amp; tomorrow</h2>
+      <OperationsSection bookings={liveBookings} penalties={livePenalties} now={now} thresholds={ops} loading={!loaded && !loadError} onNavigate={onNavigate} onSelectBooking={onSelectBooking} />
+
+      <h2 className="text-lg font-bold text-ink pt-2">Business overview</h2>
       {/* KPI Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {kpiCards.map((card, i) => (
           <div
             key={i}
-            className={`rounded-xl p-4 border ${card.accent ? "border-[#E21B23]/20" : "border-[#E5E5E5]"} bg-white shadow-sm hover:shadow-md transition-shadow cursor-default`}
+            className={`rounded-xl p-4 border ${card.accent ? "border-brand/20" : "border-line"} bg-white shadow-sm hover:shadow-md transition-shadow cursor-default`}
           >
             <div className="flex items-center justify-between mb-3">
               <div
-                className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.accent ? "" : "bg-[#FEF2F2]"}`}
-                style={card.accent ? { background: "#E21B23" } : {}}
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${card.accent ? "" : "bg-brand-soft"}`}
+                style={card.accent ? { background: "#c1232c" } : {}}
               >
                 <svg
-                  className={`w-[18px] h-[18px] ${card.accent ? "text-white" : "text-[#E21B23]"}`}
+                  className={`w-[18px] h-[18px] ${card.accent ? "text-white" : "text-brand"}`}
                   fill="none"
                   viewBox="0 0 24 24"
                   stroke="currentColor"
@@ -324,13 +312,13 @@ export default function Dashboard({
                 </span>
               )}
             </div>
-            <div className="text-[22px] font-bold text-[#111] leading-tight">
+            <div className="text-[22px] font-bold text-ink leading-tight">
               {card.value}
             </div>
-            <div className="text-[11px] font-medium text-[#111] mt-1 leading-tight">
+            <div className="text-[11px] font-medium text-ink mt-1 leading-tight">
               {card.title}
             </div>
-            <div className="text-[10px] text-[#999] mt-0.5">{card.sub}</div>
+            <div className="text-[10px] text-faint mt-0.5">{card.sub}</div>
           </div>
         ))}
       </div>
@@ -338,17 +326,17 @@ export default function Dashboard({
       {/* Revenue Chart + Booking Distribution */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
         {/* Revenue Area Chart */}
-        <div className="xl:col-span-2 bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
+        <div className="xl:col-span-2 bg-white rounded-xl border border-line shadow-sm p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-[15px] font-bold text-[#111]">
+              <h2 className="text-[15px] font-bold text-ink">
                 Revenue Overview
               </h2>
-              <p className="text-[12px] text-[#999] mt-0.5">
+              <p className="text-[12px] text-faint mt-0.5">
                 Monthly breakdown by service type
               </p>
             </div>
-            <div className="flex gap-1 bg-[#F5F5F5] rounded-lg p-1">
+            <div className="flex gap-1 bg-hover rounded-lg p-1">
               {["today", "week", "month", "year"].map((tab) => (
                 <button
                   key={tab}
@@ -356,9 +344,9 @@ export default function Dashboard({
                   className={`px-3 py-1 rounded text-[11px] font-semibold transition-all capitalize ${
                     revenueTab === tab
                       ? "text-white shadow-sm"
-                      : "text-[#666] hover:text-[#111]"
+                      : "text-muted hover:text-ink"
                   }`}
-                  style={revenueTab === tab ? { background: "#E21B23" } : {}}
+                  style={revenueTab === tab ? { background: "#c1232c" } : {}}
                 >
                   {tab === "today"
                     ? "Today"
@@ -374,7 +362,7 @@ export default function Dashboard({
           {!hasRevenue && (
             <div className="h-[240px] flex flex-col items-center justify-center text-center">
               <svg
-                className="w-10 h-10 text-[#E5E5E5] mb-2"
+                className="w-10 h-10 text-line mb-2"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -386,10 +374,10 @@ export default function Dashboard({
                   d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
                 />
               </svg>
-              <p className="text-[13px] font-medium text-[#999]">
+              <p className="text-[13px] font-medium text-faint">
                 No revenue recorded for this period
               </p>
-              <p className="text-[11px] text-[#BBB] mt-0.5">
+              <p className="text-[11px] text-subtle mt-0.5">
                 Chart populates as bookings come in
               </p>
             </div>
@@ -402,8 +390,8 @@ export default function Dashboard({
             >
               <defs>
                 <linearGradient id="redGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#E21B23" stopOpacity={0.15} />
-                  <stop offset="95%" stopColor="#E21B23" stopOpacity={0} />
+                  <stop offset="5%" stopColor="#c1232c" stopOpacity={0.15} />
+                  <stop offset="95%" stopColor="#c1232c" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#F0F0F0" />
@@ -424,7 +412,7 @@ export default function Dashboard({
                 type="monotone"
                 dataKey="total"
                 name="Total"
-                stroke="#E21B23"
+                stroke="#c1232c"
                 strokeWidth={2.5}
                 fill="url(#redGrad)"
                 dot={false}
@@ -454,10 +442,10 @@ export default function Dashboard({
         </div>
 
         {/* Booking Distribution Pie */}
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
+        <div className="bg-white rounded-xl border border-line shadow-sm p-5">
           <div className="mb-5">
-            <h2 className="text-[15px] font-bold text-[#111]">Booking Types</h2>
-            <p className="text-[12px] text-[#999] mt-0.5">
+            <h2 className="text-[15px] font-bold text-ink">Booking Types</h2>
+            <p className="text-[12px] text-faint mt-0.5">
               Distribution by service
             </p>
           </div>
@@ -474,14 +462,14 @@ export default function Dashboard({
               value: liveBookings.filter((b) =>
                 (b.service || b.serviceType || "").includes(cat),
               ).length,
-              color: categoryColors[cat] || "#E21B23",
+              color: categoryColors[cat] || "#c1232c",
             }));
             const hasCatData = catData.some((c) => c.value > 0);
             if (!hasCatData) {
               return (
                 <div className="h-[220px] flex flex-col items-center justify-center text-center">
                   <svg
-                    className="w-10 h-10 text-[#E5E5E5] mb-2"
+                    className="w-10 h-10 text-line mb-2"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -493,7 +481,7 @@ export default function Dashboard({
                       d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"
                     />
                   </svg>
-                  <p className="text-[13px] font-medium text-[#999]">
+                  <p className="text-[13px] font-medium text-faint">
                     No bookings yet
                   </p>
                 </div>
@@ -530,11 +518,11 @@ export default function Dashboard({
                           className="w-2.5 h-2.5 rounded-sm shrink-0"
                           style={{ background: item.color }}
                         />
-                        <span className="text-[11px] text-[#666]">
+                        <span className="text-[11px] text-muted">
                           {item.name}
                         </span>
                       </div>
-                      <span className="text-[11px] font-semibold text-[#111]">
+                      <span className="text-[11px] font-semibold text-ink">
                         {item.value.toLocaleString()}
                       </span>
                     </div>
@@ -564,7 +552,7 @@ export default function Dashboard({
             count: liveBookings.filter(
               (b) => b.status === "Ongoing" || b.status === "Trip Started",
             ).length,
-            color: "#E21B23",
+            color: "#c1232c",
           },
           {
             label: "Completed",
@@ -574,7 +562,7 @@ export default function Dashboard({
         ].map((s) => (
           <div
             key={s.label}
-            className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4"
+            className="bg-white rounded-xl border border-line shadow-sm p-4"
           >
             <div className="flex items-center gap-3">
               <div
@@ -587,10 +575,10 @@ export default function Dashboard({
                 />
               </div>
               <div>
-                <div className="text-[20px] font-bold text-[#111]">
+                <div className="text-[20px] font-bold text-ink">
                   {s.count.toLocaleString()}
                 </div>
-                <div className="text-[11px] text-[#999]">
+                <div className="text-[11px] text-faint">
                   {s.label} Bookings
                 </div>
               </div>
@@ -600,19 +588,19 @@ export default function Dashboard({
       </div>
 
       {/* Recent Bookings Table */}
-      <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-[#E5E5E5]">
+      <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-line">
           <div>
-            <h2 className="text-[15px] font-bold text-[#111]">
+            <h2 className="text-[15px] font-bold text-ink">
               Recent Bookings
             </h2>
-            <p className="text-[12px] text-[#999] mt-0.5">
+            <p className="text-[12px] text-faint mt-0.5">
               Latest booking activity
             </p>
           </div>
           <button
             onClick={() => onNavigate("bookings")}
-            className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-[#E5E5E5] text-[#E21B23] hover:bg-[#FEF2F2] transition-colors"
+            className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-line text-brand hover:bg-brand-soft transition-colors"
           >
             View All
           </button>
@@ -620,7 +608,7 @@ export default function Dashboard({
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px]">
             <thead>
-              <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
+              <tr className="bg-surface-2 border-b border-line">
                 {[
                   "Booking ID",
                   "Customer",
@@ -635,7 +623,7 @@ export default function Dashboard({
                 ].map((h) => (
                   <th
                     key={h}
-                    className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide"
+                    className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide"
                   >
                     {h}
                   </th>
@@ -646,37 +634,37 @@ export default function Dashboard({
               {liveBookings.slice(0, 6).map((b, i) => (
                 <tr
                   key={i}
-                  className={`table-row border-b border-[#F5F5F5] last:border-0 ${bookingSourceRowCls(b)}`}
+                  className={`table-row border-b border-hover last:border-0 ${bookingSourceRowCls(b)}`}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1.5 flex-wrap">
                     <span
                       className="text-[12px] font-mono font-semibold"
-                      style={{ color: "#E21B23" }}
+                      style={{ color: "#c1232c" }}
                     >
                       {b.bookingId || b.id}
                     </span>
                     <BookingSourceBadge booking={b} size="sm" />
                   </div>
                   </td>
-                  <td className="px-4 py-3 text-[12px] font-medium text-[#111]">
+                  <td className="px-4 py-3 text-[12px] font-medium text-ink">
                     {b.customer}
                   </td>
-                  <td className="px-4 py-3 text-[12px] text-[#666]">
+                  <td className="px-4 py-3 text-[12px] text-muted">
                     {b.service}
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-[11px] text-[#111]">{b.pickup}</div>
-                    <div className="text-[11px] text-[#999]">→ {b.drop}</div>
+                    <div className="text-[11px] text-ink">{b.pickup}</div>
+                    <div className="text-[11px] text-faint">→ {b.drop}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <div className="text-[11px] text-[#111]">{b.date}</div>
-                    <div className="text-[11px] text-[#999]">{b.time}</div>
+                    <div className="text-[11px] text-ink">{b.date}</div>
+                    <div className="text-[11px] text-faint">{b.time}</div>
                   </td>
-                  <td className="px-4 py-3 text-[12px] text-[#666]">
+                  <td className="px-4 py-3 text-[12px] text-muted">
                     {b.driver}
                   </td>
-                  <td className="px-4 py-3 text-[12px] font-semibold text-[#111]">
+                  <td className="px-4 py-3 text-[12px] font-semibold text-ink">
                     {b.fare}
                   </td>
                   <td className="px-4 py-3">
@@ -686,7 +674,7 @@ export default function Dashboard({
                     <StatusBadge status={b.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <button className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-[#E5E5E5] hover:bg-[#FEF2F2] text-[#E21B23] transition-colors">
+                    <button className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-line hover:bg-brand-soft text-brand transition-colors">
                       View
                     </button>
                   </td>

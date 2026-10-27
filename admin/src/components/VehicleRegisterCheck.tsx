@@ -51,8 +51,8 @@ export function VehicleRegisterCheck({ declared }: { declared: DeclaredVehicle }
     };
   }, [declared.plate]);
 
-  if (state === "loading") return <div className="text-[11px] text-[#999]">Checking the vehicle register…</div>;
-  if (state === "error") return <div className="text-[11px] text-[#E21B23]">Couldn't read the vehicle register record.</div>;
+  if (state === "loading") return <div className="text-[11px] text-faint">Checking the vehicle register…</div>;
+  if (state === "error") return <div className="text-[11px] text-brand">Couldn't read the vehicle register record.</div>;
   if (state === "none" || !view) {
     return (
       <div className="text-[11px] rounded-lg border border-amber-200 bg-amber-50 text-amber-900 px-3 py-2">
@@ -71,13 +71,13 @@ export function VehicleRegisterCheck({ declared }: { declared: DeclaredVehicle }
       <div className="text-[11px] font-bold text-emerald-800">
         Vehicle register{when ? ` · ${when}` : ""}
       </div>
-      <div className="text-[12px] text-[#111] font-semibold">
+      <div className="text-[12px] text-ink font-semibold">
         {[r.make, r.model, r.variant].filter(Boolean).join(" ")} · {[r.fuelType, r.seatClass ? `${r.seatClass} seats` : "", r.manufactureYear].filter(Boolean).join(" · ")}
       </div>
-      <div className="text-[11px] text-[#555]">
+      <div className="text-[11px] text-muted">
         Class {r.vehicleClass || "—"} · suggested {label(r.category)}{r.specClass ? ` (${r.specClass})` : ""} · owner {r.ownerNameMasked || "—"}
       </div>
-      <div className="text-[11px] text-[#555]">
+      <div className="text-[11px] text-muted">
         Register validity: insurance {r.validity.insuranceUpto || "—"} · FC {r.validity.fitnessUpto || "—"} · permit {r.validity.permitUpto || "—"}
       </div>
       {[...problems, ...diffs].map((m) => (

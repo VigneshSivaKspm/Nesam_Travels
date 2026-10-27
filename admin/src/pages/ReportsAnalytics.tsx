@@ -22,7 +22,7 @@ import { toDate } from "../services/paymentService";
 import { normalizeVendorStatus, VENDOR_STATUS_META } from "../utils/vendorStatus";
 import { ErrorBanner } from "../components/Feedback";
 
-const COLORS = ["#E21B23", "#111111", "#444444", "#777777", "#AAAAAA", "#F59E0B", "#10B981"];
+const COLORS = ["#c1232c", "#111111", "#444444", "#777777", "#AAAAAA", "#F59E0B", "#10B981"];
 
 function downloadCsv(filename: string, headers: string[], rows: (string | number)[][]) {
   const content = [headers.join(","), ...rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))].join("\n");
@@ -115,7 +115,7 @@ export default function ReportsAnalytics() {
   const rate = (a: number, b: number) => (b ? `${((a / b) * 100).toFixed(1)}%` : "—");
 
   const summaryCards = [
-    { label: `Bookings Received (${periodLabel})`, value: cur.bookings.toLocaleString("en-IN"), change: pctChange(cur.bookings, prev.bookings), invert: false, color: "#E21B23" },
+    { label: `Bookings Received (${periodLabel})`, value: cur.bookings.toLocaleString("en-IN"), change: pctChange(cur.bookings, prev.bookings), invert: false, color: "#c1232c" },
     { label: "Completed Trip Revenue", value: formatINR(cur.completedRevenue), change: pctChange(cur.completedRevenue, prev.completedRevenue), invert: false, color: "#111" },
     { label: "Payments Collected (completed trips)", value: formatINR(cur.collected), change: pctChange(cur.collected, prev.collected), invert: false, color: "#10B981" },
     { label: "Cancellations", value: `${cur.cancelled} (${rate(cur.cancelled, cur.bookings)})`, change: pctChange(cur.cancelled, prev.cancelled), invert: true, color: "#F59E0B" },
@@ -198,7 +198,7 @@ export default function ReportsAnalytics() {
     }
   };
 
-  const Empty = ({ text }: { text: string }) => <div className="py-16 text-center text-[13px] text-[#999]">{text}</div>;
+  const Empty = ({ text }: { text: string }) => <div className="py-16 text-center text-[13px] text-faint">{text}</div>;
 
   return (
     <div className="p-6 space-y-5">
@@ -206,16 +206,16 @@ export default function ReportsAnalytics() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-[18px] font-bold text-[#111]">Reports & Business Analytics</h2>
-          <p className="text-[12px] text-[#666]">All figures are calculated from live bookings, vendors and the partner ledger.</p>
+          <h2 className="text-[18px] font-bold text-ink">Reports & Business Analytics</h2>
+          <p className="text-[12px] text-muted">All figures are calculated from live bookings, vendors and the partner ledger.</p>
         </div>
         <div className="flex items-center gap-2">
-          <select aria-label="Report month" value={period} onChange={(e) => setPeriod(e.target.value)} className="px-3 py-2 text-[12px] border border-[#E5E5E5] rounded-lg bg-white">
+          <select aria-label="Report month" value={period} onChange={(e) => setPeriod(e.target.value)} className="px-3 py-2 text-[12px] border border-line rounded-lg bg-white">
             {monthOptions.map((k) => (
               <option key={k} value={k}>{monthStart(k).toLocaleString("en-IN", { month: "long", year: "numeric" })}</option>
             ))}
           </select>
-          <button onClick={handleExportReport} className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-[#E5E5E5] bg-white text-[#E21B23] hover:bg-[#FEF2F2] shadow-sm">
+          <button onClick={handleExportReport} className="text-[12px] font-semibold px-4 py-2 rounded-lg border border-line bg-white text-brand hover:bg-brand-soft shadow-sm">
             📥 Export Active View (CSV)
           </button>
         </div>
@@ -225,10 +225,10 @@ export default function ReportsAnalytics() {
         {summaryCards.map((s) => {
           const good = s.change === null ? null : s.invert ? s.change <= 0 : s.change >= 0;
           return (
-            <div key={s.label} className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4">
+            <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
               <div className="text-[20px] font-bold" style={{ color: s.color }}>{loading ? "—" : s.value}</div>
-              <div className="text-[11px] text-[#999] mt-0.5">{s.label}</div>
-              <div className={`text-[11px] font-semibold mt-1 ${good === null ? "text-[#999]" : good ? "text-green-600" : "text-[#E21B23]"}`}>
+              <div className="text-[11px] text-faint mt-0.5">{s.label}</div>
+              <div className={`text-[11px] font-semibold mt-1 ${good === null ? "text-faint" : good ? "text-green-600" : "text-brand"}`}>
                 {formatPct(s.change)}
                 {s.change !== null && " vs previous month"}
               </div>
@@ -237,7 +237,7 @@ export default function ReportsAnalytics() {
         })}
       </div>
 
-      <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-[#E5E5E5] p-1 w-fit shadow-sm">
+      <div className="flex flex-wrap gap-1 bg-white rounded-xl border border-line p-1 w-fit shadow-sm">
         {[
           { key: "bookings" as const, label: "Bookings" },
           { key: "revenue" as const, label: "Revenue" },
@@ -248,8 +248,8 @@ export default function ReportsAnalytics() {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-all cursor-pointer ${activeTab === t.key ? "text-white shadow-sm" : "text-[#666] hover:text-[#111]"}`}
-            style={activeTab === t.key ? { background: "#E21B23" } : {}}
+            className={`px-4 py-2 rounded-lg text-[12px] font-semibold transition-all cursor-pointer ${activeTab === t.key ? "text-white shadow-sm" : "text-muted hover:text-ink"}`}
+            style={activeTab === t.key ? { background: "#c1232c" } : {}}
           >
             {t.label}
           </button>
@@ -258,8 +258,8 @@ export default function ReportsAnalytics() {
 
       {activeTab === "bookings" && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
-            <h3 className="text-[14px] font-bold text-[#111] mb-4">Bookings by Service — {periodLabel} vs previous month</h3>
+          <div className="bg-white rounded-xl border border-line shadow-sm p-5">
+            <h3 className="text-[14px] font-bold text-ink mb-4">Bookings by Service — {periodLabel} vs previous month</h3>
             {byService.length === 0 ? (
               <Empty text="No bookings in these months." />
             ) : (
@@ -269,15 +269,15 @@ export default function ReportsAnalytics() {
                   <XAxis dataKey="name" tick={{ fontSize: 10, fill: "#999" }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} allowDecimals={false} />
                   <Tooltip formatter={(v, n) => [`${v} bookings`, String(n)]} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E5E5" }} />
-                  <Legend formatter={(v) => <span className="text-[11px] text-[#666]">{v}</span>} />
-                  <Bar dataKey="thisMonth" name={periodLabel} fill="#E21B23" radius={[4, 4, 0, 0]} />
+                  <Legend formatter={(v) => <span className="text-[11px] text-muted">{v}</span>} />
+                  <Bar dataKey="thisMonth" name={periodLabel} fill="#c1232c" radius={[4, 4, 0, 0]} />
                   <Bar dataKey="lastMonth" name="Previous month" fill="#D4D4D4" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
           </div>
-          <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
-            <h3 className="text-[14px] font-bold text-[#111] mb-4">Service Mix — {periodLabel}</h3>
+          <div className="bg-white rounded-xl border border-line shadow-sm p-5">
+            <h3 className="text-[14px] font-bold text-ink mb-4">Service Mix — {periodLabel}</h3>
             {byService.filter((d) => d.thisMonth > 0).length === 0 ? (
               <Empty text="No bookings this month." />
             ) : (
@@ -288,12 +288,12 @@ export default function ReportsAnalytics() {
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Legend formatter={(v) => <span className="text-[11px] text-[#666]">{v}</span>} />
+                  <Legend formatter={(v) => <span className="text-[11px] text-muted">{v}</span>} />
                   <Tooltip formatter={(v) => [`${v} bookings`, ""]} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E5E5" }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
-            <div className="mt-2 text-[11px] text-[#888]">
+            <div className="mt-2 text-[11px] text-faint">
               Completion rate: {rate(cur.completed, cur.completed + cur.cancelled)} of trips that finished or were cancelled.
             </div>
           </div>
@@ -301,9 +301,9 @@ export default function ReportsAnalytics() {
       )}
 
       {activeTab === "revenue" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
-          <h3 className="text-[14px] font-bold text-[#111] mb-1">Revenue — last 6 months to {periodLabel}</h3>
-          <p className="text-[11px] text-[#888] mb-4">Completed trip revenue is the GST-inclusive fare of trips completed in the month; collected is the verified payment on those trips (incl. tolls).</p>
+        <div className="bg-white rounded-xl border border-line shadow-sm p-5">
+          <h3 className="text-[14px] font-bold text-ink mb-1">Revenue — last 6 months to {periodLabel}</h3>
+          <p className="text-[11px] text-faint mb-4">Completed trip revenue is the GST-inclusive fare of trips completed in the month; collected is the verified payment on those trips (incl. tolls).</p>
           {revenueTrend.every((r) => r.completed === 0 && r.collected === 0) ? (
             <Empty text="No completed trips in this period." />
           ) : (
@@ -313,8 +313,8 @@ export default function ReportsAnalytics() {
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: "#999" }} axisLine={false} tickLine={false} tickFormatter={(v) => formatINR(Number(v))} />
                 <Tooltip formatter={(v, n) => [`₹${Math.round(Number(v)).toLocaleString("en-IN")}`, String(n)]} contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid #E5E5E5" }} />
-                <Legend formatter={(v) => <span className="text-[11px] text-[#666]">{v}</span>} />
-                <Line type="monotone" dataKey="completed" name="Completed trip revenue" stroke="#E21B23" strokeWidth={2.5} dot={{ r: 4, fill: "#E21B23" }} />
+                <Legend formatter={(v) => <span className="text-[11px] text-muted">{v}</span>} />
+                <Line type="monotone" dataKey="completed" name="Completed trip revenue" stroke="#c1232c" strokeWidth={2.5} dot={{ r: 4, fill: "#c1232c" }} />
                 <Line type="monotone" dataKey="collected" name="Collected" stroke="#111111" strokeWidth={1.5} strokeDasharray="4 2" dot={false} />
               </LineChart>
             </ResponsiveContainer>
@@ -323,30 +323,30 @@ export default function ReportsAnalytics() {
       )}
 
       {activeTab === "vendors" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E5E5E5]">
-            <span className="text-[13px] font-bold text-[#111]">Vendor Performance — {periodLabel} ({vendorRows.length})</span>
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-line">
+            <span className="text-[13px] font-bold text-ink">Vendor Performance — {periodLabel} ({vendorRows.length})</span>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[800px]">
               <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
+                <tr className="bg-surface-2 border-b border-line">
                   {["Vendor", "Status", "Completed Trips", "Gross Fares", "Vendor Earnings", "Platform Share"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide whitespace-nowrap">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {vendorRows.map(({ v, status, s }) => (
-                  <tr key={v.id} className="border-b border-[#F5F5F5] last:border-0 text-[12px] hover:bg-[#FAFAFA]">
-                    <td className="px-4 py-3 font-semibold text-[#111]">{vendorName(v)}</td>
+                  <tr key={v.id} className="border-b border-hover last:border-0 text-[12px] hover:bg-surface-2">
+                    <td className="px-4 py-3 font-semibold text-ink">{vendorName(v)}</td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold border ${VENDOR_STATUS_META[status].badge}`}>{VENDOR_STATUS_META[status].label}</span>
                     </td>
                     <td className="px-4 py-3 font-semibold">{s.completedTrips}</td>
                     <td className="px-4 py-3">{formatINR(s.grossFares)}</td>
                     <td className="px-4 py-3 text-green-700 font-semibold">{formatINR(s.earnings)}</td>
-                    <td className="px-4 py-3 text-[#E21B23]">{formatINR(s.platformShare)}</td>
+                    <td className="px-4 py-3 text-brand">{formatINR(s.platformShare)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -357,18 +357,18 @@ export default function ReportsAnalytics() {
       )}
 
       {activeTab === "cancellations" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-5">
-          <h3 className="text-[14px] font-bold text-[#111] mb-4">Cancellation Reasons — bookings made in {periodLabel}</h3>
+        <div className="bg-white rounded-xl border border-line shadow-sm p-5">
+          <h3 className="text-[14px] font-bold text-ink mb-4">Cancellation Reasons — bookings made in {periodLabel}</h3>
           {cancellationReasons.length === 0 ? (
             <Empty text="No cancellations for bookings made this month." />
           ) : (
             <div className="space-y-3">
               {cancellationReasons.map((r) => (
-                <div key={r.reason} className="flex items-center justify-between p-3 rounded-lg bg-[#F9F9F9]">
-                  <div className="text-[13px] font-semibold text-[#111]">{r.reason}</div>
+                <div key={r.reason} className="flex items-center justify-between p-3 rounded-lg bg-surface-2">
+                  <div className="text-[13px] font-semibold text-ink">{r.reason}</div>
                   <div className="flex items-center gap-3">
-                    <span className="text-[12px] text-[#999]">{r.count} booking{r.count === 1 ? "" : "s"}</span>
-                    <span className="text-[12px] font-bold text-[#E21B23] px-2.5 py-0.5 rounded bg-red-50">{r.pct}</span>
+                    <span className="text-[12px] text-faint">{r.count} booking{r.count === 1 ? "" : "s"}</span>
+                    <span className="text-[12px] font-bold text-brand px-2.5 py-0.5 rounded bg-red-50">{r.pct}</span>
                   </div>
                 </div>
               ))}
@@ -378,27 +378,27 @@ export default function ReportsAnalytics() {
       )}
 
       {activeTab === "gst" && (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm overflow-hidden">
-          <div className="px-5 py-4 border-b border-[#E5E5E5]">
-            <h3 className="text-[14px] font-bold text-[#111]">GST on Completed Trips (SAC 9964)</h3>
-            <p className="text-[12px] text-[#666]">Output GST contained in completed trip fares, using each booking's server fare breakdown. Filing is done outside the platform.</p>
+        <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
+          <div className="px-5 py-4 border-b border-line">
+            <h3 className="text-[14px] font-bold text-ink">GST on Completed Trips (SAC 9964)</h3>
+            <p className="text-[12px] text-muted">Output GST contained in completed trip fares, using each booking's server fare breakdown. Filing is done outside the platform.</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full min-w-[700px]">
               <thead>
-                <tr className="bg-[#F9F9F9] border-b border-[#E5E5E5]">
+                <tr className="bg-surface-2 border-b border-line">
                   {["Month", "Completed Trips", "Taxable Value", "GST Rate", "GST Collected", "Gross (incl. GST)"].map((h) => (
-                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-[#999] uppercase tracking-wide">{h}</th>
+                    <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold text-faint uppercase tracking-wide">{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {gstRows.map((r) => (
-                  <tr key={r.month} className="border-b border-[#F5F5F5] last:border-0 text-[12px] hover:bg-[#FAFAFA]">
-                    <td className="px-4 py-3 font-semibold text-[#111]">{r.month}</td>
+                  <tr key={r.month} className="border-b border-hover last:border-0 text-[12px] hover:bg-surface-2">
+                    <td className="px-4 py-3 font-semibold text-ink">{r.month}</td>
                     <td className="px-4 py-3">{r.trips}</td>
                     <td className="px-4 py-3">₹{r.taxable.toLocaleString("en-IN")}</td>
-                    <td className="px-4 py-3 font-semibold text-[#E21B23]">{GST_RATE * 100}%</td>
+                    <td className="px-4 py-3 font-semibold text-brand">{GST_RATE * 100}%</td>
                     <td className="px-4 py-3 font-bold">₹{r.gst.toLocaleString("en-IN")}</td>
                     <td className="px-4 py-3 font-bold">₹{r.total.toLocaleString("en-IN")}</td>
                   </tr>

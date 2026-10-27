@@ -21,14 +21,14 @@ function TripCard({ b, now, thresholds, onOpen }: { b: Booking; now: Date; thres
   const sev = unassignedSeverity(b, p?.getTime() ?? null, now.getTime(), thresholds);
   return (
     <li>
-      <button type="button" onClick={onOpen} className={`w-full text-left p-3 rounded-lg border hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-[#E21B23] ${sev === "critical" ? "border-red-300 bg-red-50" : sev === "warning" ? "border-amber-300 bg-amber-50" : "border-[#E5E5E5] bg-white"}`}>
+      <button type="button" onClick={onOpen} className={`w-full text-left p-3 rounded-lg border hover:shadow-sm focus:outline-none focus:ring-2 focus:ring-brand ${sev === "critical" ? "border-red-300 bg-red-50" : sev === "warning" ? "border-amber-300 bg-amber-50" : "border-line bg-white"}`}>
         <div className="flex items-start justify-between gap-2">
-          <div className="text-base font-bold text-[#111]">{p ? formatTime12(p) : b.time}</div>
+          <div className="text-base font-bold text-ink">{p ? formatTime12(p) : b.time}</div>
           <StatusBadge status={b.status} />
         </div>
-        <div className="text-sm font-semibold text-[#111] mt-0.5">{b.customer}</div>
-        <div className="text-sm text-[#444] truncate">{b.pickup} → {b.drop}</div>
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-[#555]">
+        <div className="text-sm font-semibold text-ink mt-0.5">{b.customer}</div>
+        <div className="text-sm text-body truncate">{b.pickup} → {b.drop}</div>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted">
           <span>{b.vehicleCategory || b.vehicle}</span>
           <span className={b.assignedDriverId ? "" : "font-semibold text-red-700"}>{b.assignedDriverName || b.driver || (b.assignedVendorName ? `Vendor: ${b.assignedVendorName}` : "No driver assigned")}</span>
           {p && b.status !== "Completed" && <span>{relativeFromNow(p, now)}</span>}
@@ -41,12 +41,12 @@ function TripCard({ b, now, thresholds, onOpen }: { b: Booking; now: Date; thres
 
 function TripColumn({ title, subtitle, rows, now, thresholds, loading, onSelect }: { title: string; subtitle: string; rows: Booking[]; now: Date; thresholds: UnassignedThresholds; loading: boolean; onSelect: (id: string) => void }) {
   return (
-    <section className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm p-4" aria-label={title}>
+    <section className="bg-white rounded-xl border border-line shadow-sm p-4" aria-label={title}>
       <div className="flex items-baseline justify-between mb-3">
-        <h3 className="text-[15px] font-bold text-[#111]">{title}</h3>
-        <span className="text-xs text-[#555]">{subtitle} · {rows.length} trip{rows.length === 1 ? "" : "s"}</span>
+        <h3 className="text-[15px] font-bold text-ink">{title}</h3>
+        <span className="text-xs text-muted">{subtitle} · {rows.length} trip{rows.length === 1 ? "" : "s"}</span>
       </div>
-      {loading ? <p className="text-sm text-[#555]" role="status">Loading…</p> : rows.length === 0 ? <p className="text-sm text-[#555] py-4 text-center">No trips scheduled.</p> : (
+      {loading ? <p className="text-sm text-muted" role="status">Loading…</p> : rows.length === 0 ? <p className="text-sm text-muted py-4 text-center">No trips scheduled.</p> : (
         <ul className="space-y-2 max-h-[26rem] overflow-auto pr-1">{rows.map((b) => <TripCard key={b.id} b={b} now={now} thresholds={thresholds} onOpen={() => onSelect(b.id)} />)}</ul>
       )}
     </section>
@@ -101,13 +101,13 @@ export default function OperationsSection({ bookings, penalties, now, thresholds
     { label: "Pending refunds", value: String(data.refundsPending), sub: data.refundsPending ? rupees(data.refundsPendingAmount) : undefined, tone: data.refundsPending ? "amber" : "neutral", go: "bookings" },
     { label: "Open penalties", value: String(data.penaltiesOpen), tone: data.penaltiesOpen ? "amber" : "neutral", go: "penalties" },
   ];
-  const tone = { red: "border-red-300 bg-red-50 text-red-800", amber: "border-amber-300 bg-amber-50 text-amber-900", blue: "border-blue-200 bg-blue-50 text-blue-900", green: "border-green-200 bg-green-50 text-green-900", neutral: "border-[#E5E5E5] bg-white text-[#111]" };
+  const tone = { red: "border-red-300 bg-red-50 text-red-800", amber: "border-amber-300 bg-amber-50 text-amber-900", blue: "border-blue-200 bg-blue-50 text-blue-900", green: "border-green-200 bg-green-50 text-green-900", neutral: "border-line bg-white text-ink" };
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3">
         {cards.map((c) => (
-          <button key={c.label} type="button" onClick={() => onNavigate(c.go)} className={`text-left rounded-xl border p-3.5 hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-[#E21B23] ${tone[c.tone]}`}>
+          <button key={c.label} type="button" onClick={() => onNavigate(c.go)} className={`text-left rounded-xl border p-3.5 hover:shadow-md transition-shadow focus:outline-none focus:ring-2 focus:ring-brand ${tone[c.tone]}`}>
             <div className="text-2xl font-extrabold leading-tight">{loading ? "…" : c.value}</div>
             <div className="text-sm font-semibold mt-0.5">{c.label}</div>
             {c.sub && <div className="text-xs font-semibold opacity-80 mt-0.5">{c.sub}</div>}
@@ -117,22 +117,22 @@ export default function OperationsSection({ bookings, penalties, now, thresholds
 
       {data.unassigned.length > 0 && (
         <section className="rounded-xl border border-red-200 bg-white shadow-sm p-4" aria-label="Bookings without a driver">
-          <h3 className="text-[15px] font-bold text-[#111] mb-1">⚠ Pickup coming up — no driver assigned</h3>
-          <p className="text-xs text-[#555] mb-3">Warning within {thresholds.warningHours} h of pickup, urgent within {thresholds.criticalHours} h. Change these in Settings.</p>
+          <h3 className="text-[15px] font-bold text-ink mb-1">⚠ Pickup coming up — no driver assigned</h3>
+          <p className="text-xs text-muted mb-3">Warning within {thresholds.warningHours} h of pickup, urgent within {thresholds.criticalHours} h. Change these in Settings.</p>
           <ul className="grid grid-cols-1 lg:grid-cols-2 gap-2">
             {data.unassigned.slice(0, 6).map(({ b, sev }) => {
               const p = bookingPickupDate(b);
               return (
                 <li key={b.id}>
-                  <button type="button" onClick={() => onSelectBooking(b.id)} className={`w-full text-left p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#E21B23] ${sev === "critical" ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}`}>
-                    <div className="flex justify-between gap-2"><span className="font-bold text-[#111]">{p ? formatTime12(p) : b.time} · {b.bookingId || b.id}</span><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div>
-                    <div className="text-sm text-[#333] truncate">{b.customer} · {b.pickup} → {b.drop}</div>
+                  <button type="button" onClick={() => onSelectBooking(b.id)} className={`w-full text-left p-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-brand ${sev === "critical" ? "border-red-300 bg-red-50" : "border-amber-300 bg-amber-50"}`}>
+                    <div className="flex justify-between gap-2"><span className="font-bold text-ink">{p ? formatTime12(p) : b.time} · {b.bookingId || b.id}</span><AlertBadge severity={sev} label={p ? relativeFromNow(p, now).replace(/^in /, "") : undefined} /></div>
+                    <div className="text-sm text-body truncate">{b.customer} · {b.pickup} → {b.drop}</div>
                   </button>
                 </li>
               );
             })}
           </ul>
-          {data.unassigned.length > 6 && <button onClick={() => onNavigate("bookings")} className="mt-2 text-sm font-semibold text-[#E21B23] hover:underline">View all {data.unassigned.length}</button>}
+          {data.unassigned.length > 6 && <button onClick={() => onNavigate("bookings")} className="mt-2 text-sm font-semibold text-brand hover:underline">View all {data.unassigned.length}</button>}
         </section>
       )}
 

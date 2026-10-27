@@ -53,8 +53,8 @@ const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹
       busy={busy}
       footer={
         <>
-          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-[#E5E5E5] rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50">Cancel</button>
-          <button onClick={() => void submit()} disabled={busy} className={`px-5 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50 ${kind === "reject" ? "bg-red-600 hover:bg-red-700" : "bg-[#E21B23] hover:opacity-90"}`}>
+          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-50">Cancel</button>
+          <button onClick={() => void submit()} disabled={busy} className={`px-5 py-2 rounded-lg text-[12px] font-bold text-white disabled:opacity-50 ${kind === "reject" ? "bg-red-600 hover:bg-red-700" : "bg-brand hover:opacity-90"}`}>
             {busy ? "Saving…" : copy.button}
           </button>
         </>
@@ -66,9 +66,9 @@ const rupees = (n: number) => { const v = Math.round(n * 100) / 100; return `₹
         <label className="block">
           <span className="text-[11px] font-bold text-gray-800">{copy.label}</span>
           {kind === "pay" ? (
-            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={60} className="mt-1 w-full p-2.5 border border-[#E5E5E5] rounded-lg font-mono" />
+            <input value={text} onChange={(e) => setText(e.target.value)} maxLength={60} className="mt-1 w-full p-2.5 border border-line rounded-lg font-mono" />
           ) : (
-            <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} className="mt-1 w-full p-2.5 border border-[#E5E5E5] rounded-lg" />
+            <textarea rows={3} value={text} onChange={(e) => setText(e.target.value)} maxLength={300} className="mt-1 w-full p-2.5 border border-line rounded-lg" />
           )}
         </label>
       </div>

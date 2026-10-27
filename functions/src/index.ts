@@ -22,6 +22,8 @@ export { findPartnerDriver, findPartnerVehicle, requestDriverLink, requestVehicl
 export { claimMarketplaceDuty, submitMarketplaceBid, withdrawMarketplaceBid } from './claims';
 export { requestPartnerPayout, rebuildPartnerLedger, onBookingFinanceChange, onPayoutRequestWritten } from './ledger';
 export { sendNotification } from './broadcast';
+export { sendNoticeCampaign, retryFailedDeliveries } from './noticeCampaigns';
+export { saveStaffProfile, revokeStaffSessions } from './staffProfiles';
 export { lookupVehicleByRegistration } from './vehicleLookup';
 export { requestVendorRegistration, issueVendorInvitation, revokeVendorInvitation, redeemVendorInvitation } from './vendorOnboarding';
 export { updateSettlement, onBookingSettlementChange } from './settlement';

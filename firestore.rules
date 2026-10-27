@@ -689,6 +689,148 @@ service cloud.firestore {
                      );
     }
 
+    // Location-scoped service rules (availability, cab types, fare / payout adjustments, fare
+    // limits). The booking server applies enabled rules; every change keeps its history.
+    match /service_rules/{ruleId} {
+      allow read: if isAdmin();
+      allow create, update: if can('pricing') && request.resource.data.updatedBy == uid();
+      allow delete: if false;
+    }
+    // Invoice drafts saved while billing / tax details are checked; issuing assigns the number.
+    match /invoice_drafts/{draftId} {
+      allow read: if canReadFinance();
+      allow create, update: if can('finance') && request.resource.data.createdBy == uid();
+      allow delete: if can('finance');
+    }
+    // Office accounting registers (Accounts). Entered once; only review / match / verification status
+    // may change afterwards, and every change records who made it.
+    match /accounts_register/{entryId} {
+      allow read: if canReadFinance();
+      allow create: if can('finance') && request.resource.data.createdBy == uid() && request.resource.data.amount is number;
+      allow update: if can('finance')
+                     && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['itcStatus', 'matchStatus', 'matchedRef', 'status', 'verifiedByName', 'verifiedAt']);
+      allow delete: if false;
+    }
+    match /counters/accounts_closing {
+      allow read, write: if can('finance');
+    }
+    // Full & Final closures of partner IDs (append-only; reopening is a separate super-admin action).
+    match /ff_records/{recordId} {
+      allow read: if canReadFinance() || can('people');
+      allow create: if (can('people') || can('finance')) && request.resource.data.closedBy == uid();
+      allow update: if isSuperAdmin();
+      allow delete: if false;
+    }
+    // Communication › Messages & notices. Staff compose Drafts and may edit or cancel them (or
+    // cancel a schedule); only the server (sendNoticeCampaign / periodicJobs) schedules or sends.
+    match /notice_campaigns/{campaignId} {
+      allow read: if can('engagement');
+      allow create: if can('engagement') && request.resource.data.status == 'Draft'
+                     && request.resource.data.createdBy == uid();
+      allow update: if can('engagement') && (
+                       (resource.data.status == 'Draft' && request.resource.data.status in ['Draft', 'Cancelled']
+                        && unchanged('createdBy'))
+                       || (resource.data.status == 'Scheduled' && request.resource.data.status == 'Cancelled'
+                           && onlyChanges(['status', 'cancelledAt', 'cancelledBy', 'cancelledByName', 'cancelReason']))
+                     );
+      allow delete: if false;
+    }
+    // Account notices: suspension / reactivation emails queued when an account status changes.
+    match /account_notices/{noticeId} {
+      allow read: if can('people') || can('engagement');
+      allow create: if (can('people') || can('fleet')) && request.resource.data.createdBy == uid()
+                     && request.resource.data.status in ['Queued', 'Email not supplied'];
+      allow update: if (can('people') || can('engagement'))
+                     && onlyChanges(['status', 'preparedAt', 'preparedByName', 'attempts', 'error']);
+      allow delete: if false;
+    }
+    // Staff activity: one session per signed-in browser tab (heartbeat, explicit logout) and an
+    // append-only log of page views, logins and customer-data access. The Master ends sessions
+    // through revokeStaffSessions (server); the tab signs itself out when its session is revoked.
+    match /staff_sessions/{sessionId} {
+      allow read: if isSuperAdmin() || can('system') || (isAdmin() && resource.data.uid == uid());
+      allow create: if isAdmin() && request.resource.data.uid == uid() && request.resource.data.status == 'Online';
+      allow update: if isAdmin() && resource.data.uid == uid() && resource.data.status == 'Online'
+                     && request.resource.data.status in ['Online', 'Logged out', 'Expired']
+                     && onlyChanges(['lastActiveAt', 'status', 'endedAt']);
+      allow delete: if false;
+    }
+    match /staff_activity/{eventId} {
+      allow read: if isSuperAdmin() || can('system');
+      allow create: if isAdmin() && request.resource.data.uid == uid();
+      allow update, delete: if false;
+    }
+    // Data exports from the record lists: who exported what, when, with which filters.
+    match /export_logs/{logId} {
+      allow read: if isSuperAdmin() || can('system');
+      allow create: if isAdmin() && request.resource.data.staffUid == uid() && request.resource.data.count is int;
+      allow update, delete: if false;
+    }
+    // Customer privacy & access: reveal requests (staff ask, super admins decide) and per-staff
+    // privacy controls. The reveal itself and its log stay server-side (getCustomerContact).
+    match /privacy_requests/{requestId} {
+      allow read: if isSuperAdmin() || (isAdmin() && resource.data.staffUid == uid());
+      allow create: if isAdmin() && request.resource.data.staffUid == uid() && request.resource.data.status == 'Pending';
+      allow update: if isSuperAdmin() && request.resource.data.status in ['Approved', 'Denied', 'Revoked', 'Used', 'Expired']
+                     && request.resource.data.staffUid == resource.data.staffUid;
+      allow delete: if false;
+    }
+    match /privacy_staff/{staffUid} {
+      allow read: if isSuperAdmin() || (isAdmin() && staffUid == uid());
+      allow write: if isSuperAdmin();
+    }
+    // Office follow-ups behind the Master Admin alerts (partner calls, driver acknowledgement
+    // follow-ups). Append-only: staff add a record, nobody edits or deletes one.
+    match /office_followups/{followupId} {
+      allow read: if can('operations');
+      allow create: if can('operations') && request.resource.data.createdBy == uid()
+                     && request.resource.data.kind in ['partner_call', 'driver_ack', 'customer_call', 'trip_issue']
+                     && request.resource.data.bookingId is string;
+      allow update, delete: if false;
+    }
+    // Which staff member handles a booking ("Take ownership" / "Assign handling staff"). Every write
+    // records who made it.
+    match /booking_ownership/{bookingId} {
+      allow read: if can('operations');
+      allow create, update: if can('operations') && request.resource.data.assignedByUid == uid();
+      allow delete: if isSuperAdmin();
+    }
+    // Business accounts (agencies, hotels, corporate desks). People staff manage them; operations
+    // staff read them to book for a business. Codes come from counters/business_accounts.
+    match /business_accounts/{accountId} {
+      allow read: if can('people') || can('operations') || canReadFinance();
+      allow create, update: if can('people');
+      allow delete: if false;
+      match /api_credentials/{credId} {
+        allow read: if can('people') || can('system');
+        allow create: if (can('people') || can('system')) && request.resource.data.createdBy == uid() && request.resource.data.status == 'Active';
+        allow update: if (can('people') || can('system')) && request.resource.data.status == 'Revoked' && request.resource.data.hash == resource.data.hash;
+        allow delete: if false;
+      }
+      match /payments/{paymentId} {
+        allow read: if can('people') || canReadFinance();
+        allow create: if (can('people') || can('finance')) && request.resource.data.createdBy == uid()
+                       && request.resource.data.amount is number && request.resource.data.amount > 0;
+        allow update, delete: if false;
+      }
+    }
+    match /counters/business_accounts {
+      allow read, write: if can('people');
+    }
+    // Office phone enquiries & quotes (Master Admin → Bookings → Enquiries & quotes). Staff-only;
+    // a quote never becomes a booking here — conversion goes through createAdminBooking.
+    match /enquiries/{enquiryId} {
+      allow read: if can('operations');
+      allow create: if can('operations')
+                     && request.resource.data.keys().hasAll(['code', 'status', 'pickup', 'drop', 'createdBy'])
+                     && request.resource.data.createdBy == uid()
+                     && request.resource.data.status in ['New', 'Call back', 'No response', 'Draft', 'Converted', 'Closed', 'Expired'];
+      allow update: if can('operations')
+                     && request.resource.data.status in ['New', 'Call back', 'No response', 'Draft', 'Converted', 'Closed', 'Expired']
+                     && request.resource.data.code == resource.data.code
+                     && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if false;
+    }
     match /support_tickets/{ticketId} {
       allow create: if isSignedIn()
                      && request.resource.data.customerId == uid()
@@ -706,7 +848,7 @@ service cloud.firestore {
       // only mark as read.
       allow update: if can('engagement') || (
                        isSignedIn() && resource.data.get('recipientId', '') == uid()
-                       && onlyChanges(['read', 'readAt'])
+                       && onlyChanges(['read', 'readAt', 'acknowledgedAt'])
                      ) || (
                        isAdmin() && resource.data.get('recipientId', 'admin') == 'admin'
                        && onlyChanges(['read', 'readAt'])
@@ -792,7 +934,7 @@ service cloud.firestore {
     match /settings/{docId} {
       allow read: if isSignedIn();
       // The invoice number counter advances with every invoice finance issues.
-      allow write: if can('system') || (docId == 'invoice_sequence' && can('finance'));
+      allow write: if can('system') || (docId in ['invoice_sequence', 'tax_policy'] && can('finance'));
     }
 
     // ── Booking sub-records (server-written) ────────────────────────────────

@@ -140,7 +140,7 @@ export function BookingSourceBadge({
     return (
       <span
         title="Booked from Nesam Travels"
-        className={`inline-flex items-center gap-1.5 font-bold rounded-full bg-gray-100 text-[#333] border border-gray-300 ${pad} ${className}`}
+        className={`inline-flex items-center gap-1.5 font-bold rounded-full bg-gray-100 text-body border border-gray-300 ${pad} ${className}`}
       >
         <img
           src="/logo.png"

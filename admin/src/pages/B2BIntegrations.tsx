@@ -33,8 +33,8 @@ export default function B2BIntegrations() {
   return (
     <div className="p-6 space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-[#111]">Corporate & B2B Partners</h1>
-        <p className="text-xs text-[#666]">Corporate clients and travel partners that book through NESAM.</p>
+        <h1 className="text-xl font-bold text-ink">Corporate & B2B Partners</h1>
+        <p className="text-xs text-muted">Corporate clients and travel partners that book through NESAM.</p>
       </div>
 
       {error && (
@@ -44,22 +44,22 @@ export default function B2BIntegrations() {
       )}
 
       {loading ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center text-[13px] text-[#999]">
+        <div className="bg-white rounded-xl border border-line p-12 text-center text-[13px] text-faint">
           Loading partners…
         </div>
       ) : partners.length === 0 ? (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] p-12 text-center">
-          <p className="text-[14px] font-bold text-[#111]">No B2B partners found.</p>
+        <div className="bg-white rounded-xl border border-line p-12 text-center">
+          <p className="text-[14px] font-bold text-ink">No B2B partners found.</p>
         </div>
       ) : (
-        <div className="bg-white rounded-xl border border-[#E5E5E5] shadow-sm divide-y divide-[#F5F5F5]">
+        <div className="bg-white rounded-xl border border-line shadow-sm divide-y divide-hover">
           {partners.map((p) => (
             <div key={p.id} className="p-4 flex items-center justify-between text-[13px]">
               <div>
-                <div className="font-semibold text-[#111]">{p.name || p.id}</div>
-                <div className="text-[11px] text-[#999]">{p.category || "—"}</div>
+                <div className="font-semibold text-ink">{p.name || p.id}</div>
+                <div className="text-[11px] text-faint">{p.category || "—"}</div>
               </div>
-              <span className="text-[11px] font-semibold text-[#444]">{p.status || "—"}</span>
+              <span className="text-[11px] font-semibold text-body">{p.status || "—"}</span>
             </div>
           ))}
         </div>

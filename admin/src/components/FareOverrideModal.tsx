@@ -45,10 +45,10 @@ export default function FareOverrideModal({ booking, onClose, onDone }: { bookin
       busy={busy}
       footer={
         <>
-          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-[#E5E5E5] text-[#666] rounded-lg text-xs font-semibold disabled:opacity-50">
+          <button onClick={onClose} disabled={busy} className="px-4 py-2 border border-line text-muted rounded-lg text-xs font-semibold disabled:opacity-50">
             Cancel
           </button>
-          <button onClick={submit} disabled={busy || !!blocker} className="px-4 py-2 bg-[#E21B23] text-white rounded-lg text-xs font-semibold disabled:opacity-60">
+          <button onClick={submit} disabled={busy || !!blocker} className="px-4 py-2 bg-brand text-white rounded-lg text-xs font-semibold disabled:opacity-60">
             {busy ? "Saving…" : "Save fare"}
           </button>
         </>
@@ -59,11 +59,11 @@ export default function FareOverrideModal({ booking, onClose, onDone }: { bookin
         {errors.form && <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700">{errors.form}</div>}
         <div className="grid grid-cols-2 gap-2 text-[11px]">
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
-            <div className="text-[#888]">Current fare</div>
+            <div className="text-faint">Current fare</div>
             <div className="font-bold text-sm">{current > 0 ? rupees(current) : "—"}</div>
           </div>
           <div className="bg-gray-50 border border-gray-200 rounded-lg p-2">
-            <div className="text-[#888]">Calculated by the booking engine</div>
+            <div className="text-faint">Calculated by the booking engine</div>
             <div className="font-bold text-sm">
               {booking.fareOverride?.calculatedFare != null
                 ? rupees(booking.fareOverride.calculatedFare)
@@ -75,16 +75,16 @@ export default function FareOverrideModal({ booking, onClose, onDone }: { bookin
         </div>
         {legacy && <p className="text-amber-700">This fare was entered without the booking engine. Confirm or correct it; the change is recorded.</p>}
         <label className="block">
-          <span className="block text-[11px] font-semibold text-[#666] mb-1">New fare (₹, incl. GST) *</span>
-          <input value={fare} onChange={(e) => setFare(e.target.value.replace(/\D/g, ""))} inputMode="numeric" disabled={!!blocker} className="w-full p-2 border border-[#E5E5E5] rounded-lg text-xs" />
+          <span className="block text-[11px] font-semibold text-muted mb-1">New fare (₹, incl. GST) *</span>
+          <input value={fare} onChange={(e) => setFare(e.target.value.replace(/\D/g, ""))} inputMode="numeric" disabled={!!blocker} className="w-full p-2 border border-line rounded-lg text-xs" />
           {errors.fare && <p className="text-[10px] text-red-600 mt-1">{errors.fare}</p>}
         </label>
         <label className="block">
-          <span className="block text-[11px] font-semibold text-[#666] mb-1">Reason *</span>
-          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} disabled={!!blocker} className="w-full p-2 border border-[#E5E5E5] rounded-lg text-xs" />
+          <span className="block text-[11px] font-semibold text-muted mb-1">Reason *</span>
+          <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={300} disabled={!!blocker} className="w-full p-2 border border-line rounded-lg text-xs" />
           {errors.reason && <p className="text-[10px] text-red-600 mt-1">{errors.reason}</p>}
         </label>
-        <p className="text-[10px] text-[#888]">An open marketplace offer is updated to the partner share of the new fare; payouts already agreed with a partner do not change.</p>
+        <p className="text-[10px] text-faint">An open marketplace offer is updated to the partner share of the new fare; payouts already agreed with a partner do not change.</p>
       </div>
     </Modal>
   );

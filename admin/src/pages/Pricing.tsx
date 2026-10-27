@@ -1,1309 +1,413 @@
-import { useState, useEffect, useMemo } from "react";
-import FareAdjustmentCard from "../components/FareAdjustmentCard";
-import TariffConfigCard from "../components/TariffConfigCard";
-import { FareRule, PricingModel, TravelService, VehicleCategory, MasterLocation, FareCalculationInput } from "../types";
-import { subscribeFareRules, subscribeServices, subscribeVehicleCategories, subscribeLocations } from "../services/adminFirestoreService";
-import { calculateCentralFare } from "../services/fareEngine";
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import type { MasterLocation, TravelService, VehicleCategory } from "../types";
+import { subscribeLocations, subscribeServices, subscribeToDocument, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import {
-  FareRuleActionError,
-  deleteFareRule,
-  duplicateFareRule,
-  emptyFareRuleForm,
-  formFromRule,
-  saveFareRule,
-  setFareRuleStatus,
-  validateFareRule,
-  type FareRuleField,
-  type FareRuleForm,
-} from "../services/fareRuleService";
-import AppFarePreview from "../components/AppFarePreview";
-import { auth } from "../services/firebase";
-import { ConfirmDialog, ErrorBanner, Toast, useToast } from "../components/Feedback";
+  adjText, inScope, phaseOf, saveRule, setRuleStatus, subscribeServiceRules, summary,
+  type Adjustment, type RuleKind, type ServiceRule, type Side,
+} from "../services/serviceRulesService";
+import { useCan } from "../components/AccessContext";
+import { Modal, Toast, useToast } from "../components/Feedback";
+import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, toneForStatus } from "../components/ui";
+import { StageBar } from "../components/ui/ListKit";
+import MenuButton from "../components/ui/MenuButton";
+import TariffConfigCard from "../components/TariffConfigCard";
+import FareAdjustmentCard from "../components/FareAdjustmentCard";
+import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
+import { TaxPolicyDialog, type TaxPolicy } from "./Invoices";
+import { GST_STATES } from "../domain/gstStates";
+import { refDateTime } from "../domain/officeStage";
 
-const PRICING_MODELS: { value: PricingModel; label: string; desc: string }[] = [
-  { value: "BASE_PLUS_PER_KM", label: "Base Fare + Per KM", desc: "Initial base fare covering base KM, then per-KM rate for extra distance." },
-  { value: "PER_KM", label: "Pure Per KM", desc: "Distance × Per-KM rate with minimum daily billable KM." },
-  { value: "FIXED_ROUTE", label: "Fixed Route Fare", desc: "Fixed fare between specific Origin and Destination locations." },
-  { value: "HOURLY_RENTAL", label: "Hourly / Rental Package", desc: "Included Hours & Included KM package with extra hour/KM charges." },
-  { value: "PER_DAY", label: "Outstation Daily Minimum", desc: "Daily minimum distance rate × trip days + daily driver batta." },
-];
+type Tab = "Booking availability" | "Cab types" | "Pricing rules" | "More settings";
+type Sel = { state: string; city: string; area: string };
+const SERVICES = ["All", "One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"];
+const STATUS_FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled", "Removed"] as const;
 
-const MODEL_BADGES: Record<PricingModel, { bg: string; text: string; border: string }> = {
-  BASE_PLUS_PER_KM: { bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-200" },
-  PER_KM: { bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-200" },
-  FIXED_ROUTE: { bg: "bg-purple-50", text: "text-purple-700", border: "border-purple-200" },
-  HOURLY_RENTAL: { bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-200" },
-  PER_DAY: { bg: "bg-indigo-50", text: "text-indigo-700", border: "border-indigo-200" },
-};
+/** Tamil helper line under an English heading (reference bilingual headings). */
+const Ta = ({ children }: { children: ReactNode }) => <span className="block text-[12px] text-muted" lang="ta">{children}</span>;
 
-type FormTab = "identity" | "pricing" | "allowances" | "overrides";
-const TAB_FIELDS: Record<FormTab, FareRuleField[]> = {
-  identity: ["name", "code", "vehicleCategoryId", "pricingType", "originLocationId", "destinationLocationId"],
-  pricing: ["baseFare", "baseKm", "perKmRate", "minimumKmPerDay", "minimumFare", "includedHours", "extraKmRate", "extraHourRate"],
-  allowances: ["driverBatta", "nightStartTime", "nightChargeValue", "freeWaitingMinutes", "waitingChargePerHour"],
-  overrides: ["fixedTollAmount", "fixedParkingAmount", "permitCharge", "priority", "effectiveFrom", "effectiveUntil"],
-};
-const errText = (e: unknown) => (e instanceof FareRuleActionError ? e.message : "Something went wrong. Please try again.");
-
-export default function Pricing() {
-  const [fareRules, setFareRules] = useState<FareRule[]>([]);
-  const [services, setServices] = useState<TravelService[]>([]);
-  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+/** Master Admin "Service & Fare Settings": location-scoped availability, cab types and pricing. */
+export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab?: string) => void }) {
+  const [tab, setTab] = useState<Tab>("Booking availability");
+  const [sel, setSel] = useState<Sel>({ state: "", city: "", area: "" });
+  const [rules, setRules] = useState<ServiceRule[]>([]);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [retryKey, setRetryKey] = useState(0);
-
-  // Filters & Controls
-  const [search, setSearch] = useState("");
-  const [serviceFilter, setServiceFilter] = useState("All");
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [modelFilter, setModelFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState("All");
-
-  // Modal Form State
-  const [showModal, setShowModal] = useState(false);
-  const [editingRule, setEditingRule] = useState<FareRule | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Partial<Record<FareRuleField, string>>>({});
-  const [activeTab, setActiveTab] = useState<FormTab>("identity");
-  const [formData, setFormData] = useState<FareRuleForm>(emptyFareRuleForm);
-
-  // Rate-card calculator (admin / phone quotations)
-  const [calcInput, setCalcInput] = useState<FareCalculationInput>({
-    serviceId: "",
-    vehicleCategoryId: "",
-    distanceKm: 0,
-    tripDays: 1,
-    tripHours: 0,
-    pickupTime: "",
-    waitingMinutes: 0,
-    tollAmount: 0,
-    parkingAmount: 0,
-    permitAmount: 0,
-    discountAmount: 0,
-  });
-
-  // Delete / row actions
-  const [deletingRule, setDeletingRule] = useState<FareRule | null>(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [rowBusyId, setRowBusyId] = useState<string | null>(null);
-  const { toast, show: showToast } = useToast();
-
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [services, setServices] = useState<TravelService[]>([]);
+  const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>("All");
+  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" } | null>(null);
+  const canEdit = useCan("pricing");
+  const { toast, show } = useToast(6000);
   useEffect(() => {
-    setLoading(true);
-    setLoadError(null);
-    const fail = (m: string) => {
-      setLoadError(m);
-      setLoading(false);
-    };
-    const unsubs = [
-      subscribeFareRules((data) => {
-        setFareRules(data);
-        setLoading(false);
-      }, fail),
-      subscribeServices(setServices, fail),
-      subscribeVehicleCategories(setCategories, fail),
-      subscribeLocations(setLocations, fail),
-    ];
-    return () => unsubs.forEach((u) => u());
-  }, [retryKey]);
+    const u = [subscribeServiceRules(setRules), subscribeLocations(setLocations), subscribeVehicleCategories(setCategories), subscribeServices(setServices)];
+    return () => u.forEach((x) => x());
+  }, []);
 
-  const calcCategoryId = calcInput.vehicleCategoryId || categories.find((c) => c.status === "Active")?.id || "";
-  const calcResult = useMemo(() => {
-    if (!calcCategoryId || !(Number(calcInput.distanceKm) > 0)) return null;
-    const svc = services.find((s) => s.id === calcInput.serviceId);
-    return calculateCentralFare({ ...calcInput, vehicleCategoryId: calcCategoryId, serviceName: svc?.name }, fareRules, categories);
-  }, [calcInput, calcCategoryId, fareRules, categories, services]);
+  const active = locations.filter((l) => l.status === "Active");
+  const stateName = (code: string) => GST_STATES.find(([c]) => c === code)?.[1] ?? code;
+  const states = Array.from(new Set(active.map((l) => l.state).filter(Boolean)));
+  const cities = Array.from(new Set(active.filter((l) => !sel.state || l.state === sel.state || l.state === stateName(sel.state)).map((l) => l.city).filter(Boolean))).sort();
+  const areas = Array.from(new Set(active.filter((l) => !sel.city || l.city === sel.city).map((l) => l.area || l.name).filter(Boolean))).sort();
+  const scoped = rules.filter((r) => r.status !== "Removed" || filter === "Removed").filter((r) => inScope(r, sel));
+  const byKind = (k: RuleKind) => scoped.filter((r) => r.kind === k).filter((r) => filter === "All" ? r.status !== "Removed" : phaseOf(r) === filter);
+  const activeOf = (k: RuleKind) => scoped.filter((r) => r.kind === k && phaseOf(r) === "Active");
+  const where = sel.area || sel.city || (sel.state ? stateName(sel.state) : "All locations");
+  const catNames = categories.filter((c) => c.status === "Active").map((c) => c.name);
 
-  const stats = useMemo(() => {
-    const total = fareRules.length;
-    const active = fareRules.filter((r) => r.status === "Active").length;
-    const servicesCount = new Set(fareRules.map((r) => r.serviceName).filter(Boolean)).size;
-    const categoriesCount = new Set(fareRules.map((r) => r.vehicleCategoryId).filter(Boolean)).size;
-    return { total, active, servicesCount, categoriesCount };
-  }, [fareRules]);
+  const ruleTable = (list: ServiceRule[]) => list.length === 0 ? null : (
+    <DataTable label="Rules" minWidth={980} fixed hasActions>
+      <thead><tr><th>SETTING</th><th>APPLIES TO</th><th>VALUE</th><th>PICKUP SCHEDULE</th><th>STATUS</th><th className="ds-actions">ACTIONS</th></tr></thead>
+      <tbody>{list.map((r) => (
+        <tr key={r.id}>
+          <td><strong>{r.name}</strong><small>{r.service || "All"} · Priority {r.priority}</small></td>
+          <td><strong>{r.scope.area ? "Area-specific rule" : r.scope.city ? "City rule" : r.scope.state ? "State rule" : "All locations"}</strong><small>{[r.scope.area, r.scope.city, r.scope.state && stateName(r.scope.state)].filter(Boolean).join(", ") || "Everywhere"} · {r.scope.side}</small></td>
+          <td>{summary(r)}</td>
+          <td>{r.schedule.mode === "Always" ? "Always" : `${r.schedule.from ? refDateTime(new Date(r.schedule.from)) : "Now"} → ${r.schedule.to ? refDateTime(new Date(r.schedule.to)) : "Open"}`}</td>
+          <td><Badge tone={toneForStatus(phaseOf(r) === "Active" ? "Enabled" : phaseOf(r))}>{phaseOf(r) === "Active" ? "Enabled" : phaseOf(r)}</Badge></td>
+          <td className="ds-actions"><div>
+            {canEdit && r.status !== "Removed" && <Button size="sm" onClick={() => setSheet({ kind: "edit", rule: r })}>Edit</Button>}
+            <Button size="sm" variant="ghost" onClick={() => setSheet({ kind: "preview", rule: r })}>Preview</Button>
+            {canEdit && r.status !== "Removed" && <MenuButton iconOnly label={`More actions for ${r.name}`} items={[
+              r.status === "Enabled" ? { label: "Disable rule", icon: "ban", onSelect: () => setSheet({ kind: "status", rule: r, to: "Disabled" }) } : { label: "Enable rule", icon: "circle-check", onSelect: () => setSheet({ kind: "status", rule: r, to: "Enabled" }) },
+              { label: "Remove rule", icon: "trash-2", danger: true, onSelect: () => setSheet({ kind: "status", rule: r, to: "Removed" }) },
+            ]} />}
+          </div></td>
+        </tr>
+      ))}</tbody>
+    </DataTable>
+  );
 
-  const filteredRules = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return fareRules.filter((rule) => {
-      const matchSearch = !q || [rule.name, rule.serviceName, rule.vehicleCategoryName, rule.code].some((v) => (v || "").toLowerCase().includes(q));
-      const matchService = serviceFilter === "All" || rule.serviceName === serviceFilter || rule.serviceId === serviceFilter;
-      const matchCategory = categoryFilter === "All" || rule.vehicleCategoryId === categoryFilter;
-      const matchModel = modelFilter === "All" || rule.pricingType === modelFilter;
-      const matchStatus = statusFilter === "All" || rule.status === statusFilter;
-      return matchSearch && matchService && matchCategory && matchModel && matchStatus;
-    });
-  }, [fareRules, search, serviceFilter, categoryFilter, modelFilter, statusFilter]);
+  const tools: [string, string, string, () => void][] = [
+    ["Base rates", "Regular ₹/km, driver bata and partner payout.", "Company-wide", () => setSheet({ kind: "base" })],
+    ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => onNavigate("services")],
+    ["Extra charges", "Waiting, hills, carrier and other add-ons.", "Configured scope", () => onNavigate("categories")],
+    ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => onNavigate("fare-rules")],
+    ["Business contracts", "Company rates, credit terms and contracts.", "Business account", () => onNavigate("business")],
+    ["Service boundaries", "Define verified cities, areas and service zones.", "Service areas", () => onNavigate("locations")],
+    ["Fare limits", "Review approved minimum and maximum amounts.", "Configured scope", () => setSheet({ kind: "limits" })],
+    ["All rules & schedules", "Find rules across locations and pickup schedules.", "All locations", () => setSheet({ kind: "all" })],
+    ["Tax settings", "Review tax classification and invoice settings.", "Company-wide", () => setSheet({ kind: "tax" })],
+  ];
 
-  const tabHasError = (tab: FormTab) => TAB_FIELDS[tab].some((f) => fieldErrors[f]);
-  const errNode = (f: FareRuleField) => (fieldErrors[f] ? <p className="text-[10px] text-red-600 mt-1">{fieldErrors[f]}</p> : null);
-
-  const openForm = (rule: FareRule | null) => {
-    setEditingRule(rule);
-    setFormData(rule ? formFromRule(rule) : { ...emptyFareRuleForm(), vehicleCategoryId: categories.find((c) => c.status === "Active")?.id || "" });
-    setFormError(null);
-    setFieldErrors({});
-    setActiveTab("identity");
-    setShowModal(true);
-  };
-  const handleOpenCreate = () => openForm(null);
-  const handleOpenEdit = (rule: FareRule) => openForm(rule);
-
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isSubmitting) return;
-    setFormError(null);
-    const errors = validateFareRule(formData, fareRules, editingRule?.id ?? null);
-    setFieldErrors(errors);
-    const keys = Object.keys(errors) as FareRuleField[];
-    if (keys.length) {
-      setFormError(`Please fix: ${keys.map((k) => errors[k]).join(" ")}`);
-      const tab = (Object.keys(TAB_FIELDS) as FormTab[]).find((t) => TAB_FIELDS[t].includes(keys[0]));
-      if (tab) setActiveTab(tab);
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await saveFareRule(formData, editingRule, { services, categories, locations }, auth.currentUser?.uid || "");
-      setShowModal(false);
-      showToast(editingRule ? `Fare rule "${formData.name.trim()}" updated.` : `Fare rule "${formData.name.trim()}" created.`);
-    } catch (err) {
-      setFormError(errText(err));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const rowAction = async (rule: FareRule, work: () => Promise<string>) => {
-    if (rowBusyId) return;
-    setRowBusyId(rule.id);
-    try {
-      showToast(await work());
-    } catch (err) {
-      showToast(errText(err), "error");
-    } finally {
-      setRowBusyId(null);
-    }
-  };
-  const handleToggleStatus = (rule: FareRule) =>
-    rowAction(rule, async () => {
-      const next = rule.status === "Active" ? "Inactive" : "Active";
-      await setFareRuleStatus(rule, next, fareRules);
-      return `Fare rule "${rule.name}" is now ${next}.`;
-    });
-  const handleDuplicate = (rule: FareRule) =>
-    rowAction(rule, async () => `Duplicated as inactive draft "${await duplicateFareRule(rule, fareRules, auth.currentUser?.uid || "")}".`);
-  const handlePromptDelete = (rule: FareRule) => {
-    setDeleteError(null);
-    setDeletingRule(rule);
-  };
-  const handleConfirmDelete = async () => {
-    if (!deletingRule || deleteBusy) return;
-    setDeleteBusy(true);
-    setDeleteError(null);
-    try {
-      await deleteFareRule(deletingRule);
-      showToast(`Fare rule "${deletingRule.name}" deleted.`);
-      setDeletingRule(null);
-    } catch (err) {
-      setDeleteError(errText(err));
-    } finally {
-      setDeleteBusy(false);
-    }
-  };
+  const statusChips = <div className="ds-chip-row">{STATUS_FILTERS.map((s) => <Button key={s} size="sm" variant={filter === s ? "primary" : "secondary"} onClick={() => setFilter(s)}>{s}</Button>)}</div>;
 
   return (
-    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto min-h-screen">
+    <div className="ds-page-body">
       <Toast toast={toast} />
-      {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
-
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-xl font-bold text-[#111111] tracking-tight">Pricing & Fare Management</h1>
-          <p className="text-xs text-[#666] mt-0.5">
-            Customer app fares come from vehicle category fares. Fare rules below are quotation rate cards for admin / phone bookings and are not applied to app bookings.
-          </p>
+      <PageHeader title="Service & Fare Settings" subtitle="Choose a location, then manage booking availability, cab types and fares." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
+      <section className="ds-panel ds-panel-pad mb-5">
+        <span className="ds-eyebrow">LOCATION</span>
+        <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
+        <Ta>எந்த இடத்திற்கான setting?</Ta>
+        <div className="ds-filterbar mt-3">
+          <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.filter(([c, n]) => !states.length || states.includes(c) || states.includes(n)).map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}</select></label>
+          <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">All cities</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
+          <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">All areas</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
         </div>
-
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleOpenCreate}
-            className="px-4 py-2 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-2"
-            style={{ background: "#E21B23" }}
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Fare Rule
-          </button>
+        <p className="text-[11px] text-faint">Existing confirmed fares and accepted partner payouts are retained.</p>
+        <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
+          <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>
+          <div className="ds-kpi"><span className="ds-kpi-label">Configured cabs</span><span className="text-[14px] font-semibold text-ink">{activeOf("categories")[0]?.categories?.join(", ") || "All active cab types"}</span><span className="ds-kpi-note">{activeOf("categories").length} active category rule{activeOf("categories").length === 1 ? "" : "s"}</span></div>
+          <div className="ds-kpi"><span className="ds-kpi-label">Pricing rules</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
         </div>
-      </div>
+        <p className="text-[11px] text-muted mt-3">Rules active now · IST · {where}. Exact availability and fare depend on the route, cab type and pickup time.</p>
+      </section>
 
-      <TariffConfigCard />
-      <FareAdjustmentCard />
+      <StageBar label="Settings" tabs={(["Booking availability", "Cab types", "Pricing rules", "More settings"] as const).map((t) => ({ id: t, label: t }))} value={tab} onChange={setTab} />
 
-      {/* Summary Cards */}
-      {fareRules.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-red-50 text-[#E21B23] flex items-center justify-center font-bold">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-[#666]">Total Fare Rules</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.total}</div>
-            </div>
+      {tab === "Booking availability" && (
+        <section className="ds-panel ds-panel-pad">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div><h2 className="text-[16px] font-bold text-ink">Can customers book in this area?</h2><Ta>இந்த இடத்தில் booking எடுக்கலாமா?</Ta></div>
+            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "availability" })}>Add booking availability</Button>}
           </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-[#666]">Active Rules</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.active}</div>
-            </div>
+          {statusChips}
+          {ruleTable(byKind("availability")) ?? <EmptyState title="Booking service is available by default" hint="No additional availability setting for this selection. Wider matching settings still apply." />}
+          <p className="text-[11px] text-faint mt-3">Set pickup dates and times inside each rule. Use More settings for base rates and local fares.</p>
+        </section>
+      )}
+      {tab === "Cab types" && (
+        <section className="ds-panel ds-panel-pad">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div><h2 className="text-[16px] font-bold text-ink">Which cab types should customers see?</h2><Ta>Customer-க்கு எந்த car வகைகளைக் காட்ட வேண்டும்?</Ta></div>
+            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "categories" })}>Add cab types</Button>}
           </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-[#666]">Services Configured</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.servicesCount}</div>
-            </div>
+          {statusChips}
+          {ruleTable(byKind("categories")) ?? <EmptyState title="All active cab types are shown" hint="No cab type rule for this selection. Wider matching settings still apply." />}
+        </section>
+      )}
+      {tab === "Pricing rules" && (
+        <section className="ds-panel ds-panel-pad">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+            <div><h2 className="text-[16px] font-bold text-ink">When should the fare increase or decrease?</h2><Ta>இந்த இடத்திற்குக் கட்டணத்தை ஏற்ற / குறைக்க</Ta></div>
+            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "pricing" })}>Add pricing rule</Button>}
           </div>
-
-          <div className="bg-white p-4 rounded-2xl border border-[#E5E5E5] shadow-xs flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
-              </svg>
-            </div>
-            <div>
-              <div className="text-[11px] font-medium text-[#666]">Fleet Classes Covered</div>
-              <div className="text-lg font-bold text-[#111111]">{stats.categoriesCount}</div>
-            </div>
+          <div className="ds-kpi-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
+            <div className="ds-kpi"><span className="ds-kpi-label">Customer fare</span><span className="ds-kpi-note">Amount the customer pays</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing")[0] ? adjText(activeOf("pricing")[0].customer) : "Normal applicable fare"}</span></div>
+            <div className="ds-kpi"><span className="ds-kpi-label">Partner payout</span><span className="ds-kpi-note">Amount for the Vendor / Driver Partner</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing")[0] ? adjText(activeOf("pricing")[0].partner) : "Normal applicable payout"}</span></div>
           </div>
-        </div>
+          {statusChips}
+          {ruleTable(byKind("pricing")) ?? <EmptyState title="Normal applicable fare" hint="No additional fare adjustment for this selection. Wider matching settings still apply." />}
+          <div className="mt-5"><FareAdjustmentCard /></div>
+        </section>
+      )}
+      {tab === "More settings" && (
+        <section className="ds-panel ds-panel-pad">
+          <h2 className="text-[16px] font-bold text-ink">Choose what you want to manage.</h2>
+          <p className="text-[12px] text-muted mb-4">Each tool shows its own scope</p>
+          <div className="ds-tool-grid">
+            {tools.map(([t, d, scope, go]) => (
+              <button key={t} type="button" className="ds-tool" onClick={go}>
+                <strong>{t}</strong><span>{d}</span><small>{scope}</small><Icon name="arrow-up-right" />
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-faint mt-4">Check the location, service and pickup dates inside each tool before saving.</p>
+        </section>
       )}
 
-      <AppFarePreview categories={categories} />
-
-      {/* Rate-card quotation calculator (admin / phone bookings) */}
-      <div className="bg-white rounded-2xl border border-[#E5E5E5] p-4 sm:p-5 space-y-4 shadow-xs">
-        <div className="border-b border-[#E5E5E5] pb-3">
-          <h2 className="text-sm font-bold text-[#111111]">Rate Card Quotation Calculator</h2>
-          <p className="text-[11px] text-[#666]">
-            Quotes a trip from the active fare rules below (highest priority, currently effective). Use for admin / phone quotations — app bookings are priced from category fares above.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3 text-xs">
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Service Type</label>
-            <select
-              value={calcInput.serviceId || ""}
-              onChange={(e) => setCalcInput({ ...calcInput, serviceId: e.target.value })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl bg-white text-xs focus:border-[#E21B23] focus:outline-none"
-            >
-              <option value="">Any service</option>
-              {services.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Vehicle Category</label>
-            <select
-              value={calcCategoryId}
-              onChange={(e) => setCalcInput({ ...calcInput, vehicleCategoryId: e.target.value })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl bg-white text-xs focus:border-[#E21B23] focus:outline-none"
-            >
-              {categories.length === 0 && <option value="">No categories</option>}
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Distance (KM)</label>
-            <input
-              type="number"
-              value={calcInput.distanceKm}
-              onChange={(e) => setCalcInput({ ...calcInput, distanceKm: parseFloat(e.target.value) || 0 })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Trip Days</label>
-            <input
-              type="number"
-              value={calcInput.tripDays}
-              onChange={(e) => setCalcInput({ ...calcInput, tripDays: parseInt(e.target.value) || 1 })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Pickup Time</label>
-            <input
-              type="time"
-              value={calcInput.pickupTime}
-              onChange={(e) => setCalcInput({ ...calcInput, pickupTime: e.target.value })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[10px] font-semibold text-[#666] mb-1">Waiting (Mins)</label>
-            <input
-              type="number"
-              value={calcInput.waitingMinutes}
-              onChange={(e) => setCalcInput({ ...calcInput, waitingMinutes: parseInt(e.target.value) || 0 })}
-              className="w-full p-2 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-            />
-          </div>
-        </div>
-
-        {/* Live Calculation Output Display */}
-        {!calcResult && (
-          <p className="text-[11px] text-[#666] bg-gray-50 border border-[#E5E5E5] rounded-xl p-3">
-            {!calcCategoryId
-              ? "Add a vehicle category to quote fares."
-              : !(Number(calcInput.distanceKm) > 0)
-                ? "Enter a distance to calculate a quotation."
-                : "No active fare rule or category fare is configured for this service and category."}
-          </p>
-        )}
-        {calcResult && (
-          <div className="bg-gray-50 border border-[#E5E5E5] rounded-xl p-4 text-xs space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 pb-2">
-              <div className="flex items-center gap-2">
-                <span className="font-bold text-[#111111]">Matched Rule:</span>
-                <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white border border-gray-200 text-[#E21B23]">
-                  {calcResult.matchedRule ? calcResult.matchedRule.name : "Vehicle category fare"}
-                </span>
-                {calcResult.fallbackUsed && (
-                  <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                    No matching rule — category fare used
-                  </span>
-                )}
-              </div>
-
-              <div className="text-right">
-                <span className="text-[11px] text-[#666]">Estimated Grand Total (incl. 5% GST): </span>
-                <span className="text-base font-bold text-[#E21B23]">₹{calcResult.grandTotal.toLocaleString()}</span>
-              </div>
-            </div>
-
-            {/* Itemized Breakdown List */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {calcResult.breakdown.map((item, idx) => (
-                <div key={idx} className="flex justify-between items-center bg-white px-3 py-1.5 rounded-lg border border-gray-200 text-[11px]">
-                  <span className="text-gray-700">{item.label}</span>
-                  <span className={`font-semibold ${item.amount < 0 ? "text-emerald-600" : "text-[#111111]"}`}>
-                    {item.amount < 0 ? `-₹${Math.abs(item.amount)}` : `₹${item.amount}`}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Main Content Area */}
-      {loading ? (
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-12 text-center shadow-xs">
-          <div className="w-8 h-8 border-2 border-[#E21B23] border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs text-[#666]">Loading Master Fare Rules from Firestore…</p>
-        </div>
-      ) : loadError && fareRules.length === 0 ? null : fareRules.length === 0 ? (
-        /* Empty State Placeholder (Matches Screenshot & Prompt Instructions) */
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-10 sm:p-16 text-center max-w-2xl mx-auto my-8 shadow-xs">
-          <div className="w-16 h-16 rounded-2xl bg-red-50 text-[#E21B23] flex items-center justify-center mx-auto mb-4 border border-red-100 shadow-inner">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-            </svg>
-          </div>
-          <h2 className="text-lg font-bold text-[#111111] mb-2">No fare rules found.</h2>
-          <p className="text-xs text-[#666] mb-6 leading-relaxed max-w-md mx-auto">
-            Set base fare, per-km rates, driver batta, waiting charges, toll handling and night surcharges for each service and vehicle category.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-            <button
-              onClick={handleOpenCreate}
-              className="w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md"
-              style={{ background: "#E21B23" }}
-            >
-              Add Fare Rule
-            </button>
-          </div>
-        </div>
-      ) : (
-        /* Fare Rules Directory Table */
-        <div className="bg-white rounded-2xl border border-[#E5E5E5] p-4 sm:p-5 space-y-4 shadow-xs">
-          {/* Controls Bar */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            <div className="relative flex-1">
-              <svg className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-              </svg>
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search rules by name, service, category, code..."
-                className="w-full pl-9 pr-4 py-2 border border-[#E5E5E5] rounded-xl text-xs focus:outline-none focus:border-[#E21B23]"
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <select
-                value={serviceFilter}
-                onChange={(e) => setServiceFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
-              >
-                <option value="All">All Services</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
-              >
-                <option value="All">All Categories</option>
-                {categories.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={modelFilter}
-                onChange={(e) => setModelFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
-              >
-                <option value="All">All Pricing Types</option>
-                {PRICING_MODELS.map((m) => (
-                  <option key={m.value} value={m.value}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="px-3 py-2 border border-[#E5E5E5] rounded-xl text-xs bg-white text-[#111111] focus:outline-none focus:border-[#E21B23]"
-              >
-                <option value="All">All Statuses</option>
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Table */}
-          <div className="overflow-x-auto border border-[#E5E5E5] rounded-xl">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-gray-50 border-b border-[#E5E5E5] text-[#666] font-semibold">
-                <tr>
-                  <th className="py-3 px-3">Rule Name</th>
-                  <th className="py-3 px-3">Pricing Type</th>
-                  <th className="py-3 px-3">Service & Category</th>
-                  <th className="py-3 px-3">Base Fare</th>
-                  <th className="py-3 px-3">Per KM</th>
-                  <th className="py-3 px-3">Driver Batta</th>
-                  <th className="py-3 px-3">Night Charge</th>
-                  <th className="py-3 px-3">Status</th>
-                  <th className="py-3 px-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#E5E5E5]">
-                {filteredRules.length === 0 && (
-                  <tr>
-                    <td colSpan={9} className="py-8 text-center text-[#666]">
-                      No fare rules match the current filters.
-                    </td>
-                  </tr>
-                )}
-                {filteredRules.map((rule) => {
-                  const badge = MODEL_BADGES[rule.pricingType] || MODEL_BADGES.BASE_PLUS_PER_KM;
-                  return (
-                    <tr key={rule.id} className="hover:bg-gray-50/80 transition-colors">
-                      <td className="py-3 px-3 font-semibold text-[#111111]">
-                        <div>{rule.name}</div>
-                        {rule.code && <div className="text-[10px] font-mono text-gray-500">{rule.code}</div>}
-                        <div className="text-[10px] font-normal text-gray-500">
-                          Priority {rule.priority ?? 1}
-                          {(rule.effectiveFrom || rule.effectiveUntil) && ` • ${rule.effectiveFrom || "…"} to ${rule.effectiveUntil || "…"}`}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <span className={`px-2 py-0.5 text-[10px] font-bold rounded border ${badge.bg} ${badge.text} ${badge.border}`}>
-                          {PRICING_MODELS.find((m) => m.value === rule.pricingType)?.label || rule.pricingType}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-3 text-[#111111]">
-                        <div className="font-semibold">{rule.serviceName || "All Services"}</div>
-                        <div className="text-[10px] text-gray-500">
-                          {categories.find((c) => c.id === rule.vehicleCategoryId)?.name || rule.vehicleCategoryName || "Unknown category"}
-                        </div>
-                      </td>
-
-                      <td className="py-3 px-3 font-semibold text-[#111111]">
-                        ₹{rule.baseFare}
-                        {rule.baseKm > 0 && <span className="text-[10px] font-normal text-gray-500"> ({rule.baseKm}km)</span>}
-                      </td>
-
-                      <td className="py-3 px-3 font-semibold text-[#111111]">
-                        ₹{rule.perKmRate}/km
-                      </td>
-
-                      <td className="py-3 px-3 text-[#111111]">
-                        ₹{rule.driverBatta}/day
-                      </td>
-
-                      <td className="py-3 px-3">
-                        {rule.nightChargeEnabled ? (
-                          <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-100 font-medium">
-                            ✓ {rule.nightChargeValue}{rule.nightChargeType === "Percentage" ? "%" : "₹"}
-                          </span>
-                        ) : (
-                          <span className="text-[10px] text-gray-500">—</span>
-                        )}
-                      </td>
-
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2 py-0.5 text-[10px] font-semibold rounded-full border ${
-                            rule.status === "Active"
-                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                              : "bg-gray-100 text-gray-600 border-gray-200"
-                          }`}
-                        >
-                          {rule.status}
-                        </span>
-                      </td>
-
-                      <td className="py-3 px-3 text-right space-x-2">
-                        <button
-                          onClick={() => handleToggleStatus(rule)}
-                          disabled={rowBusyId !== null}
-                          className={`text-[11px] font-semibold disabled:opacity-40 ${
-                            rule.status === "Active" ? "text-amber-600 hover:underline" : "text-emerald-600 hover:underline"
-                          }`}
-                        >
-                          {rule.status === "Active" ? "Deactivate" : "Activate"}
-                        </button>
-                        <button
-                          onClick={() => handleDuplicate(rule)}
-                          disabled={rowBusyId !== null}
-                          className="text-blue-600 hover:underline font-semibold text-[11px] disabled:opacity-40"
-                        >
-                          Copy
-                        </button>
-                        <button
-                          onClick={() => handleOpenEdit(rule)}
-                          className="text-[#111111] hover:underline font-semibold text-[11px]"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => handlePromptDelete(rule)}
-                          className="text-red-600 hover:underline font-semibold text-[11px]"
-                        >
-                          Delete
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
-      {/* Add / Edit Fare Rule Modal Form */}
-      {showModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-[#E5E5E5] max-h-[92vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="p-4 sm:p-5 border-b border-[#E5E5E5] flex items-center justify-between bg-gray-50/50">
-              <div>
-                <h3 className="text-base font-bold text-[#111111]">
-                  {editingRule ? "Edit Master Fare Rule" : "Add Master Fare Rule"}
-                </h3>
-                <p className="text-[11px] text-[#666]">
-                  Configure master pricing parameters for central fare calculation.
-                </p>
-              </div>
-              <button
-                onClick={() => setShowModal(false)}
-                disabled={isSubmitting}
-                aria-label="Close"
-                className="w-8 h-8 rounded-full hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Form Tabs */}
-            <div className="flex border-b border-[#E5E5E5] bg-white px-5 pt-2 gap-4 text-xs font-semibold">
-              <button
-                onClick={() => setActiveTab("identity")}
-                className={`pb-2.5 border-b-2 transition-all ${
-                  activeTab === "identity" ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#666] hover:text-[#111111]"
-                }`}
-              >
-                1. Rule Identity & Scope{tabHasError("identity") && <span className="text-red-600"> •</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab("pricing")}
-                className={`pb-2.5 border-b-2 transition-all ${
-                  activeTab === "pricing" ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#666] hover:text-[#111111]"
-                }`}
-              >
-                2. Base & Distance Rules{tabHasError("pricing") && <span className="text-red-600"> •</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab("allowances")}
-                className={`pb-2.5 border-b-2 transition-all ${
-                  activeTab === "allowances" ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#666] hover:text-[#111111]"
-                }`}
-              >
-                3. Allowances & Surcharges{tabHasError("allowances") && <span className="text-red-600"> •</span>}
-              </button>
-              <button
-                onClick={() => setActiveTab("overrides")}
-                className={`pb-2.5 border-b-2 transition-all ${
-                  activeTab === "overrides" ? "border-[#E21B23] text-[#E21B23]" : "border-transparent text-[#666] hover:text-[#111111]"
-                }`}
-              >
-                4. Tolls & Settings{tabHasError("overrides") && <span className="text-red-600"> •</span>}
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <form onSubmit={handleSave} className="p-5 space-y-4 overflow-y-auto flex-1 text-xs">
-              {formError && (
-                <div className="p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs flex items-center gap-2">
-                  <svg className="w-4 h-4 text-red-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {formError}
-                </div>
-              )}
-
-              {/* TAB 1: IDENTITY & SCOPE */}
-              {activeTab === "identity" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Rule Name *
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.name}
-                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                        placeholder="e.g. Airport Taxi Sedan Standard Rate, Outstation Daily Innova"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        maxLength={80}
-                      />
-                      {errNode("name")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Rule Code (optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.code}
-                        onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-                        placeholder="e.g. AIRPORT-SEDAN"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs font-mono focus:border-[#E21B23] focus:outline-none"
-                        maxLength={30}
-                      />
-                      {errNode("code")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Travel Service
-                      </label>
-                      <select
-                        value={formData.serviceId}
-                        onChange={(e) => setFormData({ ...formData, serviceId: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                      >
-                        <option value="">Any service</option>
-                        {services.map((s) => (
-                          <option key={s.id} value={s.id}>
-                            {s.name}
-                            {s.status && s.status !== "Active" ? ` (${s.status})` : ""}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Vehicle Category *
-                      </label>
-                      <select
-                        value={formData.vehicleCategoryId}
-                        onChange={(e) => setFormData({ ...formData, vehicleCategoryId: e.target.value })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                      >
-                        <option value="">Choose a category</option>
-                        {categories.map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name} ({c.seatingCapacity} seats){c.status !== "Active" ? ` — ${c.status}` : ""}
-                          </option>
-                        ))}
-                      </select>
-                      {errNode("vehicleCategoryId")}
-                    </div>
-
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Pricing Model *
-                      </label>
-                      <select
-                        value={formData.pricingType}
-                        onChange={(e) => setFormData({ ...formData, pricingType: e.target.value as PricingModel })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none font-semibold"
-                      >
-                        {PRICING_MODELS.map((m) => (
-                          <option key={m.value} value={m.value}>
-                            {m.label} — {m.desc}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    {/* Fixed Route Location Selectors */}
-                    {formData.pricingType === "FIXED_ROUTE" && (
-                      <>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                            Origin Location *
-                          </label>
-                          <select
-                            value={formData.originLocationId}
-                            onChange={(e) => setFormData({ ...formData, originLocationId: e.target.value })}
-                            className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                          >
-                            <option value="">Select Origin Location</option>
-                            {locations.map((l) => (
-                              <option key={l.id} value={l.id}>
-                                {l.name} ({l.city})
-                              </option>
-                            ))}
-                          </select>
-                        {errNode("originLocationId")}
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                            Destination Location *
-                          </label>
-                          <select
-                            value={formData.destinationLocationId}
-                            onChange={(e) => setFormData({ ...formData, destinationLocationId: e.target.value })}
-                            className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                          >
-                            <option value="">Select Destination Location</option>
-                            {locations.map((l) => (
-                              <option key={l.id} value={l.id}>
-                                {l.name} ({l.city})
-                              </option>
-                            ))}
-                          </select>
-                        {errNode("destinationLocationId")}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 2: BASE & DISTANCE RULES */}
-              {activeTab === "pricing" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Base Fare (₹) *
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.baseFare}
-                        onChange={(e) => setFormData({ ...formData, baseFare: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 350"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        required
-                      />
-                    {errNode("baseFare")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Base Included Distance (KM)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.baseKm}
-                        onChange={(e) => setFormData({ ...formData, baseKm: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 10 (0 if no base km)"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                    {errNode("baseKm")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Per-KM Rate (₹/km) *
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.perKmRate}
-                        onChange={(e) => setFormData({ ...formData, perKmRate: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 13"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        required
-                      />
-                    {errNode("perKmRate")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Min Outstation Billable KM / Day
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.minimumKmPerDay}
-                        onChange={(e) => setFormData({ ...formData, minimumKmPerDay: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 250"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                    {errNode("minimumKmPerDay")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Minimum Fare (₹)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={formData.minimumFare}
-                        onChange={(e) => setFormData({ ...formData, minimumFare: parseFloat(e.target.value) || 0 })}
-                        placeholder="0 if none"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                      {errNode("minimumFare")}
-                    </div>
-
-                    {/* Hourly Package fields */}
-                    {formData.pricingType === "HOURLY_RENTAL" && (
-                      <>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                            Included Hours
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.includedHours}
-                            onChange={(e) => setFormData({ ...formData, includedHours: parseInt(e.target.value) || 0 })}
-                            className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                          />
-                        {errNode("includedHours")}
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                            Extra KM Rate (₹/km)
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.extraKmRate}
-                            onChange={(e) => setFormData({ ...formData, extraKmRate: parseFloat(e.target.value) || 0 })}
-                            className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                          />
-                        {errNode("extraKmRate")}
-                        </div>
-
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                            Extra Hour Rate (₹/hr)
-                          </label>
-                          <input
-                            type="number"
-                            value={formData.extraHourRate}
-                            onChange={(e) => setFormData({ ...formData, extraHourRate: parseFloat(e.target.value) || 0 })}
-                            className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                          />
-                        {errNode("extraHourRate")}
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: ALLOWANCES & SURCHARGES */}
-              {activeTab === "allowances" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Driver Batta / Allowance (₹ per day) *
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.driverBatta}
-                        onChange={(e) => setFormData({ ...formData, driverBatta: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 250"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                    {errNode("driverBatta")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Waiting Charge Rate (₹ per hour)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.waitingChargePerHour}
-                        onChange={(e) => setFormData({ ...formData, waitingChargePerHour: parseFloat(e.target.value) || 0 })}
-                        placeholder="e.g. 80"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                    {errNode("waitingChargePerHour")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Free Waiting (minutes)
-                      </label>
-                      <input
-                        type="number"
-                        min={0}
-                        value={formData.freeWaitingMinutes}
-                        onChange={(e) => setFormData({ ...formData, freeWaitingMinutes: parseInt(e.target.value) || 0 })}
-                        placeholder="0 if none"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                      {errNode("freeWaitingMinutes")}
-                    </div>
-
-                    {/* Night Surcharge Box */}
-                    <div className="sm:col-span-2 p-3 bg-gray-50 border border-[#E5E5E5] rounded-xl space-y-3">
-                      <div className="flex items-center justify-between">
-                        <label className="flex items-center gap-2 cursor-pointer font-bold text-[#111111]">
-                          <input
-                            type="checkbox"
-                            checked={formData.nightChargeEnabled}
-                            onChange={(e) => setFormData({ ...formData, nightChargeEnabled: e.target.checked })}
-                            className="accent-[#E21B23]"
-                          />
-                          Night Surcharge Enabled
-                        </label>
-                        <span className="text-[10px] text-[#666]">Evaluated across midnight windows</span>
-                      </div>
-
-                      {formData.nightChargeEnabled && (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
-                          <div>
-                            <label className="block text-[10px] font-semibold text-[#666]">Night Window Start</label>
-                            <input
-                              type="time"
-                              value={formData.nightStartTime}
-                              onChange={(e) => setFormData({ ...formData, nightStartTime: e.target.value })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-[#666]">Night Window End</label>
-                            <input
-                              type="time"
-                              value={formData.nightEndTime}
-                              onChange={(e) => setFormData({ ...formData, nightEndTime: e.target.value })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs"
-                            />
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-[#666]">Charge Type</label>
-                            <select
-                              value={formData.nightChargeType}
-                              onChange={(e) => setFormData({ ...formData, nightChargeType: e.target.value as FareRuleForm["nightChargeType"] })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs"
-                            >
-                              <option value="Percentage">Percentage (%)</option>
-                              <option value="Fixed">Fixed Amount (₹)</option>
-                            </select>
-                          </div>
-
-                          <div>
-                            <label className="block text-[10px] font-semibold text-[#666]">
-                              {formData.nightChargeType === "Percentage" ? "Value (%)" : "Amount (₹)"}
-                            </label>
-                            <input
-                              type="number"
-                              value={formData.nightChargeValue}
-                              onChange={(e) => setFormData({ ...formData, nightChargeValue: parseFloat(e.target.value) || 0 })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs font-bold text-[#E21B23]"
-                            />
-                          {errNode("nightChargeValue")}
-                          </div>
-                          <div className="col-span-2 sm:col-span-4">
-                            {errNode("nightStartTime")}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 4: TOLLS, PARKING & SETTINGS */}
-              {activeTab === "overrides" && (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Toll Charges Mode
-                      </label>
-                      <select
-                        value={formData.tollMode}
-                        onChange={(e) => setFormData({ ...formData, tollMode: e.target.value as FareRuleForm["tollMode"] })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                      >
-                        <option value="Excluded">Excluded (Actuals at Toll Gates)</option>
-                        <option value="Included">Included in Fare</option>
-                        <option value="Fixed">Fixed Amount</option>
-                      </select>
-                    </div>
-
-                    {formData.tollMode === "Fixed" && (
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                          Fixed Toll Amount (₹)
-                        </label>
-                        <input
-                          type="number"
-                          value={formData.fixedTollAmount}
-                          onChange={(e) => setFormData({ ...formData, fixedTollAmount: parseFloat(e.target.value) || 0 })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        />
-                      {errNode("fixedTollAmount")}
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Interstate Permit Charge (₹)
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.permitCharge}
-                        onChange={(e) => setFormData({ ...formData, permitCharge: parseFloat(e.target.value) || 0 })}
-                        placeholder="0 if none"
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                    {errNode("permitCharge")}
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Parking Charges Mode
-                      </label>
-                      <select
-                        value={formData.parkingMode}
-                        onChange={(e) => setFormData({ ...formData, parkingMode: e.target.value as FareRuleForm["parkingMode"] })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none"
-                      >
-                        <option value="Excluded">Excluded (Actuals)</option>
-                        <option value="Included">Included in Fare</option>
-                        <option value="Fixed">Fixed Amount</option>
-                      </select>
-                    </div>
-
-                    {formData.parkingMode === "Fixed" && (
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                          Fixed Parking Amount (₹)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={formData.fixedParkingAmount}
-                          onChange={(e) => setFormData({ ...formData, fixedParkingAmount: parseFloat(e.target.value) || 0 })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        />
-                        {errNode("fixedParkingAmount")}
-                      </div>
-                    )}
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Priority (1 = highest)
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        max={99}
-                        value={formData.priority}
-                        onChange={(e) => setFormData({ ...formData, priority: parseInt(e.target.value) || 0 })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                      />
-                      {errNode("priority")}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[#111111] mb-1">Effective From</label>
-                        <input
-                          type="date"
-                          value={formData.effectiveFrom}
-                          onChange={(e) => setFormData({ ...formData, effectiveFrom: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        />
-                        {errNode("effectiveFrom")}
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[#111111] mb-1">Effective Until</label>
-                        <input
-                          type="date"
-                          value={formData.effectiveUntil}
-                          onChange={(e) => setFormData({ ...formData, effectiveUntil: e.target.value })}
-                          className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs focus:border-[#E21B23] focus:outline-none"
-                        />
-                        {errNode("effectiveUntil")}
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-[#111111] mb-1">
-                        Status
-                      </label>
-                      <select
-                        value={formData.status}
-                        onChange={(e) => setFormData({ ...formData, status: e.target.value as FareRuleForm["status"] })}
-                        className="w-full p-2.5 border border-[#E5E5E5] rounded-xl text-xs bg-white focus:border-[#E21B23] focus:outline-none font-semibold"
-                      >
-                        <option value="Active">Active</option>
-                        <option value="Inactive">Inactive</option>
-                      </select>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="pt-4 border-t border-[#E5E5E5] flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2">
-                  {activeTab !== "identity" && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveTab(
-                          activeTab === "overrides" ? "allowances" : activeTab === "allowances" ? "pricing" : "identity"
-                        )
-                      }
-                      className="px-3 py-2 border border-[#E5E5E5] text-[#111111] rounded-xl font-semibold text-xs"
-                    >
-                      ← Back
-                    </button>
-                  )}
-                  {activeTab !== "overrides" && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setActiveTab(
-                          activeTab === "identity" ? "pricing" : activeTab === "pricing" ? "allowances" : "overrides"
-                        )
-                      }
-                      className="px-3 py-2 bg-gray-100 text-[#111111] rounded-xl font-semibold text-xs hover:bg-gray-200"
-                    >
-                      Next Step →
-                    </button>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setShowModal(false)}
-                    disabled={isSubmitting}
-                    className="px-4 py-2 border border-[#E5E5E5] text-[#666] rounded-xl font-semibold text-xs hover:bg-gray-50 disabled:opacity-50"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-60"
-                    style={{ background: "#E21B23" }}
-                  >
-                    {isSubmitting && (
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    )}
-                    {editingRule ? "Save Changes" : "Create Fare Rule"}
-                  </button>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {deletingRule && (
-        <ConfirmDialog
-          title="Delete Fare Rule"
-          message={`Delete "${deletingRule.name}"? Existing bookings keep their own stored price; only future quotations are affected. To keep it for later, deactivate it instead.`}
-          confirmLabel="Delete"
-          danger
-          busy={deleteBusy}
-          error={deleteError}
-          onConfirm={handleConfirmDelete}
-          onCancel={() => setDeletingRule(null)}
-        />
-      )}
+      {sheet?.kind === "new" && <RuleSheet kind={sheet.ruleKind} sel={sel} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
+      {sheet?.kind === "edit" && <RuleSheet kind={sheet.rule.kind} rule={sheet.rule} sel={sel} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
+      {sheet?.kind === "preview" && <PreviewSheet rule={sheet.rule} onTest={() => setSheet({ kind: "test" })} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "status" && <StatusSheet rule={sheet.rule} to={sheet.to!} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
+      {sheet?.kind === "history" && <HistorySheet rules={rules} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "test" && <TestFareSheet onClose={() => setSheet(null)} />}
+      {sheet?.kind === "base" && <Modal title="Company-wide base rates" onClose={() => setSheet(null)} wide><TariffConfigCard /></Modal>}
+      {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
+      {sheet?.kind === "tax" && <TaxSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); show("Approved tax policy saved."); }} />}
     </div>
+  );
+}
+
+function TaxSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
+  const [policy, setPolicy] = useState<TaxPolicy | null | undefined>(undefined);
+  useEffect(() => subscribeToDocument<TaxPolicy>("settings/tax_policy", setPolicy, () => setPolicy(null)), []);
+  if (policy === undefined) return null;
+  const fallback: TaxPolicy = { services: Object.fromEntries(["One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"].map((s) => [s, { classification: s === "Local Rental" ? "Vehicle rental" : "Passenger transportation", sac: s === "Local Rental" ? "996601" : "996412" }])), approved: false, reference: "" };
+  return <TaxPolicyDialog policy={policy ? { ...fallback, ...policy, services: { ...fallback.services, ...policy.services } } : fallback} onClose={onClose} onSaved={onSaved} />;
+}
+
+function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDone }: {
+  kind: RuleKind; rule?: ServiceRule; sel: Sel; categories: string[]; services: TravelService[]; rules: ServiceRule[]; onClose: () => void; onDone: (t: string) => void;
+}) {
+  const [scope, setScope] = useState(rule?.scope ?? { ...sel, side: "Pickup or drop" as Side });
+  const [name, setName] = useState(rule?.name ?? "");
+  const [service, setService] = useState(rule?.service ?? "All");
+  const [priority, setPriority] = useState(rule?.priority ?? 10);
+  const [mode, setMode] = useState<"Always" | "Range">(rule?.schedule.mode ?? "Always");
+  const [from, setFrom] = useState(rule?.schedule.from?.slice(0, 16) ?? "");
+  const [to, setTo] = useState(rule?.schedule.to?.slice(0, 16) ?? "");
+  const [availability, setAvailability] = useState(rule?.availability ?? "Available");
+  const [cats, setCats] = useState<string[]>(rule?.categories ?? []);
+  const [customer, setCustomer] = useState<Adjustment>(rule?.customer ?? { mode: "Normal", percent: 0 });
+  const [partner, setPartner] = useState<Adjustment>(rule?.partner ?? { mode: "Normal", percent: 0 });
+  const [limit, setLimit] = useState(rule?.limit ?? { target: "Customer fare" as const, category: "All", min: 0, max: 0, reference: "" });
+  const [reason, setReason] = useState("");
+  const [more, setMore] = useState(!!rule);
+  const [preview, setPreview] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const where = [scope.area, scope.city, scope.state && GST_STATES.find(([c]) => c === scope.state)?.[1]].filter(Boolean).join(", ") || "All locations";
+  const title = { availability: "Booking availability", categories: "Cab types", pricing: "Pricing rules", limit: "Fare limit" }[kind];
+  const draft: Omit<ServiceRule, "id"> = {
+    kind, name: name.trim() || `${scope.area || scope.city || "All locations"} ${kind === "categories" ? "cab categories" : kind === "availability" ? "availability" : kind === "pricing" ? "fare rule" : "fare limit"}`,
+    status: rule?.status === "Disabled" ? "Disabled" : "Enabled", priority, scope, service: service === "All" ? "" : service,
+    schedule: mode === "Always" ? { mode } : { mode, ...(from ? { from: new Date(from).toISOString() } : {}), ...(to ? { to: new Date(to).toISOString() } : {}) },
+    ...(kind === "availability" ? { availability } : {}), ...(kind === "categories" ? { categories: cats } : {}),
+    ...(kind === "pricing" ? { customer, partner } : {}), ...(kind === "limit" ? { limit } : {}), reason: reason.trim(),
+  };
+  // Same kind, same scope and service, overlapping schedule = conflict.
+  const conflict = rules.find((r) => r.id !== rule?.id && r.kind === kind && r.status === "Enabled" && r.priority === priority
+    && r.scope.state === scope.state && r.scope.city === scope.city && r.scope.area === scope.area && (r.service || "") === draft.service
+    && (r.schedule.mode === "Always" || mode === "Always" || !(Date.parse(r.schedule.to ?? "9999") < Date.parse(from || "0") || Date.parse(to || "9999") < Date.parse(r.schedule.from ?? "0"))));
+  const check = () => {
+    if (kind === "categories" && !cats.length) return "Choose at least one cab type.";
+    if (kind === "pricing" && customer.mode === "Normal" && partner.mode === "Normal") return "Choose an increase or decrease for the customer fare or the partner payout.";
+    if (kind === "pricing" && [customer, partner].some((a) => a.mode !== "Normal" && !(a.percent > 0 && a.percent < 100))) return "Enter a percentage between 1 and 99.";
+    if (kind === "limit" && !(limit.max > 0 && limit.max >= limit.min)) return "Enter a valid minimum and maximum.";
+    if (mode === "Range" && !from && !to) return "Set the pickup date range or choose Always.";
+    if (conflict) return `Resolve this overlapping rule before preview: ${conflict.name}.`;
+    if (reason.trim().length < 5) return "Record the reason for this change.";
+    return null;
+  };
+  const save = async (e: FormEvent) => {
+    e.preventDefault();
+    const why = check();
+    if (why) return setError(why);
+    if (!preview) { setError(null); return setPreview(true); }
+    setBusy(true);
+    try { await saveRule(draft, rule?.id, rule); onDone(`${draft.name} saved.`); }
+    catch { setError("The setting was not saved. Check your permissions and try again."); setBusy(false); }
+  };
+  const adjEditor = (label: string, sub: string, a: Adjustment, set: (a: Adjustment) => void) => (
+    <div className="ds-panel ds-panel-pad">
+      <strong className="text-[13px] text-ink">{label}</strong><p className="text-[11px] text-muted mb-2">{sub}</p>
+      <div className="ds-seg" style={{ "--ds-seg": 3 } as React.CSSProperties}>{(["Normal", "Increase", "Decrease"] as const).map((m) => <button key={m} type="button" aria-pressed={a.mode === m} onClick={() => set({ ...a, mode: m })}>{m === "Normal" ? "Normal rate" : m}</button>)}</div>
+      {a.mode !== "Normal" ? <label className="ds-field mt-2"><span>Percent</span><input className="ds-input" type="number" min={1} max={99} value={a.percent || ""} onChange={(e) => set({ ...a, percent: Number(e.target.value) })} /></label> : <p className="text-[11px] text-faint mt-2">Use the applicable base amount.</p>}
+    </div>
+  );
+  return (
+    <Modal title={rule ? "Edit settings" : "Add settings"} onClose={onClose} busy={busy} size="lg" footNote="Review the location, amounts and pickup schedule before saving." footer={<>{preview && <Button onClick={() => setPreview(false)}>Back</Button>}<Button variant="primary" type="submit" form="rule-form" loading={busy}>{preview ? "Save settings" : "Preview settings"}</Button></>}>
+      <form id="rule-form" onSubmit={save} className="grid gap-4" noValidate>
+        <p className="text-[12px] text-muted">{where} · {scope.side}</p>
+        {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
+        {preview ? (
+          <dl className="ds-facts" data-cols={2}>
+            {([["Rule", draft.name], ["Location", where], ["Service / categories", `${service} · ${kind === "categories" ? cats.join(" · ") : "All"}`], ["Value", summary(draft)], ["Pickup schedule", mode], ["Priority", String(priority)], ["Reason", reason]] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+          </dl>
+        ) : (
+          <>
+            <h3 className="text-[14px] font-bold text-ink">{title}</h3>
+            {kind === "availability" && (
+              <div className="grid gap-2">
+                {([["Available", "Customers can request bookings."], ["Limited", "Limited service. Office confirmation is required."], ["Paused", "Stop new booking requests for this selection."]] as const).map(([v, d]) => (
+                  <label key={v} className="ds-check ds-panel ds-panel-pad" style={{ alignItems: "center" }}><input type="radio" name="avail" checked={availability === v} onChange={() => setAvailability(v)} /><span><strong className="block text-[13px] text-ink">{v}</strong><small className="text-muted">{d}</small></span></label>
+                ))}
+              </div>
+            )}
+            {kind === "categories" && (
+              <>
+                <div className="flex flex-wrap gap-4">{categories.map((c) => <label key={c} className="ds-check"><input type="checkbox" checked={cats.includes(c)} onChange={(e) => setCats(e.target.checked ? [...cats, c] : cats.filter((x) => x !== c))} />{c}</label>)}</div>
+                <p className="text-[11px] text-faint">Unchecked categories stay hidden in search. Time-based cab unavailability is managed under Booking availability.</p>
+              </>
+            )}
+            {kind === "pricing" && (
+              <div className="grid gap-3 md:grid-cols-2">
+                {adjEditor("Customer fare", "Amount the customer pays", customer, setCustomer)}
+                {adjEditor("Partner payout", "Amount the partner receives", partner, setPartner)}
+                <p className="text-[11px] text-faint md:col-span-2">Customer fare and partner payout change independently. Fixed route / B2B adjustments require opt-in on the corresponding rate.</p>
+              </div>
+            )}
+            {kind === "limit" && (
+              <div className="ds-form-grid">
+                <label className="ds-field"><span>Applies to</span><select className="ds-select" value={limit.target} onChange={(e) => setLimit({ ...limit, target: e.target.value as typeof limit.target })}><option>Customer fare</option><option>Partner payout</option></select></label>
+                <label className="ds-field"><span>Category</span><select className="ds-select" value={limit.category} onChange={(e) => setLimit({ ...limit, category: e.target.value })}><option>All</option>{categories.map((c) => <option key={c}>{c}</option>)}</select></label>
+                <label className="ds-field"><span>Minimum · ₹</span><input className="ds-input" type="number" min={0} value={limit.min || ""} onChange={(e) => setLimit({ ...limit, min: Number(e.target.value) })} /></label>
+                <label className="ds-field"><span>Maximum · ₹</span><input className="ds-input" type="number" min={0} value={limit.max || ""} onChange={(e) => setLimit({ ...limit, max: Number(e.target.value) })} /></label>
+                <label className="ds-field" data-span="2"><span>Office approval / state notification reference</span><input className="ds-input" value={limit.reference} onChange={(e) => setLimit({ ...limit, reference: e.target.value })} /></label>
+              </div>
+            )}
+            <div className="ds-field"><span>Applicable pickup dates</span><Ta>எந்த pickup தேதிகளுக்குப் பொருந்தும்?</Ta>
+              <div className="ds-seg mt-1">{(["Always", "Range"] as const).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>{m === "Always" ? "Always" : "Specific dates & times"}</button>)}</div>
+            </div>
+            {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><input className="ds-input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label className="ds-field"><span>To · IST</span><input className="ds-input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>}
+            <details className="ds-disclosure" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
+              <summary>More options · Service, pickup / drop, categories &amp; priority</summary>
+              <div className="ds-form-grid">
+                <label className="ds-field"><span>Rule name</span><input className="ds-input" value={name} placeholder={draft.name} onChange={(e) => setName(e.target.value)} /></label>
+                <label className="ds-field"><span>Service</span><select className="ds-select" value={service} onChange={(e) => setService(e.target.value)}>{Array.from(new Set([...SERVICES, ...services.map((s) => s.name)])).map((s) => <option key={s}>{s}</option>)}</select></label>
+                <label className="ds-field"><span>Applies to</span><select className="ds-select" value={scope.side} onChange={(e) => setScope({ ...scope, side: e.target.value as Side })}><option>Pickup or drop</option><option>Pickup only</option><option>Drop only</option></select></label>
+                <label className="ds-field"><span>Priority</span><input className="ds-input" type="number" min={1} max={100} value={priority} onChange={(e) => setPriority(Number(e.target.value))} /></label>
+              </div>
+            </details>
+            {conflict && <p className="text-[11px] text-bad">Resolve this overlapping rule before preview · {conflict.name} · Change the location, dates, service or {kind === "categories" ? "cab types" : "priority"}.</p>}
+            <label className="ds-field"><span>Reason for this change</span><input className="ds-input" maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+          </>
+        )}
+      </form>
+    </Modal>
+  );
+}
+
+function PreviewSheet({ rule, onTest, onClose }: { rule: ServiceRule; onTest: () => void; onClose: () => void }) {
+  return (
+    <Modal title="Rule preview" onClose={onClose} footer={<Button icon="calculator" onClick={onTest}>Test search</Button>}>
+      <dl className="ds-facts" data-cols={2}>
+        {([["Rule", rule.name], ["Location", [rule.scope.area, rule.scope.city, rule.scope.state].filter(Boolean).join(", ") || "All locations"], ["Service / categories", `${rule.service || "All"} · ${rule.categories?.join(" · ") || "All"}`], ["State", phaseOf(rule)], ["Priority", String(rule.priority)], ["Customer / payout", rule.kind === "pricing" ? `${adjText(rule.customer)} / ${adjText(rule.partner)}` : "Not applicable"], ["Reason", rule.reason]] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+      </dl>
+      <p className="text-[11px] text-faint mt-3">Test customer search to see the rule applied to a real route.</p>
+    </Modal>
+  );
+}
+
+function StatusSheet({ rule, to, onClose, onDone }: { rule: ServiceRule; to: "Enabled" | "Disabled" | "Removed"; onClose: () => void; onDone: (t: string) => void }) {
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const verb = to === "Enabled" ? "Enable" : to === "Disabled" ? "Disable" : "Remove";
+  return (
+    <Modal title={`${verb} ${rule.name}`} onClose={onClose} busy={busy} footer={<><Button onClick={onClose}>Cancel</Button><Button variant={to === "Enabled" ? "primary" : "danger"} loading={busy} onClick={async () => {
+      if (reason.trim().length < 5) return setError("Record the reason for the status change.");
+      setBusy(true);
+      try { await setRuleStatus(rule, to, reason.trim()); onDone(`${rule.name} ${to.toLowerCase()}.`); } catch { setError("The status was not changed."); setBusy(false); }
+    }}>Confirm {verb.toLowerCase()}</Button></>}>
+      <p className="text-[13px] text-ink mb-1">{verb} this rule?</p>
+      <p className="text-[12px] text-muted mb-3">{[rule.scope.area, rule.scope.city].filter(Boolean).join(", ") || "All locations"} · {rule.scope.side} · {summary(rule)}</p>
+      {error && <div className="ds-error" role="alert">{error}</div>}
+      <label className="ds-field"><span>Reason for status change</span><input className="ds-input" value={reason} onChange={(e) => setReason(e.target.value)} /></label>
+    </Modal>
+  );
+}
+
+function HistorySheet({ rules, onClose }: { rules: ServiceRule[]; onClose: () => void }) {
+  const rows = rules.flatMap((r) => (r.history ?? []).map((h) => ({ ...h, rule: r }))).sort((a, b) => (b.at?.toMillis?.() ?? 0) - (a.at?.toMillis?.() ?? 0));
+  const [open, setOpen] = useState<(typeof rows)[number] | null>(null);
+  return (
+    <Modal title="Change history" onClose={onClose} wide footNote="Read-only change history">
+      <p className="text-[12px] text-muted mb-3">Who changed the setting, when it changed, and the recorded reason. Open View change for the original before / after values.</p>
+      {rows.length === 0 ? <EmptyState /> : (
+        <DataTable label="Change history" minWidth={820} hideTools hasActions>
+          <thead><tr><th>DATE / TIME · IST</th><th>CHANGE / RECORD</th><th>REASON</th><th>STAFF / ID</th><th className="ds-actions">DETAILS</th></tr></thead>
+          <tbody>{rows.map((r, i) => <tr key={i}><td>{refDateTime(r.at?.toDate?.() ?? null)}</td><td><strong>{r.action}</strong><small>{r.rule.name}</small></td><td>{r.reason}</td><td>{r.byName}</td><td className="ds-actions"><div><Button size="sm" onClick={() => setOpen(r)}>View change</Button></div></td></tr>)}</tbody>
+        </DataTable>
+      )}
+      {open && <Modal title="View change" onClose={() => setOpen(null)}><dl className="ds-facts" data-cols={1}><div><dt>Before</dt><dd>{open.before || "—"}</dd></div><div><dt>After</dt><dd>{open.after || "—"}</dd></div><div><dt>Reason</dt><dd>{open.reason}</dd></div></dl></Modal>}
+    </Modal>
+  );
+}
+
+function LimitsSheet({ rules, canEdit, onAdd, onClose }: { rules: ServiceRule[]; canEdit: boolean; onAdd: () => void; onClose: () => void }) {
+  return (
+    <Modal title="Fare limits" onClose={onClose} wide>
+      <div className="flex items-start justify-between gap-3 mb-3">
+        <div><strong className="text-[15px] text-ink">Office &amp; authority fare limits</strong><p className="text-[12px] text-muted">Stops a new quote for rate review when a configured limit is breached.</p></div>
+        {canEdit && <Button icon="plus" onClick={onAdd}>Add limit</Button>}
+      </div>
+      {rules.length === 0 ? <EmptyState title="No limits configured" hint="Add an office-approved limit or a verified state notification reference when applicable." /> : (
+        <DataTable label="Fare limits" minWidth={760} hideTools>
+          <thead><tr><th>LIMIT / REFERENCE</th><th>STATE / SERVICE / CATEGORY</th><th>CUSTOMER OR PARTNER</th><th>MINIMUM / MAXIMUM</th><th>STATUS</th></tr></thead>
+          <tbody>{rules.map((r) => <tr key={r.id}><td><strong>{r.name}</strong><small>{r.limit?.reference}</small></td><td>{r.scope.state || "All"} · {r.service || "All"} · {r.limit?.category}</td><td>{r.limit?.target}</td><td>₹{r.limit?.min} – ₹{r.limit?.max}</td><td><Badge tone={toneForStatus(phaseOf(r))}>{phaseOf(r)}</Badge></td></tr>)}</tbody>
+        </DataTable>
+      )}
+    </Modal>
+  );
+}
+
+function TestFareSheet({ onClose }: { onClose: () => void }) {
+  const data = useQuickData();
+  const [trip, setTrip] = useState<QuickTrip>(emptyTrip);
+  const [res, setRes] = useState<CategoryEstimate[] | null>(null);
+  const [sel, setSel] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const run = async (e: FormEvent) => {
+    e.preventDefault();
+    const why = validateTrip(trip);
+    if (why) return setError(why);
+    setBusy(true);
+    setError(null);
+    const list = await estimateAll(trip, data.categories);
+    setRes(list);
+    setSel(list.find((x) => x.quote)?.category.id ?? "");
+    setBusy(false);
+  };
+  const okCount = useMemo(() => res?.filter((r) => r.quote).length ?? 0, [res]);
+  return (
+    <Modal title="Test search · Shared availability & pricing" onClose={onClose} wide footNote="Uses the same rules as customer and office estimates." footer={<Button variant="primary" type="submit" form="test-fare" loading={busy}>Run test search</Button>}>
+      <form id="test-fare" onSubmit={run} noValidate>
+        {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
+        <div className="flex flex-wrap gap-3 mb-3 text-[12px]">
+          <label className="flex items-center gap-2 text-muted">Booking channel<select className="ds-select"><option>Office / Quick fare</option><option>Customer search</option></select></label>
+          <label className="flex items-center gap-2 text-muted">Business contract · Optional<select className="ds-select" value={trip.businessId} onChange={(e) => setTrip({ ...trip, businessId: e.target.value })}><option value="">Direct customer</option>{data.business.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
+        </div>
+        <TripFields trip={trip} set={(p) => setTrip((t) => ({ ...t, ...p }))} data={data} idPrefix="test-fare" />
+      </form>
+      {res && (
+        <div className="mt-4">
+          <p className="text-[12px] text-muted mb-2">{okCount} of {res.length} cab types available for this search. Hidden or paused types show the rule message.</p>
+          <EstimateList estimates={res} selected={sel} onSelect={setSel} priceEntered="Excluding GST" />
+        </div>
+      )}
+    </Modal>
   );
 }
