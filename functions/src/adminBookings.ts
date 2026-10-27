@@ -19,7 +19,7 @@ import { distanceKm } from './domain/verification';
 import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
 import { FareBreakdown, GeoPlace, TripType } from './domain/types';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
-import { adjustPartner, assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
+import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { loadCommissionPolicy } from './commission';
 import { createContactInTx, maskPhone } from './contacts';
 import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
@@ -49,7 +49,8 @@ async function locationPlace(id: unknown, role: 'pickup' | 'drop'): Promise<GeoP
     throw new HttpsError('failed-precondition', `${text(l.name)} is not enabled for admin ${role}s.`);
   }
   if (!inIndia(l.lat, l.lng)) throw new HttpsError('failed-precondition', `${text(l.name)} has no map coordinates. Add them in Locations to price trips from it.`);
-  return { id, name: text(l.name, 120), address: text(l.address) || text(l.city), lat: l.lat, lng: l.lng, type: l.type === 'Airport' ? 'airport' : 'other' };
+  // city / area / state let the service rules match a master location exactly (they are not stored on the booking).
+  return { id, name: text(l.name, 120), address: text(l.address) || text(l.city), lat: l.lat, lng: l.lng, type: l.type === 'Airport' ? 'airport' : 'other', city: text(l.city, 80), area: text(l.area, 80), state: text(l.state, 80) } as GeoPlace;
 }
 
 /** A map pin wins; otherwise the chosen master location. */
@@ -163,13 +164,14 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       serviceId = serviceSnap.id;
     }
 
-    const rules = evaluateRules(serviceRules, pickup, drop, when, `${service} ${tripType}`);
+    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType, service));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const pricedRaw = priceBooking({
       category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn,
     });
     const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
+    assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });
     const calculated = priced.fare;
     const breakup = priced.breakup;
     const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId, categoryId: category.id }) : null;
@@ -223,7 +225,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       routeEstimated: false, couponCode: '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
       paymentSummary: { ...summary, updatedAt: Timestamp.now() }, paymentMethod,
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
-      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingChannel === 'nesam' ? 'admin' : bookingChannel, bookingSource: bookingChannel, brand: bookingChannel, createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
+      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingChannel === 'nesam' ? 'admin' : bookingChannel, bookingSource: bookingChannel, brand: bookingChannel, ...availabilityFields(rules), createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
     });
     const otp = String(randomInt(1000, 10000));
     tx.create(db.doc(`booking_secrets/${requestId}`), { customerId, otp, createdAt: stamp });

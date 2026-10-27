@@ -1,6 +1,7 @@
 // Sign in with a mobile number: number → one-time code. A new customer then continues to
 // profile setup (see ProfileSetup). Same Firebase phone auth as the customer app.
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { ConfirmationResult } from 'firebase/auth';
 import { isValidIndianMobile, formatPhone } from '@core/utils/format';
 import { registerCustomerProfile } from '@core/services/userService';
@@ -60,7 +61,7 @@ function AuthLayout({ art, title, subtitle, children }: { art: string; title: st
           <p className="auth__sub">{subtitle}</p>
           {children}
           <p className="auth__legal">
-            Need help? Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>. By continuing you agree to One Way Car Rental’s terms and privacy policy.
+            Need help? Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>. By continuing you agree to One Way Car Rental’s <Link to="/legal#terms" target="_blank" rel="noopener">Terms &amp; Conditions<span className="sr-only"> (opens in a new tab)</span></Link> and <Link to="/legal#privacy" target="_blank" rel="noopener">Privacy &amp; Location Policy<span className="sr-only"> (opens in a new tab)</span></Link>.
           </p>
         </div>
       </main>

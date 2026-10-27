@@ -284,7 +284,9 @@ export function ChooseStep() {
                   })}
                 </ul>
                 <p className="choose__fine">Vehicle images are representative. Specific car models may vary within the booked category.</p>
-                <Notice tone="warning">Tolls, parking fees and state entry permits are paid separately by the rider against physical receipts.</Notice>
+                <Notice tone="warning">
+                  Tolls, parking fees and state entry permits are paid separately by the rider against physical receipts. <Link to="/legal#payment">Fare &amp; Payment Policy</Link>
+                </Notice>
               </>
             )}
           </div>

@@ -66,6 +66,9 @@ export function AccountPage() {
               Sign in to manage your profile, saved addresses and payment options.
             </EmptyState>
           </div>
+          <div className="card card--list" style={{ marginTop: 16 }}>
+            <Row icon="document" label="Terms, privacy & customer policies" to="/legal" />
+          </div>
         </div>
       </>
     );
@@ -153,7 +156,7 @@ export function AccountPage() {
               <div className="card card--list">
                 <Row icon="support" label="Help and support tickets" to="/support" />
                 <Row icon="phone" label="Call One Way Car Rental" value={SUPPORT_PHONE_DISPLAY} href={`tel:${SUPPORT_PHONE}`} />
-                <Row icon="document" label="Terms and privacy policy" to="/legal" />
+                <Row icon="document" label="Terms, privacy & customer policies" to="/legal" />
               </div>
             </section>
             <section className="group" aria-label="Session">

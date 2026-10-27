@@ -189,8 +189,25 @@ function Footer() {
               <li>
                 <a href={`tel:${SUPPORT_PHONE}`}>Call {SUPPORT_PHONE_DISPLAY}</a>
               </li>
+            </ul>
+          </nav>
+          <nav className="footer__col" aria-label="Policies">
+            <h2>Policies</h2>
+            <ul>
               <li>
-                <Link to="/legal">Terms &amp; Privacy</Link>
+                <Link to="/legal#terms">Terms &amp; Conditions</Link>
+              </li>
+              <li>
+                <Link to="/legal#privacy">Privacy &amp; Location</Link>
+              </li>
+              <li>
+                <Link to="/legal#cancellation">Cancellation Policy</Link>
+              </li>
+              <li>
+                <Link to="/legal#refund">Refund Policy</Link>
+              </li>
+              <li>
+                <Link to="/legal#payment">Fare &amp; Payment Policy</Link>
               </li>
             </ul>
           </nav>

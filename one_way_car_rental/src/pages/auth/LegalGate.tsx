@@ -2,6 +2,7 @@
 // privacy policy and consents for customers (a new version asks again). If nothing is
 // published, or the status can't be read, it lets them through (same as the app).
 import { useEffect, useState, type ReactNode } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/platform/firebase';
 import { ActionError, callFunction } from '@core/services/callables';
@@ -24,6 +25,7 @@ export function LegalGate({ children }: { children: ReactNode }) {
   const [checked, setChecked] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const { pathname } = useLocation();
 
   useEffect(() => {
     let alive = true;
@@ -50,8 +52,9 @@ export function LegalGate({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // The public policy page asks for nothing, so it stays readable before accepting.
+  if (state === 'ok' || pathname === '/legal') return <>{children}</>;
   if (state === 'loading') return <PageLoader label="Checking terms…" />;
-  if (state === 'ok') return <>{children}</>;
 
   const text = missing.find((m) => m.checkboxText)?.checkboxText || 'I agree to the Terms & Conditions and Privacy Policy.';
   const accept = async () => {
@@ -76,7 +79,7 @@ export function LegalGate({ children }: { children: ReactNode }) {
   return (
     <main id="main" tabIndex={-1}>
       <PageHead eyebrow="Before you continue" title="Please review and accept to continue">
-        These documents are new or have changed since you last accepted.
+        These documents are new or have changed since you last accepted. You can also read our <Link to="/legal">customer policies</Link>.
       </PageHead>
       <div className="page">
         <div className="stack gate">

@@ -691,10 +691,10 @@ service cloud.firestore {
 
     // Location-scoped service rules (availability, cab types, fare / payout adjustments, fare
     // limits). The booking server applies enabled rules; every change keeps its history.
+    // Written only by saveServiceRule / setServiceRuleStatus, which validate and audit it.
     match /service_rules/{ruleId} {
       allow read: if isAdmin();
-      allow create, update: if can('pricing') && request.resource.data.updatedBy == uid();
-      allow delete: if false;
+      allow write: if false;
     }
     // Invoice drafts saved while billing / tax details are checked; issuing assigns the number.
     match /invoice_drafts/{draftId} {

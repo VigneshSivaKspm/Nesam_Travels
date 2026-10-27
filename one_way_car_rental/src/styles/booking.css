@@ -727,6 +727,120 @@
   min-width: 220px;
 }
 
+/* Booking confirmed dialog: the mark draws itself once (static when motion is reduced). */
+.booked {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  text-align: center;
+}
+.booked__mark {
+  width: 76px;
+  height: 76px;
+  animation: booked-pop 420ms 640ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.booked__ring {
+  fill: var(--brand-soft);
+  stroke: var(--brand);
+  stroke-width: 3;
+  stroke-dasharray: 183;
+  stroke-dashoffset: 0;
+  animation: booked-draw 560ms ease-out both;
+}
+.booked__tick {
+  fill: none;
+  stroke: var(--brand);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 40;
+  stroke-dashoffset: 0;
+  animation: booked-tick 320ms 440ms ease-out both;
+}
+@keyframes booked-draw {
+  from {
+    stroke-dashoffset: 183;
+  }
+}
+@keyframes booked-tick {
+  from {
+    stroke-dashoffset: 40;
+  }
+}
+@keyframes booked-pop {
+  50% {
+    transform: scale(1.08);
+  }
+}
+.booked__lead {
+  max-width: 40ch;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+.booked__id {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px dashed var(--brand-line);
+  border-radius: var(--r-lg);
+  background: var(--brand-soft);
+}
+.booked__id span {
+  color: var(--brand-ink);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.booked__id strong {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: var(--fs-2xl);
+}
+.booked__trip {
+  display: grid;
+  gap: 10px;
+  width: 100%;
+  margin: 0;
+  text-align: left;
+}
+.booked__trip > div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 12px;
+}
+.booked__trip dt {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.booked__trip dd {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.booked__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  width: 100%;
+}
+@media (max-width: 599.98px) {
+  .booked__actions > * {
+    flex: 1 1 140px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .booked__mark,
+  .booked__ring,
+  .booked__tick {
+    animation: none;
+  }
+}
+
 /* ── Fare breakup ────────────────────────────────────────────────────────── */
 .fare {
   display: grid;
@@ -777,9 +891,6 @@
 .fare__total .num {
   font-family: var(--font-display);
   font-size: var(--fs-2xl);
-}
-.fare__sep {
-  margin-top: 10px;
 }
 .fare__na,
 .fare-note {
@@ -1006,33 +1117,6 @@
   font-weight: 700;
 }
 
-/* ── Sign-in required ────────────────────────────────────────────────────── */
-.signin-gate {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  max-width: 640px;
-  margin-inline: auto;
-}
-.signin-gate__card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  justify-items: start;
-  gap: 12px;
-}
-.signin-gate__card .btn {
-  justify-self: stretch;
-}
-.signin-gate__icon {
-  display: grid;
-  place-items: center;
-  width: 48px;
-  height: 48px;
-  border-radius: var(--r-lg);
-  background: var(--brand-soft);
-  color: var(--brand);
-}
-
 /* ── Below 1000px: one column, one sticky action bar ─────────────────────── */
 @media (max-width: 999.98px) {
   .only-narrow {
@@ -1139,4 +1223,14 @@
   .flow-bar__summary .btn {
     flex: 0 1 180px;
   }
+}
+
+/* Policy links beside a decision (review, cancel, fare, payments, location). */
+.policy-links {
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.picker__privacy {
+  margin: 0;
+  padding: 0 4px;
 }

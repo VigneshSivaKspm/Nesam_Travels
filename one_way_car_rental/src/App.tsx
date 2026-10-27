@@ -50,32 +50,32 @@ function RideAutoFocus() {
 }
 
 /**
- * After sign-in: resume the search the rider started as a guest. Mounted inside the terms gate, so
+ * After sign-in: resume the booking the rider started as a guest. Mounted inside the terms gate, so
  * it only runs once the account is ready and any profile / terms steps are done. The pending
- * destination is read once; it is always a vehicle-selection URL, never a booking submission.
+ * destination is read once; it is a vehicle-selection or review URL, never a booking submission.
  */
 function PendingReturn() {
   const { state } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
-  const here = useRef(location.pathname);
-  here.current = location.pathname;
 
   useEffect(() => {
     if (state.status !== 'ready') return;
     const to = takePendingReturn();
-    if (to && to !== here.current) navigate(to, { replace: true });
+    if (to) navigate(to, { replace: true, state: { resumed: true } });
   }, [state.status, navigate]);
   return null;
 }
 
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
+  // The public policies stay readable from the screens below that otherwise replace the app
+  // (they render as for a signed-out visitor: no account data).
+  const publicPolicies = useLocation().pathname === '/legal';
   if (state.status === 'loading')
     return <DashboardSkeleton label={state.label} />;
-  if (state.status === 'error') return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
-  if (state.status === 'needs-profile' && !isLoginModalOpen) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
-  if (state.status === 'on-hold') return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
+  if (state.status === 'error' && !publicPolicies) return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
+  if (state.status === 'needs-profile' && !isLoginModalOpen && !publicPolicies) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
+  if (state.status === 'on-hold' && !publicPolicies) return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
 
   const profile = state.status === 'ready' ? state.profile : null;
   const content = (

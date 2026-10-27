@@ -7,7 +7,7 @@
 // ships in functions/src. Nothing is decided by the client.
 import { getAuth } from 'firebase-admin/auth';
 import { HttpsError } from 'firebase-functions/v2/https';
-import { CALLABLES, RECONCILES_BOOKING, RECONCILES_PAYOUT } from '../registry';
+import { CALLABLES, PUBLIC_CALLABLES, RECONCILES_BOOKING, RECONCILES_PAYOUT } from '../registry';
 import { reconcileBooking, reconcilePayout } from '../reconcile';
 import { ApiRequest, ApiResponse, apiHeaders, applyCors, header, rateLimited, sendError, sendJson } from './util';
 
@@ -60,16 +60,20 @@ export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> 
   const length = Number(header(req, 'content-length') || 0);
   if (length > MAX_BODY_BYTES) return sendError(res, 413, 'invalid-argument', 'Request is too large.');
 
-  // Authentication: a valid Firebase ID token is mandatory for every function.
+  // Authentication: a valid Firebase ID token is mandatory for every function except the
+  // read-only public ones, which a signed-out visitor may call (they rate-limit by IP themselves).
   const bearer = /^Bearer (.+)$/.exec(header(req, 'authorization'))?.[1];
-  if (!bearer) return sendError(res, 401, 'unauthenticated', 'Sign in required.');
   let decoded;
-  try {
-    decoded = await getAuth().verifyIdToken(bearer);
-  } catch {
-    return sendError(res, 401, 'unauthenticated', 'Your session has expired. Please sign in again.');
+  if (bearer) {
+    try {
+      decoded = await getAuth().verifyIdToken(bearer);
+    } catch {
+      return sendError(res, 401, 'unauthenticated', 'Your session has expired. Please sign in again.');
+    }
+    if (rateLimited(decoded.uid)) return sendError(res, 429, 'resource-exhausted', 'Too many requests. Please wait a moment.');
+  } else if (!PUBLIC_CALLABLES.has(name)) {
+    return sendError(res, 401, 'unauthenticated', 'Sign in required.');
   }
-  if (rateLimited(decoded.uid)) return sendError(res, 429, 'resource-exhausted', 'Too many requests. Please wait a moment.');
 
   const body = req.body;
   if (body !== undefined && body !== null && (typeof body !== 'object' || Array.isArray(body))) {
@@ -80,7 +84,7 @@ export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> 
   try {
     const result = await fn.run({
       data,
-      auth: { uid: decoded.uid, token: decoded as unknown as Record<string, unknown> },
+      auth: decoded ? { uid: decoded.uid, token: decoded as unknown as Record<string, unknown> } : undefined,
       rawRequest: req,
       acceptsStreaming: false,
     });

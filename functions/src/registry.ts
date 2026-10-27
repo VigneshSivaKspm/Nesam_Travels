@@ -33,6 +33,8 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   voidPayment: fns.voidPayment,
   saveFareAdjustment: fns.saveFareAdjustment,
   saveTariffConfig: fns.saveTariffConfig,
+  saveServiceRule: fns.saveServiceRule,
+  setServiceRuleStatus: fns.setServiceRuleStatus,
   quoteBooking: fns.quoteBooking,
   saveCommissionPolicy: fns.saveCommissionPolicy,
   requestPartnerPayout: fns.requestPartnerPayout,
@@ -116,3 +118,6 @@ export const RECONCILES_BOOKING = new Set([
   'assignIndependentDriver', 'assignVendor', 'vendorAssignDriver', 'claimMarketplaceDuty', 'submitMarketplaceBid', 'withdrawMarketplaceBid', 'finalizeVehicleVerification',
 ]);
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);
+
+/** Callables a signed-out visitor may use: read-only fare quotes (rate-limited per IP, nothing written). */
+export const PUBLIC_CALLABLES: ReadonlySet<string> = new Set(['quoteBooking']);

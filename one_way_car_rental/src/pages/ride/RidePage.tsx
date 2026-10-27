@@ -508,6 +508,12 @@ export function RidePage() {
           </strong>{' '}
           {trip.cancellationFee > 0 ? `A cancellation fee of ${formatINR(trip.cancellationFee)} applies per our policy.` : 'No cancellation fee was charged.'}
           {trip.refund && trip.refund.amount > 0 ? ` Refund ${trip.refund.status.toLowerCase()}: ${formatINR(trip.refund.amount)}.` : ''}
+              {trip.cancellationFee > 0 || (trip.refund && trip.refund.amount > 0) ? (
+                <>
+                  {' '}
+                  <Link to="/legal#refund">Refund Policy</Link>
+                </>
+              ) : null}
         </Notice>
       ) : null}
 
@@ -529,7 +535,7 @@ export function RidePage() {
               </Button>
             </header>
             {printing ? <Notice tone="error">{printing}</Notice> : null}
-            <FareBreakdown lines={tripFareLines(trip)} total={trip.fareBreakdown?.total ?? trip.fare} tolls={trip.tollCharges} />
+            <FareBreakdown lines={tripFareLines(trip)} total={trip.fareBreakdown?.total ?? trip.fare} tolls={trip.tollCharges} policies={['payment', 'refund']} />
             {trip.paid && trip.paid.totalPaid > 0 ? (
               <p className="muted small">
                 Paid so far {formatINR(trip.paid.totalPaid)} · Balance {formatINR(trip.paid.balanceDue)}

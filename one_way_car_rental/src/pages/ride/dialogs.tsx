@@ -9,6 +9,7 @@ import { Button, Dialog, Notice, TextArea } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { buildTripShareText, shareText } from '@/lib/share';
 import { useToasts } from '@/state/Toasts';
+import { PolicyLinks } from '@/pages/PolicySections';
 
 /** Cancel with a reason and the live fee quote (the fee depends on elapsed time, so it ticks). */
 export function CancelDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void }) {
@@ -75,6 +76,7 @@ export function CancelDialog({ trip, onClose }: { trip: TripRecord; onClose: () 
             {quote.fee ? <strong>Cancellation fee: ₹{quote.fee}. </strong> : null}
             {quote.explanation}
           </Notice>
+          <PolicyLinks ids={['cancellation', 'refund']} newTab />
           <fieldset className="reasons">
             <legend>Why are you cancelling?</legend>
             {CANCEL_REASONS.map((r) => (
@@ -154,6 +156,7 @@ export function SafetyDialog({ trip, profile, location, onClose }: { trip: TripR
             Your ride: {trip.driver.name} · {trip.driver.vehicleNumber || trip.categoryName} · Booking {trip.bookingId}
           </p>
         ) : null}
+        <PolicyLinks ids={['safety']} newTab />
       </div>
     </Dialog>
   );

@@ -2,14 +2,12 @@ import { useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { useBooking } from '@/state/Booking';
-import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
 import { ChooseStep } from './ChooseStep';
 import { ReviewStep } from './ReviewStep';
-import { SignInRequired } from './SignInRequired';
 import {
   AssuranceSection,
   Banners,
@@ -233,15 +231,10 @@ export function BookPage({ step }: { step: BookStep }) {
   );
 
   const { draft } = useBooking();
-  const { state: auth } = useAuth();
   const { pickup, drop } = draft;
 
   if (step !== 'plan' && (!pickup || !drop)) return <Navigate to="/book" replace />;
   if (step === 'review' && !draft.categoryId) return <Navigate to="/book/ride" replace />;
-
-  // Guests (and anyone whose account is not ready) cannot be quoted: ask them to sign in first.
-  // The draft is untouched, and signing in resumes vehicle selection for this same trip.
-  if (step !== 'plan' && auth.status !== 'ready') return <SignInRequired />;
 
   if (step === 'choose') return <ChooseStep />;
   if (step === 'review') return <ReviewStep />;

@@ -9,6 +9,8 @@ export interface PickedPoint extends LatLng {
   address: string;
   type: "airport" | "other";
   confirmed: boolean;
+  /** Id of the chosen search suggestion, when the point came from one. */
+  placeId?: string;
 }
 
 interface Props {

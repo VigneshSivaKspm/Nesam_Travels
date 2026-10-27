@@ -8,13 +8,14 @@ import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { SCHEDULED_CANCELLATION_FEE, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
+import { FREE_CANCEL_WINDOW, PolicyLinks } from '@/pages/PolicySections';
 import { categoryName, categoryPhoto } from '@/lib/categories';
 import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
 
@@ -175,7 +176,7 @@ export function ReviewStep() {
         brand: 'peopletaxi',
       });
       reset();
-      navigate(`/book/done/${res.id}`);
+      navigate(`/book/done/${res.id}`, { state: { confirmed: true } });
     } catch (e: unknown) {
       const err = e as { code?: string; fare?: Fare };
       if (err.code === 'fare-changed' && err.fare) {
@@ -297,6 +298,7 @@ export function ReviewStep() {
                   checked={forOther}
                   onChange={(checked) => update({ forOther: checked })}
                 />
+                {forOther ? <PolicyLinks lead="Add a passenger’s or another WhatsApp number only with their permission." ids={['privacy']} newTab /> : null}
                 {forOther ? (
                   <div className="rv-grid" style={{ marginTop: 10 }}>
                     <TextField
@@ -354,13 +356,14 @@ export function ReviewStep() {
                 label="I agree to the Fare and Cancellation Terms"
                 description={
                   <span>
-                    Free cancellation up to {SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000} hours before scheduled pickup.
-                    Standard fee of {formatINR(SCHEDULED_CANCELLATION_FEE)} applies thereafter to compensate assigned chauffeur.
+                    Free cancellation while the booking is pending or more than {FREE_CANCEL_WINDOW} before pickup.
+                    After that, a {formatINR(SCHEDULED_CANCELLATION_FEE)} cancellation fee applies. Tolls, parking and permits are paid separately.
                   </span>
                 }
                 checked={termsAccepted}
                 onChange={setTermsAccepted}
               />
+              <PolicyLinks ids={['terms', 'payment', 'cancellation', 'refund']} newTab />
               {termsError ? <p className="bf-error">{termsError}</p> : null}
             </section>
 

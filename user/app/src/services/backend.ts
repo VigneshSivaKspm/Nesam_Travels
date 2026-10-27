@@ -30,9 +30,9 @@ export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs =
     return (await httpsCallable<Req, Res>(getFunctions(app), name, { timeout: timeoutMs })(data)).data;
   }
 
+  // Signed out: sent without a token; the server only answers its public (read-only) functions.
   const user = auth.currentUser;
-  if (!user) throw new BackendError('unauthenticated', 'Sign in required.');
-  const token = await user.getIdToken();
+  const token = user ? await user.getIdToken() : '';
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -40,7 +40,7 @@ export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs =
   try {
     response = await fetch(`${API_URL}/api/call/${encodeURIComponent(name)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ data }),
       signal: controller.signal,
     });

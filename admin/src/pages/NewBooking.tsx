@@ -15,7 +15,7 @@ import { Badge, Button, Icon, PageHeader } from "../components/ui";
 import { FareBreakupCard } from "../components/booking/Enquiries";
 import {
   EstimateList, ExtrasFields, SaveEnquiryDialog, TripFields, breakupLines, emptyTrip, estimateAll, estimateFacts, extrasNote, refPickupLabel,
-  tripToForm, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip,
+  tripServiceLabel, tripToForm, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip,
 } from "../components/booking/QuickFare";
 import { rupee } from "../domain/officeStage";
 import { isoDateIST } from "../utils/time";
@@ -61,7 +61,8 @@ function tripFromEnquiry(e: Enquiry): QuickTrip {
   return {
     ...t,
     serviceId: e.serviceId || "",
-    tripType: e.tripType === "Round Trip" ? "Round Trip" : "One Way",
+    tripType: e.tripType === "Round Trip" || e.tripType === "Local Rental" ? e.tripType : e.tripType === "Airport" ? "Airport Taxi" : "One Way",
+    airportDirection: e.pickupPoint?.type === "airport" && e.dropPoint?.type !== "airport" ? "from" : "to",
     pickupText: e.pickup, dropText: e.drop,
     pickup: e.pickupPoint ? { ...e.pickupPoint, name: e.pickupPoint.name || e.pickup, type: e.pickupPoint.type === "airport" ? "airport" : "other", confirmed: true } : null,
     drop: e.dropPoint ? { ...e.dropPoint, name: e.dropPoint.name || e.drop, type: e.dropPoint.type === "airport" ? "airport" : "other", confirmed: true } : null,
@@ -332,7 +333,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
           <span className="text-[11px] text-muted ml-auto">Advance payment is optional.</span>
         </div>
         {saving && chosen && (
-          <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || "Outstation · One Way"} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onEnquirySaved(e); }} />
+          <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || tripServiceLabel(trip.tripType)} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onEnquirySaved(e); }} />
         )}
       </div>
     );

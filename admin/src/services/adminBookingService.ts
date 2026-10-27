@@ -32,7 +32,7 @@ export interface ManualBookingForm {
   pickupAddress: string;
   dropAddress: string;
   categoryId: string;
-  tripType: "One Way" | "Round Trip";
+  tripType: "One Way" | "Round Trip" | "Local Rental" | "Airport Taxi";
   /** Required: NESAM takes advance bookings only. A local "YYYY-MM-DDTHH:mm" value. */
   pickupAt: string;
   /** Round trips: when the trip ends. Billing counts Indian calendar dates from pickup to here. */

@@ -6,6 +6,7 @@ export { createAdminBooking, overrideBookingFare } from './adminBookings';
 export { approveBooking, rejectBooking, cancelBooking, updateRefund, assignDriver, acknowledgeUnassignedAlert, migrateMarketplaceVisibility, backfillFulfilmentRoute, onBookingCancelled } from './bookingOps';
 export { recordPayment, voidPayment, onBookingMoneyChange } from './bookingPayments';
 export { saveFareAdjustment } from './fareConfig';
+export { saveServiceRule, setServiceRuleStatus } from './serviceRules';
 export { issuePenalty, transitionPenalty, acknowledgePenalty, disputePenalty } from './penalties';
 export { advanceTrip, verifyBoarding, overrideReachedPickup } from './trips';
 export { saveTariffConfig, quoteBooking } from './quote';

@@ -10,6 +10,7 @@ import { Icon } from './Icon';
 import { RouteMap } from './RouteMap';
 import { useDeviceLocation } from '@/lib/hooks';
 import { LOCATION_HELP } from '@/lib/schedule';
+import { PolicyLinks } from '@/pages/PolicySections';
 
 const TYPE_ICON: Record<string, string> = {
   home: 'home',
@@ -155,6 +156,7 @@ export function LocationPicker({
           </span>
         </button>
       ) : null}
+      {config.allowCurrent ? <PolicyLinks lead="Location is optional and used for your pickup." ids={['privacy']} newTab className="picker__privacy" /> : null}
 
       <div className="picker__lists" aria-live="polite">
         {q.length >= 3 ? (

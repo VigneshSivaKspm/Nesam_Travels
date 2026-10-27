@@ -183,8 +183,10 @@ export const saveTariffConfig = onCall(async (request) => {
 import { mapCategory, mapCoupon, normalizeCode, validateCoupon } from './domain/pricing';
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
-import { assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
+import { adjustPartner, assertBookable, assertWithinLimits, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { approved, inIndia, routeFor } from './shared';
+import { requestIp } from './security';
+import { rateLimited } from './http/util';
 
 function placeOf(v: any, role: string): GeoPlace {
   if (!v || !inIndia(v.lat, v.lng)) throw new HttpsError('invalid-argument', `Choose a valid ${role} location in India.`);
@@ -197,8 +199,10 @@ function placeOf(v: any, role: string): GeoPlace {
  * written. The pickup time matters (night charge, calendar days), so it is validated like a booking.
  */
 export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
+  // Signed-out visitors may see fares too (nothing is written or returned about any account);
+  // they are rate-limited per IP and get no coupon, which depends on the customer's history.
   const uid = request.auth?.uid;
-  if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
+  if (!uid && rateLimited(`quote:${requestIp(request)}`, 30)) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment.');
   const input = request.data ?? {};
   const pickup = placeOf(input.pickup, 'pickup'), drop = placeOf(input.drop, 'drop');
   const tripType: TripType =
@@ -216,17 +220,19 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   if (problem || !when) throw new HttpsError('invalid-argument', problem || 'Choose the pickup date and time.');
   const tripEndAt = tripType === 'Round Trip' ? parsePickupInstant(input.tripEndAt) : null;
   const route = await routeFor(pickup, drop);
-  const [categories, tariff, adjustmentDoc, customer, coupons, history, serviceRules] = await Promise.all([
+  const customer = uid ? await db.doc(`customers/${uid}`).get() : null;
+  if (customer?.exists && !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
+  // A coupon is only checked for an existing customer account.
+  const customerId = customer?.exists ? uid : null;
+  const [categories, tariff, adjustmentDoc, coupons, history, serviceRules] = await Promise.all([
     db.collection('vehicle_categories').where('status', '==', 'Active').get(),
     loadTariffConfig(),
     loadFareAdjustment(),
-    db.doc(`customers/${uid}`).get(),
-    input.couponCode ? db.collection('coupons').get() : Promise.resolve(null),
-    input.couponCode ? db.collection('bookings').where('customerId', '==', uid).get() : Promise.resolve(null),
+    input.couponCode && customerId ? db.collection('coupons').get() : Promise.resolve(null),
+    input.couponCode && customerId ? db.collection('bookings').where('customerId', '==', customerId).get() : Promise.resolve(null),
     loadServiceRules(),
   ]);
-  if (!customer.exists || !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
-  const rules = evaluateRules(serviceRules, pickup, drop, when, tripType);
+  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
@@ -250,8 +256,10 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
             fixedRoute: before.pricing.model === 'city_drop_package', peakAdjusted: adjustment?.direction === 'increase',
           });
           if (r.ok) { discount = r.coupon.discount; couponMessage = r.coupon.message; } else couponMessage = r.message;
-        }
+        } else if (code) couponMessage = 'Sign in to apply this code.';
         const priced = discount > 0 ? priceBooking({ ...base, discount }) : before;
+        // The same limit check a booking makes, so a quote the customer sees can always be booked.
+        assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(adjustPartner(priced.pricing, rules)) });
         return {
           categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service,
           model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, couponMessage, couponApplied: discount > 0,
@@ -263,6 +271,8 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   return {
     route: { distanceKm: Math.round(route.distanceKm * 10) / 10, durationMin: Math.round(route.durationMin) },
     service: quotes.find((q) => q.ok)?.service ?? '',
+    /** Limited service here: the office confirms the booking before it is accepted. */
+    limitedAvailability: rules.availability === 'Limited',
     quotes,
   };
 });

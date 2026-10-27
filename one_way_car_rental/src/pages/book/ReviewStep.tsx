@@ -1,6 +1,6 @@
 // Step 3 — review & confirm: trip, vehicle, contact, payment and booking request submission.
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import type { FareBreakdown as Fare } from '@core/types';
 import { useCustomerData } from '@/state/customer';
 import { createRideRequest } from '@core/services/rideService';
@@ -8,18 +8,21 @@ import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { SCHEDULED_CANCELLATION_FEE, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
+import { setPendingReturn } from '@/lib/pendingReturn';
+import { FREE_CANCEL_WINDOW, PolicyLinks } from '@/pages/PolicySections';
 import { categoryName, categoryPhoto } from '@/lib/categories';
 import { FareDialog, FlowBar, PromoControl } from './parts';
 
 export function ReviewStep() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useCustomerData();
   const { openLoginModal } = useAuth();
   const { draft, update, reset, route, adjustment } = useBooking();
@@ -31,18 +34,17 @@ export function ReviewStep() {
   const [tried, setTried] = useState(false);
   const [serverQuote, setServerQuote] = useState<{ key: string; fare: Fare } | null>(null);
   const [showFare, setShowFare] = useState(false);
-  const [justSignedIn, setJustSignedIn] = useState(false);
   const submittingRef = useRef(false);
   const termsRef = useRef<HTMLDivElement>(null);
 
   const { pickup, drop, tripType, scheduledAt, tripEndAt, notes, waSame, waCode, waNumber, email, forOther, passengerName, passengerMobile, flight } = draft;
   const category = q.category;
 
-  const hadProfile = useRef(!!profile);
+  // Back from the sign-in popup: the rider had already accepted the terms before signing in.
+  const justSignedIn = !!profile && (location.state as { resumed?: boolean } | null)?.resumed === true;
   useEffect(() => {
-    if (profile && !hadProfile.current) setJustSignedIn(true);
-    hadProfile.current = !!profile;
-  }, [profile]);
+    if (justSignedIn) setTermsAccepted(true);
+  }, [justSignedIn]);
 
   if (!pickup || !drop || !category || !q.quote) {
     return (
@@ -91,6 +93,7 @@ export function ReviewStep() {
       return;
     }
     if (!profile) {
+      setPendingReturn('/book/confirm');
       openLoginModal({ title: 'Sign in to complete booking', subtitle: 'Enter your mobile number to send your ride request.' });
       return;
     }
@@ -128,7 +131,7 @@ export function ReviewStep() {
         brand: 'onewaycarrentals',
       });
       reset();
-      navigate(`/book/done/${res.id}`);
+      navigate(`/book/done/${res.id}`, { state: { confirmed: true } });
     } catch (e: unknown) {
       const err = e as { code?: string; fare?: Fare };
       if (err.code === 'fare-changed' && err.fare) {
@@ -222,6 +225,7 @@ export function ReviewStep() {
                   <Checkbox checked={forOther} onChange={(v) => update({ forOther: v })}>
                     Booking for someone else?
                   </Checkbox>
+                  {forOther ? <PolicyLinks lead="Add a passenger’s or another WhatsApp number only with their permission." ids={['privacy']} newTab /> : null}
                   {forOther ? (
                     <div className="grid-2" style={{ marginTop: 12 }}>
                       <TextField
@@ -294,8 +298,9 @@ export function ReviewStep() {
 
             <div ref={termsRef} className={`card terms-card ${termsError ? 'is-invalid' : ''}`} style={{ marginTop: 20 }}>
               <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
-                I accept the fare breakdown, toll/permit policy, and free cancellation up to {SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000} hours before scheduled pickup. (Late cancellation fee: {formatINR(SCHEDULED_CANCELLATION_FEE)}).
+                I accept the fare breakdown and that tolls, parking and permits are paid separately. Cancellation is free while the booking is pending or more than {FREE_CANCEL_WINDOW} before pickup; after that a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
               </Checkbox>
+              <PolicyLinks ids={['terms', 'payment', 'cancellation', 'refund']} newTab />
               {termsError ? <p className="field__error" role="alert" style={{ marginTop: 8 }}>{termsError}</p> : null}
             </div>
 

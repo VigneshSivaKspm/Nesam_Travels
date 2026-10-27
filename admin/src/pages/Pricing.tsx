@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "re
 import type { MasterLocation, TravelService, VehicleCategory } from "../types";
 import { subscribeLocations, subscribeServices, subscribeToDocument, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import {
-  adjText, inScope, phaseOf, saveRule, setRuleStatus, subscribeServiceRules, summary,
+  adjText, inScope, isoToIstInput, istInputToIso, phaseOf, rankRules, saveRule, setRuleStatus, subscribeServiceRules, summary,
   type Adjustment, type RuleKind, type ServiceRule, type Side,
 } from "../services/serviceRulesService";
 import { useCan } from "../components/AccessContext";
@@ -30,30 +30,34 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
   const [tab, setTab] = useState<Tab>("Booking availability");
   const [sel, setSel] = useState<Sel>({ state: "", city: "", area: "" });
   const [rules, setRules] = useState<ServiceRule[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>("All");
   const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" } | null>(null);
   const canEdit = useCan("pricing");
+  const canTest = useCan("operations");
   const { toast, show } = useToast(6000);
   useEffect(() => {
-    const u = [subscribeServiceRules(setRules), subscribeLocations(setLocations), subscribeVehicleCategories(setCategories), subscribeServices(setServices)];
+    const u = [subscribeServiceRules((r) => { setRules(r); setLoaded(true); setLoadError(null); }, (m) => { setLoadError(m); setLoaded(true); }), subscribeLocations(setLocations), subscribeVehicleCategories(setCategories), subscribeServices(setServices)];
     return () => u.forEach((x) => x());
   }, []);
 
   const active = locations.filter((l) => l.status === "Active");
   const stateName = (code: string) => GST_STATES.find(([c]) => c === code)?.[1] ?? code;
   const states = Array.from(new Set(active.map((l) => l.state).filter(Boolean)));
-  const cities = Array.from(new Set(active.filter((l) => !sel.state || l.state === sel.state || l.state === stateName(sel.state)).map((l) => l.city).filter(Boolean))).sort();
-  const areas = Array.from(new Set(active.filter((l) => !sel.city || l.city === sel.city).map((l) => l.area || l.name).filter(Boolean))).sort();
+  const inState = (l: MasterLocation) => !sel.state || l.state === sel.state || l.state === stateName(sel.state);
+  const cities = Array.from(new Set(active.filter(inState).map((l) => l.city).filter(Boolean))).sort();
+  const areas = Array.from(new Set(active.filter((l) => inState(l) && (!sel.city || l.city === sel.city)).map((l) => l.area || l.name).filter(Boolean))).sort();
   const scoped = rules.filter((r) => r.status !== "Removed" || filter === "Removed").filter((r) => inScope(r, sel));
   const byKind = (k: RuleKind) => scoped.filter((r) => r.kind === k).filter((r) => filter === "All" ? r.status !== "Removed" : phaseOf(r) === filter);
-  const activeOf = (k: RuleKind) => scoped.filter((r) => r.kind === k && phaseOf(r) === "Active");
+  const activeOf = (k: RuleKind) => rankRules(scoped.filter((r) => r.kind === k && phaseOf(r) === "Active"));
   const where = sel.area || sel.city || (sel.state ? stateName(sel.state) : "All locations");
   const catNames = categories.filter((c) => c.status === "Active").map((c) => c.name);
 
-  const ruleTable = (list: ServiceRule[]) => list.length === 0 ? null : (
+  const ruleTable = (list: ServiceRule[]) => !loaded ? <p className="text-[12px] text-muted py-4" role="status">Loading saved settings…</p> : list.length === 0 ? null : (
     <DataTable label="Rules" minWidth={980} fixed hasActions>
       <thead><tr><th>SETTING</th><th>APPLIES TO</th><th>VALUE</th><th>PICKUP SCHEDULE</th><th>STATUS</th><th className="ds-actions">ACTIONS</th></tr></thead>
       <tbody>{list.map((r) => (
@@ -93,7 +97,8 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
   return (
     <div className="ds-page-body">
       <Toast toast={toast} />
-      <PageHeader title="Service & Fare Settings" subtitle="Choose a location, then manage booking availability, cab types and fares." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
+      {loadError && <div className="ds-error mb-4" role="alert"><Icon name="circle-alert" />Saved settings could not be loaded: {loadError}. Check your pricing access and reload.</div>}
+      <PageHeader title="Service & Fare Settings" subtitle="Choose a location, then manage booking availability, cab types and fares." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={canTest ? undefined : "Test fare prices a trip through the booking server, which needs operations access."} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
       <section className="ds-panel ds-panel-pad mb-5">
         <span className="ds-eyebrow">LOCATION</span>
         <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
@@ -167,12 +172,12 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
 
       {sheet?.kind === "new" && <RuleSheet kind={sheet.ruleKind} sel={sel} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "edit" && <RuleSheet kind={sheet.rule.kind} rule={sheet.rule} sel={sel} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
-      {sheet?.kind === "preview" && <PreviewSheet rule={sheet.rule} onTest={() => setSheet({ kind: "test" })} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "preview" && <PreviewSheet rule={sheet.rule} canTest={canTest} onTest={() => setSheet({ kind: "test" })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "status" && <StatusSheet rule={sheet.rule} to={sheet.to!} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "history" && <HistorySheet rules={rules} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet onClose={() => setSheet(null)} />}
       {sheet?.kind === "base" && <Modal title="Company-wide base rates" onClose={() => setSheet(null)} wide><TariffConfigCard /></Modal>}
-      {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
       {sheet?.kind === "tax" && <TaxSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); show("Approved tax policy saved."); }} />}
     </div>
@@ -195,8 +200,8 @@ function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDo
   const [service, setService] = useState(rule?.service ?? "All");
   const [priority, setPriority] = useState(rule?.priority ?? 10);
   const [mode, setMode] = useState<"Always" | "Range">(rule?.schedule.mode ?? "Always");
-  const [from, setFrom] = useState(rule?.schedule.from?.slice(0, 16) ?? "");
-  const [to, setTo] = useState(rule?.schedule.to?.slice(0, 16) ?? "");
+  const [from, setFrom] = useState(isoToIstInput(rule?.schedule.from));
+  const [to, setTo] = useState(isoToIstInput(rule?.schedule.to));
   const [availability, setAvailability] = useState(rule?.availability ?? "Available");
   const [cats, setCats] = useState<string[]>(rule?.categories ?? []);
   const [customer, setCustomer] = useState<Adjustment>(rule?.customer ?? { mode: "Normal", percent: 0 });
@@ -212,20 +217,21 @@ function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDo
   const draft: Omit<ServiceRule, "id"> = {
     kind, name: name.trim() || `${scope.area || scope.city || "All locations"} ${kind === "categories" ? "cab categories" : kind === "availability" ? "availability" : kind === "pricing" ? "fare rule" : "fare limit"}`,
     status: rule?.status === "Disabled" ? "Disabled" : "Enabled", priority, scope, service: service === "All" ? "" : service,
-    schedule: mode === "Always" ? { mode } : { mode, ...(from ? { from: new Date(from).toISOString() } : {}), ...(to ? { to: new Date(to).toISOString() } : {}) },
+    schedule: mode === "Always" ? { mode } : { mode, ...(from ? { from: istInputToIso(from) } : {}), ...(to ? { to: istInputToIso(to) } : {}) },
     ...(kind === "availability" ? { availability } : {}), ...(kind === "categories" ? { categories: cats } : {}),
     ...(kind === "pricing" ? { customer, partner } : {}), ...(kind === "limit" ? { limit } : {}), reason: reason.trim(),
   };
   // Same kind, same scope and service, overlapping schedule = conflict.
   const conflict = rules.find((r) => r.id !== rule?.id && r.kind === kind && r.status === "Enabled" && r.priority === priority
     && r.scope.state === scope.state && r.scope.city === scope.city && r.scope.area === scope.area && (r.service || "") === draft.service
-    && (r.schedule.mode === "Always" || mode === "Always" || !(Date.parse(r.schedule.to ?? "9999") < Date.parse(from || "0") || Date.parse(to || "9999") < Date.parse(r.schedule.from ?? "0"))));
+    && (r.schedule.mode === "Always" || mode === "Always" || !((r.schedule.to ? Date.parse(r.schedule.to) : Infinity) <= (from ? Date.parse(istInputToIso(from)) : -Infinity) || (to ? Date.parse(istInputToIso(to)) : Infinity) <= (r.schedule.from ? Date.parse(r.schedule.from) : -Infinity))));
   const check = () => {
     if (kind === "categories" && !cats.length) return "Choose at least one cab type.";
     if (kind === "pricing" && customer.mode === "Normal" && partner.mode === "Normal") return "Choose an increase or decrease for the customer fare or the partner payout.";
     if (kind === "pricing" && [customer, partner].some((a) => a.mode !== "Normal" && !(a.percent > 0 && a.percent < 100))) return "Enter a percentage between 1 and 99.";
     if (kind === "limit" && !(limit.max > 0 && limit.max >= limit.min)) return "Enter a valid minimum and maximum.";
     if (mode === "Range" && !from && !to) return "Set the pickup date range or choose Always.";
+    if (mode === "Range" && from && to && to <= from) return "The end must be after the start.";
     if (conflict) return `Resolve this overlapping rule before preview: ${conflict.name}.`;
     if (reason.trim().length < 5) return "Record the reason for this change.";
     return null;
@@ -237,7 +243,7 @@ function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDo
     if (!preview) { setError(null); return setPreview(true); }
     setBusy(true);
     try { await saveRule(draft, rule?.id, rule); onDone(`${draft.name} saved.`); }
-    catch { setError("The setting was not saved. Check your permissions and try again."); setBusy(false); }
+    catch (err) { setError(err instanceof Error ? err.message : "The setting was not saved. Check your permissions and try again."); setBusy(false); }
   };
   const adjEditor = (label: string, sub: string, a: Adjustment, set: (a: Adjustment) => void) => (
     <div className="ds-panel ds-panel-pad">
@@ -290,7 +296,7 @@ function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDo
             <div className="ds-field"><span>Applicable pickup dates</span><Ta>எந்த pickup தேதிகளுக்குப் பொருந்தும்?</Ta>
               <div className="ds-seg mt-1">{(["Always", "Range"] as const).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>{m === "Always" ? "Always" : "Specific dates & times"}</button>)}</div>
             </div>
-            {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><input className="ds-input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label className="ds-field"><span>To · IST</span><input className="ds-input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label></div>}
+            {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><input className="ds-input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label className="ds-field"><span>To · IST</span><input className="ds-input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label><p className="text-[11px] text-faint" data-span="2">Matched on the pickup time in IST. The start time is included; the end time is not.</p></div>}
             <details className="ds-disclosure" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
               <summary>More options · Service, pickup / drop, categories &amp; priority</summary>
               <div className="ds-form-grid">
@@ -309,9 +315,9 @@ function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDo
   );
 }
 
-function PreviewSheet({ rule, onTest, onClose }: { rule: ServiceRule; onTest: () => void; onClose: () => void }) {
+function PreviewSheet({ rule, canTest, onTest, onClose }: { rule: ServiceRule; canTest: boolean; onTest: () => void; onClose: () => void }) {
   return (
-    <Modal title="Rule preview" onClose={onClose} footer={<Button icon="calculator" onClick={onTest}>Test search</Button>}>
+    <Modal title="Rule preview" onClose={onClose} footer={<Button icon="calculator" disabledReason={canTest ? undefined : "Test fare needs operations access."} onClick={onTest}>Test search</Button>}>
       <dl className="ds-facts" data-cols={2}>
         {([["Rule", rule.name], ["Location", [rule.scope.area, rule.scope.city, rule.scope.state].filter(Boolean).join(", ") || "All locations"], ["Service / categories", `${rule.service || "All"} · ${rule.categories?.join(" · ") || "All"}`], ["State", phaseOf(rule)], ["Priority", String(rule.priority)], ["Customer / payout", rule.kind === "pricing" ? `${adjText(rule.customer)} / ${adjText(rule.partner)}` : "Not applicable"], ["Reason", rule.reason]] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
       </dl>
@@ -329,7 +335,7 @@ function StatusSheet({ rule, to, onClose, onDone }: { rule: ServiceRule; to: "En
     <Modal title={`${verb} ${rule.name}`} onClose={onClose} busy={busy} footer={<><Button onClick={onClose}>Cancel</Button><Button variant={to === "Enabled" ? "primary" : "danger"} loading={busy} onClick={async () => {
       if (reason.trim().length < 5) return setError("Record the reason for the status change.");
       setBusy(true);
-      try { await setRuleStatus(rule, to, reason.trim()); onDone(`${rule.name} ${to.toLowerCase()}.`); } catch { setError("The status was not changed."); setBusy(false); }
+      try { await setRuleStatus(rule, to, reason.trim()); onDone(`${rule.name} ${to.toLowerCase()}.`); } catch (err) { setError(err instanceof Error ? err.message : "The status was not changed."); setBusy(false); }
     }}>Confirm {verb.toLowerCase()}</Button></>}>
       <p className="text-[13px] text-ink mb-1">{verb} this rule?</p>
       <p className="text-[12px] text-muted mb-3">{[rule.scope.area, rule.scope.city].filter(Boolean).join(", ") || "All locations"} · {rule.scope.side} · {summary(rule)}</p>
@@ -348,7 +354,7 @@ function HistorySheet({ rules, onClose }: { rules: ServiceRule[]; onClose: () =>
       {rows.length === 0 ? <EmptyState /> : (
         <DataTable label="Change history" minWidth={820} hideTools hasActions>
           <thead><tr><th>DATE / TIME · IST</th><th>CHANGE / RECORD</th><th>REASON</th><th>STAFF / ID</th><th className="ds-actions">DETAILS</th></tr></thead>
-          <tbody>{rows.map((r, i) => <tr key={i}><td>{refDateTime(r.at?.toDate?.() ?? null)}</td><td><strong>{r.action}</strong><small>{r.rule.name}</small></td><td>{r.reason}</td><td>{r.byName}</td><td className="ds-actions"><div><Button size="sm" onClick={() => setOpen(r)}>View change</Button></div></td></tr>)}</tbody>
+          <tbody>{rows.map((r, i) => <tr key={i}><td>{refDateTime(r.at?.toDate?.() ?? null)}</td><td><strong>{r.action}</strong><small>{r.rule.name} · {r.location || [r.rule.scope.area, r.rule.scope.city].filter(Boolean).join(", ") || "All locations"}</small></td><td>{r.reason}</td><td>{r.byName}{r.byUid && <small>{r.byUid.slice(0, 8)}</small>}</td><td className="ds-actions"><div><Button size="sm" onClick={() => setOpen(r)}>View change</Button></div></td></tr>)}</tbody>
         </DataTable>
       )}
       {open && <Modal title="View change" onClose={() => setOpen(null)}><dl className="ds-facts" data-cols={1}><div><dt>Before</dt><dd>{open.before || "—"}</dd></div><div><dt>After</dt><dd>{open.after || "—"}</dd></div><div><dt>Reason</dt><dd>{open.reason}</dd></div></dl></Modal>}
@@ -356,7 +362,7 @@ function HistorySheet({ rules, onClose }: { rules: ServiceRule[]; onClose: () =>
   );
 }
 
-function LimitsSheet({ rules, canEdit, onAdd, onClose }: { rules: ServiceRule[]; canEdit: boolean; onAdd: () => void; onClose: () => void }) {
+function LimitsSheet({ rules, canEdit, onAdd, onEdit, onStatus, onClose }: { rules: ServiceRule[]; canEdit: boolean; onAdd: () => void; onEdit: (r: ServiceRule) => void; onStatus: (r: ServiceRule, to: "Enabled" | "Disabled" | "Removed") => void; onClose: () => void }) {
   return (
     <Modal title="Fare limits" onClose={onClose} wide>
       <div className="flex items-start justify-between gap-3 mb-3">
@@ -364,9 +370,9 @@ function LimitsSheet({ rules, canEdit, onAdd, onClose }: { rules: ServiceRule[];
         {canEdit && <Button icon="plus" onClick={onAdd}>Add limit</Button>}
       </div>
       {rules.length === 0 ? <EmptyState title="No limits configured" hint="Add an office-approved limit or a verified state notification reference when applicable." /> : (
-        <DataTable label="Fare limits" minWidth={760} hideTools>
-          <thead><tr><th>LIMIT / REFERENCE</th><th>STATE / SERVICE / CATEGORY</th><th>CUSTOMER OR PARTNER</th><th>MINIMUM / MAXIMUM</th><th>STATUS</th></tr></thead>
-          <tbody>{rules.map((r) => <tr key={r.id}><td><strong>{r.name}</strong><small>{r.limit?.reference}</small></td><td>{r.scope.state || "All"} · {r.service || "All"} · {r.limit?.category}</td><td>{r.limit?.target}</td><td>₹{r.limit?.min} – ₹{r.limit?.max}</td><td><Badge tone={toneForStatus(phaseOf(r))}>{phaseOf(r)}</Badge></td></tr>)}</tbody>
+        <DataTable label="Fare limits" minWidth={760} hideTools hasActions>
+          <thead><tr><th>LIMIT / REFERENCE</th><th>STATE / SERVICE / CATEGORY</th><th>CUSTOMER OR PARTNER</th><th>MINIMUM / MAXIMUM</th><th>STATUS</th>{canEdit && <th className="ds-actions">ACTIONS</th>}</tr></thead>
+          <tbody>{rules.map((r) => <tr key={r.id}><td><strong>{r.name}</strong><small>{r.limit?.reference}</small></td><td>{[r.scope.area, r.scope.city, r.scope.state && GST_STATES.find(([c]) => c === r.scope.state)?.[1]].filter(Boolean).join(", ") || "All"} · {r.service || "All"} · {r.limit?.category}</td><td>{r.limit?.target}</td><td>₹{r.limit?.min} – ₹{r.limit?.max}</td><td><Badge tone={toneForStatus(phaseOf(r) === "Active" ? "Enabled" : phaseOf(r))}>{phaseOf(r) === "Active" ? "Enabled" : phaseOf(r)}</Badge></td>{canEdit && <td className="ds-actions"><div><Button size="sm" onClick={() => onEdit(r)}>Edit</Button><Button size="sm" variant="ghost" onClick={() => onStatus(r, r.status === "Enabled" ? "Disabled" : "Enabled")}>{r.status === "Enabled" ? "Disable" : "Enable"}</Button><Button size="sm" variant="ghost" onClick={() => onStatus(r, "Removed")}>Remove</Button></div></td>}</tr>)}</tbody>
         </DataTable>
       )}
     </Modal>
@@ -396,10 +402,7 @@ function TestFareSheet({ onClose }: { onClose: () => void }) {
     <Modal title="Test search · Shared availability & pricing" onClose={onClose} wide footNote="Uses the same rules as customer and office estimates." footer={<Button variant="primary" type="submit" form="test-fare" loading={busy}>Run test search</Button>}>
       <form id="test-fare" onSubmit={run} noValidate>
         {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
-        <div className="flex flex-wrap gap-3 mb-3 text-[12px]">
-          <label className="flex items-center gap-2 text-muted">Booking channel<select className="ds-select"><option>Office / Quick fare</option><option>Customer search</option></select></label>
-          <label className="flex items-center gap-2 text-muted">Business contract · Optional<select className="ds-select" value={trip.businessId} onChange={(e) => setTrip({ ...trip, businessId: e.target.value })}><option value="">Direct customer</option>{data.business.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></label>
-        </div>
+        <p className="text-[12px] text-muted mb-3">Prices the trip with the same availability, cab type, schedule, fare rule and fare limit checks that customer and office bookings use. No booking or payment is created.</p>
         <TripFields trip={trip} set={(p) => setTrip((t) => ({ ...t, ...p }))} data={data} idPrefix="test-fare" />
       </form>
       {res && (

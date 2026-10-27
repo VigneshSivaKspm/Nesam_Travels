@@ -12,7 +12,7 @@ import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
 import { GeoPlace, TripType } from './domain/types';
 import { loadCommissionPolicy } from './commission';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
-import { adjustPartner, assertBookable, evaluateRules, loadServiceRules } from './serviceRules';
+import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { createContactInTx, maskPhone } from './contacts';
 import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
 import { assertLegalAccepted } from './legal';
@@ -126,7 +126,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       c.id.replace('cat-', '') === catReq.replace('cat-', '')
     ) ?? configured[0];
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is no longer available.');
-    const rules = evaluateRules(serviceRules, pickup, drop, when, tripType);
+    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment };
@@ -155,6 +155,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     }
     const pricedRaw = priceBooking({ ...priceInput, discount });
     const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
+    assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });
     const fare = priced.fare, breakup = priced.breakup;
     if (!Number.isFinite(input.expectedFare) || fare.total !== input.expectedFare) {
       throw new HttpsError('failed-precondition', `The current fare is ₹${fare.total}. Review the updated fare and book again.`, { fare, breakup, pricing: priced.pricing });
@@ -192,7 +193,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       paymentMethod: input.paymentMethod === 'UPI' ? 'UPI' : 'Cash',
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
       termsAccepted: true, termsAcceptedAt: stamp,
-      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingSource, bookingSource, brand: bookingSource, createdAt: stamp, updatedAt: stamp,
+      date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingSource, bookingSource, brand: bookingSource, ...availabilityFields(rules), createdAt: stamp, updatedAt: stamp,
     });
     // Raw contact details live in booking_contacts (staff + the customer); partners get the masked number only.
     createContactInTx(tx, requestId, { customerId: uid, name: text(c.name), phone, whatsapp, email });

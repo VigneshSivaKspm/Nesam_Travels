@@ -72,15 +72,18 @@ function PendingReturn() {
 
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
+  // The public policies stay readable from the screens below that otherwise replace the app
+  // (they render as for a signed-out visitor: no account data).
+  const publicPolicies = useLocation().pathname === '/legal';
   if (state.status === 'loading')
     return (
       <main id="main">
         <PageLoader label={state.label} />
       </main>
     );
-  if (state.status === 'error') return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
-  if (state.status === 'needs-profile' && !isLoginModalOpen) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
-  if (state.status === 'on-hold') return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
+  if (state.status === 'error' && !publicPolicies) return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
+  if (state.status === 'needs-profile' && !isLoginModalOpen && !publicPolicies) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
+  if (state.status === 'on-hold' && !publicPolicies) return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
 
   const profile = state.status === 'ready' ? state.profile : null;
   const content = (

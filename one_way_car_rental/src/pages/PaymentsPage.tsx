@@ -6,6 +6,7 @@ import { EmptyState, LinkButton, PageHead, Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
+import { PolicyLinks } from '@/pages/PolicySections';
 
 export function PaymentsPage() {
   useSeo({ title: 'Payments & Refunds', noindex: true });
@@ -40,6 +41,7 @@ export function PaymentsPage() {
               Sign in with your mobile number to view payment history, receipts and refund balances.
             </EmptyState>
           </div>
+          <PolicyLinks ids={['payment', 'refund']} />
         </div>
       </>
     );
@@ -87,6 +89,7 @@ export function PaymentsPage() {
             <p className="small muted">Completed and cancelled bookings with a charge.</p>
           </div>
         </section>
+        <PolicyLinks ids={['payment', 'refund']} />
 
         {rows.length === 0 ? (
           <div className="card card--center">

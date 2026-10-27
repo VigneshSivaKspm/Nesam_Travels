@@ -1,9 +1,10 @@
 // Confirmation page after a booking request is saved.
 // Shows the journey art, a printable ticket card with trip id, route, schedule and live status.
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { formatDate, formatTime } from '@core/utils/format';
-import { Button, PageLoader } from '@/components/ui';
+import { Button, Dialog, LinkButton, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import type { TripRecord, TripType } from '@core/types';
 
@@ -53,11 +54,72 @@ const headline = (t: TripRecord): { title: string; text: string; tone: 'pending'
   };
 };
 
+const bookingRef = (t: TripRecord) => t.bookingId || `#${t.id.slice(-6).toUpperCase()}`;
+
+/** Shown once, right after the booking server accepted the request (never on a revisit). */
+function BookedDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void }) {
+  const at = trip.scheduledAt;
+  return (
+    <Dialog
+      title="Booking confirmed"
+      onClose={onClose}
+      className="booked-dialog"
+      footer={
+        <div className="booked__actions">
+          <Button variant="secondary" onClick={onClose}>
+            Done
+          </Button>
+          <LinkButton variant="primary" to={`/trips/${trip.id}`} trailing="arrow-right">
+            View Booking
+          </LinkButton>
+        </div>
+      }
+    >
+      <div className="booked">
+        <svg className="booked__mark" viewBox="0 0 64 64" aria-hidden="true">
+          <circle className="booked__ring" cx="32" cy="32" r="29" />
+          <path className="booked__tick" d="M19 33.5l9 9 17-19" />
+        </svg>
+        <p className="booked__lead">Your ride request is saved. Our dispatch team will assign your chauffeur and keep you updated.</p>
+        <div className="booked__id">
+          <span>Booking ID</span>
+          <strong className="num">{bookingRef(trip)}</strong>
+        </div>
+        <dl className="booked__trip">
+          <div>
+            <dt>Route</dt>
+            <dd>
+              {trip.pickup.name} → {trip.drop.id === 'place-local-disposal' ? 'Within the city' : trip.drop.name}
+            </dd>
+          </div>
+          <div>
+            <dt>Pickup</dt>
+            <dd>{at ? `${formatDate(at)} · ${formatTime(at)}` : '—'}</dd>
+          </div>
+          <div>
+            <dt>Vehicle</dt>
+            <dd>
+              {trip.categoryName} · {tripTypeLabel(trip.tripType)}
+            </dd>
+          </div>
+        </dl>
+      </div>
+    </Dialog>
+  );
+}
+
 export function DonePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const { trips } = useCustomerData();
   const trip = trips.find((t) => t.id === id);
+  const [booked, setBooked] = useState(() => (location.state as { confirmed?: boolean } | null)?.confirmed === true);
+
+  // The flag is consumed: reloading or coming back to this page never shows the dialog again.
+  useEffect(() => {
+    if (booked) navigate(location.pathname, { replace: true, state: null });
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!trip) return <PageLoader label="Loading your booking details…" />;
 
@@ -85,7 +147,7 @@ export function DonePage() {
             <div className="ticket__body">
               <div className="ticket__id">
                 <span>Booking ID</span>
-                <strong className="num">{trip.bookingId || `#${trip.id.slice(-6).toUpperCase()}`}</strong>
+                <strong className="num">{bookingRef(trip)}</strong>
               </div>
               <ol className="ticket__route">
                 <li>
@@ -140,6 +202,7 @@ export function DonePage() {
           <Icon name="arrow-right" size={16} /> View Booking
         </Link>
       </div>
+      {booked ? <BookedDialog trip={trip} onClose={() => setBooked(false)} /> : null}
     </div>
   );
 }

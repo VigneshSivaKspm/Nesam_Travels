@@ -7,6 +7,8 @@ import { payableAmount } from './tripMoney';
 
 const money = (n: number) => `${n < 0 ? '−' : ''}₹${Math.abs(Math.round(n * 100) / 100).toLocaleString('en-IN', Number.isInteger(Math.round(Math.abs(n) * 100) / 100) ? { maximumFractionDigits: 0 } : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+const policyUrl = (id: string) => `${window.location.origin}/legal#${id}`;
+
 /** Receipt HTML — every interpolated value is escaped. */
 export function receiptHtml(trip: TripRecord, customerName: string): string {
   const f = trip.fareBreakdown;
@@ -46,7 +48,8 @@ ${trip.driver ? `<b>Driver:</b> ${escapeHtml(trip.driver.name)} · ${escapeHtml(
 <b>Payment:</b> ${escapeHtml(trip.paymentMethod)} (${escapeHtml(trip.paymentStatus)})</div>
 <table>${rows}<tr class="total"><td>Total</td><td class="r">${escapeHtml(money(payableAmount(trip)))}</td></tr></table>
 ${paidRows}${extrasBox}
-<p class="muted">${gstNote} Upfront fare based on ${escapeHtml(formatDistance(trip.distanceKm))} / ${escapeHtml(formatDuration(trip.durationMin))} estimated. Thank you for riding with NESAM.</p>
+<p class="muted">${gstNote} Upfront fare based on ${escapeHtml(formatDistance(trip.distanceKm))} / ${escapeHtml(formatDuration(trip.durationMin))} estimated. Thank you for riding with People Taxi.</p>
+<p class="muted">Fare &amp; Payment Policy: ${escapeHtml(policyUrl('payment'))} · Refund Policy: ${escapeHtml(policyUrl('refund'))}</p>
 </body></html>`;
 }
 

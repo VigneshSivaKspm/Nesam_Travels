@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import type { ConfirmationResult } from 'firebase/auth';
 import { isValidIndianMobile, formatPhone, isValidEmail, isValidName } from '@core/utils/format';
 import { registerCustomerProfile } from '@core/services/userService';
@@ -12,6 +13,20 @@ import { useOnline } from '@/lib/hooks';
 
 const RESEND_SECONDS = 30;
 const OTP_LENGTH = 6;
+
+const agreement = (
+  <p className="login-modal__note">
+    By continuing you agree to People Taxi’s{' '}
+    <Link to="/legal#terms" target="_blank" rel="noopener">
+      Terms &amp; Conditions<span className="sr-only"> (opens in a new tab)</span>
+    </Link>{' '}
+    and{' '}
+    <Link to="/legal#privacy" target="_blank" rel="noopener">
+      Privacy &amp; Location Policy<span className="sr-only"> (opens in a new tab)</span>
+    </Link>
+    .
+  </p>
+);
 
 function OtpInput({
   value,
@@ -205,6 +220,7 @@ export function LoginModal() {
             <Button type="submit" size="lg" block loading={savingProfile} disabled={!name.trim()}>
               {savingProfile ? 'Saving…' : 'Save and continue booking'}
             </Button>
+            {agreement}
           </form>
         </div>
       </Dialog>
@@ -269,6 +285,7 @@ export function LoginModal() {
               <p className="login-modal__note">
                 <Icon name="lock" size={14} /> Fares shown upfront · No payment is taken now
               </p>
+              {agreement}
             </form>
           </>
         ) : (

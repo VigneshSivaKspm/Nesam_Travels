@@ -7,9 +7,11 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/platform/firebase';
 import { callFunction } from '@core/services/callables';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
-import { Badge, Button, EmptyState, Notice, PageHead, PageLoader } from '@/components/ui';
+import { Badge, Button, Notice, PageHead, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
+import { useAuth } from '@/state/Auth';
+import { PolicySections } from './PolicySections';
 
 interface DocRow {
   key: string;
@@ -29,8 +31,12 @@ export function LegalPage() {
   const [error, setError] = useState('');
   const [open, setOpen] = useState('');
   const [attempt, setAttempt] = useState(0);
+  // Published versions and acceptance belong to an account; a signed-out visitor reads the policies only.
+  const { state: auth } = useAuth();
+  const signedIn = auth.status !== 'signed-out' && auth.status !== 'loading';
 
   useEffect(() => {
+    if (!signedIn) return undefined;
     let alive = true;
     setError('');
     (async () => {
@@ -49,13 +55,13 @@ export function LegalPage() {
     return () => {
       alive = false;
     };
-  }, [attempt]);
+  }, [attempt, signedIn]);
 
   return (
     <>
       <PageHead
         eyebrow="Account"
-        title="Terms and privacy"
+        title="Terms, privacy and policies"
         back={
           <Link to="/account" className="back-link">
             <Icon name="arrow-left" size={18} /> Account
@@ -67,6 +73,7 @@ export function LegalPage() {
 
       <div className="page split">
         <div className="stack">
+          <PolicySections />
           {error ? (
             <Notice
               tone="error"
@@ -79,23 +86,8 @@ export function LegalPage() {
               {error}
             </Notice>
           ) : null}
-          {rows === null && !error ? <PageLoader label="Loading documents…" /> : null}
-          {rows && rows.length === 0 ? (
-            <div className="card card--center">
-              <EmptyState
-                art="account-review"
-                title="No documents online yet"
-                action={
-                  <a className="btn btn--primary" href={`tel:${SUPPORT_PHONE}`}>
-                    <Icon name="phone" /> Call {SUPPORT_PHONE_DISPLAY}
-                  </a>
-                }
-              >
-                People Taxi hasn’t published customer terms or a privacy policy online yet. Contact support for a copy.
-              </EmptyState>
-            </div>
-          ) : null}
-
+          {!signedIn ? <Notice>Sign in to see the agreement versions published for your account and whether you have accepted them.</Notice> : null}
+          {signedIn && rows === null && !error ? <PageLoader label="Loading documents…" /> : null}
           {rows?.map((r) => (
             <section key={r.key} className="card legal-doc">
               <button type="button" className="legal-doc__head" aria-expanded={open === r.key} onClick={() => setOpen(open === r.key ? '' : r.key)}>

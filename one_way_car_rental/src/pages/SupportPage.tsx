@@ -10,6 +10,7 @@ import { FAQS } from '@/pages/book/content';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
+import { PolicyLinks } from '@/pages/PolicySections';
 
 type Tab = 'help' | 'ticket' | 'mine';
 
@@ -205,6 +206,7 @@ export function SupportPage() {
                     Raise a ticket
                   </Button>
                 ) : null}
+                <PolicyLinks lead="Customer policies:" ids={['cancellation', 'refund', 'safety', 'privacy']} />
               </div>
             </section>
           </aside>
