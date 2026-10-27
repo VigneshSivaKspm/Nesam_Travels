@@ -78,7 +78,7 @@
   --line-soft: #eceff3;
   --line-strong: #d3d9e1;
   --surface: #ffffff;
-  --page: #f6f7f9;
+  --page: #f5f6f8;
   --sunken: #f5f6f8;
   --chip: #f1f3f6;
 
@@ -107,27 +107,39 @@
   --font-head: 'Nesam UI', 'Manrope', 'Inter', 'Noto Sans Tamil', 'Segoe UI', sans-serif;
   --font-brand: 'Nesam Brand', 'Nesam UI', 'Inter', Arial, sans-serif;
 
+  /* Type scale: nothing below 12px */
+  --fs-2xs: 0.75rem; /* 12 — badges, fine print */
+  --fs-xs: 0.8125rem; /* 13 — captions, secondary lines */
+  --fs-sm: 0.875rem; /* 14 — controls, list text */
+  --fs-body: 0.9375rem; /* 15 — body copy */
+  --fs-md: 1.0625rem; /* 17 — card titles */
+  --fs-lg: 1.25rem; /* 20 — section headings */
+  --fs-xl: 1.5rem; /* 24 */
+  --fs-h1: clamp(1.5rem, 1.25rem + 1.1vw, 1.875rem);
+
   /* Shape */
-  --r-xs: 5px;
-  --r-btn: 7px;
-  --r-field: 8px;
-  --r-card: 9px;
-  --r-panel: 12px;
+  --r-xs: 6px;
+  --r-btn: 10px;
+  --r-field: 10px;
+  --r-card: 12px;
+  --r-panel: 14px;
   --r-lg: 14px;
+  --r-xl: 20px;
   --r-pill: 999px;
 
   /* Elevation (kept very light, as in the reference) */
-  --shadow-1: 0 1px 2px rgb(34 52 74 / 0.04);
-  --shadow-2: 0 5px 20px rgb(34 52 74 / 0.05);
+  --shadow-1: 0 1px 2px rgb(34 52 74 / 0.05);
+  --shadow-2: 0 4px 16px rgb(34 52 74 / 0.06);
   --shadow-3: 0 18px 50px rgb(34 52 74 / 0.12);
   --shadow-pop: 0 24px 70px rgb(20 28 40 / 0.22);
 
   /* Layout: desktop content is intentionally centred at 1216px including padding. */
   --max: 1216px;
   --gutter: 32px;
-  --header-h: 80px;
-  --nav-h: 72px; /* phone bottom navigation */
+  --header-h: 72px;
+  --nav-h: 68px; /* phone bottom navigation */
   --tap: 44px;
+  --control-h: 48px; /* inputs and primary buttons */
 
   --ring: 0 0 0 3px var(--red-ring);
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -136,7 +148,7 @@
 
 @media (max-width: 999.98px) {
   :root {
-    --header-h: 70px;
+    --header-h: 60px;
     --gutter: 24px;
   }
 }
