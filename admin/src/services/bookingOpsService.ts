@@ -28,8 +28,12 @@ export const updateSettlement = (i: { bookingId: string; action: "processing" | 
   callFunction<typeof i, { ok: boolean }>("updateSettlement", i);
 
 /** Saves the confirmed customer / partner tariff (business_config/tariff_v2). */
-export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; enabled: boolean; reason: string; expectedVersion?: number; cityDrop?: { zones: { id: string; name: string; lat: number; lng: number; radiusKm: number }[] } }) =>
+export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; keepSavedRates?: boolean; enabled: boolean; reason: string; expectedVersion?: number; cityDrop?: { zones: { id: string; name: string; lat: number; lng: number; radiusKm: number }[] } }) =>
   callFunction<typeof i, { version: number; enabled: boolean }>("saveTariffConfig", i);
+
+/** Saves one section of the tariff (base rates, a city's local fare, a rental minimum or a rental package) against the version the editor loaded. */
+export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; data?: unknown }) =>
+  callFunction<typeof i, { version: number }>("saveTariffSection", i);
 
 /** Fulfilment route 2: reserve an approved booking to a Vendor, which then assigns its own driver and vehicle. */
 export const assignVendor = (i: { bookingId: string; vendorId: string; payout?: number; reason?: string }) =>

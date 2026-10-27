@@ -18,6 +18,8 @@ const MODEL_LABEL: Record<string, string> = {
   round_trip_calendar: "Round trip — Indian calendar days",
   city_drop_package: "Local city drop package",
   rental_time: "Local rental (time)",
+  local_pickup_drop: "Local Pickup & Drop (city fare)",
+  rental_package: "Local rental package",
   legacy_category: "Vehicle category fares",
 };
 

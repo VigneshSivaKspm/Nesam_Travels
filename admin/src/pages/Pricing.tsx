@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { MasterLocation, TravelService, VehicleCategory } from "../types";
 import { subscribeLocations, subscribeServices, subscribeToDocument, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import {
@@ -11,6 +11,7 @@ import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, toneForStatus }
 import { StageBar } from "../components/ui/ListKit";
 import MenuButton from "../components/ui/MenuButton";
 import TariffConfigCard from "../components/TariffConfigCard";
+import LocalFares from "../components/LocalFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { TaxPolicyDialog, type TaxPolicy } from "./Invoices";
@@ -36,10 +37,17 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>("All");
-  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "limits" | "all" | "tax" | "local" } | null>(null);
   const canEdit = useCan("pricing");
   const canTest = useCan("operations");
   const { toast, show } = useToast(6000);
+  // The base-rates editor reports unsaved edits so closing its sheet cannot silently drop them.
+  const baseDirty = useRef(false);
+  const closeBase = () => {
+    if (baseDirty.current && !window.confirm("Discard your unsaved base-rate changes?")) return;
+    baseDirty.current = false;
+    setSheet(null);
+  };
   useEffect(() => {
     const u = [subscribeServiceRules((r) => { setRules(r); setLoaded(true); setLoadError(null); }, (m) => { setLoadError(m); setLoaded(true); }), subscribeLocations(setLocations), subscribeVehicleCategories(setCategories), subscribeServices(setServices)];
     return () => u.forEach((x) => x());
@@ -82,7 +90,7 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
 
   const tools: [string, string, string, () => void][] = [
     ["Base rates", "Regular ₹/km, driver bata and partner payout.", "Company-wide", () => setSheet({ kind: "base" })],
-    ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => onNavigate("services")],
+    ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => setSheet({ kind: "local" })],
     ["Extra charges", "Waiting, hills, carrier and other add-ons.", "Configured scope", () => onNavigate("categories")],
     ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => onNavigate("fare-rules")],
     ["Business contracts", "Company rates, credit terms and contracts.", "Business account", () => onNavigate("business")],
@@ -176,7 +184,8 @@ export default function Pricing({ onNavigate }: { onNavigate: (page: string, tab
       {sheet?.kind === "status" && <StatusSheet rule={sheet.rule} to={sheet.to!} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "history" && <HistorySheet rules={rules} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet onClose={() => setSheet(null)} />}
-      {sheet?.kind === "base" && <Modal title="Company-wide base rates" onClose={() => setSheet(null)} wide><TariffConfigCard /></Modal>}
+      {sheet?.kind === "base" && <Modal title="Base rates & partner payout" subtitle="Company-wide" onClose={closeBase} wide><TariffConfigCard onDirtyChange={(d) => { baseDirty.current = d; }} /></Modal>}
+      {sheet?.kind === "local" && <Modal title="Local fares" subtitle="Rental packages and Pickup & Drop" onClose={() => setSheet(null)} wide><LocalFares initialCity={sel.city} onToast={show} /></Modal>}
       {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
       {sheet?.kind === "tax" && <TaxSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); show("Approved tax policy saved."); }} />}

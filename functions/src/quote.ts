@@ -12,8 +12,8 @@ import { DutyClass, dutyClassOf } from './domain/eligibility';
 import { buildFareBreakup, buildTariffFareBreakup, FareBreakup } from './domain/fareBreakup';
 import { FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
 import {
-  CONFIRMED_TARIFF_V2, PricingSnapshot, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, paise, parseTariffConfig,
-  gstOn, quoteOneWay, quoteRoundTrip, r2, withinCityZone,
+  CONFIRMED_TARIFF_V2, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, localFareFor, paise, parseTariffConfig,
+  gstOn, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone,
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
 import { requirePermission, text } from './shared';
@@ -32,7 +32,42 @@ export function tariffClassOf(category: { tariffClass?: unknown; dutyClass?: unk
   if ((TARIFF_CLASSES as readonly string[]).includes(explicit)) return explicit as TariffClass;
   const duty: DutyClass | null = dutyClassOf(category);
   if (!duty) return null;
-  return duty === 'sedan' ? 'sedan' : duty === 'crysta' ? 'crysta' : 'suv';
+  // Innova has its own class; until an Innova rate is saved it is priced at the SUV rate (see classRates).
+  return duty === 'sedan' ? 'sedan' : duty === 'crysta' ? 'crysta' : duty === 'innova' ? 'innova' : 'suv';
+}
+
+/**
+ * The canonical City record (`locations` id) a master-location place belongs to: the place itself when it
+ * is a City, else the City found by walking `parentLocationId`, else the one active City with the same
+ * state and city name. null for a map pin or anything that cannot be resolved to exactly one City.
+ */
+async function cityIdOf(place: GeoPlace): Promise<string | null> {
+  if (!place.id || place.id === 'pin') return null;
+  let id = place.id;
+  for (let hop = 0; hop < 4; hop++) {
+    const snap = await db.doc(`locations/${id}`).get();
+    const l = snap.data();
+    if (!snap.exists || !l) return null;
+    if (l.type === 'City') return snap.id;
+    if (typeof l.parentLocationId !== 'string' || !l.parentLocationId) break;
+    id = l.parentLocationId;
+  }
+  const { city, state } = place as GeoPlace & { city?: string; state?: string };
+  if (!city) return null;
+  const cities = await db.collection('locations').where('type', '==', 'City').where('status', '==', 'Active').where('city', '==', city).get();
+  const same = cities.docs.filter((d) => !state || !d.data().state || d.data().state === state);
+  return same.length === 1 ? same[0].id : null;
+}
+
+/** The City both places belong to, for Local Pickup & Drop pricing; null when they differ or cannot be resolved. */
+export async function sharedCityId(pickup: GeoPlace, drop: GeoPlace): Promise<string | null> {
+  const [a, b] = await Promise.all([cityIdOf(pickup), cityIdOf(drop)]);
+  return a && a === b ? a : null;
+}
+
+/** Whole rental hours from a request, or null when none were asked for. */
+export function rentalHoursOf(v: unknown): number | null {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : null;
 }
 
 export interface PriceInput {
@@ -49,6 +84,10 @@ export interface PriceInput {
   /** Coupon or admin discount in rupees. */
   discount?: number;
   adminDiscount?: Parameters<typeof calculateFare>[0]['adminDiscount'];
+  /** Canonical City both places belong to (see sharedCityId). Enables Local Pickup & Drop pricing. */
+  localCityId?: string | null;
+  /** Local Rental only: the package the customer chose, in hours. */
+  rentalHours?: number | null;
 }
 
 export interface PriceResult {
@@ -69,6 +108,40 @@ export function priceBooking(i: PriceInput): PriceResult {
   const cfg = i.tariff && i.tariff.enabled ? i.tariff : null;
   const useTariff = !!cfg && !!klass && (i.tripType === 'Round Trip' || (i.tripType === 'One Way' && outstation));
 
+  // A coupon or an admin discount, applied the same way on every confirmed-tariff path.
+  const withDiscounts = (run: (discount: number) => QuoteResult): QuoteResult => {
+    let q = run(i.discount ?? 0);
+    if (i.adminDiscount) {
+      const v = Math.max(0, i.adminDiscount.value);
+      const requested = i.adminDiscount.type === 'percentage' ? Math.round((q.fare.subtotal * Math.min(100, v)) / 100) : Math.round(v);
+      q = run(requested);
+      if (q.fare.discount > 0) q.fare.discountDetail = { type: i.adminDiscount.type, value: v, amount: q.fare.discount, source: 'admin', reason: i.adminDiscount.reason ?? '' };
+    }
+    return q;
+  };
+  const adjust = { adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction };
+  const timing = { routeKm: i.route.distanceKm, durationMin: i.route.durationMin, pickupMs: i.pickupAt.getTime(), endMs: null };
+
+  // Fixed rental packages and per-city Local Pickup & Drop fares switch on one by one (each has its own
+  // enabled flag), so they do not wait for the confirmed-tariff switch. Anything not explicitly enabled
+  // and valid is never priced here: a rental with no usable package is refused, a local trip falls through.
+  if (i.tripType === 'Local Rental' && i.rentalHours != null) {
+    const tariff = i.tariff, hours = i.rentalHours;
+    if (!tariff || !klass) throw new HttpsError('failed-precondition', 'Rental packages are not configured for this vehicle.');
+    try {
+      const q = withDiscounts((discount) => quoteRentalPackage({ config: tariff, tariffClass: klass, tripType: 'One Way', hours, discount, ...timing, ...adjust }));
+      return { fare: q.fare, pricing: q.pricing, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, false, q.pricing), usesCommissionPolicy: false };
+    } catch (e) {
+      if (e instanceof TariffError) throw new HttpsError('failed-precondition', e.message, { code: e.code });
+      throw e;
+    }
+  }
+  if (i.tariff && klass && i.localCityId && i.tripType === 'One Way' && service === 'Local' && localFareFor(i.tariff, i.localCityId, klass)) {
+    const tariff = i.tariff, cityId = i.localCityId;
+    const q = withDiscounts((discount) => quoteLocalPickupDrop({ config: tariff, tariffClass: klass, tripType: 'One Way', cityId, discount, ...timing, ...adjust }));
+    return { fare: q.fare, pricing: q.pricing, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, false, q.pricing), usesCommissionPolicy: false };
+  }
+
   if (cfg && !klass) {
     throw new HttpsError('failed-precondition', `${i.category.name} is not mapped to a tariff class yet. An admin must set its vehicle class.`);
   }
@@ -85,13 +158,7 @@ export function priceBooking(i: PriceInput): PriceResult {
             pickupMs: i.pickupAt.getTime(), endMs: null, discount,
             adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
           }));
-      let q = run(i.discount ?? 0);
-      if (i.adminDiscount) {
-        const v = Math.max(0, i.adminDiscount.value);
-        const requested = i.adminDiscount.type === 'percentage' ? Math.round((q.fare.subtotal * Math.min(100, v)) / 100) : Math.round(v);
-        q = run(requested);
-        if (q.fare.discount > 0) q.fare.discountDetail = { type: i.adminDiscount.type, value: v, amount: q.fare.discount, source: 'admin', reason: i.adminDiscount.reason ?? '' };
-      }
+      const q = withDiscounts(run);
       return {
         fare: q.fare, pricing: q.pricing, service, outstation,
         breakup: buildTariffFareBreakup(i.category, q.fare, outstation || i.tripType === 'Round Trip', q.pricing),
@@ -104,7 +171,8 @@ export function priceBooking(i: PriceInput): PriceResult {
   }
 
   // City drop package: only inside a configured city zone (boundaries are an open decision).
-  if (cfg && klass && i.tripType === 'One Way' && !outstation && cfg.cityDrop.classes[klass]) {
+  const dropRates = cfg && klass ? classRates(cfg.cityDrop.classes, klass) : undefined;
+  if (cfg && klass && i.tripType === 'One Way' && !outstation && dropRates) {
     const zone = withinCityZone(cfg, i.pickup, i.drop);
     if (zone) {
       const pack = cityDropFare(cfg, klass, i.route.distanceKm);
@@ -114,16 +182,16 @@ export function priceBooking(i: PriceInput): PriceResult {
       const gst = gstOn(taxable, cfg.gstRate);
       const fare: FareBreakdown = {
         subtotalBeforeAdjustment: pre, globalAdjustment: null, discountDetail: discount > 0 ? { type: 'coupon', value: discount, amount: discount, source: 'coupon', reason: '' } : null,
-        baseFare: cfg.cityDrop.classes[klass]!.customerBase, distanceFare: r2(pre - cfg.cityDrop.classes[klass]!.customerBase),
+        baseFare: dropRates.customerBase, distanceFare: r2(pre - dropRates.customerBase),
         timeFare: 0, nightCharge: 0, driverAllowance: 0, minimumFareAdjustment: 0, subtotal: pre, discount, taxableAmount: taxable, gstRate: cfg.gstRate, gst, total: r2(taxable + gst),
-        distanceKm: Math.round(i.route.distanceKm * 10) / 10, durationMin: Math.round(i.route.durationMin), perKmRate: cfg.cityDrop.classes[klass]!.customerExtraKm, perMinuteRate: 0,
+        distanceKm: Math.round(i.route.distanceKm * 10) / 10, durationMin: Math.round(i.route.durationMin), perKmRate: dropRates.customerExtraKm, perMinuteRate: 0,
       };
       const pricing: PricingSnapshot = {
         schema: 2, source: 'tariff_v2', model: 'city_drop_package', tariffVersion: cfg.version, tariffClass: klass, gstRate: cfg.gstRate,
-        quotedKm: Math.max(cfg.cityDrop.baseKm, fare.distanceKm), includedKm: cfg.cityDrop.baseKm, extraKmRatePaise: paise(cfg.cityDrop.classes[klass]!.customerExtraKm),
-        customerRatePaise: paise(cfg.cityDrop.classes[klass]!.customerExtraKm), customerBataPaise: 0, days: 1, minKmPerDay: cfg.cityDrop.baseKm,
+        quotedKm: Math.max(cfg.cityDrop.baseKm, fare.distanceKm), includedKm: cfg.cityDrop.baseKm, extraKmRatePaise: paise(dropRates.customerExtraKm),
+        customerRatePaise: paise(dropRates.customerExtraKm), customerBataPaise: 0, days: 1, minKmPerDay: cfg.cityDrop.baseKm,
         packagePaise: pack.customerPaise, discount, adminAdjustment: 0, adjustmentPercent: 0, adjustmentDirection: 'increase',
-        partner: { mode: 'NORMAL_RATE', ratePaise: paise(cfg.cityDrop.classes[klass]!.partnerExtraKm), bataPaise: 0, minKm: cfg.cityDrop.baseKm, days: 1, basePaise: pack.partnerPaise },
+        partner: { mode: 'NORMAL_RATE', ratePaise: paise(dropRates.partnerExtraKm), bataPaise: 0, minKm: cfg.cityDrop.baseKm, days: 1, basePaise: pack.partnerPaise },
         pickupDate: '', endDate: null, gates: [`D15: city boundary "${zone.name}" is a configured zone awaiting business confirmation`, 'D05: add-on units and partner share are pending'],
       };
       return { fare, pricing, service: 'City drop', outstation: false, breakup: buildTariffFareBreakup(i.category, fare, false, pricing), usesCommissionPolicy: false };
@@ -156,12 +224,11 @@ export function priceBooking(i: PriceInput): PriceResult {
 export const saveTariffConfig = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
   const input = request.data ?? {};
+  // `keepSavedRates` only flips the on/off switch: every saved rate, zone and local fare stays as it is.
+  const keepSaved = input.keepSavedRates === true;
   const raw = input.useConfirmedDefaults === true ? { ...CONFIRMED_TARIFF_V2, cityDrop: { ...CONFIRMED_TARIFF_V2.cityDrop, zones: input.cityDrop?.zones ?? [] } } : input;
-  const parsed = parseTariffConfig({ ...raw, enabled: input.enabled === true, version: 0 });
-  if (!parsed) throw new HttpsError('invalid-argument', 'The tariff configuration is invalid.');
-  if (parsed.enabled && !Object.keys(parsed.oneWay.classes).length && !Object.keys(parsed.roundTrip.classes).length) {
-    throw new HttpsError('failed-precondition', 'Configure at least one one-way or round-trip rate card before enabling the tariff.');
-  }
+  const submitted = parseTariffConfig({ ...raw, enabled: input.enabled === true, version: 0 });
+  if (!submitted) throw new HttpsError('invalid-argument', 'The tariff configuration is invalid.');
   const reason = text(input.reason, 300);
   if (reason.length < 5) throw new HttpsError('invalid-argument', 'Give a short reason for the change.');
   const ref = db.doc(TARIFF_DOC);
@@ -170,6 +237,24 @@ export const saveTariffConfig = onCall(async (request) => {
     const before = current.exists ? parseTariffConfig(current.data()) : null;
     if (typeof input.expectedVersion === 'number' && input.expectedVersion !== (before?.version ?? 0)) {
       throw new HttpsError('failed-precondition', 'The tariff was changed by someone else. Reload and review it before saving.');
+    }
+    if (keepSaved && !before) throw new HttpsError('failed-precondition', 'No tariff is saved yet. Save base rates first.');
+    // Loading the confirmed values replaces the one-way / round-trip / rental / city-drop rates only; the
+    // outstation extras, airport fare, Local Pickup & Drop fares and rental packages keep their saved values.
+    const parsed: TariffConfig = keepSaved && before ? {
+      ...before,
+      enabled: input.enabled === true,
+      // City-drop zones may be replaced on their own; every rate stays as saved.
+      ...(Array.isArray(input.cityDrop?.zones) ? { cityDrop: { ...before.cityDrop, zones: submitted.cityDrop.zones } } : {}),
+    } : {
+      ...submitted,
+      ...(submitted.outstationExtras ?? before?.outstationExtras ? { outstationExtras: submitted.outstationExtras ?? before?.outstationExtras } : {}),
+      ...(submitted.airport ?? before?.airport ? { airport: submitted.airport ?? before?.airport } : {}),
+      ...(submitted.localPickupDrop ?? before?.localPickupDrop ? { localPickupDrop: submitted.localPickupDrop ?? before?.localPickupDrop } : {}),
+      ...(submitted.rentalPackages ?? before?.rentalPackages ? { rentalPackages: submitted.rentalPackages ?? before?.rentalPackages } : {}),
+    };
+    if (parsed.enabled && !Object.keys(parsed.oneWay.classes).length && !Object.keys(parsed.roundTrip.classes).length) {
+      throw new HttpsError('failed-precondition', 'Configure at least one one-way or round-trip rate card before enabling the tariff.');
     }
     const version = (before?.version ?? 0) + 1;
     tx.set(ref, { ...parsed, version, updatedBy: actor.uid, updatedByName: actor.name, updatedAt: FieldValue.serverTimestamp() });
@@ -242,7 +327,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     .sort((a, b) => a.c.displayOrder - b.c.displayOrder)
     .map(({ d, c }) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
-      const base = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment };
+      const base = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null };
       try {
         assertBookable(rules, category.name);
         const before = priceBooking(base);

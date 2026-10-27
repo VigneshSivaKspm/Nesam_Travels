@@ -122,8 +122,8 @@
       "destination": "/sitemaps/sitemap-index.xml"
     },
     {
-      "source": "/(google[a-zA-Z0-9_-]+\\.html)",
-      "destination": "/$1"
+      "source": "/:verification(google[a-zA-Z0-9_-]+\\.html)",
+      "destination": "/:verification"
     },
     {
       "source": "/(.*)",
@@ -183,7 +183,7 @@
       ]
     },
     {
-      "source": "/(robots.txt|robots/(.*))",
+      "source": "/(robots.txt|robots/.*)",
       "headers": [
         {
           "key": "Content-Type",
@@ -196,7 +196,7 @@
       ]
     },
     {
-      "source": "/(sitemap.xml|sitemap-index.xml|sitemaps/(.*))",
+      "source": "/(sitemap.xml|sitemap-index.xml|sitemaps/.*)",
       "headers": [
         {
           "key": "Content-Type",

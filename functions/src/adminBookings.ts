@@ -13,7 +13,7 @@ import { DEFAULT_ADMIN_MAX_ADVANCE_DAYS, bookingWindowFrom, parsePickupInstant, 
 import { AWAITING_APPROVAL } from './bookingBuild';
 import { MANUAL_PAYMENT_METHODS as PAYMENT_METHODS, summarizePayments } from './domain/bookingFlow';
 import { dutyClassOf } from './domain/eligibility';
-import { applyFareOverride, mapCategory, serviceName } from './domain/pricing';
+import { applyFareOverride, isOutstation, mapCategory, serviceName } from './domain/pricing';
 import { COMMISSION_NOT_CONFIGURED, buildFinanceSnapshot, partnerPayoutFor, resolveCommission } from './domain/finance';
 import { distanceKm } from './domain/verification';
 import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
@@ -22,7 +22,7 @@ import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { loadCommissionPolicy } from './commission';
 import { createContactInTx, maskPhone } from './contacts';
-import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
+import { loadTariffConfig, priceBooking, rentalHoursOf, sharedCityId, tariffClassOf } from './quote';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { nextBookingCode } from './bookingSequence';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text } from './shared';
@@ -131,6 +131,9 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   }
   const pushes: { id: string; input: NotifyInput }[] = [];
   const serviceRules = await loadServiceRules();
+  // Master-location places carry canonical ids, so a local trip inside one city can use that city's Local Pickup & Drop fare.
+  const localCityId = tripType === 'One Way' && !isOutstation(route.distanceKm) ? await sharedCityId(pickup, drop) : null;
+  const rentalHours = tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null;
 
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
@@ -168,7 +171,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const pricedRaw = priceBooking({
-      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn,
+      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours,
     });
     const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
     assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });

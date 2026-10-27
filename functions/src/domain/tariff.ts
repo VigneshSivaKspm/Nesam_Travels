@@ -10,8 +10,17 @@
 // A missing rate is `null`, never zero.
 import { FareBreakdown } from './types';
 
-export type TariffClass = 'sedan' | 'suv' | 'crysta';
-export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'crysta'];
+export type TariffClass = 'sedan' | 'suv' | 'innova' | 'crysta';
+export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'innova', 'crysta'];
+
+/**
+ * One-way / round-trip / city-drop rates of a class. Tariffs saved before 'innova' existed priced Innova
+ * as 'suv', so an Innova duty with no rate of its own keeps using the SUV rate (nothing changes until
+ * an Innova rate is saved). The local-fare and rental-package sections never inherit.
+ */
+export function classRates<T>(m: Partial<Record<TariffClass, T>>, c: TariffClass): T | undefined {
+  return m[c] ?? (c === 'innova' ? m.suv : undefined);
+}
 
 /** Rupees → paise, rejecting anything that is not a finite non-negative number. */
 export const paise = (rupees: number): number => Math.round(rupees * 100);
@@ -42,6 +51,23 @@ export interface RentalRates { firstHour: number; laterHour: number; minHours: n
 export interface CityDropRates { customerBase: number; customerExtraKm: number; partnerBase: number; partnerExtraKm: number }
 export interface CityZone { id: string; name: string; lat: number; lng: number; radiusKm: number }
 
+/** Outstation / round-trip usage beyond the package. Independent of the local-fare rates. */
+export interface OutstationExtra { extraKmRate: number; waitingPerHour: number }
+/** Airport base fare and partner base payout (saved; not yet applied to quotes — the airport formula is an open decision). */
+export interface AirportRates { customerBase: number; partnerBase: number }
+/** Local Pickup & Drop fare of one vehicle class in one city: max(road km, minKm) × rate. */
+export interface LocalFareEntry { minKm: number; customerRate: number; partnerRate: number; extraKmRate: number; waitingPerHour: number; enabled: boolean }
+/** Keyed by the canonical City record id in `locations`; `cityName` is a display copy only. */
+export interface LocalCityFares { cityName: string; classes: Partial<Record<TariffClass, LocalFareEntry>> }
+export const RENTAL_HOURS = [4, 6, 8, 10, 12] as const;
+export type RentalHours = (typeof RENTAL_HOURS)[number];
+export type GstMode = 'included' | 'excluded';
+export interface RentalPackage { customerFare: number; partnerPayout: number; includedKm: number; extraKmRate: number; extraHourRate: number; gstMode: GstMode; enabled: boolean }
+/** `packages` is keyed by the hour count ("4", "6", …). */
+export interface RentalClassConfig { minHours?: number; packages: Partial<Record<string, RentalPackage>> }
+/** Minimum rental hours of a category that has none saved yet. */
+export const DEFAULT_RENTAL_MIN_HOURS: Readonly<Record<TariffClass, number>> = { sedan: 4, suv: 4, innova: 4, crysta: 10 };
+
 export interface TariffConfig {
   /** Rupee amounts. Absent = not configured (never zero). */
   version: number;
@@ -51,6 +77,10 @@ export interface TariffConfig {
   roundTrip: { maxDays: number; classes: Partial<Record<TariffClass, RoundTripRates>> };
   rental: { classes: Partial<Record<TariffClass, RentalRates>> };
   cityDrop: { baseKm: number; zones: CityZone[]; classes: Partial<Record<TariffClass, CityDropRates>> };
+  outstationExtras?: Partial<Record<TariffClass, OutstationExtra>>;
+  airport?: AirportRates;
+  localPickupDrop?: Record<string, LocalCityFares>;
+  rentalPackages?: Partial<Record<TariffClass, RentalClassConfig>>;
 }
 
 /** The values the owner confirmed on 09 Oct 2026 (Crysta one-way bata ₹600 supersedes ₹500). */
@@ -104,9 +134,61 @@ function rateMap<T extends object>(v: unknown, keys: readonly (keyof T)[]): Part
   return out;
 }
 
+const isPos = (v: unknown): v is number => isNum(v) && v > 0;
+
+function parseLocalFare(r: any): LocalFareEntry | null {
+  if (!r || typeof r !== 'object') return null;
+  // A rate that is missing, zero or malformed is "not configured" — it is never priced as ₹0.
+  if (!isPos(r.minKm) || !isPos(r.customerRate) || !isPos(r.partnerRate) || !isPos(r.extraKmRate) || !isNum(r.waitingPerHour)) return null;
+  return { minKm: r.minKm, customerRate: r.customerRate, partnerRate: r.partnerRate, extraKmRate: r.extraKmRate, waitingPerHour: r.waitingPerHour, enabled: r.enabled === true };
+}
+
+function parseLocalPickupDrop(v: unknown): Record<string, LocalCityFares> | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const out: Record<string, LocalCityFares> = {};
+  for (const [cityId, raw] of Object.entries(v as Record<string, any>)) {
+    if (!cityId || !raw || typeof raw !== 'object') continue;
+    const classes: Partial<Record<TariffClass, LocalFareEntry>> = {};
+    for (const c of TARIFF_CLASSES) {
+      const e = parseLocalFare(raw.classes?.[c]);
+      if (e) classes[c] = e;
+    }
+    out[cityId] = { cityName: typeof raw.cityName === 'string' ? raw.cityName : cityId, classes };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+export function parseRentalPackage(r: any): RentalPackage | null {
+  if (!r || typeof r !== 'object') return null;
+  if (!isPos(r.customerFare) || !isPos(r.partnerPayout) || !isPos(r.includedKm) || !isPos(r.extraKmRate) || !isPos(r.extraHourRate)) return null;
+  if (r.gstMode !== 'included' && r.gstMode !== 'excluded') return null;
+  return { customerFare: r.customerFare, partnerPayout: r.partnerPayout, includedKm: r.includedKm, extraKmRate: r.extraKmRate, extraHourRate: r.extraHourRate, gstMode: r.gstMode, enabled: r.enabled === true };
+}
+
+function parseRentalPackages(v: unknown): Partial<Record<TariffClass, RentalClassConfig>> | undefined {
+  if (!v || typeof v !== 'object') return undefined;
+  const out: Partial<Record<TariffClass, RentalClassConfig>> = {};
+  for (const c of TARIFF_CLASSES) {
+    const raw = (v as Record<string, any>)[c];
+    if (!raw || typeof raw !== 'object') continue;
+    const packages: Partial<Record<string, RentalPackage>> = {};
+    for (const h of RENTAL_HOURS) {
+      const p = parseRentalPackage(raw.packages?.[String(h)]);
+      if (p) packages[String(h)] = p;
+    }
+    const min = raw.minHours;
+    out[c] = { ...(Number.isInteger(min) && min >= 1 && min <= 12 ? { minHours: min } : {}), packages };
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
 /** Parses business_config/tariff_v2. Anything malformed is dropped (treated as not configured). */
 export function parseTariffConfig(d: Record<string, any> | undefined | null): TariffConfig | null {
   if (!d || typeof d !== 'object') return null;
+  const airportOk = isNum(d.airport?.customerBase) && isNum(d.airport?.partnerBase);
+  const extras = rateMap<OutstationExtra>(d.outstationExtras, ['extraKmRate', 'waitingPerHour']);
+  const localPickupDrop = parseLocalPickupDrop(d.localPickupDrop);
+  const rentalPackages = parseRentalPackages(d.rentalPackages);
   const zones: CityZone[] = Array.isArray(d.cityDrop?.zones)
     ? d.cityDrop.zones.filter((z: any) => z && typeof z.id === 'string' && isNum(z.radiusKm) && z.radiusKm > 0 && Number.isFinite(z.lat) && Number.isFinite(z.lng))
         .map((z: any) => ({ id: z.id, name: String(z.name ?? z.id), lat: z.lat, lng: z.lng, radiusKm: z.radiusKm }))
@@ -122,6 +204,10 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     },
     rental: { classes: rateMap<RentalRates>(d.rental?.classes, ['firstHour', 'laterHour', 'minHours', 'minTimeFare', 'partnerPerHour']) },
     cityDrop: { baseKm: isNum(d.cityDrop?.baseKm) && d.cityDrop.baseKm > 0 ? d.cityDrop.baseKm : 20, zones, classes: rateMap<CityDropRates>(d.cityDrop?.classes, ['customerBase', 'customerExtraKm', 'partnerBase', 'partnerExtraKm']) },
+    ...(Object.keys(extras).length ? { outstationExtras: extras } : {}),
+    ...(airportOk ? { airport: { customerBase: d.airport.customerBase, partnerBase: d.airport.partnerBase } } : {}),
+    ...(localPickupDrop ? { localPickupDrop } : {}),
+    ...(rentalPackages ? { rentalPackages } : {}),
   };
 }
 
@@ -161,7 +247,7 @@ export interface PricingSnapshot {
   schema: 2;
   /** 'tariff_v2' (this module) or 'legacy_category' (admin category fares, kept for local / airport duties). */
   source: 'tariff_v2' | 'legacy_category';
-  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category';
+  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package';
   tariffVersion: number;
   tariffClass: TariffClass | null;
   gstRate: number;
@@ -183,6 +269,13 @@ export interface PricingSnapshot {
   adjustmentPercent: number;
   adjustmentDirection: 'increase' | 'decrease';
   partner: PartnerNormalRate | null;
+  /** Waiting charge per hour in force when quoted (recorded for billing at actuals; not added to the quoted fare). */
+  waitingPerHourPaise?: number;
+  /** Rental package only: the booked hours and the rate for each hour beyond them. */
+  rentalHours?: number;
+  extraHourRatePaise?: number;
+  /** Local Pickup & Drop only: canonical City record the fare came from. */
+  localCityId?: string;
   /** Dates charged, IST, for round trips. */
   pickupDate: string;
   endDate: string | null;
@@ -258,12 +351,23 @@ function toBreakdown(args: {
   };
 }
 
+/**
+ * Customer rate for each KM beyond the package, and the waiting charge, for outstation and round-trip
+ * duties. The saved "outstation extra usage" values win; with none saved the customer's own per-KM rate
+ * applies, exactly as before they could be edited.
+ */
+function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {
+  const x = classRates(cfg.outstationExtras ?? {}, cls);
+  return x ? { extraKmRatePaise: paise(x.extraKmRate), waiting: { waitingPerHourPaise: paise(x.waitingPerHour) } } : { extraKmRatePaise: ratePaise, waiting: {} };
+}
+
 /** Standard one-way: included KM = max(floor, quoted route KM); base = included × rate + bata. */
 export function quoteOneWay(i: QuoteInput): QuoteResult {
-  const r = i.config.oneWay.classes[i.tariffClass];
+  const r = classRates(i.config.oneWay.classes, i.tariffClass);
   if (!r) throw new TariffError('rate-missing', 'The one-way tariff for this vehicle class is not configured.');
   const included = Math.max(i.config.oneWay.minKm, Math.round(i.routeKm * 10) / 10);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata);
+  const extra = extraUsage(i.config, i.tariffClass, ratePaise);
   const distancePaise = kmAmountPaise(included, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, included - i.routeKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;
@@ -277,8 +381,8 @@ export function quoteOneWay(i: QuoteInput): QuoteResult {
     fare,
     pricing: {
       schema: 2, source: 'tariff_v2', model: 'one_way_standard', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
-      quotedKm: included, includedKm: included, extraKmRatePaise: ratePaise, customerRatePaise: ratePaise, customerBataPaise: bataPaise,
-      days: 1, minKmPerDay: i.config.oneWay.minKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      quotedKm: included, includedKm: included, extraKmRatePaise: extra.extraKmRatePaise, customerRatePaise: ratePaise, customerBataPaise: bataPaise,
+      ...extra.waiting, days: 1, minKmPerDay: i.config.oneWay.minKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
       adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
       partner: { mode: 'NORMAL_RATE', ratePaise: paise(r.partnerRate), bataPaise: paise(r.partnerBata), minKm: i.config.oneWay.minKm, days: 1, basePaise: kmAmountPaise(partnerKm, paise(r.partnerRate)) + paise(r.partnerBata) },
       pickupDate: istDate(i.pickupMs), endDate: null, gates: [...GATES_ONE_WAY],
@@ -288,7 +392,7 @@ export function quoteOneWay(i: QuoteInput): QuoteResult {
 
 /** Round trip by Indian calendar days; billable KM = max(total KM, daily minimum × days). */
 export function quoteRoundTrip(i: QuoteInput): QuoteResult {
-  const r = i.config.roundTrip.classes[i.tariffClass];
+  const r = classRates(i.config.roundTrip.classes, i.tariffClass);
   if (!r) throw new TariffError('rate-missing', 'The round-trip tariff for this vehicle class is not configured.');
   if (i.endMs === null) throw new TariffError('end-required', 'Choose the date and time the trip ends.');
   const days = calendarDays(i.pickupMs, i.endMs);
@@ -298,6 +402,7 @@ export function quoteRoundTrip(i: QuoteInput): QuoteResult {
   const floorKm = r.minKmPerDay * days;
   const billable = Math.max(actualKm, floorKm);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata) * days;
+  const extra = extraUsage(i.config, i.tariffClass, ratePaise);
   const distancePaise = kmAmountPaise(billable, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, billable - actualKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;
@@ -311,8 +416,8 @@ export function quoteRoundTrip(i: QuoteInput): QuoteResult {
     fare,
     pricing: {
       schema: 2, source: 'tariff_v2', model: 'round_trip_calendar', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
-      quotedKm: actualKm, includedKm: billable, extraKmRatePaise: ratePaise, customerRatePaise: ratePaise, customerBataPaise: paise(r.customerBata),
-      days, minKmPerDay: r.minKmPerDay, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      quotedKm: actualKm, includedKm: billable, extraKmRatePaise: extra.extraKmRatePaise, customerRatePaise: ratePaise, customerBataPaise: paise(r.customerBata),
+      ...extra.waiting, days, minKmPerDay: r.minKmPerDay, packagePaise, discount: fare.discount, adminAdjustment: 0,
       adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
       partner: { mode: 'NORMAL_RATE', ratePaise: partnerRate, bataPaise: paise(r.partnerBata), minKm: r.minKmPerDay, days, basePaise: kmAmountPaise(billable, partnerRate) + paise(r.partnerBata) * days },
       pickupDate: istDate(i.pickupMs), endDate: istDate(i.endMs), gates: [...GATES_ROUND_TRIP],
@@ -334,13 +439,115 @@ export function rentalTimeFare(r: RentalRates, minutes: number): { timePaise: nu
 
 /** Local city drop package: base for the first N km + extra km at the class extra rate. */
 export function cityDropFare(cfg: TariffConfig, cls: TariffClass, km: number): { customerPaise: number; partnerPaise: number; extraKm: number } {
-  const r = cfg.cityDrop.classes[cls];
+  const r = classRates(cfg.cityDrop.classes, cls);
   if (!r) throw new TariffError('rate-missing', 'The city-drop package for this vehicle class is not configured.');
   const extraKm = Math.max(0, Math.round(km * 10) / 10 - cfg.cityDrop.baseKm);
   return {
     customerPaise: paise(r.customerBase) + kmAmountPaise(extraKm, paise(r.customerExtraKm)),
     partnerPaise: paise(r.partnerBase) + kmAmountPaise(extraKm, paise(r.partnerExtraKm)),
     extraKm,
+  };
+}
+
+const GATES_LOCAL = ['D04: tax rate, base and inclusions are configured separately'];
+
+/** The explicitly enabled, valid Local Pickup & Drop fare of a class in a city; null = not configured / not enabled. */
+export function localFareFor(cfg: TariffConfig, cityId: string, cls: TariffClass): { cityName: string; fare: LocalFareEntry } | null {
+  const city = cfg.localPickupDrop?.[cityId];
+  const fare = city?.classes[cls];
+  return city && fare && fare.enabled ? { cityName: city.cityName, fare } : null;
+}
+
+/**
+ * Local Pickup & Drop inside one city: billable KM = max(road KM, the city's local minimum), priced at the
+ * customer rate per KM. The 130 KM outstation floor does not apply here. Kilometres beyond the billable
+ * KM are charged at the extra-KM rate when the trip ends; waiting is recorded and billed at actuals.
+ */
+export function quoteLocalPickupDrop(i: QuoteInput & { cityId: string }): QuoteResult {
+  const hit = localFareFor(i.config, i.cityId, i.tariffClass);
+  if (!hit) throw new TariffError('rate-missing', 'Local Pickup & Drop is not configured for this city and vehicle class.');
+  const r = hit.fare;
+  const included = Math.max(r.minKm, Math.round(i.routeKm * 10) / 10);
+  const ratePaise = paise(r.customerRate);
+  const packagePaise = kmAmountPaise(included, ratePaise);
+  const floorPaise = kmAmountPaise(Math.max(0, included - i.routeKm), ratePaise);
+  const fare = toBreakdown({
+    packagePaise, distancePaise: packagePaise - floorPaise, bataPaise: 0, floorPaise, discount: i.discount ?? 0, adminAdjustment: 0,
+    adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase', gstRate: i.config.gstRate,
+    km: included, durationMin: i.durationMin, ratePaise,
+  });
+  const partnerRate = paise(r.partnerRate);
+  return {
+    fare,
+    pricing: {
+      schema: 2, source: 'tariff_v2', model: 'local_pickup_drop', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
+      quotedKm: included, includedKm: included, extraKmRatePaise: paise(r.extraKmRate), customerRatePaise: ratePaise, customerBataPaise: 0,
+      waitingPerHourPaise: paise(r.waitingPerHour), localCityId: i.cityId, days: 1, minKmPerDay: r.minKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
+      partner: { mode: 'NORMAL_RATE', ratePaise: partnerRate, bataPaise: 0, minKm: r.minKm, days: 1, basePaise: kmAmountPaise(included, partnerRate) },
+      pickupDate: istDate(i.pickupMs), endDate: null, gates: [...GATES_LOCAL],
+    },
+  };
+}
+
+/** Minimum rental hours of a class: the saved value, else the initial minimum (Sedan / SUV / Innova 4, Crysta 10). */
+export function rentalMinHours(cfg: TariffConfig, cls: TariffClass): number {
+  return cfg.rentalPackages?.[cls]?.minHours ?? DEFAULT_RENTAL_MIN_HOURS[cls];
+}
+
+/** Taxable paise of a GST-inclusive amount, using the same half-up GST rounding as every other fare. */
+export function taxableFromInclusivePaise(totalPaise: number, gstRate: number): number {
+  const withTax = (t: number) => t + Math.round(gstOn(t / 100, gstRate) * 100);
+  let t = Math.round(totalPaise / (1 + gstRate));
+  for (let n = 0; n < 5 && withTax(t) < totalPaise; n++) t++;
+  for (let n = 0; n < 5 && t > 0 && withTax(t) > totalPaise; n++) t--;
+  return t;
+}
+
+/**
+ * A saved rental package that may be quoted now: enabled, valid, and not shorter than the class minimum.
+ * A package below the minimum keeps its saved data but is never quoted.
+ */
+export function rentalPackageFor(cfg: TariffConfig, cls: TariffClass, hours: number): { pkg: RentalPackage } | { error: string } {
+  if (!(RENTAL_HOURS as readonly number[]).includes(hours)) return { error: `${hours}-hour rental packages are not offered.` };
+  const min = rentalMinHours(cfg, cls);
+  if (hours < min) return { error: `This vehicle's rental starts at ${min} hours.` };
+  const pkg = cfg.rentalPackages?.[cls]?.packages[String(hours)];
+  if (!pkg || !pkg.enabled) return { error: `The ${hours}-hour rental package is not configured for this vehicle.` };
+  return { pkg };
+}
+
+/**
+ * Local rental by fixed package. The customer fare is what the package says; GST follows the package's
+ * own mode — "included" means the saved fare already contains GST (the total stays equal to it), "excluded"
+ * adds GST on top. Both use the one GST rate and rounding of the tariff.
+ */
+export function quoteRentalPackage(i: QuoteInput & { hours: number }): QuoteResult {
+  const found = rentalPackageFor(i.config, i.tariffClass, i.hours);
+  if ('error' in found) throw new TariffError('rate-missing', found.error);
+  const p = found.pkg;
+  const fixedPaise = paise(p.customerFare);
+  const packagePaise = p.gstMode === 'included' ? taxableFromInclusivePaise(fixedPaise, i.config.gstRate) : fixedPaise;
+  const extraKmPaise = paise(p.extraKmRate);
+  const base = toBreakdown({
+    packagePaise, distancePaise: packagePaise, bataPaise: 0, floorPaise: 0, discount: i.discount ?? 0, adminAdjustment: 0,
+    adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase', gstRate: i.config.gstRate,
+    km: p.includedKm, durationMin: i.hours * 60, ratePaise: extraKmPaise,
+  });
+  // The whole package is the base fare; there is no separate distance line.
+  const fare: FareBreakdown = { ...base, baseFare: base.distanceFare, distanceFare: 0 };
+  return {
+    fare,
+    pricing: {
+      schema: 2, source: 'tariff_v2', model: 'rental_package', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
+      quotedKm: p.includedKm, includedKm: p.includedKm, extraKmRatePaise: extraKmPaise,
+      // No per-KM rate prices the package itself, so a short trip never shows a "minimum fare" top-up.
+      customerRatePaise: 0, customerBataPaise: 0, rentalHours: i.hours, extraHourRatePaise: paise(p.extraHourRate), days: 1, minKmPerDay: 0,
+      packagePaise, discount: fare.discount, adminAdjustment: 0, adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
+      partner: { mode: 'NORMAL_RATE', ratePaise: 0, bataPaise: 0, minKm: p.includedKm, days: 1, basePaise: paise(p.partnerPayout) },
+      pickupDate: istDate(i.pickupMs), endDate: null,
+      gates: [...GATES_LOCAL, 'Extra hours are recorded on the quote and billed at actuals; they are not added to the final fare automatically'],
+    },
   };
 }
 
@@ -399,7 +606,7 @@ export function finalizeFare(i: FinalInput): FinalResult {
       days = actual;
       // The new dates carry their own bata and their own daily minimum.
       includedKm = p.includedKm + p.minKmPerDay * extraDays;
-      packagePaise += p.customerBataPaise * extraDays + kmAmountPaise(p.minKmPerDay * extraDays, p.extraKmRatePaise);
+      packagePaise += p.customerBataPaise * extraDays + kmAmountPaise(p.minKmPerDay * extraDays, p.customerRatePaise);
     }
   }
   const extraKm = Math.max(0, Math.round((totalKm - includedKm) * 10) / 10);
@@ -413,7 +620,10 @@ export function finalizeFare(i: FinalInput): FinalResult {
   const gst = gstOn(taxable, p.gstRate);
   const billableKm = Math.max(totalKm, includedKm);
   let partnerPaise: number | null = null;
-  if (p.partner) {
+  if (p.partner && p.model === 'rental_package') {
+    // A rental package pays the partner its fixed package payout.
+    partnerPaise = p.partner.basePaise;
+  } else if (p.partner) {
     const partnerKm = Math.max(totalKm, p.model === 'round_trip_calendar' ? p.partner.minKm * days : p.partner.minKm, p.quotedKm && p.model === 'one_way_standard' ? p.quotedKm : 0);
     partnerPaise = kmAmountPaise(partnerKm, p.partner.ratePaise) + p.partner.bataPaise * days;
   }
@@ -422,11 +632,11 @@ export function finalizeFare(i: FinalInput): FinalResult {
     globalAdjustment: p.adjustmentPercent > 0 ? { id: 'fare-adjustment', name: 'Fare adjustment', direction: p.adjustmentDirection, percent: p.adjustmentPercent, amount: adjustmentAmount } : null,
     discountDetail: discount > 0 ? { type: 'coupon', value: discount, amount: discount, source: 'coupon', reason: '' } : null,
     baseFare: 0,
-    distanceFare: r2(pre - (p.customerBataPaise * days) / 100 - Math.max(0, kmAmountPaise(Math.max(0, includedKm - totalKm), p.extraKmRatePaise)) / 100),
+    distanceFare: r2(pre - (p.customerBataPaise * days) / 100 - Math.max(0, kmAmountPaise(Math.max(0, includedKm - totalKm), p.customerRatePaise)) / 100),
     timeFare: 0,
     nightCharge: 0,
     driverAllowance: r2((p.customerBataPaise * days) / 100),
-    minimumFareAdjustment: Math.max(0, r2(kmAmountPaise(Math.max(0, includedKm - totalKm), p.extraKmRatePaise) / 100)),
+    minimumFareAdjustment: Math.max(0, r2(kmAmountPaise(Math.max(0, includedKm - totalKm), p.customerRatePaise) / 100)),
     ...(p.adminAdjustment ? { adminAdjustment: p.adminAdjustment } : {}),
     subtotal, discount, taxableAmount: taxable, gstRate: p.gstRate, gst, total: r2(taxable + gst),
     distanceKm: totalKm, durationMin: 0, perKmRate: rupeesOf(p.extraKmRatePaise), perMinuteRate: 0,

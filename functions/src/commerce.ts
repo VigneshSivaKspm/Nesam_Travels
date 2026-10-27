@@ -14,7 +14,7 @@ import { loadCommissionPolicy } from './commission';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { createContactInTx, maskPhone } from './contacts';
-import { loadTariffConfig, priceBooking, tariffClassOf } from './quote';
+import { loadTariffConfig, priceBooking, rentalHoursOf, tariffClassOf } from './quote';
 import { assertLegalAccepted } from './legal';
 import { nextBookingCode } from './bookingSequence';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
@@ -129,7 +129,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment };
+    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).

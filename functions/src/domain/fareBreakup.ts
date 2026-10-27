@@ -107,11 +107,27 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
   const base = buildFareBreakup(category, fare, outstation);
   const rate = num2(pricing.customerRatePaise);
   const roundTrip = pricing.model === 'round_trip_calendar';
+  // A waiting rate saved with the tariff replaces the category wording; without one the category line is unchanged.
+  const w = pricing.waitingPerHourPaise;
+  const waiting = typeof w !== 'number' ? null : w > 0 ? `${num2(w)} per hour of waiting` : 'No waiting charge';
+  const extrasBlock = (rest: FareLine[]): FareLine[] => rest.map((l) => (l.key === 'waiting' && waiting ? { ...l, detail: waiting } : l));
+  if (pricing.model === 'rental_package') {
+    const head: FareLine[] = [{
+      key: 'package', label: `${pricing.rentalHours ?? ''}-hour rental package`.trim(), amount: fare.baseFare, treatment: 'included',
+      detail: `${pricing.includedKm} KM included; ${num2(pricing.extraHourRatePaise ?? 0)} per extra hour`,
+    }];
+    const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum'].includes(l.key));
+    const lines = [...head, ...extrasBlock(rest).map((l) => (l.key === 'extraKm' ? { ...l, detail: `${num2(pricing.extraKmRatePaise)} per KM beyond the ${pricing.includedKm} KM included` } : l))];
+    const extras = lines.filter((l) => l.treatment === 'extra');
+    return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
+  }
   const head: FareLine[] = [
     {
       key: 'distance', label: roundTrip ? 'Distance (billable KM)' : 'Distance charge', amount: fare.distanceFare + fare.minimumFareAdjustment, treatment: 'included',
       detail: roundTrip
         ? `${pricing.includedKm} KM billable (minimum ${pricing.minKmPerDay} KM/day × ${pricing.days} day${pricing.days === 1 ? '' : 's'}) at ${rate}/KM`
+        : pricing.model === 'local_pickup_drop'
+        ? `${pricing.includedKm} KM billable (local minimum ${pricing.minKmPerDay} KM) at ${rate}/KM`
         : `${pricing.includedKm} KM included (minimum 130 KM) at ${rate}/KM`,
     },
     {
@@ -120,7 +136,10 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
     },
   ];
   const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum'].includes(l.key));
-  const lines = [...head, ...rest.map((l) => (l.key === 'extraKm' ? { ...l, detail: `${rate} per KM beyond the ${pricing.includedKm} KM included` } : l))];
+  const lines = [
+    ...(pricing.model === 'local_pickup_drop' ? head.filter((l) => l.key !== 'driverAllowance') : head),
+    ...extrasBlock(rest).map((l) => (l.key === 'extraKm' ? { ...l, detail: `${num2(pricing.extraKmRatePaise)} per KM beyond the ${pricing.includedKm} KM included` } : l)),
+  ];
   const extras = lines.filter((l) => l.treatment === 'extra');
   return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
 }

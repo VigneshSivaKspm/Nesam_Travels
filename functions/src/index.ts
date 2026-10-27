@@ -10,6 +10,7 @@ export { saveServiceRule, setServiceRuleStatus } from './serviceRules';
 export { issuePenalty, transitionPenalty, acknowledgePenalty, disputePenalty } from './penalties';
 export { advanceTrip, verifyBoarding, overrideReachedPickup } from './trips';
 export { saveTariffConfig, quoteBooking } from './quote';
+export { saveTariffSection } from './tariffSections';
 export { createCaptureSession, getSlotChallenge, submitCapturePhoto, finalizeVehicleVerification } from './vehicleVerification';
 export { reportSecurityEvent, getIntegrityNonce, verifyDeviceIntegrity } from './security';
 export { sendVerificationCode, verifyCustomerCode, whatsappWebhook } from './customerVerification';
