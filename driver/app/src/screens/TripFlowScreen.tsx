@@ -2,7 +2,9 @@
 //   photos → Reached Pickup (within the pickup radius) → boarding OTP → Trip Started → Trip End (km, tolls, collections).
 // Every step is a server call (advanceTrip / verifyBoarding / recordCollection) that checks the order and ignores a
 // repeated tap; this screen only presents them. The reference's slide-to-confirm controls trigger the same calls.
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { CancellationStatus, HelpCancellationDialog } from '../components/nx/Cancellation';
+import { acknowledgeAssignment } from '../services/partnerRequests';
 import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '../components/nx/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -85,7 +87,13 @@ function BackRow({ right }: { right?: React.ReactNode }) {
 function TripFlow({ trip }: { trip: TripDetails }) {
   const navigation = useNavigation();
   const { notify, openSupport } = useShell();
-  const { rules } = useDriverData();
+  const { rules, cancellations, cancelPolicy } = useDriverData();
+  const cancellation = cancellations.find((c) => c.bookingId === trip.id) ?? null;
+  const pendingCancel = cancellation?.status === 'Pending';
+  const [helpOpen, setHelpOpen] = useState(false);
+  // The vendor sees "Viewed" once the assigned driver opens the duty.
+  const needsView = !trip.driverResponse?.viewedAt && !['Completed', 'Cancelled', 'Rejected'].includes(trip.status);
+  useEffect(() => { if (needsView) acknowledgeAssignment(trip.id, 'viewed'); }, [needsView, trip.id]);
   const { wide } = useLayout();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -314,7 +322,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
         <Text style={nxText.small}>Live camera only · Gallery upload unavailable</Text>
       </View>
       {arrivalNote ? <Text style={nxText.note}>{arrivalNote}</Text> : null}
-      <NxButton title="Start photo check" icon="camera" onPress={() => navigation.navigate('PreTrip', { bookingId: trip.id })} style={{ marginTop: 16 }} />
+      <NxButton title="Start photo check" icon="camera" onPress={() => { acknowledgeAssignment(trip.id, 'acknowledged'); navigation.navigate('PreTrip', { bookingId: trip.id }); }} style={{ marginTop: 16 }} />
     </NxPanel>
   );
 
@@ -546,7 +554,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
           <Text style={[nxText.heading, { marginTop: 15 }]}>Reached the location?</Text>
           <Text style={[nxText.copy, { marginTop: 7 }]}>Confirm when you arrive. GPS verification is disabled.</Text>
           <NxFormError message={error} />
-          <NxSwipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={reachedPickup} />
+          <NxSwipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={() => { acknowledgeAssignment(trip.id, 'acknowledged'); return reachedPickup(); }} />
           <Text style={nxText.note}>{arrivalNote || `Vehicle photos submitted · pickup ${placeName(trip.pickup.address)}`}</Text>
         </NxPanel>
         {navigationPanel(trip.pickup, 'Navigate to pickup', 'Navigate to Pickup', 'Customer’s pickup location')}
@@ -554,6 +562,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
     );
   }
 
+  const statusCard = cancellation && cancellation.status !== 'Approved' ? <CancellationStatus request={cancellation} /> : null;
   return (
     <NxScreen tabs={false}>
       <BackRow
@@ -561,12 +570,12 @@ function TripFlow({ trip }: { trip: TripDetails }) {
           !finished && !cancelled ? (
             <Pressable
               style={styles.help}
-              onPress={() => openSupport({ tripCode: trip.bookingId, started: sub !== 'Not Started' })}
+              onPress={() => (sub === 'Not Started' ? setHelpOpen(true) : openSupport({ tripCode: trip.bookingId, started: true }))}
               accessibilityRole="button"
               accessibilityLabel={sub === 'Not Started' ? 'Help and call the NESAM office about this duty' : 'Trip help and call the NESAM office'}
             >
               <NxIcon name="help" size={16} color={nx.tripRed} />
-              <Text style={styles.helpText}>{sub === 'Not Started' && !trip.verificationSubmitted ? 'Help / Call office' : 'Trip help / Call office'}</Text>
+              <Text style={styles.helpText}>{pendingCancel ? 'Request help' : sub === 'Not Started' ? (trip.fleetTrip ? 'Help / Call office' : 'Help / Request Cancellation') : 'Trip help / Call office'}</Text>
             </Pressable>
           ) : null
         }
@@ -608,7 +617,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
       {wide && (customerCard || (closing === 'trip' && fareCard)) ? (
         // Wide screens: the working panels beside the customer and fare panels.
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 24 }}>
-          <View style={{ flex: 1.45, minWidth: 0 }}>{content}</View>
+          <View style={{ flex: 1.45, minWidth: 0 }}>{statusCard}{pendingCancel ? null : content}</View>
           <View style={{ flex: 1, minWidth: 0 }}>
             {customerCard}
             {closing === 'trip' ? fareCard : null}
@@ -617,7 +626,8 @@ function TripFlow({ trip }: { trip: TripDetails }) {
       ) : (
         <>
           {customerCard}
-          {content}
+          {statusCard}
+          {pendingCancel ? null : content}
           {closing === 'trip' ? fareCard : null}
         </>
       )}
@@ -626,6 +636,7 @@ function TripFlow({ trip }: { trip: TripDetails }) {
         <NxButton title="Back to My Trips" trailingIcon="arrow" onPress={() => navigation.navigate('Tabs', { screen: 'Trip' })} />
       ) : null}
 
+      <HelpCancellationDialog visible={helpOpen} onClose={() => setHelpOpen(false)} trip={trip} request={cancellation} policy={cancelPolicy} onDone={(m) => notify('ok', m)} />
       <TollDialog
         key={tollOpen ? 'open' : 'closed'}
         visible={tollOpen}

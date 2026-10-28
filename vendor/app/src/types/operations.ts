@@ -20,6 +20,10 @@ export interface MarketTrip {
   /** 'accept_offer' = take the current offer; 'bid_review' = counter-bid NESAM reviews; '' = older post (both). */
   mode: 'accept_offer' | 'bid_review' | '';
   publishedMs: number;
+  /** Pickup instant (ms); 0 when the post does not carry one. */
+  pickupMs: number;
+  /** Offer closes at this time (ms); 0 = until pickup. */
+  cutoffMs: number;
 }
 
 export type BidStatus = 'Pending Review' | 'Accepted' | 'Rejected' | 'Outbid' | string;
@@ -33,6 +37,7 @@ export interface VendorBid {
   biddingNote: string;
   status: BidStatus;
   submittedAt: Date | null;
+  autoAcceptConsent: boolean;
 }
 
 export interface VendorBooking {
@@ -64,6 +69,16 @@ export interface VendorBooking {
   paymentMethod: string;
   confirmedAt: Date | null;
   completedAt: Date | null;
+  pickupAt: Date | null;
+  tripType: string;
+  includedKm: number;
+  tripSubStatus: string;
+  paymentStatus: string;
+  acceptedAt: Date | null;
+  /** Driver + vehicle must be confirmed by this time (server-set when the duty is accepted). */
+  assignBy: Date | null;
+  driverResponse: { viewedAt: Date | null; acknowledgedAt: Date | null } | null;
+  cancellationRequest: { requestId: string; status: string; quotedPenalty: number } | null;
 }
 
 export type VehicleStatus = 'Active' | 'Maintenance' | 'Inactive';

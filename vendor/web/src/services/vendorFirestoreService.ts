@@ -89,12 +89,21 @@ export interface NewVehicle {
   model: string;
   year: string;
   seatingCapacity: number;
+  /** Optional documents added at registration (download links + ISO expiry dates) for NESAM review. */
+  photoUrl?: string;
+  rcDocUrl?: string;
+  insuranceDocUrl?: string;
+  insuranceExpiry?: string;
+  fitnessDocUrl?: string;
+  fitnessExpiry?: string;
+  statePermitDocUrl?: string;
+  permitExpiry?: string;
 }
 
 /** Registers a vehicle for NESAM document review (firestore.rules: docStatus "Pending"). */
 export async function createVehicle(vendorId: string, v: NewVehicle): Promise<string> {
   const ref = await addDoc(collection(db, VEHICLES_COLLECTION), {
-    ...v,
+    ...Object.fromEntries(Object.entries(v).filter(([, x]) => x !== undefined)),
     vehicleNumber: v.vehicleNumber.trim().toUpperCase().replace(/\s+/g, " "),
     vendorId,
     status: "Active",

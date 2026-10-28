@@ -552,6 +552,13 @@ function mapBooking(id: string, data: Record<string, any>): TripDetails {
     tripStartedAt: toDate(data.tripStartedAt),
     reachedPickupAt: toDate(data.reachedPickupAt),
     tripEndedAt: toDate(data.tripEndedAt),
+    acceptedAt: toDate(data.acceptedAt) ?? toDate(data.assignedAt),
+    cancellationRequest: data.cancellationRequest && typeof data.cancellationRequest === 'object' && data.cancellationRequest.partyType === 'driver'
+      ? { requestId: str(data.cancellationRequest.requestId), status: str(data.cancellationRequest.status), quotedPenalty: parseAmount(data.cancellationRequest.quotedPenalty) }
+      : null,
+    driverResponse: data.driverResponse && typeof data.driverResponse === 'object' && data.driverResponse.driverId === data.assignedDriverId
+      ? { viewedAt: toDate(data.driverResponse.viewedAt), acknowledgedAt: toDate(data.driverResponse.acknowledgedAt) }
+      : null,
   };
 }
 

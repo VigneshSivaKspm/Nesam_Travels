@@ -66,8 +66,8 @@ export function RequestsScreen() {
                     title="Add driver"
                     onPress={() =>
                       navigation.navigate('Tabs', {
-                        screen: 'Drivers',
-                        params: { add: Date.now() },
+                        screen: 'Fleet',
+                        params: { tab: 'Drivers', add: Date.now() },
                       })
                     }
                   />
@@ -77,8 +77,8 @@ export function RequestsScreen() {
                     title="Add vehicle"
                     onPress={() =>
                       navigation.navigate('Tabs', {
-                        screen: 'Vehicles',
-                        params: { add: Date.now() },
+                        screen: 'Fleet',
+                        params: { tab: 'Vehicles', add: Date.now() },
                       })
                     }
                   />

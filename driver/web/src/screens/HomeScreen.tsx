@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from 'react';
+import { PolicyShort } from '../components/nx/Cancellation';
+import type { CancellationPolicy } from '../services/partnerRequests';
 import type { DriverAccount, DriverEarningsSummary, MarketplaceOffer, TripDetails } from '../types';
 import { Dialog } from '../components/nx/Dialog';
 import { Icon } from '../components/nx/Icon';
@@ -7,6 +9,9 @@ import { inr, kmText, offerWhen, placeName } from '../components/nx/format';
 import { categoryMatches } from '../utils/offers';
 
 interface HomeScreenProps {
+  /** Duty cancellation policy shown before accepting (settings/operations). */
+  cancelPolicy?: CancellationPolicy;
+  onViewPolicy?: () => void;
   account: DriverAccount;
   now: number;
   online: boolean;
@@ -49,6 +54,8 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   onNavigate,
   earnings,
   walletAvailable,
+  cancelPolicy,
+  onViewPolicy,
 }) => {
   const { driver, vehicle } = account;
   const fleet = Boolean(driver.vendorId);
@@ -353,6 +360,7 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
                 {detailAccepting ? 'Accepting…' : cannotAccept || 'Accept duty'} <Icon name="check" />
               </button>
               <p className="dialog-footnote">Accepting assigns this duty to you right away.</p>
+              {cancelPolicy && onViewPolicy ? <PolicyShort policy={cancelPolicy} onView={onViewPolicy} /> : null}
             </>
           )
         }

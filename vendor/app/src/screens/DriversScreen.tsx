@@ -19,7 +19,7 @@ import { describeDataError } from '../utils/retry';
 import { colors, radius, space, type } from '../theme';
 
 export function DriversScreen() {
-  const route = useRoute<RouteProp<TabParamList, 'Drivers'>>();
+  const route = useRoute<RouteProp<TabParamList, 'Fleet'>>();
   const { drivers, invites, vehicles } = useVendorData();
   const [tab, setTab] = useState<'fleet' | 'invites'>('fleet');
   const [assignFor, setAssignFor] = useState<FleetDriver | null>(null);

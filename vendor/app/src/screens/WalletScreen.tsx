@@ -10,12 +10,19 @@ import { formatINR } from '../utils/format';
 import { formatDateTime12 } from '../utils/time';
 import { describeDataError } from '../utils/retry';
 import { colors, space, type } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import { Alert } from 'react-native';
+import { RechargeSheet } from '../components/RechargeSheet';
+import { Feedback, PageHeading, PBadge, PButton } from '../components/partner';
+import { requestDepositRefund } from '../services/partnerOps';
 
 const ENTRY_LABEL: Record<string, string> = {
   trip_earning: 'Trip earning',
   toll_reimbursement: 'Toll reimbursement',
   cash_collected: 'Cash fare collected by your fleet',
   payout: 'Payout',
+  penalty_deduction: 'Confirmed penalty',
+  wallet_recharge: 'Wallet recharge',
 };
 const ENTRY_STATUS: Record<string, string> = {
   pending: 'Awaiting customer payment',
@@ -26,14 +33,36 @@ const ENTRY_STATUS: Record<string, string> = {
 };
 
 export function WalletScreen() {
-  const { wallet, ledger, payouts, profile, monthEarnings, errors } = useVendorData();
+  const { wallet, ledger, payouts, profile, monthEarnings, errors, deposit } = useVendorData();
+  const navigation = useNavigation();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
+  const [recharge, setRecharge] = useState(false);
+  const [notice, setNotice] = useState('');
   const withdrawable = Math.max(0, Math.floor(wallet.available));
+  const askRefund = () => Alert.alert('Security deposit refund', 'The deposit is refunded at Full & Final settlement, after account closure, completed duties and clearance of outstanding accounts. Request it now?', [
+    { text: 'Not now', style: 'cancel' },
+    { text: 'Request refund', onPress: () => { requestDepositRefund().then(() => setNotice('Refund request sent. The office settles it at full & final settlement.'), (e: Error) => setNotice(e.message)); } },
+  ]);
 
   return (
     <Screen edges={[]}>
-      <Text style={[type.h1, { marginBottom: space.md }]}>Payouts</Text>
+      <PageHeading title="Wallet" subtitle="Your working balance and security deposit." />
+      <Feedback message={notice} />
+      {recharge ? <RechargeSheet onClose={() => setRecharge(false)} onDone={(m) => { setRecharge(false); setNotice(m); }} /> : null}
+      <Card>
+        <Text style={type.tiny}>SECURITY DEPOSIT</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <Text style={styles.balance}>{formatINR(deposit?.amount ?? 0)}</Text>
+          <PBadge label={deposit?.status ?? 'Not recorded'} tone={deposit?.status === 'Active' ? 'green' : deposit?.status === 'Refund requested' ? 'amber' : 'neutral'} />
+        </View>
+        <Text style={type.small}>Held separately from your working wallet. Refund at Full &amp; Final settlement — after account closure, completed duties and clearance of outstanding accounts.</Text>
+        {deposit?.status === 'Active' && deposit.amount > 0 ? <PButton style="text" icon="chevron-forward" title="Request refund at closure" onPress={askRefund} /> : null}
+      </Card>
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: space.md }}>
+        <PButton title="Add money" icon="add" onPress={() => setRecharge(true)} containerStyle={{ flex: 1 }} />
+        <PButton title="Penalty notices" style="secondary" icon="warning-outline" onPress={() => navigation.navigate('Penalties')} containerStyle={{ flex: 1 }} />
+      </View>
       {open ? (
         <PayoutSheet
           withdrawable={withdrawable}
@@ -46,7 +75,7 @@ export function WalletScreen() {
       ) : null}
       <Notice message={errors.wallet} />
       <Card>
-        <Text style={type.tiny}>AVAILABLE TO WITHDRAW</Text>
+        <Text style={type.tiny}>WORKING WALLET · AVAILABLE TO WITHDRAW</Text>
         <Text style={[styles.balance, wallet.available < 0 && { color: colors.danger }]}>{formatINR(wallet.available)}</Text>
         {wallet.available < 0 ? (
           <Text style={[type.small, { color: colors.danger }]}>Cash fares your fleet collected exceed your earnings; upcoming earnings settle this first.</Text>
@@ -77,7 +106,7 @@ export function WalletScreen() {
           {profile.bankAccountNumber} {profile.ifscCode ? `· ${profile.ifscCode}` : ''}
         </Text>
         {profile.upiId ? <Text style={type.small}>UPI {profile.upiId}</Text> : null}
-        <Text style={[type.tiny, { marginTop: 4 }]}>NESAM pays only to this account. Bank changes after approval are handled by NESAM support.</Text>
+        <Text style={[type.tiny, { marginTop: 4 }]}>NESAM pays only to this account. Request a bank change from Profile → Bank details; it takes effect after office approval.</Text>
       </Card>
 
       <Text style={[type.h3, styles.section]}>Payout requests</Text>

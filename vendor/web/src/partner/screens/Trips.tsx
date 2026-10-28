@@ -17,7 +17,8 @@ function assignByIfAcceptedNow(t: OpenTrip, windowH: number, beforeH: number): D
   const byWindow = now + windowH * 3600000;
   const pickup = t.pickupAt?.getTime();
   if (!pickup) return new Date(byWindow);
-  return new Date(Math.max(Math.min(byWindow, pickup - beforeH * 3600000), Math.min(byWindow, pickup)));
+  const preferred = Math.min(byWindow, pickup - beforeH * 3600000);
+  return new Date(preferred > now ? preferred : Math.min(byWindow, pickup));
 }
 
 export function useGate() {
@@ -61,7 +62,7 @@ function useDutyDialogs() {
   const p = usePartner();
   const ws = useWorkspace();
   const gate = useGate();
-  const [sheet, setSheet] = useState<null | { kind: 'accept' | 'bid'; trip: OpenTrip } | { kind: 'bid-detail'; bid: BidProposal }>(null);
+  const [sheet, setSheet] = useState<null | { kind: 'accept'; trip: OpenTrip } | { kind: 'bid'; trip: OpenTrip } | { kind: 'bid-detail'; bid: BidProposal }>(null);
 
   const node = !sheet ? null
     : sheet.kind === 'accept' ? (gate

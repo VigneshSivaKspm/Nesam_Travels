@@ -30,6 +30,10 @@ import {
 import { EMPTY_WALLET, monthEarnings } from '../utils/wallet';
 import { describeDataError } from '../utils/retry';
 import { linkIsOpen, subscribeToMyLinks, type PartnerLink } from '../services/partnerLinks';
+import {
+  mapOperations, subscribeToDeposit, subscribeToOperations, subscribeToPartnerRequests, subscribeToSettlementDues,
+  type OperationsConfig, type PartnerRequestRecord, type SecurityDeposit, type SettlementDue,
+} from '../services/partnerOps';
 
 interface VendorDataValue {
   profile: VendorProfile;
@@ -54,6 +58,12 @@ interface VendorDataValue {
   /** Earnings the server credited this month. */
   monthEarnings: number;
   errors: { bookings: string; market: string; bids: string; wallet: string };
+  /** Cancellation, bank and renewal requests sent to the office. */
+  requests: PartnerRequestRecord[];
+  deposit: SecurityDeposit | null;
+  /** Settlement records of completed trips (statements). */
+  dues: SettlementDue[];
+  ops: OperationsConfig;
 }
 
 const Ctx = createContext<VendorDataValue | null>(null);
@@ -116,6 +126,14 @@ export function VendorDataProvider({ profile, record, children }: { profile: Ven
     [vendorId],
   );
   useEffect(() => subscribeToInvites(vendorId, setInvites), [vendorId]);
+  const [requests, setRequests] = useState<PartnerRequestRecord[]>([]);
+  const [deposit, setDeposit] = useState<SecurityDeposit | null>(null);
+  const [dues, setDues] = useState<SettlementDue[]>([]);
+  const [ops, setOps] = useState<OperationsConfig>(() => mapOperations(undefined));
+  useEffect(() => subscribeToPartnerRequests(vendorId, setRequests), [vendorId]);
+  useEffect(() => subscribeToDeposit(vendorId, setDeposit), [vendorId]);
+  useEffect(() => subscribeToSettlementDues(vendorId, setDues), [vendorId]);
+  useEffect(() => subscribeToOperations(setOps), []);
   useEffect(() => subscribeToMyLinks(vendorId, setLinks, () => undefined), [vendorId]);
   useEffect(() => subscribeToVendorPayouts(vendorId, setPayouts), [vendorId]);
   useEffect(
@@ -154,8 +172,12 @@ export function VendorDataProvider({ profile, record, children }: { profile: Ven
       ledger,
       monthEarnings: monthEarnings(ledger),
       errors,
+      requests,
+      deposit,
+      dues,
+      ops,
     };
-  }, [profile, record, vehicles, drivers, bookings, marketTrips, bids, invites, links, vendorId, payouts, wallet, ledger, errors]);
+  }, [profile, record, vehicles, drivers, bookings, marketTrips, bids, invites, links, vendorId, payouts, wallet, ledger, errors, requests, deposit, dues, ops]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

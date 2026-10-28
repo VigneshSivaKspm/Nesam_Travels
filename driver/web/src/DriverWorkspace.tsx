@@ -13,6 +13,8 @@ import type {
 } from './types';
 import { Shell, type NavItem, type ShellPage } from './components/nx/Shell';
 import { SupportDialog, type SupportContext } from './components/nx/Support';
+import { HelpCancellationDialog, PolicyDialog } from './components/nx/Cancellation';
+import { DEFAULT_POLICY, acknowledgeAssignment, subscribeToCancellationPolicy, subscribeToDriverCancellations, type DriverCancellation } from './services/partnerRequests';
 import { tripIsActive } from './components/nx/format';
 import { HomeScreen } from './screens/HomeScreen';
 import { TripsScreen, type TripsTab } from './screens/TripsScreen';
@@ -61,6 +63,10 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   const [tripsTab, setTripsTab] = useState<TripsTab>('upcoming');
   const [tripId, setTripId] = useState<string | null>(null);
   const [support, setSupport] = useState<SupportContext | null>(null);
+  const [helpTripId, setHelpTripId] = useState<string | null>(null);
+  const [policyOpen, setPolicyOpen] = useState(false);
+  const [cancelPolicy, setCancelPolicy] = useState(DEFAULT_POLICY);
+  const [cancellations, setCancellations] = useState<DriverCancellation[]>([]);
   const [toast, setToast] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [now, setNow] = useState(() => Date.now());
 
@@ -103,6 +109,8 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   }, [independent]);
   useEffect(() => subscribeToPayoutRequests(driver.id, setPayouts), [driver.id]);
   useEffect(() => subscribeToTripRules(setRules), []);
+  useEffect(() => subscribeToCancellationPolicy(setCancelPolicy), []);
+  useEffect(() => subscribeToDriverCancellations(driver.id, setCancellations), [driver.id]);
   useEffect(() => subscribeToDriverNotifications(driver.id, setNotifications), [driver.id]);
   useEffect(() => subscribeToDriverPenalties(driver.id, (p) => { setPenalties(p); setPenaltiesError(''); }, setPenaltiesError), [driver.id]);
   // Money comes from the server's partner ledger; the app never computes it.
@@ -119,6 +127,9 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   const nextTrip = useMemo(() => upcoming.find(tripIsActive) ?? upcoming[0] ?? null, [upcoming]);
   const activeTrip = nextTrip;
   const viewTrip = useMemo(() => (tripId ? bookings.find((b) => b.id === tripId) ?? null : null), [bookings, tripId]);
+  // The vendor sees "Viewed" once the assigned driver opens the duty.
+  const viewedId = viewTrip && !viewTrip.driverResponse?.viewedAt && !['Completed', 'Cancelled', 'Rejected'].includes(viewTrip.status) ? viewTrip.id : '';
+  useEffect(() => { if (viewedId) acknowledgeAssignment(viewedId, 'viewed'); }, [viewedId]);
 
   // Presence follows the trip: On Trip while one is active, back to Online after.
   const presence: DriverStatus = driver.presenceStatus;
@@ -300,6 +311,8 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
         onNavigate={(p) => go(p)}
         earnings={earnings}
         walletAvailable={wallet.available}
+        cancelPolicy={cancelPolicy}
+        onViewPolicy={() => setPolicyOpen(true)}
       />
     );
   } else if (activePage === 'trips') {
@@ -311,6 +324,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
         upcoming={upcoming}
         completed={completedTrips}
         cancelled={cancelledTrips}
+        cancelledRequests={cancellations}
         ledger={ledger}
         onOpenTrip={openTrip}
         onBrowse={() => go('home')}
@@ -329,7 +343,8 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
         onVerifyBoarding={handleVerifyBoarding}
         onTripStart={handleTripStart}
         onTripEnd={handleTripEnd}
-        onHelp={() => setSupport({ tripCode: viewTrip.bookingId, started: viewTrip.subStatus !== 'Not Started' })}
+        onHelp={() => setHelpTripId(viewTrip.id)}
+        cancellation={cancellations.find((c) => c.bookingId === viewTrip.id) ?? null}
       />
     ) : (
       <section className="panel empty-state">
@@ -375,6 +390,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
         onSaveContact={(fields) => updateDriverContactDetails(driver.id, fields)}
         onSignOut={onSignOut}
         onSupport={() => setSupport({})}
+        onViewPolicy={independent ? () => setPolicyOpen(true) : undefined}
       />
     );
   }
@@ -397,7 +413,20 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
         onOpenSupport={() => setSupport({})}
         toast={toast}
         onDismissToast={() => setToast(null)}
-        overlays={<SupportDialog open={support !== null} onClose={() => setSupport(null)} context={support ?? {}} />}
+        overlays={
+          <>
+            <SupportDialog open={support !== null} onClose={() => setSupport(null)} context={support ?? {}} />
+            <PolicyDialog open={policyOpen} onClose={() => setPolicyOpen(false)} policy={cancelPolicy} />
+            <HelpCancellationDialog
+              open={helpTripId !== null}
+              onClose={() => setHelpTripId(null)}
+              trip={bookings.find((b) => b.id === helpTripId) ?? null}
+              request={cancellations.find((c) => c.bookingId === helpTripId) ?? null}
+              policy={cancelPolicy}
+              onDone={(m) => notify('ok', m)}
+            />
+          </>
+        }
       >
         {body}
       </Shell>

@@ -244,6 +244,12 @@ export interface TripDetails {
   /** The customer fare as the booking stored it: what is included and what is payable separately. */
   fareLines?: { key: string; label: string; detail?: string; amount: number | null; treatment: 'included' | 'extra' | 'not_applicable' }[];
   reachedPickupAt?: Date | null;
+  /** When this driver accepted / was given the duty (cancellation grace period starts here). */
+  acceptedAt?: Date | null;
+  /** Owner-driver cancellation request on this duty (server-written; the duty stays assigned until approved). */
+  cancellationRequest?: { requestId: string; status: string; quotedPenalty: number } | null;
+  /** This driver's response to the dispatched duty, shown to the vendor. */
+  driverResponse?: { viewedAt: Date | null; acknowledgedAt: Date | null } | null;
   /** Booked pickup time (pickupAt / scheduledAt); null when the booking does not say. */
   pickupAt: Date | null;
   scheduledDate: string;

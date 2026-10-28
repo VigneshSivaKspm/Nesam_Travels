@@ -24,6 +24,7 @@ interface ProfileScreenProps {
   onSaveContact: (fields: ContactFields) => Promise<void>;
   onSignOut: () => void;
   onSupport: () => void;
+  onViewPolicy?: () => void;
 }
 
 const expiryBadge = (date: string) => {
@@ -69,7 +70,7 @@ const blank = (driver: DriverAccount['driver'], bank: BankDetails): ContactField
   bank,
 });
 
-export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completedTrips, onEditDocuments, onSaveContact, onSignOut, onSupport }) => {
+export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completedTrips, onEditDocuments, onSaveContact, onSignOut, onSupport, onViewPolicy }) => {
   const { driver, identity, license, vehicle, bank } = account;
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<ContactFields>(() => blank(driver, bank));
@@ -194,6 +195,12 @@ export const ProfileScreen: React.FC<ProfileScreenProps> = ({ account, completed
               <button type="button" className="switch" role="switch" aria-checked={sound} aria-label="Alert sound preference" onClick={toggleSound} />
             </div>
             <div className="nx-profile-policy" style={{ display: 'grid', gap: 10 }}>
+              {onViewPolicy ? (
+                <button type="button" className="text-button" onClick={onViewPolicy}>
+                  <Icon name="shield" className="icon-sm" />
+                  Cancellation policy
+                </button>
+              ) : null}
               <button type="button" className="text-button" onClick={onSupport}>
                 <Icon name="help" className="icon-sm" />
                 Help &amp; SOS

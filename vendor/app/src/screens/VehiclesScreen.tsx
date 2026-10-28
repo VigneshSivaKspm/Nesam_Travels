@@ -28,7 +28,7 @@ function ExpiryBadge({ label, date }: { label: string; date: string }) {
 }
 
 export function VehiclesScreen() {
-  const route = useRoute<RouteProp<TabParamList, 'Vehicles'>>();
+  const route = useRoute<RouteProp<TabParamList, 'Fleet'>>();
   const { vehicles, drivers } = useVendorData();
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<FleetVehicle | null>(null);

@@ -32,7 +32,8 @@ export function assignDeadline(t: VendorTrip, ops: OperationsConfig): Date | nul
   const byWindow = accepted + ops.assignmentWindowHours * 3600000;
   const pickup = t.pickupAt?.getTime();
   if (!pickup) return new Date(byWindow);
-  return new Date(Math.max(Math.min(byWindow, pickup - ops.assignBeforePickupHours * 3600000), Math.min(byWindow, pickup)));
+  const preferred = Math.min(byWindow, pickup - ops.assignBeforePickupHours * 3600000);
+  return new Date(preferred > accepted ? preferred : Math.min(byWindow, pickup));
 }
 
 export const canChangeTeam = (t: VendorTrip) => {

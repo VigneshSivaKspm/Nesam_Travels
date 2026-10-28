@@ -1,4 +1,6 @@
 import React, { useRef, useState } from 'react';
+import { CancellationStatus } from '../components/nx/Cancellation';
+import { acknowledgeAssignment, type DriverCancellation } from '../services/partnerRequests';
 import type { TollReceipt, TripDetails } from '../types';
 import { Dialog } from '../components/nx/Dialog';
 import { Icon, type IconName } from '../components/nx/Icon';
@@ -24,6 +26,8 @@ interface TripFlowProps {
   onTripStart: (requestId: string) => Promise<void>;
   onTripEnd: (totalKm: number, tolls: TollReceipt[], requestId: string) => Promise<void>;
   onHelp: () => void;
+  /** Owner-driver cancellation request on this duty (pending / declined are shown on the page). */
+  cancellation?: DriverCancellation | null;
 }
 
 const mapsLink = (loc: TripDetails['pickup']) =>
@@ -36,7 +40,8 @@ const TREATMENT: Record<string, string> = { included: 'Included', extra: 'Extra 
 const SLOT_ICON: Record<string, IconName> = { selfie: 'user', front: 'car', rear: 'car', interior: 'car' };
 type Closing = 'trip' | 'form' | 'review';
 
-export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBack, onStartVerification, onReachedPickup, onVerifyBoarding, onTripStart, onTripEnd, onHelp }) => {
+export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBack, onStartVerification, onReachedPickup, onVerifyBoarding, onTripStart, onTripEnd, onHelp, cancellation = null }) => {
+  const pendingCancel = cancellation?.status === 'Pending';
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [otp, setOtp] = useState('');
@@ -254,7 +259,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
       </p>
       {arrivalNote ? <p className="nx-note">{arrivalNote}</p> : null}
       <div className="nx-actions">
-        <button type="button" className="nx-button primary" onClick={onStartVerification}>
+        <button type="button" className="nx-button primary" onClick={() => { acknowledgeAssignment(trip.id, 'acknowledged'); onStartVerification(); }}>
           <Icon name="camera" />
           Start photo check
         </button>
@@ -695,7 +700,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
               {error}
             </div>
           ) : null}
-          <Swipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={() => run(() => onReachedPickup(requestId.current), 'Could not update the trip.')} />
+          <Swipe key="mark-reached" label="Slide to Mark Reached" disabled={!arrival.open} busy={busy} onCommit={() => { acknowledgeAssignment(trip.id, 'acknowledged'); return run(() => onReachedPickup(requestId.current), 'Could not update the trip.'); }} />
           <p className="nx-note">{arrivalNote || `Vehicle photos submitted · pickup ${placeName(trip.pickup.address)}`}</p>
         </section>
         {navigation(trip.pickup, 'Navigate to pickup', 'Navigate to Pickup', 'Customer’s pickup location')}
@@ -715,7 +720,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
           {!finished && !cancelled ? (
             <button type="button" className="nx-trip-help nx-trip-help-top" onClick={onHelp} aria-haspopup="dialog">
               <Icon name="help" />
-              <span>{sub === 'Not Started' && !trip.verificationSubmitted ? 'Help / Call office' : 'Trip help / Call office'}</span>
+              <span>{pendingCancel ? 'Request help' : sub === 'Not Started' ? (trip.fleetTrip ? 'Help / Call office' : 'Help / Request Cancellation') : 'Trip help / Call office'}</span>
             </button>
           ) : null}
         </div>
@@ -762,7 +767,10 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
         ) : null}
         <div className={`nx-trip-layout ${contactCard || (closing === 'trip' && fareCard) ? '' : 'is-solo'}`}>
           {contactCard ? <div className="nx-trip-customer">{contactCard}</div> : null}
-          <div className="nx-trip-main">{content}</div>
+          <div className="nx-trip-main">
+            {cancellation && cancellation.status !== 'Approved' ? <CancellationStatus request={cancellation} /> : null}
+            {pendingCancel ? null : content}
+          </div>
           {closing === 'trip' && fareCard ? <div className="nx-trip-fare">{fareCard}</div> : null}
         </div>
       </div>

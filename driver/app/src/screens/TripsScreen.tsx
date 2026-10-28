@@ -1,5 +1,6 @@
 // My Trips: upcoming, completed and cancelled duties (reference "My Trips"). Opens the trip flow for any of them.
 import React, { useState } from 'react';
+import { CancelledRequestCard } from '../components/nx/Cancellation';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../components/nx/Text';
 import { useNow } from '../hooks/useNow';
@@ -22,7 +23,8 @@ const SETTLED: Record<string, string> = { pending: 'Awaiting payment', available
 
 export function TripsScreen() {
   const navigation = useNavigation();
-  const { upcomingTrips, completedTrips, cancelledTrips, ledger } = useDriverData();
+  const { upcomingTrips, completedTrips, cancelledTrips, ledger, cancellations } = useDriverData();
+  const released = cancellations.filter((r) => r.status === 'Approved' && !cancelledTrips.some((t) => t.id === r.bookingId));
   const [tab, setTab] = useState<Tab>('upcoming');
   const now = useNow();
   const open = (t: TripDetails) => navigation.navigate('TripFlow', { bookingId: t.id });
@@ -36,7 +38,7 @@ export function TripsScreen() {
         options={[
           { value: 'upcoming', label: `Upcoming (${upcomingTrips.length})` },
           { value: 'completed', label: `Completed (${completedTrips.length})` },
-          { value: 'cancelled', label: `Cancelled (${cancelledTrips.length})` },
+          { value: 'cancelled', label: `Cancelled (${cancelledTrips.length + released.length})` },
         ]}
       />
       {tab === 'upcoming' ? (
@@ -51,10 +53,13 @@ export function TripsScreen() {
           />
         )
       ) : tab === 'cancelled' ? (
-        cancelledTrips.length ? (
-          <NxColumns>{cancelledTrips.map((t) => <CancelledCard key={t.id} trip={t} onOpen={() => open(t)} />)}</NxColumns>
+        cancelledTrips.length || released.length ? (
+          <NxColumns>
+            {cancelledTrips.map((t) => <CancelledCard key={t.id} trip={t} onOpen={() => open(t)} />)}
+            {released.map((r) => <CancelledRequestCard key={r.id} request={r} />)}
+          </NxColumns>
         ) : (
-          <NxEmpty icon="shield" title="No cancelled duties" message="Duties cancelled by NESAM will appear here." />
+          <NxEmpty icon="shield" title="No cancelled duties" message="Admin-approved cancellations will appear here." />
         )
       ) : completedTrips.length ? (
         <NxColumns>{completedTrips.map((t) => <CompletedCard key={t.id} trip={t} status={tripEarningStatus(ledger, t.id)} onOpen={() => open(t)} />)}</NxColumns>

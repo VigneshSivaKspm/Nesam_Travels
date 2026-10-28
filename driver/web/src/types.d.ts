@@ -269,6 +269,12 @@ export interface TripDetails {
   tripStartedAt: Date | null;
   reachedPickupAt: Date | null;
   tripEndedAt: Date | null;
+  /** When this driver accepted / was given the duty (cancellation grace period starts here). */
+  acceptedAt: Date | null;
+  /** Owner-driver cancellation request on this duty (server-written; the duty stays assigned until approved). */
+  cancellationRequest: { requestId: string; status: 'Pending' | 'Approved' | 'Declined' | string; quotedPenalty: number } | null;
+  /** This driver's response to the dispatched duty, shown to the vendor. */
+  driverResponse: { viewedAt: Date | null; acknowledgedAt: Date | null } | null;
 }
 
 /** An open marketplace offer a driver may accept. */

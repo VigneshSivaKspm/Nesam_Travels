@@ -2,11 +2,12 @@ import type { NavigatorScreenParams } from '@react-navigation/native';
 
 /** `add` carries a timestamp so "Add …" from another screen opens the sheet every time, not only the first. */
 export type TabParamList = {
-  Duties: undefined;
-  Drivers: { add?: number } | undefined;
-  Vehicles: { add?: number } | undefined;
-  Payouts: undefined;
-  Account: undefined;
+  Bookings: undefined;
+  /** `tab` opens Vehicles or Drivers; `add` (a timestamp) asks that list to open its add sheet. */
+  Fleet: { tab?: 'Vehicles' | 'Drivers'; add?: number } | undefined;
+  Trips: undefined;
+  Earnings: undefined;
+  Wallet: undefined;
 };
 
 export type RootStackParamList = {
@@ -17,6 +18,10 @@ export type RootStackParamList = {
   Documents: undefined;
   Profile: undefined;
   Agreements: undefined;
+  /** Profile (My Business and account settings). */
+  Account: undefined;
+  Helpdesk: undefined;
+  BookingDetail: { id: string };
 };
 
 declare global {

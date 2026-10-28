@@ -29,6 +29,7 @@ import { EMPTY_WALLET, summarizeEarnings } from '../utils/ledger';
 import { describeError } from '../utils/retry';
 import { describeSignals, runDeviceChecks } from '../services/deviceSecurity';
 import { registerForPush } from '../services/notificationService';
+import { DEFAULT_POLICY, subscribeToCancellationPolicy, subscribeToDriverCancellations, type CancellationPolicy, type DriverCancellation } from '../services/partnerRequests';
 
 interface DriverDataValue {
   account: DriverAccount;
@@ -58,6 +59,9 @@ interface DriverDataValue {
   walletError: string;
   /** Server limits for trip steps; null when they could not be read. */
   rules: TripRules | null;
+  /** Owner-driver duty cancellation requests and the policy that prices them. */
+  cancellations: DriverCancellation[];
+  cancelPolicy: CancellationPolicy;
 }
 
 const Ctx = createContext<DriverDataValue | null>(null);
@@ -103,6 +107,10 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
   );
   useEffect(() => subscribeToPayoutRequests(driverId, setPayouts), [driverId]);
   useEffect(() => subscribeToTripRules(setRules), []);
+  const [cancellations, setCancellations] = useState<DriverCancellation[]>([]);
+  const [cancelPolicy, setCancelPolicy] = useState<CancellationPolicy>(DEFAULT_POLICY);
+  useEffect(() => subscribeToDriverCancellations(driverId, setCancellations), [driverId]);
+  useEffect(() => subscribeToCancellationPolicy(setCancelPolicy), []);
   useEffect(
     () =>
       subscribeToDriverWallet(
@@ -188,8 +196,10 @@ export function DriverDataProvider({ account, children }: { account: DriverAccou
       ledger,
       walletError,
       rules,
+      cancellations,
+      cancelPolicy,
     };
-  }, [account, bookings, bookingsLoaded, bookingsError, activeTrip, canBrowse, offers, offersError, payouts, notifications, penalties, deviceWarning, wallet, ledger, walletError, rules]);
+  }, [account, bookings, bookingsLoaded, bookingsError, activeTrip, canBrowse, offers, offersError, payouts, notifications, penalties, deviceWarning, wallet, ledger, walletError, rules, cancellations, cancelPolicy]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

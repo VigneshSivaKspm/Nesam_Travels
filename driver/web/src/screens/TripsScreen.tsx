@@ -1,4 +1,6 @@
 import React from 'react';
+import { CancelledCard as RequestCancelledCard } from '../components/nx/Cancellation';
+import type { DriverCancellation } from '../services/partnerRequests';
 import type { LedgerEntry, TripDetails } from '../types';
 import { Icon } from '../components/nx/Icon';
 import { EmptyState, TripCard } from '../components/nx/parts';
@@ -14,6 +16,8 @@ interface TripsScreenProps {
   upcoming: TripDetails[];
   completed: TripDetails[];
   cancelled: TripDetails[];
+  /** Duties NESAM cancelled after an approved request; the booking itself is no longer assigned to this driver. */
+  cancelledRequests?: DriverCancellation[];
   ledger: LedgerEntry[];
   onOpenTrip: (trip: TripDetails) => void;
   onBrowse: () => void;
@@ -78,11 +82,12 @@ const CancelledCard: React.FC<{ trip: TripDetails; onOpen: () => void }> = ({ tr
   );
 };
 
-export const TripsScreen: React.FC<TripsScreenProps> = ({ tab, onTab, now, upcoming, completed, cancelled, ledger, onOpenTrip, onBrowse }) => {
+export const TripsScreen: React.FC<TripsScreenProps> = ({ tab, onTab, now, upcoming, completed, cancelled, cancelledRequests = [], ledger, onOpenTrip, onBrowse }) => {
+  const released = cancelledRequests.filter((r) => r.status === 'Approved' && !cancelled.some((t) => t.id === r.bookingId));
   const tabs: [TripsTab, string, number][] = [
     ['upcoming', 'Upcoming', upcoming.length],
     ['completed', 'Completed', completed.length],
-    ['cancelled', 'Cancelled', cancelled.length],
+    ['cancelled', 'Cancelled', cancelled.length + released.length],
   ];
   return (
     <>
@@ -114,15 +119,16 @@ export const TripsScreen: React.FC<TripsScreenProps> = ({ tab, onTab, now, upcom
           </EmptyState>
         )
       ) : tab === 'cancelled' ? (
-        cancelled.length ? (
+        cancelled.length || released.length ? (
           <div className="trip-list">
             {cancelled.map((t) => (
               <CancelledCard key={t.id} trip={t} onOpen={() => onOpenTrip(t)} />
             ))}
+            {released.map((r) => <RequestCancelledCard key={r.id} request={r} />)}
           </div>
         ) : (
           <EmptyState icon="shield" title="No cancelled duties">
-            Duties cancelled by NESAM will appear here.
+            Admin-approved cancellations will appear here.
           </EmptyState>
         )
       ) : completed.length ? (

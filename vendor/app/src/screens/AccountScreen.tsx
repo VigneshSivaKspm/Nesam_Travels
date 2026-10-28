@@ -1,6 +1,6 @@
 // Account: who this partner is, the things that need attention (requests, alerts, penalties), the documents and agreements on
 // file, and help. Everything else lives in the tabs.
-import React from 'react';
+import React, { useState } from 'react';
 import { Alert, Linking, StyleSheet, Text, View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import Constants from 'expo-constants';
@@ -11,11 +11,16 @@ import { Avatar, Badge, Card, MenuRow, Screen } from '../components/ui';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import { formatPhone } from '../utils/format';
 import { colors, space, type } from '../theme';
+import { Sheet, TextField } from '../components/ui';
+import { Feedback, KV, PButton } from '../components/partner';
+import { requestBankChange } from '../services/partnerOps';
 
 export function AccountScreen() {
   const navigation = useNavigation();
   const signOut = useSignOut();
-  const { profile, openLinks } = useVendorData();
+  const { profile, openLinks, record, requests } = useVendorData();
+  const [bank, setBank] = useState(false);
+  const [notice, setNotice] = useState('');
   const { unreadCount, penalties, unacknowledged } = useInbox();
   const owed = penalties.filter((x) => ['Pending', 'Acknowledged', 'Disputed'].includes(x.status)).length;
 
@@ -28,7 +33,9 @@ export function AccountScreen() {
   return (
     <View style={styles.root}>
       <Screen edges={[]}>
-        <Text style={[type.h1, { marginBottom: space.md }]}>Account</Text>
+        <Text style={[type.h1]}>Profile</Text>
+        <Text style={[type.small, { marginBottom: space.md }]}>My Business and account settings.</Text>
+        <Feedback message={notice} />
         <Card>
           <View style={styles.head}>
             <Avatar name={profile.companyName} size={56} />
@@ -70,6 +77,8 @@ export function AccountScreen() {
         <Text style={[type.label, styles.group]}>On file</Text>
         <Card style={styles.menu}>
           <MenuRow icon="business-outline" label="Business & contact details" onPress={() => navigation.navigate('Profile')} />
+          <MenuRow icon="card-outline" label="Bank details" value={record.payoutSummary?.bankLast4 ? `Ending ${record.payoutSummary.bankLast4}` : 'Not added'} onPress={() => setBank(true)} />
+          <MenuRow icon="headset-outline" label="24/7 Helpdesk" onPress={() => navigation.navigate('Helpdesk')} />
           <MenuRow icon="document-text-outline" label="Documents & compliance" onPress={() => navigation.navigate('Documents')} />
           <MenuRow icon="shield-checkmark-outline" label="Agreements accepted" onPress={() => navigation.navigate('Agreements')} />
         </Card>
@@ -81,6 +90,7 @@ export function AccountScreen() {
         </Card>
         <Text style={[type.tiny, { textAlign: 'center' }]}>NESAM Vendor v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
       </Screen>
+      {bank ? <BankSheet onClose={() => setBank(false)} onDone={(m) => { setBank(false); setNotice(m); }} pending={requests.find((r) => r.type === 'bank_change' && r.status === 'Pending')?.accountLast4 ?? ''} summary={record.payoutSummary} /> : null}
     </View>
   );
 }
@@ -91,3 +101,33 @@ const styles = StyleSheet.create({
   group: { marginTop: space.sm, marginBottom: space.xs },
   menu: { padding: 0, overflow: 'hidden' },
 });
+
+function BankSheet({ onClose, onDone, pending, summary }: { onClose: () => void; onDone: (m: string) => void; pending: string; summary: { accountHolderName: string; bankLast4: string; ifsc: string } | null }) {
+  const [holder, setHolder] = useState(summary?.accountHolderName ?? '');
+  const [last4, setLast4] = useState('');
+  const [ifsc, setIfsc] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const submit = async () => {
+    if (holder.trim().length < 2) { setError('Enter the account holder name.'); return; }
+    if (!/^\d{4}$/.test(last4)) { setError('Enter the last four digits of the new account.'); return; }
+    if (!/^[A-Z]{4}0[A-Z0-9]{6}$/.test(ifsc.toUpperCase())) { setError('Enter a valid IFSC (for example HDFC0001234).'); return; }
+    setBusy(true); setError('');
+    try { await requestBankChange(holder, last4, ifsc); onDone('Bank change requested. It takes effect after office approval.'); }
+    catch (e) { setError((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <Sheet visible onClose={onClose} title="Bank details" dismissible={!busy}>
+      <KV rows={[['Account holder', summary?.accountHolderName || '—'], ['Account ending', summary?.bankLast4 ? `•••• ${summary.bankLast4}` : '—'], ['IFSC', summary?.ifsc || '—']]} />
+      {pending ? <Text style={[type.small, { marginTop: space.md }]}>A change to the account ending {pending} is with the office.</Text> : (
+        <View style={{ marginTop: space.md }}>
+          <TextField label="Account holder" value={holder} onChangeText={setHolder} />
+          <TextField label="New account last four digits" value={last4} onChangeText={(v) => setLast4(v.replace(/\D/g, '').slice(0, 4))} keyboardType="number-pad" />
+          <TextField label="IFSC" value={ifsc} onChangeText={(v) => setIfsc(v.toUpperCase().slice(0, 11))} autoCapitalize="characters" hint="Bank changes take effect after office approval." />
+          <Feedback tone="error" message={error} />
+          <PButton title="Request bank change" icon="arrow-forward" full busy={busy} onPress={() => void submit()} />
+        </View>
+      )}
+    </Sheet>
+  );
+}

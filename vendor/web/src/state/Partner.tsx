@@ -73,6 +73,9 @@ interface PartnerValue {
 }
 
 const Ctx = createContext<PartnerValue | null>(null);
+/** Development preview harness only (preview.html). */
+export const PartnerContextForPreview = Ctx;
+export type { PartnerValue };
 
 export function usePartner(): PartnerValue {
   const v = useContext(Ctx);

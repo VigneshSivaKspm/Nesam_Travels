@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 import type { VendorProfile, VendorRecord } from './types';
-import type { PartnerNotification } from './notificationTypes';
 import { subscribeToAuthUser, signOutUser, setAuthIntent, resetRecaptchaVerifier } from './services/authService';
 import { subscribeToVendor, type VendorSnapshot } from './services/onboardingService';
 import { describeDataError } from './utils/retry';
@@ -11,19 +10,10 @@ import { AccountStatusScreen } from './screens/AccountStatusScreen';
 import { VendorLoginScreen } from './screens/VendorLoginScreen';
 import { FullScreenLoader } from './components/onboarding/ui';
 import { LegalGate } from './components/LegalGate';
-import { NotificationPopups } from './components/NotificationPopups';
-import { PenaltyAckModal } from './components/PenaltyAckModal';
-import { PartnerProvider, usePartner, type PageId } from './state/Partner';
-import { Shell } from './ui/Shell';
-import { Banner, Button, Toast, useToast } from './ui/kit';
+import { PartnerProvider } from './state/Partner';
+import { Button } from './ui/kit';
 import { IconSprite } from './ui/Icon';
-import { DutiesPage } from './pages/DutiesPage';
-import { DriversPage } from './pages/DriversPage';
-import { VehiclesPage } from './pages/VehiclesPage';
-import { RequestsPage } from './pages/RequestsPage';
-import { PayoutsPage } from './pages/PayoutsPage';
-import { AccountPage } from './pages/AccountPage';
-import { AlertsPage } from './pages/AlertsPage';
+import { PartnerWorkspace } from './partner/Workspace';
 
 async function handleSignOut() {
   setAuthIntent(null);
@@ -117,60 +107,8 @@ export function App() {
 function VendorWorkspace({ profile, record }: { profile: VendorProfile; record: VendorRecord }) {
   return (
     <PartnerProvider profile={profile} record={record}>
-      <Workspace />
+      <PartnerWorkspace />
     </PartnerProvider>
-  );
-}
-
-/** Where a notification's call-to-action leads. */
-function pageFor(n: PartnerNotification): PageId {
-  if (n.category === 'penalties') return 'alerts';
-  switch (n.ctaPage) {
-    case 'marketplace': case 'dashboard': case 'trips': case 'trip': case 'booking-detail': return 'duties';
-    case 'wallet': return 'payouts';
-    case 'profile': case 'documents': return 'account';
-    case 'links': return 'requests';
-    case 'drivers': return 'drivers';
-    case 'vehicles': return 'vehicles';
-    default: return n.category === 'bookings' ? 'duties' : 'alerts';
-  }
-}
-
-function Workspace() {
-  const p = usePartner();
-  const { toast, show, dismiss } = useToast();
-  const [ackDone, setAckDone] = useState<string[]>([]);
-
-  // A penalty must be acknowledged (or disputed) before the partner carries on.
-  const mustAcknowledge = p.penalties.find((x) => x.status === 'Pending' && !x.acknowledged && !ackDone.includes(x.id)) ?? null;
-
-  const body = (() => {
-    switch (p.page) {
-      case 'drivers': return <DriversPage />;
-      case 'vehicles': return <VehiclesPage />;
-      case 'requests': return <RequestsPage />;
-      case 'payouts': return <PayoutsPage />;
-      case 'account': return <AccountPage />;
-      case 'alerts': return <AlertsPage />;
-      default: return <DutiesPage />;
-    }
-  })();
-
-  return (
-    <Shell page={p.page} go={p.go} partnerName={p.profile.companyName || 'Fleet partner'} partnerId={p.profile.id}
-      counts={{ requests: p.openLinks.length, unread: p.unread, newDuties: p.openTrips.length }}
-      overlays={
-        <>
-          <Toast toast={toast} onDismiss={dismiss} />
-          <NotificationPopups notifications={p.notifications} onOpen={(n) => { p.actions.markRead(n.id); p.go(pageFor(n)); }} />
-          {mustAcknowledge && (
-            <PenaltyAckModal key={mustAcknowledge.id} penalty={mustAcknowledge} onDone={(m) => { setAckDone((d) => [...d, mustAcknowledge.id]); show(m); }} />
-          )}
-        </>
-      }>
-      {p.loadError && <Banner tone="err" action={{ label: 'Retry', onClick: p.retry }}>{p.loadError}</Banner>}
-      {body}
-    </Shell>
   );
 }
 

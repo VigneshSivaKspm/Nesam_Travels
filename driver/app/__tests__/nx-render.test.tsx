@@ -85,6 +85,8 @@ jest.mock('../src/context/DriverData', () => ({
       ledger: [{ id: 'l1', type: 'trip_earning', direction: 'credit', amount: 4900, status: 'available', bookingId: 't3', bookingCode: 'NT-0990', createdAt: new Date() }],
       walletError: '',
       rules: mockRules,
+      cancellations: [],
+      cancelPolicy: { lastMinuteHours: 4, lastMinuteCharge: 1000, graceHours: 4, afterGraceCharge: 500 },
     };
   },
 }));

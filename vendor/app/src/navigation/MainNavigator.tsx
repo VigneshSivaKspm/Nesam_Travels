@@ -4,9 +4,11 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import type { RootStackParamList, TabParamList } from './types';
 import { useVendorData } from '../context/VendorData';
-import { DutiesScreen } from '../screens/DutiesScreen';
-import { DriversScreen } from '../screens/DriversScreen';
-import { VehiclesScreen } from '../screens/VehiclesScreen';
+import { TripsScreen } from '../screens/TripsScreen';
+import { BookingsScreen, BookingDetailScreen } from '../screens/BookingsScreen';
+import { FleetScreen } from '../screens/FleetScreen';
+import { EarningsScreen } from '../screens/EarningsScreen';
+import { HelpdeskScreen } from '../screens/HelpdeskScreen';
 import { WalletScreen } from '../screens/WalletScreen';
 import { AccountScreen } from '../screens/AccountScreen';
 import { RequestsScreen } from '../screens/RequestsScreen';
@@ -30,41 +32,36 @@ const Tab = createBottomTabNavigator<TabParamList>();
 const SignOutCtx = createContext<() => void>(() => undefined);
 export const useSignOut = () => useContext(SignOutCtx);
 
+// Reference navigation: Bookings · Fleet · Trips · Earnings · Wallet (Helpdesk and Profile sit in the header).
 const TAB_ICONS: Record<keyof TabParamList, { on: keyof typeof Ionicons.glyphMap; off: keyof typeof Ionicons.glyphMap }> = {
-  Duties: { on: 'navigate', off: 'navigate-outline' },
-  Drivers: { on: 'people', off: 'people-outline' },
-  Vehicles: { on: 'car', off: 'car-outline' },
-  Payouts: { on: 'wallet', off: 'wallet-outline' },
-  Account: { on: 'person-circle', off: 'person-circle-outline' },
+  Bookings: { on: 'calendar', off: 'calendar-outline' },
+  Fleet: { on: 'car', off: 'car-outline' },
+  Trips: { on: 'git-network', off: 'git-network-outline' },
+  Earnings: { on: 'bar-chart', off: 'bar-chart-outline' },
+  Wallet: { on: 'wallet', off: 'wallet-outline' },
 };
 
 function Tabs() {
-  const { awaitingDispatch, marketTrips, openLinks } = useVendorData();
-  const { unacknowledged } = useInbox();
-  const newDuties = marketTrips.length + awaitingDispatch.length;
+  const { awaitingDispatch, marketTrips } = useVendorData();
   return (
     <Tab.Navigator
+      initialRouteName="Trips"
       screenOptions={({ route }) => ({
         headerShown: true,
         tabBarHideOnKeyboard: true,
         header: () => <AppHeader />,
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.muted,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '700' },
+        tabBarLabelStyle: { fontSize: 10.5, fontWeight: '600' },
+        tabBarStyle: { minHeight: 64, paddingTop: 6 },
         tabBarIcon: ({ color, size, focused }) => <Ionicons name={TAB_ICONS[route.name][focused ? 'on' : 'off']} color={color} size={size} />,
       })}
     >
-      <Tab.Screen name="Duties" component={DutiesScreen} options={{ tabBarBadge: newDuties || undefined }} />
-      <Tab.Screen name="Drivers" component={DriversScreen} />
-      <Tab.Screen name="Vehicles" component={VehiclesScreen} />
-      <Tab.Screen name="Payouts" component={WalletScreen} />
-      <Tab.Screen
-        name="Account"
-        component={AccountScreen}
-        options={{
-          tabBarBadge: openLinks.length + unacknowledged.length || undefined,
-        }}
-      />
+      <Tab.Screen name="Bookings" component={BookingsScreen} options={{ tabBarBadge: awaitingDispatch.length || undefined }} />
+      <Tab.Screen name="Fleet" component={FleetScreen} />
+      <Tab.Screen name="Trips" component={TripsScreen} options={{ tabBarBadge: marketTrips.length || undefined }} />
+      <Tab.Screen name="Earnings" component={EarningsScreen} />
+      <Tab.Screen name="Wallet" component={WalletScreen} />
     </Tab.Navigator>
   );
 }
@@ -74,21 +71,27 @@ function openPage(page: string) {
   if (!navigationRef.isReady()) return;
   switch (page) {
     case 'market':
+    case 'marketplace':
+      return navigationRef.navigate('Tabs', { screen: 'Trips' });
     case 'trips':
     case 'booking-detail':
-      return navigationRef.navigate('Tabs', { screen: 'Duties' });
+      return navigationRef.navigate('Tabs', { screen: 'Bookings' });
     case 'wallet':
-      return navigationRef.navigate('Tabs', { screen: 'Payouts' });
+    case 'payouts':
+      return navigationRef.navigate('Tabs', { screen: 'Wallet' });
+    case 'earnings':
+      return navigationRef.navigate('Tabs', { screen: 'Earnings' });
     case 'drivers':
-      return navigationRef.navigate('Tabs', { screen: 'Drivers' });
+      return navigationRef.navigate('Tabs', { screen: 'Fleet', params: { tab: 'Drivers' } });
     case 'fleet':
     case 'vehicles':
-      return navigationRef.navigate('Tabs', { screen: 'Vehicles' });
+      return navigationRef.navigate('Tabs', { screen: 'Fleet', params: { tab: 'Vehicles' } });
     case 'requests':
+      return navigationRef.navigate('Helpdesk');
     case 'partner-links':
       return navigationRef.navigate('Requests');
     case 'profile':
-      return navigationRef.navigate('Profile');
+      return navigationRef.navigate('Account');
     case 'penalties':
       return navigationRef.navigate('Penalties');
     default:
@@ -133,6 +136,9 @@ export function MainNavigator({ onSignOut }: { onSignOut: () => void }) {
         <Stack.Screen name="Documents" component={DocumentsScreen} options={{ title: 'Documents & compliance' }} />
         <Stack.Screen name="Profile" component={ProfileScreen} options={{ title: 'Business & contact' }} />
         <Stack.Screen name="Agreements" component={AgreementsScreen} options={{ title: 'Agreements accepted' }} />
+        <Stack.Screen name="Account" component={AccountScreen} options={{ title: 'Profile' }} />
+        <Stack.Screen name="Helpdesk" component={HelpdeskScreen} options={{ title: '24/7 Helpdesk' }} />
+        <Stack.Screen name="BookingDetail" component={BookingDetailScreen} options={{ title: 'Booking details' }} />
       </Stack.Navigator>
       <WorkspaceOverlays />
     </SignOutCtx.Provider>

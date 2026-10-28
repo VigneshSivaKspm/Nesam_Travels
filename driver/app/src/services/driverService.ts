@@ -547,6 +547,13 @@ export function mapBooking(id: string, data: DocumentData): TripDetails {
     totalPaid: typeof data.paymentSummary?.totalPaid === "number" ? data.paymentSummary.totalPaid : undefined,
     fareLines: Array.isArray(data.fareBreakup?.lines) ? data.fareBreakup.lines : undefined,
     reachedPickupAt: toDateTime(data.reachedPickupAt),
+    acceptedAt: toDateTime(data.acceptedAt) ?? toDateTime(data.assignedAt),
+    cancellationRequest: data.cancellationRequest && typeof data.cancellationRequest === 'object' && data.cancellationRequest.partyType === 'driver'
+      ? { requestId: str(data.cancellationRequest.requestId), status: str(data.cancellationRequest.status), quotedPenalty: parseAmount(data.cancellationRequest.quotedPenalty) }
+      : null,
+    driverResponse: data.driverResponse && typeof data.driverResponse === 'object' && data.driverResponse.driverId === data.assignedDriverId
+      ? { viewedAt: toDateTime(data.driverResponse.viewedAt), acknowledgedAt: toDateTime(data.driverResponse.acknowledgedAt) }
+      : null,
     pickupAt: toDateTime(data.pickupAt) ?? toDateTime(data.scheduledAt),
     scheduledDate: str(data.date),
     scheduledTime: str(data.time),

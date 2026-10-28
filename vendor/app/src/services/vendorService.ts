@@ -88,6 +88,8 @@ export function mapMarketTrip(id: string, d: DocumentData): MarketTrip {
     mode: d.mode === 'bid_review' ? 'bid_review' : d.mode === 'accept_offer' ? 'accept_offer' : '',
     publishedMs: toDate(d.publishedAt)?.getTime() ?? 0,
     createdMs: toDate(d.createdAt)?.getTime() ?? 0,
+    pickupMs: toDate(d.pickupAt)?.getTime() ?? 0,
+    cutoffMs: toDate(d.cutoffAt)?.getTime() ?? 0,
   };
 }
 
@@ -129,11 +131,11 @@ export function validateCounterRate(rate: number, offered: number): string {
 }
 
 /** Submits a counter-bid for NESAM's review (submitMarketplaceBid). One bid per vendor per trip: a newer one replaces it. */
-export async function submitCounterBid(_vendor: VendorIdentity, trip: MarketTrip, rate: number, note: string): Promise<void> {
+export async function submitCounterBid(_vendor: VendorIdentity, trip: MarketTrip, rate: number, note: string, autoAcceptConsent = true): Promise<void> {
   const invalid = validateCounterRate(rate, trip.offeredPayout);
   if (invalid) throw new VendorActionError('invalid-rate', invalid);
   try {
-    await callFunction('submitMarketplaceBid', { tripId: trip.id, rate, note: note.trim().slice(0, 300) }, 30000);
+    await callFunction('submitMarketplaceBid', { tripId: trip.id, rate, note: note.trim().slice(0, 300), autoAcceptConsent }, 30000);
   } catch (err) {
     if (err instanceof ActionError) throw new VendorActionError('closed', err.message);
     throw err;
@@ -150,6 +152,7 @@ export function mapBid(id: string, d: DocumentData): VendorBid {
     biddingNote: str(d.biddingNote),
     status: str(d.status) || 'Pending Review',
     submittedAt: toDate(d.submittedAt),
+    autoAcceptConsent: d.autoAcceptConsent === true,
   };
 }
 
@@ -209,7 +212,31 @@ export function mapVendorBooking(id: string, d: DocumentData): VendorBooking {
     paymentMethod: str(d.paymentMethod),
     confirmedAt: toDate(d.confirmedAt),
     completedAt: toDate(d.completedAt),
+    pickupAt: toDate(d.pickupAt) ?? toDate(d.scheduledAt),
+    tripType: tripTypeOf(d),
+    includedKm: Math.round(num(d.pricing?.includedKm) || num(d.pricing?.quotedKm) || num(d.distanceKm)),
+    tripSubStatus: str(d.tripSubStatus),
+    paymentStatus: str(d.paymentSummary?.status),
+    acceptedAt: toDate(d.assignedVendorAt) ?? toDate(d.acceptedAt) ?? toDate(d.confirmedAt),
+    assignBy: toDate(d.assignBy),
+    driverResponse: d.driverResponse && d.driverResponse.driverId && d.driverResponse.driverId === d.assignedDriverId
+      ? { viewedAt: toDate(d.driverResponse.viewedAt), acknowledgedAt: toDate(d.driverResponse.acknowledgedAt) }
+      : null,
+    cancellationRequest: d.cancellationRequest && d.cancellationRequest.partyType === 'vendor'
+      ? { requestId: str(d.cancellationRequest.requestId), status: str(d.cancellationRequest.status), quotedPenalty: num(d.cancellationRequest.quotedPenalty) }
+      : null,
   };
+}
+
+/** "One Way", "Round Trip", "Local Rental", "Multicity", "Airport" from what the booking stored. */
+export function tripTypeOf(d: DocumentData): string {
+  const raw = `${str(d.tripType)} ${str(d.service)} ${str(d.bookingType)}`.toLowerCase();
+  if (/round/.test(raw)) return 'Round Trip';
+  if (/rental|local|hour/.test(raw)) return 'Local Rental';
+  if (/multi/.test(raw)) return 'Multicity';
+  if (/airport/.test(raw)) return 'Airport';
+  if (/one|drop|outstation/.test(raw)) return 'One Way';
+  return str(d.tripType) || str(d.service);
 }
 
 export function subscribeToVendorBookings(vendorId: string, cb: (b: VendorBooking[]) => void, onError?: (e: unknown) => void): () => void {

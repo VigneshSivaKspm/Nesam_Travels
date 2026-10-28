@@ -1,5 +1,7 @@
+// NESAM Partner header from the client reference: logo + NESAM PARTNER wordmark, then Notifications,
+// 24/7 Helpdesk and Profile.
 import React from 'react';
-import { View, Text, Image, Pressable, StyleSheet } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -7,29 +9,33 @@ import { useInbox } from '../context/Inbox';
 import { colors, space } from '../theme';
 
 export function AppHeader({ right }: { right?: React.ReactNode }) {
-  const navigation = useNavigation<any>();
-  const { unreadCount } = useInbox();
+  const navigation = useNavigation();
+  const { unreadCount, unacknowledged } = useInbox();
   const insets = useSafeAreaInsets();
+  const dot = unreadCount > 0 || unacknowledged.length > 0;
 
   return (
     <View style={[styles.header, { paddingTop: Math.max(insets.top, 10) }]}>
-      <Pressable style={styles.brand} onPress={() => navigation.navigate('Tabs', { screen: 'Duties' })}>
-        <Image source={require('../../assets/icon.png')} style={styles.logo} />
-        <View style={styles.wordmark}>
+      <Pressable style={styles.brand} onPress={() => navigation.navigate('Tabs', { screen: 'Trips' })} accessibilityRole="button" accessibilityLabel="NESAM Partner Trips">
+        <View style={styles.logoBox}><Image source={require('../../assets/partner-logo.jpg')} style={styles.logo} /></View>
+        <View>
           <Text style={styles.title}>NESAM</Text>
           <Text style={styles.label}>PARTNER</Text>
         </View>
       </Pressable>
-
       <View style={styles.rightRow}>
         {right}
-        <Pressable
-          style={styles.bell}
-          onPress={() => navigation.navigate('Alerts')}
-          accessibilityLabel="Notifications"
-        >
-          <Ionicons name="notifications-outline" size={20} color={colors.ink} />
-          {unreadCount > 0 && <View style={styles.dot} />}
+        <Pressable style={styles.iconBtn} onPress={() => navigation.navigate('Alerts')} accessibilityRole="button" accessibilityLabel={dot ? 'Notifications, unread' : 'Notifications'}>
+          <Ionicons name="notifications-outline" size={19} color={colors.ink} />
+          {dot ? <View style={styles.dot} /> : null}
+        </Pressable>
+        <Pressable style={styles.iconBtn} onPress={() => navigation.navigate('Helpdesk')} accessibilityRole="button" accessibilityLabel="24/7 Helpdesk">
+          <Ionicons name="headset-outline" size={18} color={colors.ink} />
+          <Text style={styles.tiny}>24/7</Text>
+        </Pressable>
+        <Pressable style={styles.iconBtn} onPress={() => navigation.navigate('Account')} accessibilityRole="button" accessibilityLabel="Profile and My Business">
+          <Ionicons name="person-outline" size={18} color={colors.ink} />
+          <Text style={styles.tiny}>Profile</Text>
         </Pressable>
       </View>
     </View>
@@ -37,68 +43,14 @@ export function AppHeader({ right }: { right?: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: space.lg,
-    paddingBottom: 10,
-    backgroundColor: '#fff',
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.border,
-  },
-  brand: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  logo: {
-    width: 38,
-    height: 38,
-    borderRadius: 8,
-  },
-  wordmark: {
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.ink,
-    letterSpacing: -0.3,
-    lineHeight: 20,
-  },
-  label: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: colors.primary,
-    letterSpacing: 1.5,
-  },
-  rightRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: space.sm,
-  },
-  bell: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  dot: {
-    position: 'absolute',
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-    borderWidth: 1.5,
-    borderColor: '#fff',
-  },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: space.lg, paddingBottom: 10, backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
+  brand: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
+  logoBox: { width: 38, height: 38, overflow: 'hidden' },
+  logo: { width: 48, height: 47, marginLeft: -5, marginTop: -5 },
+  title: { fontSize: 22, fontWeight: '800', color: colors.primary, letterSpacing: -0.3, lineHeight: 24 },
+  label: { fontSize: 9, fontWeight: '700', color: colors.primary, letterSpacing: 2.4 },
+  rightRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  iconBtn: { minWidth: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 6 },
+  tiny: { fontSize: 8.5, color: colors.text, marginTop: 1 },
+  dot: { position: 'absolute', top: 9, right: 11, width: 7, height: 7, borderRadius: 4, backgroundColor: colors.primary },
 });
-

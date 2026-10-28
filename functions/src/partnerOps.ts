@@ -584,7 +584,8 @@ export function assignByFor(acceptedAt: number, pickupAt: number | null, setting
   const beforeH = hours(s.vendorAssignBeforePickupHours, 1);
   const byWindow = acceptedAt + windowH * 3600000;
   if (!pickupAt) return byWindow;
-  // Urgent duties: never later than the pickup itself.
-  return Math.max(Math.min(byWindow, pickupAt - beforeH * 3600000), Math.min(byWindow, pickupAt));
+  const preferred = Math.min(byWindow, pickupAt - beforeH * 3600000);
+  // Urgent duties (that cut-off has already passed): never later than the pickup itself.
+  return preferred > acceptedAt ? preferred : Math.min(byWindow, pickupAt);
 }
 

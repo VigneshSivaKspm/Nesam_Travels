@@ -35,7 +35,7 @@ const base: TripDetails = {
     { key: 'toll', label: 'Toll & parking', amount: null, treatment: 'extra', detail: 'Paid by the customer at actual cost' },
   ],
   paymentSummary: { amountDue: 6200, totalPaid: 1000, balanceDue: 5200, partnerCashHeld: 0, status: 'Partly paid' },
-  tripStartedAt: null, reachedPickupAt: null, tripEndedAt: null,
+  tripStartedAt: null, reachedPickupAt: null, tripEndedAt: null, acceptedAt: null, cancellationRequest: null, driverResponse: null,
 };
 const t = (over: Partial<TripDetails>): TripDetails => ({ ...base, ...over });
 

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "test": "npm run build && node --test test/tariff.test.js test/advanceBooking.test.js test/http.test.js && npm run test:e2e",
+    "test": "npm run build && node --test test/tariff.test.js test/advanceBooking.test.js test/http.test.js test/partnerOps.test.js && npm run test:e2e",
     "build:watch": "tsc --watch",
     "serve": "npm run build && firebase emulators:start --only functions,firestore,auth,storage",
     "shell": "npm run build && firebase functions:shell",
