@@ -6,7 +6,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { CommissionPolicy, parseCommissionPolicy, validateCommissionPolicy } from './domain/finance';
-import { requirePermission } from './shared';
+import { requirePermission, requireAction } from './shared';
 
 export const COMMISSION_DOC = 'business_config/commission';
 
@@ -18,6 +18,7 @@ export async function loadCommissionPolicy(tx?: Transaction): Promise<Commission
 
 export const saveCommissionPolicy = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'finance');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   const errors = validateCommissionPolicy(input);
   if (errors.length) throw new HttpsError('invalid-argument', errors.join(' '));

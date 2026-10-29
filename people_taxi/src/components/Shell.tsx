@@ -13,10 +13,10 @@ export function Brand({ compact = false, light = false }: { compact?: boolean; l
   return (
     <Link to="/book" className={`brand ${compact ? 'brand--compact' : ''} ${light ? 'brand--light' : ''}`} aria-label="People Taxi — book a ride">
       <img
-        src={light ? '/brand/logo-white.png' : compact ? '/brand/icon.png' : '/brand/logo.png'}
-        alt="People Taxi Logo"
-        width={compact ? 44 : 180}
-        height={compact ? 44 : 50}
+        src={compact ? '/brand/peopletaxi-symbol.png' : '/brand/peopletaxi-logo.png'}
+        alt="People Taxi"
+        width={compact ? 44 : 192}
+        height={compact ? 44 : 44}
         style={{ objectFit: 'contain' }}
       />
     </Link>

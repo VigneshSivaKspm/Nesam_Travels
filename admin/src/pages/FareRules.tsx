@@ -246,7 +246,7 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
         <div>
           <h1 className="text-xl font-bold text-ink tracking-tight">Pricing & Fare Management</h1>
           <p className="text-xs text-muted mt-0.5">
-            Customer app fares come from vehicle category fares. Fare rules below are quotation rate cards for admin / phone bookings and are not applied to app bookings.
+            Booking fares use the enabled tariff, local packages and vehicle category rates. The older rate cards below are reference records; managed fixed route fares must be changed through Service &amp; Fare Settings → Fixed route fares.
           </p>
         </div>
 

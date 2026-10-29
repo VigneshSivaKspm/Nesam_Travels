@@ -216,8 +216,9 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
 
 function TaxSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [policy, setPolicy] = useState<TaxPolicy | null | undefined>(undefined);
-  useEffect(() => subscribeToDocument<TaxPolicy>("settings/tax_policy", setPolicy, () => setPolicy(null)), []);
-  if (policy === undefined) return null;
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => subscribeToDocument<TaxPolicy>("settings/tax_policy", (value) => { setPolicy(value); setError(null); }, setError), []);
+  if (error || policy === undefined) return <Modal title="Tax settings" onClose={onClose}>{error ? <div className="ds-error" role="alert">Tax policy could not be loaded: {error}. Close and reopen to retry.</div> : <p role="status">Loading saved tax policy…</p>}</Modal>;
   const fallback: TaxPolicy = { services: Object.fromEntries(["One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"].map((s) => [s, { classification: s === "Local Rental" ? "Vehicle rental" : "Passenger transportation", sac: s === "Local Rental" ? "996601" : "996412" }])), approved: false, reference: "" };
   return <TaxPolicyDialog policy={policy ? { ...fallback, ...policy, services: { ...fallback.services, ...policy.services } } : fallback} onClose={onClose} onSaved={onSaved} />;
 }
@@ -422,14 +423,18 @@ function TestFareSheet({ onClose }: { onClose: () => void }) {
     if (why) return setError(why);
     setBusy(true);
     setError(null);
-    const list = await estimateAll(trip, data.categories);
-    setRes(list);
-    setSel(list.find((x) => x.quote)?.category.id ?? "");
-    setBusy(false);
+    setRes(null);
+    try {
+      const list = await estimateAll(trip, data.categories);
+      setRes(list);
+      setSel(list.find((x) => x.quote)?.category.id ?? "");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The fare test failed. Please try again.");
+    } finally { setBusy(false); }
   };
   const okCount = useMemo(() => res?.filter((r) => r.quote).length ?? 0, [res]);
   return (
-    <Modal title="Test search · Shared availability & pricing" onClose={onClose} wide footNote="Uses the same rules as customer and office estimates." footer={<Button variant="primary" type="submit" form="test-fare" loading={busy}>Run test search</Button>}>
+    <Modal title="Test search · Shared availability & pricing" onClose={onClose} busy={busy} wide footNote="Uses the same rules as customer and office estimates." footer={<Button variant="primary" type="submit" form="test-fare" loading={busy}>Run test search</Button>}>
       <form id="test-fare" onSubmit={run} noValidate>
         {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
         <p className="text-[12px] text-muted mb-3">Prices the trip with the same availability, cab type, schedule, fare rule and fare limit checks that customer and office bookings use. No booking or payment is created.</p>

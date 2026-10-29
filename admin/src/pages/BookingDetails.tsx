@@ -13,7 +13,8 @@ import { AssignDriverModal, AssignVendorModal, CancelBookingModal, RecordPayment
 import { AssignmentHistory, PaymentsPanel, VehicleVerificationPanel, VerifyCustomerModal, type AssignmentRow, type PaymentRow, type VerificationDoc } from "../components/booking/BookingPanels";
 import { AssignOnBehalfDrawer, PublishDutyDrawer, PublishedDutyDrawer } from "../components/booking/DutyDrawers";
 import { PricingPanel, ReachedOverrideDialog, SettlementPanel } from "../components/booking/TripMoneyPanels";
-import { useCan } from "../components/AccessContext";
+import { useAccess, useCan } from "../components/AccessContext";
+import ContactReveal from "../components/booking/ContactReveal";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, Tabs } from "../components/ui";
 import { subscribeToCollection, subscribeToDocument } from "../services/adminFirestoreService";
 import { acknowledgeUnassignedAlert, approveBooking } from "../services/bookingOpsService";
@@ -92,6 +93,8 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
   const { toast, show } = useToast(9000);
   const canFinance = useCan("finance");
   const canOps = useCan("operations");
+  // Staff IDs never receive raw customer contacts with the booking; they reveal one booking at a time.
+  const contactProtected = useAccess().kind === "staff";
   const now = useNow(30000);
   const ops = useOperationsSettings();
   const data = useOfficeData();
@@ -257,15 +260,16 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
             <Card title="Customer & passenger" sub={`${booking.customerId ? `NSM-CU-${booking.customerId.slice(0, 6).toUpperCase()}` : "Office booking"} · ${canFinance || canOps ? "Master access" : "Limited access"} · Views logged`} right={<Button size="sm" variant="ghost" icon="shield-check" onClick={() => setSheet("access")}>Access history</Button>}>
               <Facts items={[
                 ["Full name", booking.customer || booking.customerName || "Not supplied"],
-                ["Mobile", booking.phone || booking.customerPhone || "Not supplied"],
-                ["WhatsApp", booking.customerWhatsapp?.e164 || booking.phone || "Not supplied"],
-                ["Email", booking.customerEmail || "Not supplied"],
+                ["Mobile", contactProtected ? booking.phoneMasked || "Protected" : booking.phone || booking.customerPhone || "Not supplied"],
+                ["WhatsApp", contactProtected ? "Protected" : booking.customerWhatsapp?.e164 || booking.phone || "Not supplied"],
+                ["Email", contactProtected ? "Protected" : booking.customerEmail || "Not supplied"],
                 ["Full pickup address", booking.pickupAddress || booking.pickup],
                 ["Full drop address", booking.dropAddress || booking.drop],
                 ...(passenger ? [["Passenger", `${passenger.name} · ${passenger.phone}`] as const] : []),
               ]} />
+              {contactProtected && canOps && <ContactReveal booking={booking} />}
               <div className="flex flex-wrap gap-2 mt-4">
-                {booking.phone ? <a className="ds-btn ds-btn-secondary" href={tel(booking.phone)}><Icon name="phone" size={14} />Call customer</a> : <Button icon="phone" disabled>Call customer</Button>}
+                {booking.phone && !contactProtected ? <a className="ds-btn ds-btn-secondary" href={tel(booking.phone)}><Icon name="phone" size={14} />Call customer</a> : <Button icon="phone" disabled>Call customer</Button>}
                 {canOps && <Button variant="ghost" icon="badge-check" onClick={() => setSheet("verify")}>{booking.customerVerified ? "Customer verified ✓" : "Verify customer"}</Button>}
               </div>
             </Card>

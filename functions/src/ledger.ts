@@ -140,7 +140,7 @@ export async function syncPayoutLedger(requestId: string): Promise<void> {
 // ── Triggers ──────────────────────────────────────────────────────────────
 
 const FINANCE_KEYS = ['status', 'payment', 'paymentStatus', 'paymentMethod', 'fareVerified', 'tollsApproved', 'tollCharges',
-  'vendorPayout', 'driverPayout', 'assignedVendorId', 'assignedDriverId', 'finance'];
+  'vendorPayout', 'driverPayout', 'assignedVendorId', 'assignedDriverId', 'finance', 'paymentSummary'];
 
 export const onBookingFinanceChange = onDocumentUpdated('bookings/{bookingId}', async (event) => {
   const before = event.data?.before.data();

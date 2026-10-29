@@ -13,7 +13,7 @@ import { DEFAULT_ADMIN_MAX_ADVANCE_DAYS, bookingWindowFrom, parsePickupInstant, 
 import { AWAITING_APPROVAL } from './bookingBuild';
 import { MANUAL_PAYMENT_METHODS as PAYMENT_METHODS, summarizePayments } from './domain/bookingFlow';
 import { dutyClassOf } from './domain/eligibility';
-import { applyFareOverride, isOutstation, mapCategory, serviceName } from './domain/pricing';
+import { applyFareOverride, isOutstation, mapCategory, mapCoupon, normalizeCode, serviceName, validateCoupon } from './domain/pricing';
 import { COMMISSION_NOT_CONFIGURED, buildFinanceSnapshot, partnerPayoutFor, resolveCommission } from './domain/finance';
 import { distanceKm } from './domain/verification';
 import { formatDate, formatDateTime12, formatTime12 } from './domain/time';
@@ -25,7 +25,8 @@ import { createContactInTx, maskPhone } from './contacts';
 import { loadFixedRoutes, loadTariffConfig, priceBooking, rentalHoursOf, sharedCityId, tariffClassOf } from './quote';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { nextBookingCode } from './bookingSequence';
-import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text } from './shared';
+import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text, requireAction, requireStaffFlag } from './shared';
+import { canSeePayouts } from './staffReads';
 
 const MAX_FARE = 1000000;
 
@@ -63,6 +64,7 @@ async function resolvePlace(input: any, role: 'pickup' | 'drop'): Promise<{ plac
 export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const input = request.data ?? {};
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'create');
   // Charging a different amount than the calculated fare is a finance decision.
   if (input.override != null && !admin.permissions.includes('finance')) {
     throw new HttpsError('permission-denied', 'Your role does not include finance access, which a fare override requires.');
@@ -70,6 +72,12 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   // A discount changes what the customer pays, so it needs finance access too.
   if (input.discount != null && !admin.permissions.includes('finance') && !admin.permissions.includes('pricing')) {
     throw new HttpsError('permission-denied', 'Giving a discount needs pricing or finance access.');
+  }
+  // A coupon is validated and priced here, never taken from the office's screen.
+  const couponCode = normalizeCode(text(input.couponCode, 50));
+  if (couponCode) {
+    requireStaffFlag(admin, 'partnerRights', 'applyCoupon', 'Apply coupon to booking');
+    if (input.discount != null) throw new HttpsError('invalid-argument', 'A booking takes either a coupon or a manual discount, not both.');
   }
   const requestId = requestIdOf(input.requestId);
   const ref = db.doc(`bookings/${requestId}`);
@@ -138,6 +146,10 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
     const customerId = typeof input.customerId === 'string' ? input.customerId : '';
+    const [couponDocs, customerHistory] = await Promise.all([
+      couponCode ? tx.get(db.collection('coupons')) : Promise.resolve(null),
+      couponCode && customerId ? tx.get(db.collection('bookings').where('customerId', '==', customerId)) : Promise.resolve(null),
+    ]);
     const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff, fixedRoutes] = await Promise.all([
       tx.get(ref),
       tx.get(db.collection('vehicle_categories').where('status', '==', 'Active')),
@@ -172,9 +184,32 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType, service));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
-    const pricedRaw = priceBooking({
-      category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId,
-    });
+    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId };
+    // Coupon: the same server checks as customer checkout (validity, usage limits, minimum fare,
+    // category / service, audience) against the fare before discount; then the booking is priced with it.
+    let couponDiscount = 0;
+    let usedCoupon: FirebaseFirestore.QueryDocumentSnapshot | undefined;
+    if (couponCode && couponDocs) {
+      const coupons = couponDocs.docs.map((d) => mapCoupon(d.id, d.data()));
+      const found = coupons.find((c) => normalizeCode(c.code) === couponCode);
+      // Per-customer conditions cannot be checked for a walk-in without an account.
+      if (found && !customerId && (found.firstBookingOnly || found.perCustomerLimit > 0 || (found.audience && found.audience !== 'All'))) {
+        throw new HttpsError('failed-precondition', `${found.code} has per-customer conditions. Select the customer's account to apply it.`);
+      }
+      const prior = (customerHistory?.docs ?? []).map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected');
+      const before = priceBooking(priceInput);
+      const checked = validateCoupon(coupons, couponCode, {
+        subtotal: before.fare.subtotal, categoryId: category.id, service, adminBooking: true,
+        isFirstBooking: prior.length === 0, customerUses: prior.filter((b) => normalizeCode(b.couponCode || '') === couponCode).length,
+        pickupAt: when, completedTrips: prior.filter((b) => b.status === 'Completed').length,
+        pickupText: `${pickup.name} ${pickup.address ?? ''}`, dropText: `${drop.name} ${drop.address ?? ''}`,
+        fixedRoute: before.pricing.model === 'city_drop_package' || before.pricing.model === 'fixed_route', peakAdjusted: adjustment?.direction === 'increase',
+      });
+      if (!checked.ok) throw new HttpsError('failed-precondition', checked.message);
+      couponDiscount = checked.coupon.discount;
+      usedCoupon = couponDocs.docs.find((d) => normalizeCode(d.data().code || '') === couponCode);
+    }
+    const pricedRaw = priceBooking({ ...priceInput, ...(couponDiscount ? { discount: couponDiscount } : {}) });
     const priced = { ...pricedRaw, pricing: adjustPartner(pricedRaw.pricing, rules) };
     assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });
     const calculated = priced.fare;
@@ -182,7 +217,9 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId, categoryId: category.id }) : null;
     // The admin form asks for this quote first and books against it; nothing is written.
     if (input.quoteOnly === true) {
-      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !priced.usesCommissionPolicy || !!commission, adjustmentApplied: calculated.globalAdjustment, pricing: priced.pricing };
+      // The partner rate block is payout data: only for staff holding the payout right.
+      const quotePricing = canSeePayouts(admin) ? priced.pricing : { ...priced.pricing, partner: null };
+      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !priced.usesCommissionPolicy || !!commission, adjustmentApplied: calculated.globalAdjustment, pricing: quotePricing, ...(couponCode ? { couponCode, couponDiscount } : {}) };
     }
     if (priced.usesCommissionPolicy && !commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
     if (!Number.isFinite(input.expectedFare) || input.expectedFare !== calculated.total) {
@@ -227,7 +264,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       discountDetails: fare.discountDetail ? { ...fare.discountDetail, byUid: admin.uid, byName: admin.name } : null,
       globalAdjustmentApplied: fare.globalAdjustment ?? null,
       ...officeBookingExtras(input, admin),
-      routeEstimated: false, couponCode: '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
+      routeEstimated: false, couponCode: couponDiscount ? couponCode : '', discount: fare.discount, notes: text(input.notes), payment: summary.status === 'Paid' ? 'Paid' : 'Pending', paymentStatus: summary.status,
       paymentSummary: { ...summary, updatedAt: Timestamp.now() }, paymentMethod,
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
       date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingChannel === 'nesam' ? 'admin' : bookingChannel, bookingSource: bookingChannel, brand: bookingChannel, ...availabilityFields(rules), createdBy: admin.uid, createdByName: admin.name, createdAt: stamp, updatedAt: stamp,
@@ -256,6 +293,10 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     });
     if (override) {
       auditInTx(tx, { action: 'fare_override', entity: 'booking', entityId: requestId, performedBy: admin.uid, performedByName: admin.name, role: 'admin', bookingId: requestId, previous: { fare: calculated.total }, next: { fare: override.fare }, reason: override.reason });
+    }
+    if (usedCoupon) {
+      tx.update(usedCoupon.ref, { usedCount: FieldValue.increment(1) });
+      auditInTx(tx, { action: 'coupon_applied', entity: 'booking', entityId: requestId, performedBy: admin.uid, performedByName: admin.name, role: 'admin', bookingId: requestId, next: { code: couponCode, discount: couponDiscount } });
     }
     if (fare.discountDetail) {
       auditInTx(tx, { action: 'discount_applied', entity: 'booking', entityId: requestId, performedBy: admin.uid, performedByName: admin.name, role: 'admin', bookingId: requestId, next: fare.discountDetail, reason: fare.discountDetail.reason });
@@ -318,6 +359,8 @@ function baseBreakdown(b: FirebaseFirestore.DocumentData): FareBreakdown {
 
 export const overrideBookingFare = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'finance');
+  requireAction(admin, 'Accounts', 'approve');
+  requireAction(admin, 'Bookings', 'edit');
   const input = request.data ?? {};
   if (typeof input.bookingId !== 'string' || !/^[a-zA-Z0-9_-]{1,100}$/.test(input.bookingId)) throw new HttpsError('invalid-argument', 'Invalid booking.');
   const ref = db.doc(`bookings/${input.bookingId}`);

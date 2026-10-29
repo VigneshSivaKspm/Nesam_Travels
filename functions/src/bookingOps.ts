@@ -17,7 +17,7 @@ import { REFUND_STATUSES, RefundStatus, maxRefund, refundBlocker, summarizePayme
 import { formatDateTime12, pickupInstant } from './domain/time';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { txnsRef } from './bookingPayments';
-import { approved, requireAdmin, requirePermission, requireSuperAdmin, text, requireDuty } from './shared';
+import { approved, requireAdmin, requirePermission, requireSuperAdmin, text, requireDuty, requireAction, requireStaffFlag } from './shared';
 
 const code = (b: DocumentData, id: string) => text(b.bookingId) || id;
 
@@ -32,6 +32,7 @@ const code = (b: DocumentData, id: string) => text(b.bookingId) || id;
 export const approveBooking = onCall({ timeoutSeconds: 120 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
   requireDuty(admin, 'approve');
+  requireAction(admin, 'Bookings', 'approve');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const note = text(request.data?.note, 300);
   const ref = db.doc(`bookings/${bookingId}`);
@@ -75,6 +76,7 @@ export const approveBooking = onCall({ timeoutSeconds: 120 }, async (request) =>
 
 export const rejectBooking = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'approve');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const reason = text(request.data?.reason, 300);
   if (reason.length < 5) throw new HttpsError('invalid-argument', 'Give the reason for rejecting this booking.');
@@ -115,6 +117,7 @@ export const rejectBooking = onCall(async (request) => {
 
 export const cancelBooking = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'edit');
   const input = request.data ?? {};
   const bookingId = docId(input.bookingId, 'booking');
   const reason = text(input.reason, 300);
@@ -223,6 +226,7 @@ export async function reconcileCancelledBooking(bookingId: string, previousStatu
 
 export const updateRefund = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'finance');
+  requireAction(admin, 'Accounts', 'approve');
   const input = request.data ?? {};
   const bookingId = docId(input.bookingId, 'booking');
   const to = input.status as RefundStatus;
@@ -293,7 +297,7 @@ const CONFLICT_WINDOW_MS = 3 * 3600000;
  */
 export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
-  requireDuty(admin, 'assign');
+  requireAction(admin, 'Bookings', 'edit');
   const input = request.data ?? {};
   const bookingId = docId(input.bookingId, 'booking');
   const newDriverId = input.driverId ? docId(input.driverId, 'driver') : '';
@@ -314,6 +318,10 @@ export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
     const oldDriverId: string = b.assignedDriverId || '';
     const action = !newDriverId ? 'remove' : oldDriverId ? 'reassign' : 'assign';
     if (action === 'remove' && !oldDriverId && !b.assignedVendorId) throw new HttpsError('failed-precondition', 'There is no assignment to remove.');
+    // Staff ID rights: removing an allocation, swapping the driver and changing the cab are separate grants.
+    requireDuty(admin, action === 'remove' ? 'remove' : 'assign');
+    if (action === 'reassign' && newDriverId !== oldDriverId) requireStaffFlag(admin, 'fleetSwap', 'driver', 'Driver swap');
+    if (action !== 'remove' && wantedVehicleId && text(b.assignedVehicleId) && wantedVehicleId !== text(b.assignedVehicleId)) requireStaffFlag(admin, 'fleetSwap', 'vehicle', 'Vehicle swap');
     if (!['Approved', 'Confirmed', 'Assigned'].includes(b.status)) {
       throw new HttpsError('failed-precondition', b.status === 'Pending'
         ? 'Approve the booking before assigning a driver.'
@@ -444,6 +452,7 @@ export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
 
 export const acknowledgeUnassignedAlert = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'edit');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const ref = db.doc(`bookings/${bookingId}`);
   await db.runTransaction(async (tx) => {

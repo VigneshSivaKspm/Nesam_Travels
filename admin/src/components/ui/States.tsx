@@ -43,7 +43,7 @@ export function PermissionDenied({ area, roleName }: { area: string; roleName: s
       <div className="ds-empty" role="alert">
         <Icon name="shield-check" />
         <strong>No access to {area}</strong>
-        <span>Your role ({roleName}) does not include this area. Ask a super admin to change your role in Staff &amp; Roles.</span>
+        <span>Your access ({roleName}) does not include this area. Ask the Master account (super admin) to change it in Staff &amp; Access.</span>
       </div>
     </div>
   );

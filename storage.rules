@@ -34,13 +34,21 @@ service firebase.storage {
       return isSignedIn()
              && firestore.exists(fsDoc('admins', uid()))
              && adminData().role == 'admin'
-             && adminData().status == 'active';
+             && adminData().status == 'active'
+             && adminData().get('accountStatus', 'Active') == 'Active';
     }
-    // Same grant as firestore.rules can(p).
+    // Same grant as firestore.rules can(p): Master (explicit, or a pre-roles record with no other
+    // access data), or a Staff ID / role-based account holding p. Unrecognised records get nothing.
+    function isMasterRecord(d) {
+      return d.get('staffRole', '') == 'super_admin'
+             || (d.get('staffRole', '') in ['', null]
+                 && !('permissions' in d) && !('staffAccess' in d) && !('dutyPermissions' in d) && !('roleName' in d));
+    }
     function can(p) {
+      let role = adminData().get('staffRole', '');
       return isAdmin()
-             && (adminData().get('staffRole', 'super_admin') == 'super_admin'
-                 || p in adminData().get('permissions', []));
+             && (isMasterRecord(adminData())
+                 || (role is string && role.matches('^[A-Za-z0-9_-]{2,40}$') && p in adminData().get('permissions', [])));
     }
     // Images or PDFs up to 10 MB. Deletes (request.resource == null) pass.
     function validUpload() {

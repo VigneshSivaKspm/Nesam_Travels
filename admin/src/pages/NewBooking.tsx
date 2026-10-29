@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
-import type { Customer, MasterCoupon } from "../types";
-import { subscribeCoupons, subscribeCustomers } from "../services/adminFirestoreService";
+import type { Customer } from "../types";
+import { subscribeCustomers } from "../services/adminFirestoreService";
 import {
-  COUNTRY_CODES, PAYMENT_METHODS, createAdminBooking, emailError, emptyManualBooking, newRequestId, normalizePhone, whatsappError,
+  COUNTRY_CODES, PAYMENT_METHODS, createAdminBooking, emailError, emptyManualBooking, newRequestId, normalizePhone, quoteAdminBooking, whatsappError,
   type CreatedAdminBooking, type ManualBookingForm,
 } from "../services/adminBookingService";
 import { ActionError } from "../services/callables";
-import { validateAndCalculateCoupon } from "../services/couponEngine";
 import { markEnquiryConverted, type Enquiry } from "../services/enquiryService";
-import { useCan } from "../components/AccessContext";
+import { useCan, useStaffFlag } from "../components/AccessContext";
 import { Toast, useToast } from "../components/Feedback";
 import MapLocationPicker from "../components/MapLocationPicker";
 import { Badge, Button, Icon, PageHeader } from "../components/ui";
@@ -93,7 +92,6 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [coupons, setCoupons] = useState<MasterCoupon[]>([]);
   // Review step
   const [discountOpen, setDiscountOpen] = useState(false);
   const [discountType, setDiscountType] = useState<ManualBookingForm["discountType"]>("none");
@@ -109,13 +107,18 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
   const [accepted, setAccepted] = useState(false);
   const [coupon, setCoupon] = useState("");
   const [couponMsg, setCouponMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // The coupon the server accepted for the current quote, with its server-calculated discount.
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null);
+  const [checkingCoupon, setCheckingCoupon] = useState(false);
+  const canApplyCoupon = useStaffFlag("partnerRights", "applyCoupon");
+  const canSeePayout = useStaffFlag("sensitive", "vendorPayout");
   const requestId = useRef(newRequestId());
   const canOverride = useCan("finance");
   const canDiscount = useCan("finance") || useCan("pricing");
   const { toast, show } = useToast(7000);
 
   useEffect(() => {
-    const u = [subscribeCustomers(setCustomers), subscribeCoupons(setCoupons)];
+    const u = [subscribeCustomers(setCustomers)];
     return () => u.forEach((x) => x());
   }, []);
   // A converted enquiry re-prices the saved route as soon as the categories load.
@@ -204,25 +207,32 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
     discountValue,
     discountReason,
     notes: [notes.trim(), extrasNote(trip)].filter(Boolean).join(" · "),
+    couponCode: appliedCoupon?.code ?? "",
     overrideEnabled: overrideOn,
     overrideFare,
     overrideReason,
     channel: c.channel,
   });
 
-  const applyCoupon = () => {
-    if (!q || !chosen) return;
-    const r = validateAndCalculateCoupon(coupons, coupon, {
-      customerPhone: normalizePhone(c.phone), customerId: c.customerId, serviceId: trip.serviceId, serviceName: service?.name,
-      vehicleCategoryId: chosen.category.id, vehicleCategoryName: chosen.category.name, eligibleSubtotal: q.quote.subtotal ?? q.quote.total,
-    });
-    if (!r.valid) return setCouponMsg({ ok: false, text: r.message });
-    if (!canDiscount) return setCouponMsg({ ok: false, text: "Applying a coupon needs pricing or finance access." });
-    setDiscountType("fixed");
-    setDiscountValue(String(Math.round(r.discountAmount)));
-    setDiscountReason(`Coupon ${r.coupon?.code}`);
-    setDiscountOpen(true);
-    setCouponMsg({ ok: true, text: `${r.coupon?.code} applied · ${rupee(r.discountAmount)} off. The fare is re-checked on confirmation.` });
+  // The server validates the code (validity, limits, minimum fare, category, customer) and prices it.
+  const applyCoupon = async () => {
+    if (!q || !chosen || checkingCoupon) return;
+    if (!canApplyCoupon) return setCouponMsg({ ok: false, text: "Your access does not include applying coupons." });
+    if (discountType !== "none") return setCouponMsg({ ok: false, text: "Remove the manual discount first: a booking takes one coupon or one discount." });
+    const code = coupon.trim();
+    if (!code) return setCouponMsg({ ok: false, text: "Enter a coupon code." });
+    setCheckingCoupon(true);
+    try {
+      const fresh = await quoteAdminBooking({ ...bookingForm(), couponCode: code }, newRequestId());
+      const discount = fresh.couponDiscount ?? 0;
+      setAppliedCoupon({ code: fresh.couponCode ?? code, discount });
+      setCouponMsg({ ok: true, text: `${fresh.couponCode ?? code} applied · ${rupee(discount)} off · new total ${rupee(fresh.quote.total)}. The fare is re-checked on confirmation.` });
+    } catch (e) {
+      setAppliedCoupon(null);
+      setCouponMsg({ ok: false, text: e instanceof ActionError ? e.message : "The coupon could not be checked. Try again." });
+    } finally {
+      setCheckingCoupon(false);
+    }
   };
 
   const confirm = async (e: FormEvent) => {
@@ -235,8 +245,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
     try {
       // The server prices again; a changed discount needs a fresh quote first.
       let expected = q.quote.total;
-      if (discountType !== "none") {
-        const { quoteAdminBooking } = await import("../services/adminBookingService");
+      if (discountType !== "none" || appliedCoupon) {
         const fresh = await quoteAdminBooking(form, newRequestId());
         expected = fresh.quote.total;
       }
@@ -258,7 +267,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
 
   const err = (k: keyof CustomerForm) => errors[k] ? <span role="alert" className="text-[11px] font-semibold text-bad">{errors[k]}</span> : null;
   const breakupCard = chosen && q && (
-    <FareBreakupCard vehicle={chosen.category.name} lines={breakupLines(q)} total={q.quote.total} gstRate={q.quote.gstRate ?? 0} extraKm={estimateFacts.extraKmRateOf(q)} payout={estimateFacts.partnerPayoutOf(q)} priceEntered={trip.priceEntered} />
+    <FareBreakupCard vehicle={chosen.category.name} lines={breakupLines(q)} total={q.quote.total} gstRate={q.quote.gstRate ?? 0} extraKm={estimateFacts.extraKmRateOf(q)} payout={canSeePayout ? estimateFacts.partnerPayoutOf(q) : null} priceEntered={trip.priceEntered} />
   );
   const errorLine = error && <div className="ds-error" role="alert" style={{ marginBottom: 14 }}><Icon name="circle-alert" />{error}</div>;
   const wizard = (on: 2 | 3) => (
@@ -376,7 +385,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
               <label className="ds-field" data-span="2">
                 <span>Website / portal</span>
                 <select className="ds-select" value={c.channel} onChange={(e) => setC({ ...c, channel: e.target.value as CustomerForm["channel"] })}>
-                  <option value="nesam">Nesam Travels</option><option value="onewaycarrentals">One Way Car Rental</option><option value="people_taxi">People Taxi</option>
+                  <option value="nesam">Nesam Travels</option><option value="onewaycarrentals">One Way Car Rentals</option><option value="people_taxi">People Taxi</option>
                 </select>
               </label>
               <label className="ds-check" data-span="2"><input type="checkbox" checked={c.someoneElse} onChange={(e) => setC({ ...c, someoneElse: e.target.checked })} />Booking for someone else</label>
@@ -472,16 +481,16 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
             <label className="ds-check"><input type="checkbox" checked={accepted} onChange={(e) => setAccepted(e.target.checked)} />Customer agreed to the fare, included usage and cancellation terms.</label>
             <p className="text-[10px] text-faint mt-2 ml-6">Direct cancellation is available until one hour before pickup. Later cancellations go through the office. A verified driver-arrival cancellation may carry a ₹300 charge.</p>
           </div>
-          <div className="mb-4 p-4 rounded-lg" style={{ border: "1px dashed #efb4b8", background: "#fffafa" }}>
+          {canApplyCoupon && <div className="mb-4 p-4 rounded-lg" style={{ border: "1px dashed #efb4b8", background: "#fffafa" }}>
             <div className="flex justify-between items-center mb-2"><strong className="text-[13px] text-ink flex items-center gap-2"><Icon name="ticket-percent" size={15} />Apply coupon</strong><span className="text-[10px] text-faint">One coupon per booking</span></div>
             <div className="flex gap-2">
-              <input className="ds-input flex-1" placeholder="ENTER COUPON CODE" value={coupon} onChange={(e) => setCoupon(e.target.value.toUpperCase())} />
-              <Button icon="check" onClick={applyCoupon}>Apply</Button>
+              <input className="ds-input flex-1" placeholder="ENTER COUPON CODE" value={coupon} onChange={(e) => { setCoupon(e.target.value.toUpperCase()); setAppliedCoupon(null); setCouponMsg(null); }} />
+              <Button icon="check" loading={checkingCoupon} onClick={() => void applyCoupon()}>Apply</Button>
             </div>
             {couponMsg && <p className={`text-[11px] mt-2 ${couponMsg.ok ? "text-ok" : "text-bad"}`}>{couponMsg.text}</p>}
             <p className="text-[10px] text-muted mt-2">Customer mobile is checked here; Quick Fare remains contact-free.</p>
-            <p className="text-[10px] text-muted mt-1">Partner payout {rupee(payout)} · Actual expenses remain separate.</p>
-          </div>
+            {canSeePayout && <p className="text-[10px] text-muted mt-1">Partner payout {rupee(payout)} · Actual expenses remain separate.</p>}
+          </div>}
           <div className="flex justify-between gap-3 pt-4 border-t border-line">
             <Button icon="arrow-left" onClick={() => setStep("customer")} disabled={busy}>Back</Button>
             <Button variant="primary" icon="circle-check" type="submit" loading={busy}>Confirm booking</Button>

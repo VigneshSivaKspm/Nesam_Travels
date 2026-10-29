@@ -91,6 +91,15 @@ export default function BusinessAccounts({ onQuote }: { onQuote: () => void }) {
 type PTab = "Overview" | "Contract rates" | "Bookings" | "Accounts" | "API access";
 
 function BusinessProfile({ a, bookings, onClose, onEdit, onQuote, onToast }: { a: BusinessAccount; bookings: Booking[]; onClose: () => void; onEdit: () => void; onQuote: () => void; onToast: (t: string) => void }) {
+  const [actionBusy, setActionBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const runAction = async (action: () => Promise<unknown>, message: string) => {
+    if (actionBusy) return;
+    setActionBusy(true); setActionError(null);
+    try { await action(); onToast(message); }
+    catch (err) { setActionError(err instanceof Error ? err.message : "The change failed. Please try again."); }
+    finally { setActionBusy(false); }
+  };
   const [tab, setTab] = useState<PTab>("Overview");
   const [pays, setPays] = useState<BusinessPayment[]>([]);
   const [creds, setCreds] = useState<BusinessCredential[]>([]);
@@ -124,7 +133,8 @@ function BusinessProfile({ a, bookings, onClose, onEdit, onQuote, onToast }: { a
   ], fmt);
 
   return (
-    <Modal title="Business account" onClose={onClose} wide>
+    <Modal title="Business account" onClose={onClose} busy={actionBusy} wide>
+      {actionError && <div className="ds-error" role="alert">{actionError}</div>}
       <div className="ds-profile-head">
         <Initials name={a.name} />
         <div><strong>{a.name}</strong><small>{a.code} · {a.type}</small></div>
@@ -166,7 +176,7 @@ function BusinessProfile({ a, bookings, onClose, onEdit, onQuote, onToast }: { a
                   <td><strong>{rupee(r.customerRate)}{r.contractType === "Per km" ? " / km" : ""}</strong><small>{r.contractType} · {r.priceEntered}</small></td>
                   <td>{rupee(r.partnerPayout)}</td>
                   <td><Badge tone={r.active ? "green" : "neutral"}>{r.active ? "Active" : "Inactive"}</Badge>{r.peak && <small>Peak adjustment</small>}</td>
-                  <td className="ds-actions"><div><Button size="sm" onClick={async () => { await saveContractRates(a.id, (a.contractRates ?? []).map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)), `${r.active ? "Deactivated" : "Activated"} ${r.pickupZone} → ${r.dropZone}`); onToast("Contract rate updated."); }}>{r.active ? "Deactivate" : "Activate"}</Button></div></td>
+                  <td className="ds-actions"><div><Button size="sm" disabled={actionBusy} onClick={() => void runAction(() => saveContractRates(a.id, (a.contractRates ?? []).map((x) => (x.id === r.id ? { ...x, active: !x.active } : x)), `${r.active ? "Deactivated" : "Activated"} ${r.pickupZone} → ${r.dropZone}`), "Contract rate updated.")}>{r.active ? "Deactivate" : "Activate"}</Button></div></td>
                 </tr>
               ))}</tbody>
             </DataTable>
@@ -211,7 +221,7 @@ function BusinessProfile({ a, bookings, onClose, onEdit, onQuote, onToast }: { a
                   <td><strong>{c.label}</strong><small>••••{c.last4} · {c.createdByName}</small></td>
                   <td>{c.scopes.join(", ")}</td>
                   <td><Badge tone={c.status === "Active" ? "green" : "red"}>{c.status}</Badge><small>Expires {c.expiresAt}</small></td>
-                  <td className="ds-actions"><div>{c.status === "Active" && <Button size="sm" onClick={async () => { await revokeCredential(a.id, c.id); onToast("Credential revoked."); }}>Revoke</Button>}</div></td>
+                  <td className="ds-actions"><div>{c.status === "Active" && <Button size="sm" disabled={actionBusy} onClick={() => void runAction(() => revokeCredential(a.id, c.id), "Credential revoked.")}>Revoke</Button>}</div></td>
                 </tr>
               ))}</tbody>
             </DataTable>
@@ -384,6 +394,7 @@ function RateForm({ a, onClose, onSaved }: { a: BusinessAccount; onClose: () => 
 }
 
 function CredentialForm({ a, onClose }: { a: BusinessAccount; onClose: () => void }) {
+  const [error, setError] = useState<string | null>(null);
   const [label, setLabel] = useState(`${a.name} booking API`);
   const [scopes, setScopes] = useState<string[]>(["quotes:write", "bookings:write", "bookings:read"]);
   const [days, setDays] = useState(90);
@@ -391,12 +402,20 @@ function CredentialForm({ a, onClose }: { a: BusinessAccount; onClose: () => voi
   const [busy, setBusy] = useState(false);
   const ALL = ["quotes:write", "bookings:write", "bookings:read", "accounts:read"];
   return (
-    <Modal title="Create API credential" onClose={onClose} busy={busy} footer={secret ? <Button variant="primary" onClick={onClose}>Done</Button> : <Button variant="primary" loading={busy} onClick={async () => { setBusy(true); setSecret(await createCredential(a.id, label.trim() || "API credential", scopes, days)); setBusy(false); }}>Create credential</Button>}>
+    <Modal title="Create API credential" onClose={onClose} busy={busy} footer={secret ? <Button variant="primary" onClick={onClose}>Done</Button> : <Button variant="primary" loading={busy} onClick={async () => {
+      if (busy) return;
+      if (!scopes.length || !Number.isInteger(days) || days < 1 || days > 365) { setError("Choose at least one scope and validity from 1 to 365 days."); return; }
+      setBusy(true); setError(null);
+      try { setSecret(await createCredential(a.id, label.trim() || "API credential", scopes, days)); }
+      catch (err) { setError(err instanceof Error ? err.message : "Credential creation failed. Please try again."); }
+      finally { setBusy(false); }
+    }}>Create credential</Button>}>
+      {error && <div className="ds-error" role="alert">{error}</div>}
       {secret ? (
         <div className="grid gap-3">
           <p className="ds-note">Copy this secret now. It is shown once; NESAM keeps only its fingerprint.</p>
           <code className="block p-3 rounded-lg bg-surface-2 border border-line text-[12px] break-all">{secret}</code>
-          <Button icon="copy" onClick={() => navigator.clipboard.writeText(secret).catch(() => undefined)}>Copy secret</Button>
+          <Button icon="copy" onClick={() => navigator.clipboard.writeText(secret).catch(() => setError("Copy failed. Select and copy the secret shown above."))}>Copy secret</Button>
         </div>
       ) : (
         <div className="grid gap-4">

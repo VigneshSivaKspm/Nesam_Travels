@@ -29,5 +29,5 @@ People Taxi connects to the unified NESAM platform:
 ## Theme & Branding
 
 * **Palette:** Signature vivid cobalt blue (`#1E6CE3`), deep navy ink (`#0A1128`), ice-blue accents (`#F0F6FF`), and pure white (`#FFFFFF`) surfaces.
-* **Logo:** Custom modern vector SVG and raster icons (`public/brand/logo.svg`, `public/brand/logo-white.svg`, `public/favicon.svg`, `public/brand/icon-192.png`).
+* **Logo:** Custom modern vector SVG and raster icons (`public/brand/peopletaxi-logo.png`, `public/brand/logo.svg`, `public/favicon.svg`, `public/brand/icon-192.png`).
 * **Design Tokens:** `src/styles/tokens.css`.

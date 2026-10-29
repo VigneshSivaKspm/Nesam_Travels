@@ -277,7 +277,7 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
           <div className="ds-filterbar" style={{ flexBasis: "100%", marginBottom: 0 }}>
             <label className="ds-field"><span>Vehicle</span><select value={f.category} onChange={(e) => setF({ ...f, category: e.target.value })} className="ds-select"><option value="">All categories</option>{categoriesInUse.map((c) => <option key={c}>{c}</option>)}</select></label>
             <label className="ds-field"><span>Payment</span><select value={f.payment} onChange={(e) => setF({ ...f, payment: e.target.value })} className="ds-select"><option value="">All statuses</option>{["Unpaid", "Partially Paid", "Paid", "Refund Pending", "Refunded"].map((s) => <option key={s}>{s}</option>)}</select></label>
-            <label className="ds-field"><span>Website / portal</span><select value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value as Filters["channel"] })} className="ds-select"><option value="">All portals</option><option value="nesam">Nesam Travels</option><option value="onewaycarrentals">One Way Car Rental</option><option value="people_taxi">People Taxi</option></select></label>
+            <label className="ds-field"><span>Website / portal</span><select value={f.channel} onChange={(e) => setF({ ...f, channel: e.target.value as Filters["channel"] })} className="ds-select"><option value="">All portals</option><option value="nesam">Nesam Travels</option><option value="onewaycarrentals">One Way Car Rentals</option><option value="people_taxi">People Taxi</option></select></label>
           </div>
         )}
       </div>
@@ -340,7 +340,7 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
                   <Badge tone={toneForStatus(officeStatusLabel(b, data.marketById.get(b.id)))}>{officeStatusLabel(b, data.marketById.get(b.id))}</Badge>
                 </div>
                 <RouteCell b={b} />
-                <div className="text-body">{b.customer || "Not supplied"} · {b.phone || "Contact not supplied"}</div>
+                <div className="text-body">{b.customer || "Not supplied"} · {b.phone || b.phoneMasked || "Contact not supplied"}</div>
                 <div className="flex flex-wrap items-center gap-2"><TripTypeCell b={b} /></div>
                 <div className="pt-1 flex flex-wrap gap-1.5">{actions(b)}</div>
                 {expanded === b.id && <BookingExpand b={b} data={data} onOpen={() => onSelectBooking(b.id)} />}

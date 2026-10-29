@@ -70,9 +70,10 @@ test('CORS: admin/customer preflight for getLegalStatus / quoteBooking / approve
     assert.match(p.headers['access-control-allow-methods'], /POST/, name);
     assert.match(p.headers['access-control-allow-headers'], /Authorization/i, name);
     assert.match(p.headers['access-control-allow-headers'], /Content-Type/i, name);
-    // The real request is still authenticated, and its 401 carries the CORS header so the app can read it.
+    // Public fare previews reach input validation; account and booking actions still require sign-in.
     const noToken = await run(call, { headers: { origin }, query: { name } });
-    assert.equal(noToken.status, 401, name);
+    assert.equal(noToken.status, name === 'quoteBooking' ? 400 : 401, name);
+    assert.equal(json(noToken).error.code, name === 'quoteBooking' ? 'invalid-argument' : 'unauthenticated', name);
     assert.equal(noToken.headers['access-control-allow-origin'], origin, name);
     const fake = await run(call, { headers: { origin, authorization: 'Bearer fake' }, query: { name } });
     assert.equal(fake.status, 401, name);

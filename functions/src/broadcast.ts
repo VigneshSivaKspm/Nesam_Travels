@@ -8,7 +8,7 @@ import { db } from './admin';
 import { audit } from './audit';
 import { deliveryRow, notify, NotificationCategory, NotificationSeverity, RecipientType } from './notify';
 import { SendResult, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
-import { approved, requirePermission, text } from './shared';
+import { approved, requirePermission, text, requireAction } from './shared';
 
 const CATEGORIES: NotificationCategory[] = ['bookings', 'approvals', 'trips', 'payments', 'penalties', 'general'];
 const SEVERITIES: NotificationSeverity[] = ['info', 'success', 'warning', 'critical'];
@@ -40,6 +40,7 @@ async function resolveRecipients(target: string, recipientType: string, recipien
 
 export const sendNotification = onCall({ timeoutSeconds: 300 }, async (request) => {
   const admin = await requirePermission(request.auth, 'engagement');
+  requireAction(admin, 'Communication', 'send');
   const input = request.data ?? {};
   const title = text(input.title, 120);
   const message = text(input.message, 480);

@@ -318,11 +318,14 @@ function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, 
 }
 
 export function TaxPolicyDialog({ policy, onClose, onSaved }: { policy: TaxPolicy; onClose: () => void; onSaved: () => void }) {
+  const canFinance = useCan("finance");
+  const canSystem = useCan("system");
   const [p, setP] = useState<TaxPolicy>(policy);
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const save = async () => {
+      if (busy || (!canFinance && !canSystem)) return;
     if (p.reference.trim().length < 3) return setError("Record the accountant / tax-policy review reference.");
     if (!ok) return setError("Confirm the accountant approved the classifications and SAC codes.");
     setBusy(true);
@@ -332,7 +335,7 @@ export function TaxPolicyDialog({ policy, onClose, onSaved }: { policy: TaxPolic
     } catch { setError("The policy was not saved."); setBusy(false); }
   };
   return (
-    <Modal title="Tax automation · Approved policy" onClose={onClose} busy={busy} size="lg" footer={<Button variant="primary" loading={busy} onClick={save}>Save approved policy</Button>}>
+      <Modal title="Tax automation · Approved policy" onClose={onClose} busy={busy} size="lg" footer={<Button variant="primary" loading={busy} disabledReason={canFinance || canSystem ? undefined : "Saving tax policy needs finance or system access."} onClick={save}>Save approved policy</Button>}>
       <p className="text-[12px] text-muted mb-3">Classify passenger transportation and vehicle rental separately. The engine uses the approved classification, supplier location, recipient GST status and boarding / return locations.</p>
       {error && <div className="ds-error" role="alert">{error}</div>}
       <DataTable label="Service classification" minWidth={600} hideTools>

@@ -1,7 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 import { db } from './admin';
 import { GeoPlace, RouteInfo } from './domain/types';
-import { AdminAccess, DUTY_LABEL, DutyAction, Permission, accessOf } from './permissions';
+import { AccountAction, AccountType, AdminAccess, DUTY_LABEL, DutyAction, FlagGroup, ModuleAction, Permission, StaffModule, accessOf, matrixAllows, matrixFlag } from './permissions';
 
 export const approved = (s: unknown) => ['Approved', 'APPROVED', 'Active'].includes(String(s));
 export const text = (v: unknown, max = 300) => typeof v === 'string' ? v.trim().slice(0, max) : '';
@@ -41,13 +41,17 @@ export async function requireAdmin(auth: CallerAuth): Promise<AdminAccess> {
   if (!auth?.uid) throw new HttpsError('unauthenticated', 'Sign in required.');
   const snap = await db.doc(`admins/${auth.uid}`).get();
   const a = snap.data();
-  if (!snap.exists || a?.role !== 'admin' || a?.status !== 'active') throw new HttpsError('permission-denied', 'Only active admins can do this.');
-  return accessOf(auth.uid, a, text(auth.token?.email, 120));
+  // Staff IDs also carry a lifecycle status (Invited / Active / Inactive / Suspended); only Active passes.
+  if (!snap.exists || a?.role !== 'admin' || a?.status !== 'active' || (a?.accountStatus ?? 'Active') !== 'Active') throw new HttpsError('permission-denied', 'Only active admins can do this.');
+  const access = accessOf(auth.uid, a, text(auth.token?.email, 120));
+  // A record that is neither Master, a role-based account nor a Staff ID grants nothing.
+  if (access.kind === 'none') throw new HttpsError('permission-denied', 'Your admin record has no recognised access. Ask the Master account to set it up in Staff & Access.');
+  return access;
 }
 
-/** A Staff ID made in Staff & Access must hold the duty action; other admins are limited by permissions only. */
+/** The duty action must be in the admin's effective duty list (Staff ID: its own; role-based: legacy mapping). */
 export function requireDuty(admin: AdminAccess, action: DutyAction): void {
-  if (admin.isSuper || !admin.duty || admin.duty.includes(action)) return;
+  if (admin.isSuper || admin.duty.includes(action)) return;
   throw new HttpsError('permission-denied', `Your Staff ID does not include “${DUTY_LABEL[action]}”. Ask the Master account.`);
 }
 
@@ -57,6 +61,31 @@ export async function requirePermission(auth: CallerAuth, ...needed: Permission[
   const missing = needed.filter((p) => !admin.permissions.includes(p));
   if (missing.length) throw new HttpsError('permission-denied', `Your role does not include ${missing.join(' and ')} access.`);
   return admin;
+}
+
+/** The module action must be in the admin's effective matrix (Staff ID: its own; role-based: legacyAccessOf). */
+export function requireAction(admin: AdminAccess, module: StaffModule, action: ModuleAction): void {
+  if (admin.isSuper || matrixAllows(admin.matrix, module, action)) return;
+  throw new HttpsError('permission-denied', `Your Staff ID does not include ${module} · ${action}. Ask the Master account.`);
+}
+
+/** The separate right (sensitive data, swaps, partner rights, privacy) must be in the effective matrix. */
+export function requireStaffFlag(admin: AdminAccess, group: FlagGroup, key: string, label: string): void {
+  if (admin.isSuper || matrixFlag(admin.matrix, group, key)) return;
+  throw new HttpsError('permission-denied', `Your Staff ID does not include “${label}”. Ask the Master account.`);
+}
+
+/** Entity-specific account control (suspend / reactivate / inactive / dispute) from the effective matrix. */
+export function requireAccountControl(admin: AdminAccess, type: AccountType, action: AccountAction): void {
+  if (admin.isSuper || (admin.matrix.accountControls[type] ?? []).includes(action)) return;
+  throw new HttpsError('permission-denied', `Your Staff ID cannot ${action} ${type}. Ask the Master account.`);
+}
+
+/** Settlement / payout amounts above the admin's approval limit need the Master account. */
+export function requireWithinBankLimit(admin: AdminAccess, amount: number): void {
+  if (admin.isSuper) return;
+  if (Number.isFinite(amount) && amount <= admin.matrix.bankLimit) return;
+  throw new HttpsError('permission-denied', `₹${Math.round(amount).toLocaleString('en-IN')} is above your settlement approval limit (₹${admin.matrix.bankLimit.toLocaleString('en-IN')}). Ask the Master account.`);
 }
 
 export async function requireSuperAdmin(auth: CallerAuth): Promise<AdminAccess> {

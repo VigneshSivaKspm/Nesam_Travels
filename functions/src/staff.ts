@@ -6,7 +6,7 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
-import { AdminAccess, PERMISSIONS, Permission, SUPER_ADMIN_ROLE, isPermission } from './permissions';
+import { AdminAccess, PERMISSIONS, Permission, STAFF_ROLE, SUPER_ADMIN_ROLE, identityKindOf, isPermission } from './permissions';
 import { requireSuperAdmin, text } from './shared';
 
 const ROLE_ID = /^[A-Za-z0-9_-]{2,40}$/;
@@ -38,7 +38,7 @@ function audit(tx: Transaction, actor: AdminAccess, action: string, targetId: st
 }
 
 const isActiveSuper = (d: FirebaseFirestore.DocumentData | undefined) =>
-  d?.role === 'admin' && d?.status === 'active' && (d?.staffRole || SUPER_ADMIN_ROLE) === SUPER_ADMIN_ROLE;
+  d?.role === 'admin' && d?.status === 'active' && identityKindOf(d) === 'master';
 
 export const approveAdminRequest = onCall(async (request) => {
   const actor = await requireSuperAdmin(request.auth);
@@ -96,12 +96,13 @@ export const updateAdminAccess = onCall(async (request) => {
     }
     const d = snap.data();
     if (!snap.exists || d?.role !== 'admin') throw new HttpsError('failed-precondition', 'This account is not an admin.');
+    if (d.staffRole === STAFF_ROLE) throw new HttpsError('failed-precondition', 'This Staff ID has its own access matrix. Change it from Staff IDs.');
     const grant = changeRole ? await grantFor(tx, request.data.staffRole) : null;
     const next = { ...d, ...(grant ?? {}), ...(status ? { status } : {}) };
     if (isActiveSuper(d) && !isActiveSuper(next) && supers.docs.filter((s) => isActiveSuper(s.data())).length <= 1) {
       throw new HttpsError('failed-precondition', 'At least one active super admin must remain.');
     }
-    tx.update(ref, { ...(grant ?? {}), ...(status ? { status } : {}), updatedBy: actor.uid, updatedAt: FieldValue.serverTimestamp() });
+    tx.update(ref, { ...(grant ?? {}), ...(status ? { status } : {}), accessVersion: FieldValue.increment(1), updatedBy: actor.uid, updatedAt: FieldValue.serverTimestamp() });
     audit(tx, actor, 'admin_access_changed', uid, {
       email: text(d.email), from: { staffRole: d.staffRole || SUPER_ADMIN_ROLE, status: d.status }, to: { staffRole: next.staffRole || SUPER_ADMIN_ROLE, status: next.status },
     });
@@ -157,4 +158,47 @@ export const deleteStaffRole = onCall(async (request) => {
     audit(tx, actor, 'role_deleted', roleId, { name: role.data()!.name, permissions: role.data()!.permissions });
   });
   return { ok: true };
+});
+
+/**
+ * Makes the legacy Master rule explicit. A pre-roles admin record (no staffRole and no other access
+ * data) is a Master by the compatibility rule in identityKindOf; this writes staffRole super_admin on
+ * each such record so the implicit rule can later be removed. Records that have access data but no
+ * staffRole are reported, never promoted. dryRun (default) only reports. Bounded (`limit`), idempotent
+ * (converted records are explicit and are skipped), resumable (rerun until `remaining` is 0).
+ */
+export const migrateLegacyAdmins = onCall({ timeoutSeconds: 120 }, async (request) => {
+  const actor = await requireSuperAdmin(request.auth);
+  const dryRun = request.data?.dryRun !== false;
+  const limit = typeof request.data?.limit === 'number' ? Math.max(1, Math.min(200, Math.floor(request.data.limit))) : 100;
+  const snap = await db.collection('admins').where('role', '==', 'admin').get();
+  const report = { dryRun, scanned: snap.size, explicitMaster: 0, legacyMaster: 0, converted: 0, remaining: 0, roleBased: 0, staffIds: 0, unrecognised: [] as string[] };
+  const pending: FirebaseFirestore.QueryDocumentSnapshot[] = [];
+  for (const d of snap.docs) {
+    const x = d.data();
+    const kind = identityKindOf(x);
+    if (kind === 'master' && x.staffRole === SUPER_ADMIN_ROLE) report.explicitMaster++;
+    else if (kind === 'master') { report.legacyMaster++; pending.push(d); }
+    else if (kind === 'legacy') report.roleBased++;
+    else if (kind === 'staff') report.staffIds++;
+    else report.unrecognised.push(d.id);
+  }
+  const batchDocs = pending.slice(0, limit);
+  report.remaining = pending.length - (dryRun ? 0 : batchDocs.length);
+  if (!dryRun && batchDocs.length) {
+    await db.runTransaction(async (tx) => {
+      report.converted = 0; // the callback can retry
+      const fresh = await Promise.all(batchDocs.map((d) => tx.get(d.ref)));
+      const stamp = FieldValue.serverTimestamp();
+      for (const f of fresh) {
+        const x = f.data();
+        // Re-checked inside the transaction: only records still Master by the legacy rule are written.
+        if (!x || x.staffRole !== undefined || identityKindOf(x) !== 'master') continue;
+        tx.update(f.ref, { staffRole: SUPER_ADMIN_ROLE, roleName: 'Super Admin', accessVersion: FieldValue.increment(1), updatedBy: actor.uid, updatedAt: stamp });
+        report.converted++;
+      }
+      audit(tx, actor, 'legacy_admins_migrated', 'admins', { converted: report.converted, remaining: report.remaining, unrecognised: report.unrecognised.length });
+    });
+  }
+  return report;
 });

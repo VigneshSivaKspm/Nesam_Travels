@@ -10,7 +10,7 @@ import { db } from './admin';
 import { audit } from './audit';
 import { deliveryRow, notify, RecipientType } from './notify';
 import { SendResult, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
-import { approved, requirePermission, text } from './shared';
+import { approved, requirePermission, text, requireAction } from './shared';
 
 type Account = { type: Exclude<RecipientType, 'admin'>; id: string };
 interface CampaignRecipient { name: string; phone?: string; email?: string; accounts: Account[] }
@@ -107,6 +107,7 @@ async function claim(id: string, allowed: string[]): Promise<FirebaseFirestore.D
 
 export const sendNoticeCampaign = onCall({ timeoutSeconds: 540, memory: '512MiB' }, async (request) => {
   const admin = await requirePermission(request.auth, 'engagement');
+  requireAction(admin, 'Communication', 'send');
   const id = text(request.data?.campaignId, 128);
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) throw new HttpsError('invalid-argument', 'Choose the notification.');
   if (request.data?.mode === 'schedule') {
@@ -148,6 +149,7 @@ export async function runScheduledNotices(): Promise<number> {
 /** Retries failed WhatsApp / SMS / email attempts (a campaign's rows or all recent failures), or resends one row. */
 export const retryFailedDeliveries = onCall({ timeoutSeconds: 300 }, async (request) => {
   const admin = await requirePermission(request.auth, 'engagement');
+  requireAction(admin, 'Communication', 'send');
   const deliveryId = text(request.data?.deliveryId, 128);
   const campaignId = text(request.data?.campaignId, 128);
   let docs: FirebaseFirestore.DocumentSnapshot[];

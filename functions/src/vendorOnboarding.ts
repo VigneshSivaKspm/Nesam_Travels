@@ -13,7 +13,7 @@ import { createHash, randomBytes } from 'crypto';
 import { db } from './admin';
 import { audit } from './audit';
 import { notify } from './notify';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 const DEFAULT_VALID_HOURS = 72;
 const MAX_VALID_HOURS = 168;
@@ -60,6 +60,7 @@ export const requestVendorRegistration = onCall(async (request) => {
 
 export const issueVendorInvitation = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'people');
+  requireAction(admin, 'Vendors', 'create');
   const requestId = text(request.data?.requestId, 128);
   let phone = e164(request.data?.phone);
   if (!phone && requestId) {
@@ -93,6 +94,7 @@ export const issueVendorInvitation = onCall(async (request) => {
 
 export const revokeVendorInvitation = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'people');
+  requireAction(admin, 'Vendors', 'edit');
   const id = text(request.data?.invitationId, 80);
   if (!/^[a-f0-9]{64}$/.test(id)) throw new HttpsError('invalid-argument', 'Invalid invitation.');
   const ref = db.doc(`vendor_invitations/${id}`);

@@ -13,7 +13,7 @@ Cancellation wording follows user/app/src/services/rideService.ts, including the
 | Terms acceptance gate (new published version) | Link to the public policies; /legal stays readable before accepting |
 | Location search ("Use current location") | Privacy & location |
 | Booking review | Terms, Fare & payment, Cancellation, Refund beside the acceptance checkbox; Privacy when booking for someone else |
-| Vehicle choice (One Way Car Rental toll notice) and every fare breakdown | Fare & payment |
+| Vehicle choice (One Way Car Rentals toll notice) and every fare breakdown | Fare & payment |
 | Cancel dialog | Cancellation, Refund, before "Cancel ride" |
 | Cancelled booking details | Refund, when a cancellation fee or refund is shown |
 | Receipt (screen and printed) | Fare & payment, Refund |

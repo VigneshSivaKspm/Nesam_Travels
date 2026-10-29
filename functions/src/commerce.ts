@@ -206,12 +206,12 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     // Serializes first-booking/per-customer coupon eligibility across concurrent requests.
     tx.update(customer.ref, { lastBookingAt: stamp });
     const sourceTag = bookingSource === 'onewaycarrentals'
-      ? ' · [One Way Car Rental]'
+      ? ' · [One Way Car Rentals]'
       : bookingSource === 'people_taxi'
       ? ' · [People Taxi]'
       : '';
     const sourceTitle = bookingSource === 'onewaycarrentals'
-      ? 'New One Way Car Rental booking to review'
+      ? 'New One Way Car Rentals booking to review'
       : bookingSource === 'people_taxi'
       ? 'New People Taxi booking to review'
       : 'New booking request to review';

@@ -18,7 +18,7 @@ export { reportSecurityEvent, getIntegrityNonce, verifyDeviceIntegrity } from '.
 export { sendVerificationCode, verifyCustomerCode, whatsappWebhook } from './customerVerification';
 export { getLegalStatus, acceptLegalDocuments, publishLegalDocument, seedLegalDocuments } from './legal';
 export { unassignedBookingAlerts } from './scheduler';
-export { approveAdminRequest, rejectAdminRequest, updateAdminAccess, saveStaffRole, deleteStaffRole } from './staff';
+export { approveAdminRequest, rejectAdminRequest, updateAdminAccess, saveStaffRole, deleteStaffRole, migrateLegacyAdmins } from './staff';
 export { saveCommissionPolicy } from './commission';
 export { awardMarketplaceBid, rejectMarketplaceBid, postBookingToMarketplace, assignIndependentDriver, assignVendor } from './marketplace';
 export { vendorAssignDriver } from './vendorDispatch';
@@ -27,7 +27,8 @@ export { claimMarketplaceDuty, submitMarketplaceBid, withdrawMarketplaceBid } fr
 export { requestPartnerPayout, rebuildPartnerLedger, onBookingFinanceChange, onPayoutRequestWritten } from './ledger';
 export { sendNotification } from './broadcast';
 export { sendNoticeCampaign, retryFailedDeliveries } from './noticeCampaigns';
-export { saveStaffProfile, revokeStaffSessions } from './staffProfiles';
+export { saveStaffProfile, setStaffStatus, revokeStaffSessions } from './staffProfiles';
+export { getStaffBookings } from './staffReads';
 export { lookupVehicleByRegistration } from './vehicleLookup';
 export { requestVendorRegistration, issueVendorInvitation, revokeVendorInvitation, redeemVendorInvitation } from './vendorOnboarding';
 export { updateSettlement, onBookingSettlementChange } from './settlement';

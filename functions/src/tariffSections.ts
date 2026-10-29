@@ -11,7 +11,7 @@ import {
   RENTAL_HOURS, RentalPackage, TARIFF_CLASSES, TariffClass, TariffConfig, parseRentalPackage, parseTariffConfig, rentalMinHours,
 } from './domain/tariff';
 import { TARIFF_DOC } from './quote';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 const MAX_AMOUNT = 1_000_000;
 const bad = (m: string) => new HttpsError('invalid-argument', m);
@@ -139,6 +139,7 @@ function applyRentalPackage(base: TariffConfig, cls: TariffClass, hours: number,
  */
 export const saveTariffSection = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   const reason = text(input.reason, 300);
   if (reason.length < 5) throw bad('Give a short reason for the change.');

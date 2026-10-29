@@ -18,6 +18,9 @@ import { Booking, Driver, Vehicle, Customer, PenaltyRecord } from "../types";
 import { StatusBadge, PaymentBadge, BookingSourceBadge, bookingSourceRowCls } from "../components/booking/BookingBadges";
 import OperationsSection from "../components/dashboard/OperationsSection";
 import OfficeDashboard from "../components/dashboard/OfficeDashboard";
+import StaffDashboard from "../components/dashboard/StaffDashboard";
+import { useAccess } from "../components/AccessContext";
+import type { NavBadges } from "../hooks/useNavBadges";
 import type { CategoryEstimate, QuickTrip } from "../components/booking/QuickFare";
 import type { Enquiry } from "../services/enquiryService";
 import { useNow } from "../hooks/useNow";
@@ -47,19 +50,40 @@ const categoryColors: Record<string, string> = {
   "Tour Package": "#8B5CF6",
 };
 
-export default function Dashboard({
-  onNavigate,
-  onSelectBooking,
-  onNewBooking,
-  onProceed,
-  onEnquirySaved,
-}: {
+interface DashboardProps {
   onNavigate: (page: string, tab?: string) => void;
   onSelectBooking: (id: string) => void;
   onNewBooking: () => void;
   onProceed: (trip: QuickTrip, categoryId: string, estimates: CategoryEstimate[]) => void;
   onEnquirySaved: (e: Enquiry) => void;
-}) {
+  badges?: NavBadges;
+}
+
+/**
+ * One dashboard for every admin. The Master account keeps the full overview. Staff get sections
+ * composed from their effective access; the full business overview needs every area it reads
+ * (bookings, people, fleet and finance), the booking / dispatch board needs bookings.
+ */
+export default function Dashboard(props: DashboardProps) {
+  const access = useAccess();
+  if (access.isSuper) return <MasterDashboard {...props} />;
+  const has = (p: (typeof access.permissions)[number]) => access.permissions.includes(p);
+  const fullOverview = has("operations") && has("people") && has("fleet") && has("finance");
+  const workspace = fullOverview ? (
+    <MasterDashboard {...props} />
+  ) : has("operations") ? (
+    <OfficeDashboard onNavigate={props.onNavigate} onSelectBooking={props.onSelectBooking} onNewBooking={props.onNewBooking} onProceed={props.onProceed} onEnquirySaved={props.onEnquirySaved} />
+  ) : null;
+  return <StaffDashboard access={access} badges={props.badges} onNavigate={props.onNavigate} onNewBooking={props.onNewBooking} workspace={workspace} />;
+}
+
+function MasterDashboard({
+  onNavigate,
+  onSelectBooking,
+  onNewBooking,
+  onProceed,
+  onEnquirySaved,
+}: DashboardProps) {
   const [loaded, setLoaded] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);

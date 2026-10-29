@@ -7,7 +7,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 const MAX_AMOUNT = 1_000_000;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -72,6 +72,7 @@ const overlap = (a: { from: string; to: string }, b: { from: string; to: string 
  */
 export const saveFixedRouteFare = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   const reason = text(input.reason, 300);
   if (reason.length < 5) throw bad('Give a short reason for the change.');

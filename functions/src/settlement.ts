@@ -15,10 +15,11 @@ import { DocumentData, FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
 import { FinanceSnapshot } from './domain/finance';
+import { walletTotals } from './domain/finance';
 import { notify } from './notify';
 import { recomputeWallet, walletId } from './ledger';
 import { docId } from './marketplace';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction, requireWithinBankLimit } from './shared';
 
 export const SETTLEMENT_PAYOUT_HOURS = 4;
 export const SETTLEMENT_STATES = ['Due', 'Processing', 'Paid', 'Failed', 'On Hold', 'Wallet'] as const;
@@ -97,6 +98,7 @@ type Action = 'processing' | 'paid' | 'failed' | 'hold' | 'release';
  */
 export const updateSettlement = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'finance');
+  requireAction(admin, 'Accounts', 'approve');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const action = request.data?.action as Action;
   if (!['processing', 'paid', 'failed', 'hold', 'release'].includes(action)) throw new HttpsError('invalid-argument', 'Choose a settlement action.');
@@ -111,6 +113,8 @@ export const updateSettlement = onCall({ timeoutSeconds: 60 }, async (request) =
     const stamp = FieldValue.serverTimestamp();
     const from = String(d.status);
     if (from === 'Paid') throw new HttpsError('failed-precondition', 'This settlement is already paid.');
+    // Releasing money is limited by the Staff ID's settlement approval limit (server-side, per settlement).
+    if (action === 'processing' || action === 'paid') requireWithinBankLimit(admin, money(d.amount));
     if (action === 'processing') {
       if (!['Due', 'Failed', 'On Hold'].includes(from) && from !== 'Wallet') throw new HttpsError('failed-precondition', `A ${from.toLowerCase()} settlement cannot move to processing.`);
       tx.update(dueRef, { status: 'Processing', initiatedAt: stamp, initiatedBy: admin.uid, updatedAt: stamp });
@@ -126,8 +130,18 @@ export const updateSettlement = onCall({ timeoutSeconds: 60 }, async (request) =
       if (from !== 'On Hold') throw new HttpsError('failed-precondition', 'Only a held settlement can be released.');
       tx.update(dueRef, { status: 'Due', hold: FieldValue.delete(), holdReleasedAt: stamp, updatedAt: stamp });
     } else {
+      if (!['Due', 'Processing', 'Failed', 'Wallet'].includes(from)) throw new HttpsError('failed-precondition', 'Release the settlement hold before paying it.');
       if (reference.length < 6) throw new HttpsError('invalid-argument', 'Enter the bank / UPI transfer reference. A payout is not Paid without one.');
       const type = d.partnerType === 'vendor' ? 'vendor' : 'driver';
+      const [booking, entries, lock] = await Promise.all([
+        tx.get(db.doc(`bookings/${bookingId}`)),
+        tx.get(db.collection('wallet_ledger').where('walletId', '==', walletId(type, d.partnerId))),
+        tx.get(db.doc(`payout_locks/${type}_${d.partnerId}`)),
+      ]);
+      const current = booking.exists ? netSettlement(booking.data()!) : null;
+      if (!current?.ready || current.net <= 0 || current.net !== r2(money(d.amount))) throw new HttpsError('failed-precondition', 'The booking payment or settlement amount changed. Review it before paying.');
+      if (walletTotals(entries.docs.map((entry) => entry.data())).available < money(d.amount)) throw new HttpsError('failed-precondition', 'The available wallet balance is insufficient or already reserved for another payout. Review existing payout requests first.');
+      void lock;
       const privateDoc = await tx.get(db.doc(`${type === 'driver' ? 'driver_private' : 'vendor_kyc'}/${d.partnerId}`));
       const bank = type === 'driver' ? privateDoc.data()?.bank : privateDoc.data()?.payout;
       const upiOk = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/.test(String(bank?.upiId || ''));
@@ -138,6 +152,13 @@ export const updateSettlement = onCall({ timeoutSeconds: 60 }, async (request) =
         id: reqRef.id, [`${type}Id`]: d.partnerId, [`${type}Name`]: text(d.partnerName), amount: d.amount, method, details: method === 'UPI' ? text(bank.upiId) : `Account ending ${String(bank.accountNumber).slice(-4)}`,
         status: 'Paid', reference, source: 'settlement_due', bookingId, createdAt: stamp, paidAt: stamp, processedBy: admin.uid, requestedAt: new Date().toISOString(),
       });
+      // Debit in the same transaction, sharing the withdrawal lock: the trigger is only a reconciliation.
+      tx.create(db.doc(`wallet_ledger/payout_${reqRef.id}`), {
+        schema: 2, actorType: type, actorId: d.partnerId, walletId: walletId(type, d.partnerId), [`${type}Id`]: d.partnerId,
+        type: 'payout', direction: 'debit', netAmount: d.amount, grossAmount: d.amount, commissionAmount: 0,
+        status: 'completed', bookingId, bookingCode: text(d.bookingCode), payoutRequestId: reqRef.id, source: 'payout_request', createdAt: stamp, finalizedAt: stamp,
+      });
+      tx.set(db.doc(`payout_locks/${type}_${d.partnerId}`), { updatedAt: stamp });
       tx.update(dueRef, { status: 'Paid', reference, method, paidAt: stamp, paidBy: admin.uid, payoutRequestId: reqRef.id, updatedAt: stamp });
     }
     auditInTx(tx, {
@@ -179,7 +200,7 @@ export const onBookingSettlementChange = onDocumentUpdated('bookings/{bookingId}
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!after || after.status !== 'Completed') return;
-  const keys = ['status', 'payment', 'paymentStatus', 'finance', 'vendorPayout', 'driverPayout', 'tollsApproved', 'tollCharges'];
+  const keys = ['status', 'payment', 'paymentStatus', 'paymentSummary', 'finance', 'vendorPayout', 'driverPayout', 'tollsApproved', 'tollCharges'];
   if (before && keys.every((k) => JSON.stringify(before[k] ?? null) === JSON.stringify(after[k] ?? null))) return;
   await syncSettlementDue(event.params.bookingId);
 });

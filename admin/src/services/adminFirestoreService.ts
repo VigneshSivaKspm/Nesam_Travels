@@ -8,8 +8,51 @@ import {
   query,
   serverTimestamp,
   addDoc,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { callBackend } from "./backend";
+
+// ── Bookings without the payout right ─────────────────────────────────────
+// Booking documents and marketplace duties carry partner payouts and margin. For an admin without
+// the "Vendor payout / company margin" right the rules refuse direct reads; the bookings come from
+// getStaffBookings with those fields removed (polled), and marketplace data is not requested.
+// The app shell sets the mode before any screen subscribes.
+let redactedBookings = false;
+const POLL_MS = 20000;
+export function setRedactedBookingReads(on: boolean): void {
+  redactedBookings = on;
+}
+
+/** Rebuilds the { __ts: millis } timestamps getStaffBookings sends. */
+function revive(v: unknown): unknown {
+  if (v === null || typeof v !== "object") return v;
+  if (Array.isArray(v)) return v.map(revive);
+  const o = v as Record<string, unknown>;
+  if (typeof o.__ts === "number" && Object.keys(o).length === 1) return Timestamp.fromMillis(o.__ts);
+  return Object.fromEntries(Object.entries(o).map(([k, x]) => [k, revive(x)]));
+}
+
+function pollStaffBookings<T>(bookingId: string | null, deliver: (data: T[] | T | null) => void, onError?: (message: string) => void) {
+  let stopped = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const tick = async () => {
+    try {
+      const r = await callBackend<{ bookingId?: string }, { bookings?: unknown[]; booking?: unknown }>("getStaffBookings", bookingId ? { bookingId } : {});
+      if (stopped) return;
+      deliver((bookingId ? revive(r.booking ?? null) : (r.bookings ?? []).map(revive)) as T[] | T | null);
+    } catch (err) {
+      if (!stopped && onError) onError(describeDataError(err));
+    } finally {
+      if (!stopped) timer = setTimeout(tick, POLL_MS);
+    }
+  };
+  void tick();
+  return () => {
+    stopped = true;
+    if (timer) clearTimeout(timer);
+  };
+}
 import {
   Booking,
   Driver,
@@ -98,6 +141,14 @@ export function subscribeToCollection<T>(
     if (onError) onError(describeDataError(err));
     else callback([]);
   };
+  if (redactedBookings && collectionName === COLLECTIONS.BOOKINGS) {
+    return pollStaffBookings<T>(null, (rows) => callback((rows as T[]) ?? []), onError);
+  }
+  // Marketplace duties, bids, booking events and assignment history all record payouts.
+  if (redactedBookings && (collectionName.startsWith("marketplace_trips") || /^bookings\/[^/]+\/(events|assignments)$/.test(collectionName))) {
+    callback([]);
+    return () => {};
+  }
   try {
     const q = query(collection(db, collectionName));
     return onSnapshot(
@@ -308,6 +359,14 @@ export const subscribePayoutRequests = (cb: (data: any[]) => void, onError?: (me
 
 /** Live single document (settings, a verification record…). Errors go to `onError`; a missing document is `null`. */
 export function subscribeToDocument<T>(path: string, cb: (data: T | null) => void, onError?: (message: string) => void) {
+  const parts = path.split("/");
+  if (redactedBookings && parts.length === 2 && parts[0] === COLLECTIONS.BOOKINGS) {
+    return pollStaffBookings<T>(parts[1], (b) => cb((b as T | null) ?? null), onError);
+  }
+  if (redactedBookings && parts[0] === "marketplace_trips") {
+    cb(null);
+    return () => {};
+  }
   try {
     return onSnapshot(
       doc(db, path),

@@ -69,20 +69,126 @@ service cloud.firestore {
       return isSignedIn()
              && exists(docPath('admins', uid()))
              && adminData().role == 'admin'
-             && adminData().status == 'active';
+             && adminData().status == 'active'
+             // Staff IDs also carry a lifecycle status; only Active ones pass (others have none).
+             && adminData().get('accountStatus', 'Active') == 'Active';
+    }
+    // ── Identity kinds: the same interpretation as identityKindOf (functions/src/permissions.ts) ──
+    // master: staffRole 'super_admin', or a pre-roles record carrying no other access data (made
+    //         explicit by migrateLegacyAdmins); staff: a Staff ID ('individual'), limited by its
+    //         own matrix; legacy: a staff_roles id, limited by the explicit legacy mapping below;
+    //         anything else: no access.
+    function isMasterRecord(d) {
+      return d.get('staffRole', '') == 'super_admin'
+             || (d.get('staffRole', '') in ['', null]
+                 && !('permissions' in d) && !('staffAccess' in d) && !('dutyPermissions' in d) && !('roleName' in d));
     }
     function isSuperAdmin() {
-      return isAdmin() && adminData().get('staffRole', 'super_admin') == 'super_admin';
+      return isAdmin() && isMasterRecord(adminData());
     }
-    // An active staff member whose role grants permission p.
+    function isStaffId() {
+      return adminData().get('staffRole', '') == 'individual';
+    }
+    function isLegacyStaff() {
+      let role = adminData().get('staffRole', '');
+      return role is string && role.matches('^[A-Za-z0-9_-]{2,40}$') && role != 'super_admin' && role != 'individual';
+    }
+    // An active staff member whose record grants permission p.
     function can(p) {
       return isAdmin()
-             && (adminData().get('staffRole', 'super_admin') == 'super_admin'
-                 || p in adminData().get('permissions', []));
+             && (isMasterRecord(adminData())
+                 || ((isStaffId() || isLegacyStaff()) && p in adminData().get('permissions', [])));
+    }
+    function staffMatrix() {
+      return adminData().get('staffAccess', {});
+    }
+    // Legacy role-based staff: legacyAccessOf in functions/src/permissions.ts — a module when the
+    // role holds any of its keys; a separate right when it holds any of LEGACY_FLAG_NEEDS.
+    function legacyHas(keys) {
+      return adminData().get('permissions', []).hasAny(keys);
+    }
+    function moduleKeys(module) {
+      return {
+        'Dashboard': ['operations', 'people', 'fleet', 'pricing', 'content', 'finance', 'compliance', 'reports', 'engagement', 'system'],
+        'Bookings': ['operations'], 'Customers': ['people'], 'Partners & Fleet': ['people', 'fleet'], 'Accounts': ['finance'],
+        'Invoices': ['finance'], 'Reports & GST': ['reports'], 'Communication': ['engagement'], 'Support': ['engagement'],
+        'Settings': ['system', 'pricing', 'content'], 'Driver Partners': ['people'], 'Vendors': ['people'],
+        'Vendor Drivers': ['people'], 'Vehicles': ['fleet'], 'Business accounts': ['people'], 'Penalties': ['compliance']
+      }.get(module, []);
+    }
+    function legacyFlagKeys(group, key) {
+      return {
+        'sensitive': {'vendorPayout': ['operations', 'finance', 'reports', 'compliance'], 'bankDetails': ['finance']},
+        'privacy': {'temporaryReveal': ['operations'], 'requestApproval': ['operations'], 'copyAfterReveal': ['operations']},
+        'fleetSwap': {'driver': ['operations'], 'vehicle': ['operations']},
+        'partnerRights': {'viewCoupons': ['operations', 'pricing', 'finance'], 'applyCoupon': ['pricing', 'finance'],
+                          'createVehicle': ['fleet'], 'approveVehicleDocs': ['fleet'], 'createDriver': ['people'], 'approveDriverDocs': ['people']}
+      }.get(group, {}).get(key, []);
+    }
+    function canAct(module, action) {
+      return isSuperAdmin()
+             || (isAdmin() && isStaffId() && action in staffMatrix().get('modules', {}).get(module, []))
+             || (isAdmin() && isLegacyStaff() && module != 'Staff & Access' && legacyHas(moduleKeys(module)));
+    }
+    function staffFlag(group, key) {
+      return isSuperAdmin()
+             || (isAdmin() && isStaffId() && staffMatrix().get(group, {}).get(key, false) == true)
+             || (isAdmin() && isLegacyStaff() && legacyHas(legacyFlagKeys(group, key)));
+    }
+    // Settlement approval limit (₹): a Staff ID's own; legacy finance roles LEGACY_SETTLEMENT_LIMIT.
+    function withinBankLimit(amount) {
+      return isSuperAdmin()
+             || (isAdmin() && isStaffId() && amount <= staffMatrix().get('bankLimit', 0))
+             || (isAdmin() && isLegacyStaff() && legacyHas(['finance']) && amount <= 100000000);
+    }
+    // ── Partner and vehicle records (everyone except the Master) ──
+    // Each account-status change needs the entity's own account control, approval decisions need
+    // the approval right and anything else the edit right. Permanent block / unblock and reopening a
+    // Closed ID stay with the Master account. (admin/src/domain/partners.ts writes accountStatus
+    // with every account action, plus the older status fields.)
+    function controlOk(type, action) {
+      return (isStaffId() && action in staffMatrix().get('accountControls', {}).get(type, []))
+             || (isLegacyStaff() && legacyHas(type == 'Vehicles' ? ['fleet'] : ['people']));
+    }
+    function accountChangeOk(type) {
+      let from = resource.data.get('accountStatus', 'Active');
+      let to = request.resource.data.get('accountStatus', from);
+      return (unchanged('disputeStatus') || controlOk(type, 'dispute'))
+             && (from == to
+                 || (from != 'Permanent block' && from != 'Closed'
+                     && ((to == 'Suspended' && controlOk(type, 'suspend'))
+                         || ((to == 'Inactive' || to == 'Closed') && controlOk(type, 'inactive'))
+                         || (to == 'Dispute hold' && controlOk(type, 'dispute'))
+                         || (to == 'Active' && from == 'Dispute hold' && controlOk(type, 'dispute'))
+                         || (to == 'Active' && controlOk(type, 'reactivate')))));
+    }
+    // holdKeys: older status fields an account action also writes; they may only move with
+    // accountStatus or an approval decision. approvalKeys: fields only an approval writes.
+    function staffPartnerOk(type, approveOk, editOk, holdKeys, approvalKeys) {
+      return isSuperAdmin() || (
+        accountChangeOk(type)
+        && (!changedKeys().hasAny(holdKeys) || changedKeys().hasAny(['accountStatus', 'approvalStatus']))
+        && (!changedKeys().hasAny(approvalKeys) || approveOk)
+        && (editOk || changedKeys().hasOnly(holdKeys.concat(approvalKeys).concat([
+              'accountStatus', 'disputeStatus', 'disputeHandler', 'holdUntil', 'statusHistory', 'approvalHistory',
+              'presenceStatus', 'updatedAt'])))
+      );
+    }
+    function staffDriverOk() {
+      let type = resource.data.get('vendorId', '') == '' ? 'Driver Partners' : 'Vendor Drivers';
+      return staffPartnerOk(type,
+        canAct(type, 'approve') && staffFlag('partnerRights', 'approveDriverDocs'),
+        canAct(type, 'edit'),
+        ['status', 'fleetStatus'],
+        ['approvalStatus', 'docStatus', 'verified', 'rejectionReason', 'reviewedAt', 'approvedAt']);
     }
     // Financial records: payments, payouts, ledger, invoices, penalties.
     function canReadFinance() {
       return can('finance') || can('reports') || can('compliance');
+    }
+    // Records that carry partner payouts / company margin: also need the payout right.
+    function canReadPayouts() {
+      return canReadFinance() && staffFlag('sensitive', 'vendorPayout');
     }
     function isOwner(id) {
       return isSignedIn() && uid() == id;
@@ -163,7 +269,7 @@ service cloud.firestore {
 
     // ── Customers ───────────────────────────────────────────────────────────
     match /customers/{id} {
-      allow create: if can('people') || (
+      allow create: if (can('people') && canAct('Customers', 'create')) || (
                        isOwner(id)
                        && request.resource.data.role == 'customer'
                        && request.resource.data.status == 'Approved'
@@ -172,12 +278,12 @@ service cloud.firestore {
       allow read: if isOwner(id) || isAdmin();
       // Customers edit their own contact details only — never status, role
       // or wallet balance.
-      allow update: if can('people') || (
+      allow update: if (can('people') && canAct('Customers', 'edit')) || (
                        isOwner(id)
                        && onlyChanges(['name', 'email', 'photoUrl', 'emergencyContact',
                                        'language', 'notificationPrefs', 'updatedAt'])
                      );
-      allow delete: if can('people');
+      allow delete: if can('people') && (isSuperAdmin() || isLegacyStaff());
     }
 
     // ── Invites (admin/vendor pre-register a partner by phone) ──────────────
@@ -285,12 +391,14 @@ service cloud.firestore {
     match /vendors/{id} {
       // Staff can create a vendor, and a verified owner can sign up with a vehicle number
       // (vendorSelfCreateOk). redeemVendorInvitation (invitation links) still works as well.
-      allow create: if can('people') || (isOwner(id) && vendorSelfCreateOk());
+      allow create: if (can('people') && canAct('Vendors', 'create')) || (isOwner(id) && vendorSelfCreateOk());
       // Only the vendor itself, admins, and drivers attached to this vendor.
       // (Bank/ID numbers are not here — see vendor_kyc.)
       allow read: if isOwner(id) || isAdmin()
                   || (isDriver() && get(docPath('drivers', uid())).data.get('vendorId', '') == id);
-      allow update: if can('people') || (
+      allow update: if (can('people')
+                        && staffPartnerOk('Vendors', canAct('Vendors', 'approve'), canAct('Vendors', 'edit'),
+                                          ['status'], ['approvalStatus', 'verified', 'review', 'approvedAt'])) || (
                        isOwner(id)
                        && changedKeys().hasOnly(vendorOwnerKeys())
                        && unchanged('role') && unchanged('uid')
@@ -307,14 +415,17 @@ service cloud.firestore {
                              && request.resource.data.business.businessName == resource.data.business.businessName)
                           )
                      );
-      allow delete: if can('people');
+      allow delete: if can('people') && (isSuperAdmin() || isLegacyStaff());
     }
 
     // Private vendor KYC: full ID number + bank account. Doc id == vendor uid.
     // Writable by the vendor only while its application is editable.
     match /vendor_kyc/{id} {
-      allow read: if isOwner(id) || can('people') || can('finance');
-      allow create, update: if can('people') || (
+      allow read: if isOwner(id)
+                  || (can('people') && canAct('Vendors', 'approve'))
+                  || (can('finance') && staffFlag('sensitive', 'bankDetails'));
+      // Legacy people roles kept KYC uploads; a Staff ID also needs the bank-details right.
+      allow create, update: if (can('people') && canAct('Vendors', 'edit') && (isLegacyStaff() || staffFlag('sensitive', 'bankDetails'))) || (
                        isOwner(id)
                        && exists(docPath('vendors', id))
                        && vendorEditableStatus(get(docPath('vendors', id)).data.status)
@@ -347,10 +458,10 @@ service cloud.firestore {
              && d.get('rating', 5) == 5 && d.get('totalTrips', 0) == 0;
     }
     match /drivers/{id} {
-      allow create: if can('people') || (isOwner(id) && driverSelfCreateOk());
+      allow create: if (can('people') && staffFlag('partnerRights', 'createDriver')) || (isOwner(id) && driverSelfCreateOk());
       allow read: if isOwner(id) || isAdmin()
                   || (isVendor() && resource.data.vendorId == uid());
-      allow update: if can('people')
+      allow update: if (can('people') && staffDriverOk())
                     // Vehicle pairing from the admin fleet screen.
                     || (can('fleet') && onlyChanges(['assignedVehicleId', 'assignedVehicleNumber', 'updatedAt']))
                     // The driver edits profile/KYC/presence, never approval —
@@ -374,14 +485,16 @@ service cloud.firestore {
                     || (isApprovedVendor() && resource.data.get('vendorId', '') == uid()
                         && onlyChanges(['assignedVehicleId', 'assignedVehicleNumber',
                                         'fleetStatus', 'updatedAt']));
-      allow delete: if can('people');
+      allow delete: if can('people') && (isSuperAdmin() || isLegacyStaff());
     }
 
     // Full bank/identity information is visible only to this driver and to
     // staff who review KYC or pay out.
     match /driver_private/{id} {
-      allow read: if isOwner(id) || can('people') || can('finance');
-      allow create, update: if can('people') || (isOwner(id)
+      allow read: if isOwner(id)
+                  || (can('people') && staffFlag('partnerRights', 'approveDriverDocs'))
+                  || (can('finance') && staffFlag('sensitive', 'bankDetails'));
+      allow create, update: if (can('people') && staffFlag('partnerRights', 'createDriver') && (isLegacyStaff() || staffFlag('sensitive', 'bankDetails'))) || (isOwner(id)
         && existsAfter(docPath('drivers', id))
         && request.resource.data.keys().hasOnly(['bank', 'identity', 'updatedAt'])
         && (!request.resource.data.keys().hasAny(['identity']) || (resource != null && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['identity']))
@@ -399,7 +512,7 @@ service cloud.firestore {
       allow read: if isAdmin()
                   || (isVendor() && resource.data.get('vendorId', '') == uid())
                   || (isDriver() && resource.data.get('assignedDriverId', '') == uid());
-      allow create: if can('fleet') || (
+      allow create: if (can('fleet') && staffFlag('partnerRights', 'createVehicle')) || (
                        isApprovedVendor()
                        && request.resource.data.vendorId == uid()
                        && request.resource.data.docStatus == 'Pending'
@@ -408,7 +521,17 @@ service cloud.firestore {
       // A vendor may change operational fields freely; any other change
       // (number, category, documents, expiries…) sends the vehicle back to
       // document review.
-      allow update: if can('fleet')
+      allow update: if (can('fleet')
+                        && staffPartnerOk('Vehicles',
+                                          canAct('Vehicles', 'approve') && staffFlag('partnerRights', 'approveVehicleDocs'),
+                                          canAct('Vehicles', 'edit') || staffFlag('partnerRights', 'createVehicle'),
+                                          [], ['approvalStatus', 'docStatus', 'rejectionReason', 'reviewedAt', 'reviewedBy', 'approvedAt'])
+                        // Vehicle `status` doubles as the older account hold (Inactive): a Staff ID changes it
+                        // with an account action, or between Active and Maintenance as an ordinary edit.
+                        && (isSuperAdmin() || unchanged('status') || changedKeys().hasAny(['accountStatus', 'approvalStatus'])
+                            || (canAct('Vehicles', 'edit')
+                                && request.resource.data.get('status', '') in ['Active', 'Maintenance']
+                                && resource.data.get('status', 'Active') in ['Active', 'Maintenance'])))
                     // Category rename keeps the copied name in step.
                     || (can('pricing') && onlyChanges(['category', 'categoryId', 'updatedAt']))
                     || (isApprovedVendor()
@@ -420,7 +543,7 @@ service cloud.firestore {
                             || request.resource.data.docStatus == 'Pending'));
       // Approved or driver-paired vehicles may be referenced by trips: the
       // vendor deactivates them instead of deleting.
-      allow delete: if can('fleet')
+      allow delete: if (can('fleet') && (isSuperAdmin() || isLegacyStaff()))
                      || (isApprovedVendor()
                          && resource.data.vendorId == uid()
                          && resource.data.get('docStatus', 'Pending') != 'Approved'
@@ -523,7 +646,9 @@ service cloud.firestore {
       // functions, which price them; the price is changed only through
       // overrideBookingFare (reason + audit). No client may write it.
       allow create: if false;
-      allow read: if isAdmin()
+      // Booking documents carry partner payouts and margin: staff without the payout right get
+      // redacted bookings from getStaffBookings (functions/src/staffReads.ts) instead.
+      allow read: if staffFlag('sensitive', 'vendorPayout')
                   || (isSignedIn() && resource.data.customerId == uid())
                   || (isVendor() && resource.data.assignedVendorId == uid())
                   || (isDriver() && resource.data.assignedDriverId == uid());
@@ -558,7 +683,8 @@ service cloud.firestore {
                        && request.resource.data.actorId == uid()
                        && bookingParticipantAfter(bookingId)
                      );
-      allow read: if isAdmin() || (
+      // Events and assignment history record payouts: staff need the payout right.
+      allow read: if staffFlag('sensitive', 'vendorPayout') || (
                      isSignedIn()
                      && (booking(bookingId).get('customerId', '') == uid()
                          || booking(bookingId).get('assignedDriverId', '') == uid()
@@ -589,7 +715,7 @@ service cloud.firestore {
     // Doc id == booking id. Partners see offers still open to them and the
     // trips they won — never other partners' assigned trips.
     match /marketplace_trips/{tripId} {
-      allow read: if isAdmin()
+      allow read: if staffFlag('sensitive', 'vendorPayout')
                   || (isApprovedVendor()
                       && (resource.data.status in ['Open', 'Bidding']
                           || resource.data.get('assignedVendorId', '') == uid()))
@@ -610,7 +736,7 @@ service cloud.firestore {
       // awardMarketplaceBid, which apply the same eligibility as a claim. Partners read their own.
       match /bids/{bidId} {
         allow create, update, delete: if false;
-        allow read: if isAdmin()
+        allow read: if staffFlag('sensitive', 'vendorPayout')
                     || (isVendor() && resource.data.get('vendorId', '') == uid())
                     || (isDriver() && resource.data.get('driverId', '') == uid());
       }
@@ -627,7 +753,7 @@ service cloud.firestore {
     // Raw phone / WhatsApp / email: staff and the booking's own customer only. Partners never read
     // this collection; the assigned driver's number comes from getCustomerContact (T-8h, logged).
     match /booking_contacts/{bookingId} {
-      allow read: if isAdmin() || (isSignedIn() && resource.data.get('customerId', '') == uid());
+      allow read: if isSuperAdmin() || (isAdmin() && isLegacyStaff()) || (isSignedIn() && resource.data.get('customerId', '') == uid());
       allow write: if false;
     }
     match /contact_access_logs/{logId} {
@@ -637,7 +763,7 @@ service cloud.firestore {
 
     // ── Partner settlement due-tracking (written by the settlement functions) ──
     match /settlement_dues/{bookingId} {
-      allow read: if canReadFinance()
+      allow read: if canReadPayouts()
                   || (isVendor() && resource.data.get('partnerId', '') == uid())
                   || (isDriver() && resource.data.get('partnerId', '') == uid());
       allow write: if false;
@@ -646,12 +772,13 @@ service cloud.firestore {
     // ── Payouts ─────────────────────────────────────────────────────────────
     match /payout_requests/{requestId} {
       allow create: if false; // requestPartnerPayout checks and reserves settled funds.
-      allow read: if canReadFinance()
+      allow read: if canReadPayouts()
                   || (isVendor() && resource.data.vendorId == uid())
                   || (isDriver() && resource.data.driverId == uid());
       // Finance records the outcome; the requested amount and partner never change.
       allow update: if can('finance')
-                    && unchanged('amount') && unchanged('driverId') && unchanged('vendorId');
+                    && unchanged('amount') && unchanged('driverId') && unchanged('vendorId')
+                    && canAct('Accounts', 'approve') && withinBankLimit(resource.data.get('amount', 0));
       allow delete: if isSuperAdmin();
     }
 
@@ -659,7 +786,7 @@ service cloud.firestore {
     // wallet_ledger entries and the wallets/{type}_{id} balances derived from
     // them are written by the ledger functions alone (functions/src/ledger.ts).
     match /wallet_ledger/{entryId} {
-      allow read: if canReadFinance()
+      allow read: if canReadPayouts()
                   || (isVendor() && resource.data.vendorId == uid())
                   || (isDriver() && resource.data.driverId == uid());
       allow write: if false;
@@ -667,7 +794,7 @@ service cloud.firestore {
     // Keyed {type}_{uid}; matching on the id lets a partner read their
     // wallet before the server has created it (an empty wallet, not an error).
     match /wallets/{walletId} {
-      allow read: if canReadFinance()
+      allow read: if canReadPayouts()
                   || (isVendor() && walletId == 'vendor_' + uid())
                   || (isDriver() && walletId == 'driver_' + uid());
       allow write: if false;
@@ -705,7 +832,7 @@ service cloud.firestore {
     // Office accounting registers (Accounts). Entered once; only review / match / verification status
     // may change afterwards, and every change records who made it.
     match /accounts_register/{entryId} {
-      allow read: if canReadFinance();
+      allow read: if canReadPayouts();
       allow create: if can('finance') && request.resource.data.createdBy == uid() && request.resource.data.amount is number;
       allow update: if can('finance')
                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['itcStatus', 'matchStatus', 'matchedRef', 'status', 'verifiedByName', 'verifiedAt']);
@@ -770,7 +897,8 @@ service cloud.firestore {
     // privacy controls. The reveal itself and its log stay server-side (getCustomerContact).
     match /privacy_requests/{requestId} {
       allow read: if isSuperAdmin() || (isAdmin() && resource.data.staffUid == uid());
-      allow create: if isAdmin() && request.resource.data.staffUid == uid() && request.resource.data.status == 'Pending';
+      allow create: if isAdmin() && request.resource.data.staffUid == uid() && request.resource.data.status == 'Pending'
+                     && staffFlag('privacy', 'requestApproval');
       allow update: if isSuperAdmin() && request.resource.data.status in ['Approved', 'Denied', 'Revoked', 'Used', 'Expired']
                      && request.resource.data.staffUid == resource.data.staffUid;
       allow delete: if false;
@@ -875,13 +1003,22 @@ service cloud.firestore {
     }
     match /fare_rules/{ruleId} {
       allow read: if isSignedIn();
-      allow write: if can('pricing');
+      // Managed route fares require the callable's validation and version checks.
+      allow create: if can('pricing') && canAct('Settings', 'edit')
+                    && request.resource.data.get('managed', false) != true;
+      allow update: if can('pricing') && canAct('Settings', 'edit')
+                    && resource.data.get('managed', false) != true
+                    && request.resource.data.get('managed', false) != true;
+      allow delete: if can('pricing') && canAct('Settings', 'edit')
+                    && resource.data.get('managed', false) != true;
       allow update: if can('content')
                      && onlyChanges(['serviceName', 'originLocationName', 'destinationLocationName', 'updatedAt']);
     }
     match /coupons/{couponId} {
-      allow read: if isSignedIn();
-      allow write: if can('pricing');
+      allow read: if staffFlag('partnerRights', 'viewCoupons')
+                  || (isSignedIn() && !exists(docPath('admins', uid())));
+      // Coupon setup is a Settings change: Master and legacy pricing roles (Staff IDs never hold Settings edit).
+      allow write: if can('pricing') && canAct('Settings', 'edit');
       allow update: if can('content') && onlyChanges(['serviceNames', 'updatedAt']);
     }
 
@@ -970,7 +1107,7 @@ service cloud.firestore {
     }
     // Assign / reassign / remove history. Append-only, never overwritten.
     match /bookings/{bookingId}/assignments/{entryId} {
-      allow read: if isAdmin();
+      allow read: if staffFlag('sensitive', 'vendorPayout');
       allow write: if false;
     }
     // One document per booking; written by the vehicle-verification functions.

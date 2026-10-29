@@ -33,7 +33,7 @@ function AuthLayout({ art, title, subtitle, children }: { art: string; title: st
         <span className="auth__shade" aria-hidden="true" />
         <div className="auth__top">
           <span className="brand brand--light brand--compact">
-            <img src="/brand/icon.png" alt="People Taxi Logo" width={44} height={44} />
+            <img src="/brand/peopletaxi-symbol.png" alt="" width={44} height={44} />
             <span className="brand__word">
               <b>People</b>
               <small>Taxi</small>

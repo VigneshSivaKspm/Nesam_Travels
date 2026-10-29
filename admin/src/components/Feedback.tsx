@@ -75,12 +75,18 @@ export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClo
     // Land on the first control inside the body; fall back to the dialog itself.
     const first = el?.querySelector<HTMLElement>(".ds-dialog-body " + FOCUSABLE.split(",").join(", .ds-dialog-body "));
     (first ?? el)?.focus({ preventScroll: true });
-    return () => previous?.focus?.({ preventScroll: true });
+    return () => {
+      if (previous?.isConnected) previous.focus?.({ preventScroll: true });
+    };
   }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !busy) onCloseRef.current();
+      const dialogs = document.querySelectorAll('[role="dialog"][aria-modal="true"]');
+      if (e.key === "Escape" && dialogs[dialogs.length - 1] === dialog.current) {
+        e.preventDefault();
+        if (!busy) onCloseRef.current();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);

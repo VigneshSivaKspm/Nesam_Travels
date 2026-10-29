@@ -16,7 +16,7 @@ import {
   parseFixedRouteFare, parseTariffConfig, gstOn, quoteFixedRoute, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone,
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 export const TARIFF_DOC = 'business_config/tariff_v2';
 
@@ -248,6 +248,7 @@ export function priceBooking(i: PriceInput): PriceResult {
  */
 export const saveTariffConfig = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   // `keepSavedRates` only flips the on/off switch: every saved rate, zone and local fare stays as it is.
   const keepSaved = input.keepSavedRates === true;

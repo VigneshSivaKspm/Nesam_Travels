@@ -15,6 +15,8 @@ interface SidebarProps {
   userEmail?: string | null;
   access: AdminAccess;
   badges: NavBadges;
+  /** First page this admin may open (the brand link). */
+  homePage?: string;
 }
 
 /** Count shown beside a nav item; 0 means nothing to flag. */
@@ -31,7 +33,7 @@ function badgeFor(id: string, b: NavBadges): number {
   }
 }
 
-export default function Sidebar({ activePage, onNavigate, collapsed, onToggleCollapse, mobileOpen, onCloseMobile, userName, userEmail, access, badges }: SidebarProps) {
+export default function Sidebar({ activePage, onNavigate, collapsed, onToggleCollapse, mobileOpen, onCloseMobile, userName, userEmail, access, badges, homePage = "dashboard" }: SidebarProps) {
   const groups = NAV_GROUPS
     .map((g) => ({ ...g, items: g.items.filter((i) => canAccessPage(access, i.id)) }))
     .filter((g) => g.items.length > 0);
@@ -47,15 +49,15 @@ export default function Sidebar({ activePage, onNavigate, collapsed, onToggleCol
             href="#dashboard"
             onClick={(e) => {
               e.preventDefault();
-              onNavigate("dashboard");
+              onNavigate(homePage);
             }}
-            aria-label="NESAM Super Admin — dashboard"
+            aria-label={access.isSuper ? "NESAM Super Admin — dashboard" : "NESAM office workspace — home"}
           >
             <img src="/icons/logo.png" alt="" />
             {!collapsed && (
               <span>
                 <strong>NESAM</strong>
-                <small>SUPER ADMIN</small>
+                <small>{access.isSuper ? "SUPER ADMIN" : "OFFICE"}</small>
               </span>
             )}
           </a>

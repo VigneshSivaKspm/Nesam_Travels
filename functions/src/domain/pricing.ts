@@ -266,6 +266,8 @@ export interface CouponContext {
   fixedRoute?: boolean;
   business?: boolean;
   peakAdjusted?: boolean;
+  /** An office (admin) booking: coupons marked adminBookingOnly are accepted too. */
+  adminBooking?: boolean;
 }
 
 /** New: no completed trips · Returning: 1–2 · Regular: 3 or more (same rule as the admin lists). */
@@ -304,7 +306,7 @@ export function validateCoupon(coupons: Coupon[], input: string, ctx: CouponCont
   const code = normalizeCode(input);
   if (!code) return { ok: false, message: 'Enter a promo code.' };
   const c = coupons.find((x) => normalizeCode(x.code) === code);
-  if (!c || c.adminBookingOnly) return { ok: false, message: `“${input.trim()}” is not a valid promo code.` };
+  if (!c || (c.adminBookingOnly && !ctx.adminBooking)) return { ok: false, message: `“${input.trim()}” is not a valid promo code.` };
 
   const today = todayIso(new Date());
   if (!['Active', 'Scheduled', ''].includes(c.status)) return { ok: false, message: `${c.code} is no longer active.` };

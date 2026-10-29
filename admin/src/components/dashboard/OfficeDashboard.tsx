@@ -17,6 +17,8 @@ import { AssignOnBehalfDrawer } from "../booking/DutyDrawers";
 import { AckRemindersDialog, AlertsDialog, AlertsTable, useOfficeFollowups } from "../shell/AlertDialogs";
 import { QuickFareCard, type CategoryEstimate, type QuickTrip } from "../booking/QuickFare";
 import { bookingPickupDate } from "../../utils/time";
+import { useAccess, useCanDo, useDuty } from "../AccessContext";
+import { canAccessPage } from "../../config/permissions";
 
 /**
  * The Master Admin dashboard: urgent assignment issues, driver acknowledgements, the phone-enquiry
@@ -39,6 +41,14 @@ export default function OfficeDashboard({ onNavigate, onSelectBooking, onNewBook
   const [assign, setAssign] = useState<Booking | null>(null);
   const [approving, setApproving] = useState<string | null>(null);
   const all = data.bookings ?? [];
+  // The same dashboard serves every booking / dispatch desk; actions show only when this admin holds them.
+  const access = useAccess();
+  const canOpen = (page: string) => canAccessPage(access, page);
+  const canCreate = canOpen("new-booking");
+  const approveDuty = useDuty("approve");
+  const approveModule = useCanDo("Bookings", "approve");
+  const canApprove = approveDuty && approveModule;
+  const canAssign = useDuty("assign");
 
   const alerts = useMemo(() => bookingAlerts(all, data.marketById, now, ops.warningHours), [all, data.marketById, now, ops.warningHours]);
   const urgent = alerts.filter((a) => a.urgent && !own.has(a.b.id));
@@ -111,9 +121,9 @@ export default function OfficeDashboard({ onNavigate, onSelectBooking, onNewBook
         </div>
       )}
 
-      <PageHeader title="Dashboard" subtitle="Every booking, publication and assignment in pickup order." actions={<Button variant="primary" icon="plus" onClick={onNewBooking}>New booking</Button>} />
+      <PageHeader title="Dashboard" subtitle="Every booking, publication and assignment in pickup order." actions={canCreate ? <Button variant="primary" icon="plus" onClick={onNewBooking}>New booking</Button> : undefined} />
 
-      <QuickFareCard onProceed={onProceed} onSaved={(e) => { show("Enquiry saved. The fare and terms are retained."); onEnquirySaved(e); }} />
+      {canCreate && <QuickFareCard onProceed={onProceed} onSaved={(e) => { show("Enquiry saved. The fare and terms are retained."); onEnquirySaved(e); }} />}
 
       <div className="ds-queue-grid">
         {queues.map((q) => (
@@ -136,7 +146,7 @@ export default function OfficeDashboard({ onNavigate, onSelectBooking, onNewBook
                   <tr className="ds-row-stripe" data-tone={groups.get(b.id) === "New" ? "green" : "amber"}>
                     <td><DateCell b={b} /></td><td><RouteCell b={b} /></td><td><TripTypeCell b={b} /></td><td><VehicleCell b={b} data={data} /></td>
                     <td><CustomerCell b={b} group={groups.get(b.id) ?? "Unclassified"} /></td><td><FareCell b={b} /></td>
-                    <td className="ds-actions"><div>{details(b)}<Button size="sm" onClick={() => onSelectBooking(b.id)}>Open ↗</Button><Button size="sm" variant="primary" loading={approving === b.id} onClick={() => approve(b)}>Approve</Button></div></td>
+                    <td className="ds-actions"><div>{details(b)}<Button size="sm" onClick={() => onSelectBooking(b.id)}>Open ↗</Button>{canApprove && <Button size="sm" variant="primary" loading={approving === b.id} onClick={() => approve(b)}>Approve</Button>}</div></td>
                   </tr>
                   {expanded === b.id && <tr className="ds-expand-row"><td colSpan={7}><BookingExpand b={b} data={data} onOpen={() => onSelectBooking(b.id)} /></td></tr>}
                 </Fragment>
@@ -158,7 +168,7 @@ export default function OfficeDashboard({ onNavigate, onSelectBooking, onNewBook
                     <td><DateCell b={b} /></td><td><RouteCell b={b} /></td><td><TripTypeCell b={b} /></td><td><VehicleCell b={b} data={data} /></td>
                     <td><PayoutCell b={b} stage="Accepted" /></td><td><AcceptedByCell b={b} data={data} /></td>
                     <td><AssignmentCell b={b} data={data} deadlineHours={ops.warningHours} now={now} /></td>
-                    <td className="ds-actions"><div>{details(b)}<Button size="sm" onClick={() => onSelectBooking(b.id)}>Open ↗</Button><Button size="sm" variant="primary" onClick={() => setAssign(b)}>Assign</Button></div></td>
+                    <td className="ds-actions"><div>{details(b)}<Button size="sm" onClick={() => onSelectBooking(b.id)}>Open ↗</Button>{canAssign && <Button size="sm" variant="primary" onClick={() => setAssign(b)}>Assign</Button>}</div></td>
                   </tr>
                   {expanded === b.id && <tr className="ds-expand-row"><td colSpan={8}><BookingExpand b={b} data={data} onOpen={() => onSelectBooking(b.id)} /></td></tr>}
                 </Fragment>
@@ -170,17 +180,19 @@ export default function OfficeDashboard({ onNavigate, onSelectBooking, onNewBook
 
       <div className="ds-chip-row">
         <Button icon="send" onClick={() => onNavigate("bookings", "To publish")}>To publish · {toPublish.length}</Button>
-        <Button icon="sliders-horizontal" onClick={() => onNavigate("pricing")}>Service &amp; Fare Settings</Button>
-        <Button icon="history" onClick={() => onNavigate("security")}>Staff activity</Button>
-        <Button icon="copy" onClick={() => onNavigate("full-final")}>F&amp;F records</Button>
+        {canOpen("pricing") && <Button icon="sliders-horizontal" onClick={() => onNavigate("pricing")}>Service &amp; Fare Settings</Button>}
+        {canOpen("security") && <Button icon="history" onClick={() => onNavigate("security")}>Staff activity</Button>}
+        {canOpen("full-final") && <Button icon="copy" onClick={() => onNavigate("full-final")}>F&amp;F records</Button>}
       </div>
 
-      <div className="ds-panel ds-gst-strip">
-        <Icon name="files" />
-        <strong>GST · {gstMonth}</strong>
-        <span>Review invoices, liability &amp; payment records</span>
-        <Button icon="arrow-up-right" onClick={() => onNavigate("reports", "GST Reports")}>Review report</Button>
-      </div>
+      {canOpen("reports") && (
+        <div className="ds-panel ds-gst-strip">
+          <Icon name="files" />
+          <strong>GST · {gstMonth}</strong>
+          <span>Review invoices, liability &amp; payment records</span>
+          <Button icon="arrow-up-right" onClick={() => onNavigate("reports", "GST Reports")}>Review report</Button>
+        </div>
+      )}
 
       {sheet === "alerts" && <AlertsDialog onClose={() => setSheet(null)} onOpenBooking={onSelectBooking} />}
       {sheet === "ack" && <AckRemindersDialog onClose={() => setSheet(null)} onOpenBooking={onSelectBooking} />}

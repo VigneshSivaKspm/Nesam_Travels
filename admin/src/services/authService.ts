@@ -8,7 +8,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { accessFromAdminDoc, type AdminAccess } from "../config/permissions";
+import { NO_ACCESS, accessFromAdminDoc, type AdminAccess } from "../config/permissions";
 
 export const ADMINS_COLLECTION = "admins";
 
@@ -54,7 +54,7 @@ export function subscribeToAdminSession(
       },
       () => {
         // Permission denied means not an admin
-        callback({ user, role: null, status: null, access: { ...accessFromAdminDoc(undefined), isSuper: false, permissions: [] }, rejectionReason: "" });
+        callback({ user, role: null, status: null, access: NO_ACCESS, rejectionReason: "" });
       },
     );
   });

@@ -23,7 +23,7 @@ import { auditInTx } from './audit';
 import { pickupInstant } from './domain/time';
 import { recomputeWallet, walletId } from './ledger';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { approved, requireAdmin, requirePermission, text } from './shared';
+import { approved, requireAdmin, requirePermission, text, requireAction, requireDuty, requireStaffFlag } from './shared';
 
 const RAZORPAY_KEY_ID = defineSecret('RAZORPAY_KEY_ID');
 const RAZORPAY_KEY_SECRET = defineSecret('RAZORPAY_KEY_SECRET');
@@ -299,6 +299,10 @@ export const decidePartnerRequest = onCall({ timeoutSeconds: 60 }, async (reques
     if (r.status !== 'Pending') throw new HttpsError('failed-precondition', `This request is already ${String(r.status).toLowerCase()}.`);
     const need = r.type === 'cancellation' ? 'operations' : r.type === 'bank_change' ? 'finance' : 'people';
     if (!admin.permissions.includes(need as never)) throw new HttpsError('permission-denied', `Your role does not include ${need} access.`);
+    // Staff ID rights per request type: a cancellation ends an allocation; a bank change touches payout details.
+    if (r.type === 'cancellation') { requireAction(admin, 'Bookings', 'approve'); if (decision === 'approve') requireDuty(admin, 'remove'); }
+    else if (r.type === 'bank_change') { requireAction(admin, 'Accounts', 'approve'); requireStaffFlag(admin, 'sensitive', 'bankDetails', 'Bank settlement details'); }
+    else requireAction(admin, r.partyType === 'vendor' ? 'Vendors' : 'Driver Partners', 'approve');
     const stamp = FieldValue.serverTimestamp();
     const partyType = r.partyType as PartyType;
     const partyId = text(r.partyId);
@@ -523,6 +527,7 @@ export const DEPOSIT_STATUSES = ['Not paid', 'Active', 'Refund requested', 'Refu
 
 export const setSecurityDeposit = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'finance');
+  requireAction(admin, 'Accounts', 'approve');
   const input = request.data ?? {};
   const partyType = input.partyType === 'vendor' ? 'vendor' : input.partyType === 'driver' ? 'driver' : null;
   if (!partyType) throw new HttpsError('invalid-argument', 'Choose a vendor or a driver.');

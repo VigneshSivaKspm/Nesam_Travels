@@ -23,7 +23,7 @@ import { releaseConfigOf } from './release';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { sendCustomerMessage } from './customerComms';
 import { AdminAccess } from './permissions';
-import { approved, requirePermission, text, requireDuty } from './shared';
+import { approved, requirePermission, text, requireDuty, requireAction } from './shared';
 
 export const docId = (v: unknown, what: string): string => {
   if (typeof v !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(v)) throw new HttpsError('invalid-argument', `Invalid ${what}.`);
@@ -180,6 +180,7 @@ export async function announceToPartners(bookingId: string, b: DocumentData, off
 export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
   requireDuty(admin, 'publish');
+  requireAction(admin, 'Bookings', 'approve');
   const value = text(request.data?.booking, 128);
   if (!value) throw new HttpsError('invalid-argument', 'Enter the booking code or ID.');
   const manual = request.data?.payout ?? null;
@@ -259,6 +260,7 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
 export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
   requireDuty(admin, 'assign');
+  requireAction(admin, 'Bookings', 'edit');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const vendorId = docId(request.data?.vendorId, 'vendor');
   const reason = text(request.data?.reason, 300);
@@ -327,6 +329,7 @@ const unassigned = (b: DocumentData) => awaitingFulfilment(b);
 export const awardMarketplaceBid = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
   requireDuty(admin, 'payout');
+  requireDuty(admin, 'assign');
   const tripId = docId(request.data?.tripId, 'trip');
   const bidId = docId(request.data?.bidId, 'bid');
   const market = db.doc(`marketplace_trips/${tripId}`);
@@ -385,6 +388,7 @@ export const awardMarketplaceBid = onCall({ timeoutSeconds: 60 }, async (request
 /** Admin declines a bid. Server-side so every bid decision is audited. */
 export const rejectMarketplaceBid = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireDuty(admin, 'payout');
   const tripId = docId(request.data?.tripId, 'trip');
   const bidId = docId(request.data?.bidId, 'bid');
   const market = db.doc(`marketplace_trips/${tripId}`);
@@ -404,6 +408,7 @@ export const rejectMarketplaceBid = onCall(async (request) => {
 export const assignIndependentDriver = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
   requireDuty(admin, 'assign');
+  requireAction(admin, 'Bookings', 'edit');
   const tripId = docId(request.data?.tripId, 'trip');
   const driverId = docId(request.data?.driverId, 'driver');
   const booking = db.doc(`bookings/${tripId}`);

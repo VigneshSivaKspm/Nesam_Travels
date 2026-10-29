@@ -143,7 +143,7 @@ function useEditor(onClose: () => void, onSaved: (t: string) => void) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dirty, setDirty] = useState(false);
-  const close = () => { if (dirty && !window.confirm("Discard your unsaved changes?")) return; onClose(); };
+  const close = () => { if (busy) return; if (dirty && !window.confirm("Discard your unsaved changes?")) return; onClose(); };
   const submit = async (e: FormEvent, problem: string | null, run: () => Promise<number>, doneText: (version: number) => string) => {
     e.preventDefault();
     if (busy) return;

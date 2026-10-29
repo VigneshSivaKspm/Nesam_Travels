@@ -12,7 +12,7 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { FareAdjustmentInput, serviceName } from './domain/pricing';
 import { GeoPlace, TripType } from './domain/types';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 type Adjustment = { mode: 'Normal' | 'Increase' | 'Decrease'; percent: number };
 type Side = 'Pickup or drop' | 'Pickup only' | 'Drop only';
@@ -119,7 +119,7 @@ const top = (rules: ServiceRule[]) =>
 const adj = (a: ServiceRule['customer']) => (a && a.mode !== 'Normal' && a.percent > 0 && a.percent < 100 ? { direction: (a.mode === 'Increase' ? 'increase' : 'decrease') as 'increase' | 'decrease', percent: a.percent } : null);
 
 export function evaluateRules(rules: ServiceRule[], pickup: GeoPlace, drop: GeoPlace, at: Date, service: string): RuleOutcome {
-  const hit = rules.filter((r) => applies(r, pickup, drop, at, service));
+  const hit = rules.filter((r) => r.status === 'Enabled' && applies(r, pickup, drop, at, service));
   const av = top(hit.filter((r) => r.kind === 'availability'));
   const cats = top(hit.filter((r) => r.kind === 'categories'));
   const price = top(hit.filter((r) => r.kind === 'pricing'));
@@ -297,6 +297,7 @@ const HISTORY_LIMIT = 200;
 
 export const saveServiceRule = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   const reason = text(input.reason, 300);
   if (reason.length < 5) throw new HttpsError('invalid-argument', 'Record the reason for this change.');
@@ -341,6 +342,7 @@ const NEXT_STATUS: Record<string, readonly string[]> = { Enabled: ['Disabled', '
 
 export const setServiceRuleStatus = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   const reason = text(input.reason, 300);
   if (reason.length < 5) throw new HttpsError('invalid-argument', 'Record the reason for the status change.');

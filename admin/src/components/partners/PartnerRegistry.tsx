@@ -16,6 +16,7 @@ import { bookingPickupDate, isoDateIST } from "../../utils/time";
 import { ErrorBanner, Modal, Toast, useToast } from "../Feedback";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, Tabs, TableSkeleton, toneForStatus } from "../ui";
 import { StageBar } from "../ui/ListKit";
+import { useAccess, useAccountControl } from "../AccessContext";
 import { ExportDialog, Initials, SimplePager, useSelection, type ExportSpec } from "../ui/RecordKit";
 
 // ── Normalised record ─────────────────────────────────────────────────────
@@ -541,12 +542,26 @@ function AccountSheet({ row, initial, duties, onClose, onDone }: { row: PartnerR
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => subscribeStaffAccounts((l) => setStaff(l.filter((a) => a.status === "active").map((a) => a.name || a.email)), () => undefined), []);
-  const actions: AccountAction[] = isHold(row.account) || row.dispute === "Open"
+  const all: AccountAction[] = isHold(row.account) || row.dispute === "Open"
     ? ["Reactivate ID", ...(row.dispute === "Open" ? ["Resolve dispute" as const] : []), "Suspend ID", "Mark inactive", "Permanent block"]
     : ["Suspend ID", "Mark inactive", "Permanent block", "Open dispute"];
+  // Same limits as the database rules: each action needs this account type's control; permanent
+  // block / unblock and reopening a closed ID are Master-only.
+  const isMaster = useAccess().isSuper;
+  const control = useAccountControl(row.kind === "vendor" ? "Vendors" : row.kind === "vehicle" ? "Vehicles" : row.kind === "vendor-driver" ? "Vendor Drivers" : "Driver Partners");
+  const masterOnlyState = row.account === "Permanent block" || row.account === "Closed";
+  const allowed = (a: AccountAction) =>
+    isMaster || (!masterOnlyState && (
+      a === "Suspend ID" ? control("suspend")
+      : a === "Mark inactive" ? control("inactive")
+      : a === "Open dispute" || a === "Resolve dispute" ? control("dispute")
+      : a === "Reactivate ID" ? control("reactivate") || (row.account === "Dispute hold" && control("dispute"))
+      : false));
+  const actions = all.filter(allowed);
   const until = action === "Suspend ID" ? (days ? new Date(Date.now() + days * 86400000) : custom ? new Date(custom) : null) : null;
   const save = async (e: FormEvent) => {
     e.preventDefault();
+    if (!actions.includes(action)) return setError("Your access does not include this account action. Ask the Master account.");
     if (!reason) return setError("Select a reason.");
     if (action === "Suspend ID" && !until) return setError("Select a suspension duration.");
     setBusy(true);

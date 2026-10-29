@@ -8,7 +8,7 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { FareAdjustmentInput } from './domain/pricing';
 import { isoDateIST } from './domain/time';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 export const FARE_ADJUSTMENT_DOC = 'business_config/fare_adjustment';
 export const FARE_ADJUSTMENT_PUBLIC = 'public_config/fare_adjustment';
@@ -59,6 +59,7 @@ export async function loadFareAdjustment(tx?: Transaction): Promise<StoredAdjust
 
 export const saveFareAdjustment = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'pricing');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   if (input.direction !== 'increase' && input.direction !== 'decrease') throw new HttpsError('invalid-argument', 'Choose Increase or Decrease.');
   const percent = input.percent;

@@ -10,7 +10,7 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { audit, auditInTx } from './audit';
 import { LEGAL_DEFAULTS, LEGAL_ROLES, LEGAL_TYPES, LegalRole, legalKey } from './domain/legalDefaults';
-import { requirePermission, requireSuperAdmin, text } from './shared';
+import { requirePermission, requireSuperAdmin, text, requireAction } from './shared';
 
 export interface RequiredDoc {
   key: string;
@@ -107,6 +107,7 @@ export const acceptLegalDocuments = onCall(async (request) => {
 /** Publishes a new version of one document; everyone who accepted an older version is asked again. */
 export const publishLegalDocument = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'system');
+  requireAction(actor, 'Settings', 'edit');
   const input = request.data ?? {};
   if (!LEGAL_TYPES.includes(input.type) || !isRole(input.role)) throw new HttpsError('invalid-argument', 'Choose the document type and role.');
   const title = text(input.title, 140);

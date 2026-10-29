@@ -5,6 +5,12 @@ import type { FareRule, MasterLocation, PricingModel, TravelService, VehicleCate
 
 export class FareRuleActionError extends Error {}
 
+function assertLegacyEditable(rule: FareRule) {
+  if ((rule as FareRule & { managed?: boolean }).managed === true) {
+    throw new FareRuleActionError('Use Service & Fare Settings → Fixed route fares to change this fare. That tool preserves its partner payout, tax settings and version history.');
+  }
+}
+
 /** Fare-rule form: every numeric field is entered by the admin (no invented defaults). */
 export interface FareRuleForm {
   name: string;
@@ -164,6 +170,7 @@ export async function saveFareRule(
   ctx: { services: TravelService[]; categories: VehicleCategory[]; locations: MasterLocation[] },
   actorId: string,
 ): Promise<string> {
+  if (existing) assertLegacyEditable(existing);
   const data = payload(f, ctx);
   try {
     if (existing) {
@@ -179,6 +186,7 @@ export async function saveFareRule(
 }
 
 export async function setFareRuleStatus(rule: FareRule, status: "Active" | "Inactive", rules: FareRule[]) {
+  assertLegacyEditable(rule);
   if (status === "Active") {
     const form = formFromRule(rule);
     const errors = validateFareRule({ ...form, status: "Active" }, rules, rule.id);
@@ -194,6 +202,7 @@ export async function setFareRuleStatus(rule: FareRule, status: "Active" | "Inac
 
 /** Copies a rule as an inactive draft so it never clashes with the original. */
 export async function duplicateFareRule(rule: FareRule, rules: FareRule[], actorId: string) {
+  assertLegacyEditable(rule);
   let n = 1;
   let name = `${rule.name} (Copy)`;
   while (rules.some((r) => (r.name || "").trim().toLowerCase() === name.toLowerCase()) && n < 99) name = `${rule.name} (Copy ${++n})`;
@@ -209,6 +218,7 @@ export async function duplicateFareRule(rule: FareRule, rules: FareRule[], actor
 
 /** Fare rules are configuration only (bookings store their own price), so they can be deleted. */
 export async function deleteFareRule(rule: FareRule) {
+  assertLegacyEditable(rule);
   try {
     await deleteDoc(doc(db, COLLECTIONS.FARE_RULES, rule.id));
   } catch (err) {

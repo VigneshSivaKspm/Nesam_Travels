@@ -163,6 +163,8 @@ export const verifyRazorpayPayment = onCall({ secrets: [RAZORPAY_KEY_ID, RAZORPA
   if (p.amount !== order.data()!.amountPaise || p.currency !== 'INR') throw new HttpsError('failed-precondition', 'The paid amount does not match the order.');
   const r = await recordGatewayReceipt({ bookingId, paymentId: p.id, orderId: razorpayOrderId, amountPaise: p.amount, method: p.method ?? 'online', source: 'checkout' });
   await order.ref.set({ status: 'paid', paymentId: p.id, paidAt: FieldValue.serverTimestamp() }, { merge: true });
+  // HTTP hosting has no Firestore triggers: release earnings and refresh settlement here too.
+  await (await import('./reconcile')).reconcileBooking(bookingId);
   return { verified: true, status: 'paid', balanceDue: r.balanceDue, duplicate: !r.recorded };
 });
 
@@ -181,9 +183,11 @@ export async function handleRazorpayEvent(event: any): Promise<{ handled: boolea
   const o = order.data();
   const bookingId = String(o.bookingId);
   if (type === 'payment.captured' || (type === 'order.paid' && entity.status === 'captured')) {
+    if (entity.status !== 'captured' || entity.currency !== 'INR' || !Number.isSafeInteger(entity.amount) || entity.amount <= 0) return { handled: false, detail: 'invalid captured payment' };
     if (entity.amount !== o.amountPaise) return { handled: false, detail: 'amount mismatch' };
     const r = await recordGatewayReceipt({ bookingId, paymentId: entity.id, orderId: entity.order_id, amountPaise: entity.amount, method: entity.method ?? 'online', source: 'webhook' });
     await order.ref.set({ status: 'paid', paymentId: entity.id, paidAt: FieldValue.serverTimestamp() }, { merge: true });
+    await (await import('./reconcile')).reconcileBooking(bookingId);
     return { handled: true, detail: r.recorded ? 'recorded' : 'duplicate' };
   }
   if (type === 'payment.failed') {

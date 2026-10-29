@@ -97,7 +97,7 @@ export function BookingSourceBadge({
     const pad = size === "lg" ? "px-3 py-1 text-xs" : size === "md" ? "px-2.5 py-0.5 text-xs" : "px-2 py-0.5 text-[11px]";
     return (
       <span
-        title="Booked from One Way Car Rental website"
+        title="Booked from One Way Car Rentals website"
         className={`inline-flex items-center gap-1.5 font-bold rounded-full bg-emerald-50 text-emerald-800 border border-emerald-400 shadow-2xs ${pad} ${className}`}
       >
         <img
@@ -108,7 +108,7 @@ export function BookingSourceBadge({
             (e.currentTarget as HTMLImageElement).src = "/brand/logo.svg";
           }}
         />
-        <span>One Way Car Rental</span>
+        <span>One Way Car Rentals</span>
       </span>
     );
   }
@@ -196,7 +196,7 @@ export function BookingSourceBanner({
       <div className={`flex items-center gap-3 p-3.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900 shadow-xs ${className}`}>
         <img
           src="/brand/ow-icon-192.png"
-          alt="One Way Car Rental"
+          alt="One Way Car Rentals"
           className="w-8 h-8 rounded-full object-contain ring-2 ring-emerald-400 bg-black/10 shrink-0"
           onError={(e) => {
             (e.currentTarget as HTMLImageElement).src = "/brand/logo.svg";
@@ -204,10 +204,10 @@ export function BookingSourceBanner({
         />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="font-bold text-sm text-emerald-900">Booked from One Way Car Rental</span>
+            <span className="font-bold text-sm text-emerald-900">Booked from One Way Car Rentals</span>
             <span className="text-[10px] font-extrabold uppercase tracking-wide px-2 py-0.5 rounded-full bg-emerald-600 text-white">Online Website Booking</span>
           </div>
-          <p className="text-xs text-emerald-700 mt-0.5">This customer requested a ride directly through the One Way Car Rental website portal.</p>
+          <p className="text-xs text-emerald-700 mt-0.5">This customer requested a ride directly through the One Way Car Rentals website portal.</p>
         </div>
       </div>
     );

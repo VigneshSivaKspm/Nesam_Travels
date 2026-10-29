@@ -17,11 +17,15 @@ import {
   type StaffAccount,
   type StaffRole,
 } from "../services/staffService";
-import { PERMISSIONS, PERMISSION_INFO, SUPER_ADMIN_ROLE, type Permission } from "../config/permissions";
+import { DUTY_ACTIONS, PERMISSIONS, PERMISSION_INFO, STAFF_MODULES, STAFF_ROLE, STAFF_STATUSES, SUPER_ADMIN_ROLE, type Permission, type StaffStatus } from "../config/permissions";
+import StaffAccessEditor from "../components/staff/StaffAccessEditor";
+import StaffProfilePanel, { statusTone } from "../components/staff/StaffProfilePanel";
+import { migrateLegacyAdmins, type LegacyAdminReport, type StaffSaveResult } from "../services/staffService";
+import { Badge, Button } from "../components/ui";
 import { ConfirmDialog, ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { formatDateTime12, formatShortDateTime12, formatHourLabel } from "../utils/time";
 
-type Tab = "accounts" | "requests" | "roles" | "audit";
+type Tab = "staff-ids" | "accounts" | "requests" | "roles" | "audit";
 
 const errText = (e: unknown) => (e instanceof StaffActionError ? e.message : "Something went wrong. Please try again.");
 const pill = (active: boolean) =>
@@ -34,11 +38,16 @@ const AUDIT_LABELS: Record<string, string> = {
   role_created: "Created role",
   role_updated: "Edited role",
   role_deleted: "Deleted role",
+  staff_profile_created: "Created Staff ID",
+  staff_profile_updated: "Changed Staff ID profile & access",
+  staff_status_changed: "Changed Staff ID status",
+  staff_sessions_revoked: "Revoked all sessions",
+  staff_session_ended: "Ended a session",
 };
 
 export default function StaffRoles() {
   const me = auth.currentUser?.uid || "";
-  const [tab, setTab] = useState<Tab>("accounts");
+  const [tab, setTab] = useState<Tab>("staff-ids");
   const [accounts, setAccounts] = useState<StaffAccount[] | null>(null);
   const [roles, setRoles] = useState<StaffRole[]>([]);
   const [legacy, setLegacy] = useState<LegacyStaffRecord[]>([]);
@@ -59,6 +68,7 @@ export default function StaffRoles() {
   }, [retryKey]);
 
   const staff = useMemo(() => (accounts ?? []).filter((a) => a.role === "admin"), [accounts]);
+  const staffIds = useMemo(() => staff.filter((a) => a.staffRole === STAFF_ROLE && a.profile), [staff]);
   const requests = useMemo(() => (accounts ?? []).filter((a) => a.role === "pending"), [accounts]);
   const openRequests = requests.filter((r) => r.status !== "rejected");
   const holders = (roleId: string) => staff.filter((s) => s.staffRole === roleId).length;
@@ -95,6 +105,35 @@ export default function StaffRoles() {
       setConfirmError(errText(e));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  // ── Staff IDs ────────────────────────────────────────────────────────────
+  const [statusFilter, setStatusFilter] = useState<"All" | StaffStatus>("All");
+  const [editorFor, setEditorFor] = useState<{ uid: string | null } | null>(null);
+  const [profileUid, setProfileUid] = useState<string | null>(null);
+  const [invite, setInvite] = useState<{ name: string; email: string; result: StaffSaveResult; created?: boolean } | null>(null);
+  // Always the live record, so a save elsewhere refreshes the open profile and its version.
+  const profileAccount = staffIds.find((a) => a.uid === profileUid) ?? null;
+  const editorAccount = editorFor?.uid ? staffIds.find((a) => a.uid === editorFor.uid) ?? null : null;
+  const listedIds = staffIds.filter((a) => statusFilter === "All" || a.profile!.accountStatus === statusFilter);
+
+  // ── Legacy Master records (no staffRole) and unrecognised records ────────
+  const legacyMasters = staff.filter((a) => a.legacyMaster);
+  const unrecognised = staff.filter((a) => a.unrecognised);
+  const [legacyReport, setLegacyReport] = useState<LegacyAdminReport | null>(null);
+  const [legacyBusy, setLegacyBusy] = useState(false);
+  const runLegacy = async (dryRun: boolean) => {
+    if (legacyBusy) return;
+    setLegacyBusy(true);
+    try {
+      const r = await migrateLegacyAdmins(dryRun);
+      setLegacyReport(r);
+      showToast(dryRun ? `Preview: ${r.legacyMaster} record(s) would be made explicit Super Admins.` : `${r.converted} record(s) converted. ${r.remaining} remaining.`);
+    } catch (e) {
+      showToast(errText(e), "error");
+    } finally {
+      setLegacyBusy(false);
     }
   };
 
@@ -164,7 +203,8 @@ export default function StaffRoles() {
   };
 
   const tabs: { id: Tab; label: string; count?: number }[] = [
-    { id: "accounts", label: "Staff accounts", count: staff.length },
+    { id: "staff-ids", label: "Staff IDs", count: staffIds.length },
+    { id: "accounts", label: "All admin accounts", count: staff.length },
     { id: "requests", label: "Access requests", count: openRequests.length },
     { id: "roles", label: "Roles", count: roles.length },
     { id: "audit", label: "Audit log" },
@@ -177,10 +217,11 @@ export default function StaffRoles() {
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
       <div>
-        <h1 className="text-lg font-bold text-ink">Staff &amp; Roles</h1>
+        <h1 className="text-lg font-bold text-ink">Staff &amp; Access</h1>
         <p className="text-[12px] text-muted">
-          Staff sign up from the admin login page; a super admin approves each request with a role. Roles decide which areas a
-          staff member can open and change — enforced by the database rules, not only by this panel.
+          Create individual Staff IDs and grant only the access each person needs: module actions, duty permissions, account
+          controls and sensitive-data rights. Older role-based accounts and sign-up requests stay under their own tabs. Every
+          grant is enforced by the server and the database rules, not only by this panel.
         </p>
       </div>
 
@@ -198,6 +239,87 @@ export default function StaffRoles() {
       </div>
 
       {accounts === null && !loadError && <div className="text-[12px] text-faint">Loading staff…</div>}
+
+      {accounts !== null && tab === "staff-ids" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            {(["All", ...STAFF_STATUSES] as const).map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                aria-pressed={statusFilter === f}
+                className={`px-3 py-1 rounded-full text-[11px] font-semibold border ${statusFilter === f ? "bg-ink text-white border-ink" : "bg-white text-body border-line"}`}
+              >
+                {f} {f === "All" ? staffIds.length : staffIds.filter((a) => a.profile!.accountStatus === f).length}
+              </button>
+            ))}
+            <span className="flex-1" />
+            <Button variant="primary" icon="user-round-plus" onClick={() => setEditorFor({ uid: null })}>Add staff</Button>
+          </div>
+          <div className="bg-white rounded-xl border border-line overflow-x-auto">
+            <table className="w-full min-w-[860px] text-[12px]">
+              <thead>
+                <tr className="bg-surface-2 border-b border-line text-[11px] text-faint uppercase">
+                  {["Staff", "Contact", "Preset / branch", "Access", "Status", ""].map((h) => (
+                    <th key={h} className="px-4 py-2.5 text-left font-semibold">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {listedIds.length === 0 && (
+                  <tr><td colSpan={6} className="px-4 py-8 text-center text-faint">{staffIds.length ? "No Staff IDs with this status." : "No Staff IDs yet. Add staff to create one."}</td></tr>
+                )}
+                {listedIds.map((a) => {
+                  const p = a.profile!;
+                  const modules = STAFF_MODULES.filter((m) => p.matrix.modules[m]?.includes("view")).length;
+                  return (
+                    <tr key={a.uid} className="border-b border-hover last:border-0">
+                      <td className="px-4 py-3"><strong className="text-ink">{a.name || "—"}</strong><span className="block text-[11px] text-faint">{p.staffCode}</span></td>
+                      <td className="px-4 py-3">{p.phone || "—"}<span className="block text-[11px] text-muted">{a.email}</span></td>
+                      <td className="px-4 py-3">{p.preset}<span className="block text-[11px] text-muted">{p.branch || "—"}</span></td>
+                      <td className="px-4 py-3">{modules} module{modules === 1 ? "" : "s"}<span className="block text-[11px] text-muted">{p.duty.length} of {DUTY_ACTIONS.length} duty actions</span></td>
+                      <td className="px-4 py-3"><Badge tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge></td>
+                      <td className="px-4 py-3 text-right whitespace-nowrap">
+                        <Button size="sm" variant="ghost" onClick={() => setProfileUid(a.uid)}>View</Button>{" "}
+                        <Button size="sm" onClick={() => setEditorFor({ uid: a.uid })}>Edit access</Button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {accounts !== null && tab === "accounts" && (legacyMasters.length > 0 || unrecognised.length > 0) && (
+        <div role="status" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-[12px] text-amber-900 space-y-2">
+          {legacyMasters.length > 0 && (
+            <p>
+              <strong>{legacyMasters.length} Super Admin account(s)</strong> are Master only by the pre-roles default (no role recorded):{" "}
+              {legacyMasters.map((a) => a.email || a.name).join(", ")}. Converting records the role explicitly; nothing else changes.
+            </p>
+          )}
+          {unrecognised.length > 0 && (
+            <p>
+              <strong>{unrecognised.length} admin record(s)</strong> have access data but no recognised role and get no access:{" "}
+              {unrecognised.map((a) => a.email || a.name || a.uid).join(", ")}. Give them a role or a Staff ID.
+            </p>
+          )}
+          {legacyMasters.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" disabled={legacyBusy} onClick={() => void runLegacy(true)}>Preview conversion</Button>
+              <Button size="sm" variant="primary" disabled={legacyBusy || !legacyReport?.dryRun} onClick={() => void runLegacy(false)}>Convert previewed records</Button>
+            </div>
+          )}
+          {legacyReport && (
+            <p className="text-[11px]">
+              {legacyReport.dryRun ? "Preview" : "Result"}: {legacyReport.explicitMaster} explicit · {legacyReport.legacyMaster} legacy Master · {legacyReport.converted} converted ·{" "}
+              {legacyReport.remaining} remaining · {legacyReport.roleBased} role-based · {legacyReport.staffIds} Staff IDs · {legacyReport.unrecognised.length} unrecognised
+            </p>
+          )}
+        </div>
+      )}
 
       {accounts !== null && tab === "accounts" && (
         <div className="bg-white rounded-xl border border-line overflow-x-auto">
@@ -219,6 +341,17 @@ export default function StaffRoles() {
                 const self = s.uid === me;
                 const draft = roleDraft[s.uid] ?? s.staffRole;
                 const active = s.status === "active";
+                if (s.profile) {
+                  return (
+                    <tr key={s.uid} className="border-b border-hover last:border-0">
+                      <td className="px-4 py-3 font-semibold text-ink">{s.name || "—"}</td>
+                      <td className="px-4 py-3 text-muted">{s.email || "—"}</td>
+                      <td className="px-4 py-3 text-muted">Staff ID · {s.profile.preset}</td>
+                      <td className="px-4 py-3"><Badge tone={statusTone(s.profile.accountStatus)}>{s.profile.accountStatus}</Badge></td>
+                      <td className="px-4 py-3 text-right"><button onClick={() => setProfileUid(s.uid)} className="text-[11px] font-semibold text-ink">Open profile</button></td>
+                    </tr>
+                  );
+                }
                 return (
                   <tr key={s.uid} className="border-b border-hover last:border-0">
                     <td className="px-4 py-3 font-semibold text-ink">
@@ -469,6 +602,58 @@ export default function StaffRoles() {
               {roleErrors.permissions && <p className="text-[10px] text-red-600">{roleErrors.permissions}</p>}
             </div>
             {editing.id && <p className="text-[11px] text-muted">Saving updates the access of all {holders(editing.id)} account(s) with this role immediately.</p>}
+          </div>
+        </Modal>
+      )}
+
+      {editorFor && (editorFor.uid === null || editorAccount) && (
+        <StaffAccessEditor
+          key={editorFor.uid ?? "new"}
+          account={editorAccount}
+          onClose={() => setEditorFor(null)}
+          onSaved={(result, created, who) => {
+            setEditorFor(null);
+            if (created || result.invite.sent || result.invite.link || result.invite.error || result.warnings?.length) {
+              setInvite({ name: who.name, email: who.email, result, created });
+            } else {
+              showToast(`${who.name}'s profile and access were saved (${result.staffCode}).`);
+            }
+          }}
+        />
+      )}
+
+      {profileAccount && !editorFor && (
+        <StaffProfilePanel
+          account={profileAccount}
+          onClose={() => setProfileUid(null)}
+          onEdit={() => setEditorFor({ uid: profileAccount.uid })}
+          onInvite={(result) => setInvite({ name: profileAccount.name, email: profileAccount.email, result })}
+          notify={showToast}
+        />
+      )}
+
+      {invite && (
+        <Modal
+          title={`Staff ID ${invite.result.staffCode} saved`}
+          centered
+          onClose={() => setInvite(null)}
+          footer={<Button variant="primary" onClick={() => setInvite(null)}>Done</Button>}
+        >
+          <div className="space-y-3 text-xs text-body">
+            {invite.result.warnings?.map((w) => <p key={w} role="alert" className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">{w}</p>)}
+            {invite.result.invite.error ? (
+              <p className="text-red-700">{invite.result.invite.error}</p>
+            ) : invite.result.invite.sent ? (
+              <p>The password-set email was accepted by the email provider for delivery{invite.email ? ` to ${invite.email}` : ""}.</p>
+            ) : invite.result.invite.link ? (
+              <>
+                <p>Email delivery is not configured, so no email was sent. Share this one-time password-set link privately with the staff member:</p>
+                <textarea readOnly value={invite.result.invite.link} className="w-full p-2 border border-line rounded-lg text-[11px] h-20" onFocus={(e) => e.currentTarget.select()} />
+              </>
+            ) : invite.created ? (
+              <p>No invitation was needed: this email already has a sign-in account that has been used before.</p>
+            ) : null}
+            <p className="text-muted">An Invited Staff ID can sign in but sees no workspace until you activate it from its profile.</p>
           </div>
         </Modal>
       )}

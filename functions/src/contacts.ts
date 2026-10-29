@@ -13,7 +13,8 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { optionalEmail, indianPhone } from './bookingBuild';
 import { pickupInstant } from './domain/time';
-import { approved, requireAdmin, requirePermission, text } from './shared';
+import { approved, requireAdmin, requirePermission, text, requireAction } from './shared';
+import { matrixFlag } from './permissions';
 
 export const REVEAL_WINDOW_MS = 8 * 3600000;
 
@@ -76,6 +77,7 @@ export const getCustomerContact = onCall({ timeoutSeconds: 30 }, async (request)
   }
 
   let role: 'driver' | 'staff' | '' = '';
+  let grant = '';
   if (b.assignedDriverId === uid) {
     const d = await db.doc(`drivers/${uid}`).get();
     const p = d.data();
@@ -89,13 +91,40 @@ export const getCustomerContact = onCall({ timeoutSeconds: 30 }, async (request)
     role = 'driver';
   } else {
     const staff = await requireAdmin(request.auth).catch(() => null);
-    if (staff && staff.permissions.includes('operations')) role = 'staff';
+    if (staff && staff.permissions.includes('operations')) {
+      if (staff.kind !== 'staff') {
+        role = 'staff';
+        grant = 'staff-operations';
+      } else {
+        // A Staff ID never holds standing access to full contacts: either a temporary reveal on a
+        // booking this person handled (when granted), or a Master-approved, unexpired request that
+        // is used once. Requests end when the person's access or status changes (staffProfiles).
+        const handled = [b.createdBy, b.approvedBy, b.marketplacePublishedBy].includes(uid);
+        if (handled && matrixFlag(staff.matrix, 'privacy', 'temporaryReveal')) {
+          role = 'staff';
+          grant = 'handled-booking';
+        } else {
+          const approvedReqs = await db.collection('privacy_requests').where('staffUid', '==', uid).where('bookingId', '==', bookingId).where('status', '==', 'Approved').limit(10).get();
+          const valid = approvedReqs.docs.find((r) => ((r.data().expiresAt as Timestamp | undefined)?.toMillis?.() ?? 0) > Date.now());
+          if (!valid) return deny('staff', 'approval-required', 'The customer’s number needs Master approval for this booking. Request access from the booking.', 'approval-required');
+          const used = await db.runTransaction(async (tx) => {
+            const fresh = await tx.get(valid.ref);
+            if (fresh.data()?.status !== 'Approved') return false;
+            tx.update(valid.ref, { status: 'Used', usedAt: FieldValue.serverTimestamp() });
+            return true;
+          });
+          if (!used) return deny('staff', 'approval-used', 'That approval has already been used. Request access again.', 'approval-required');
+          role = 'staff';
+          grant = 'approved-request';
+        }
+      }
+    }
   }
   if (!role) return deny('other', 'not-authorised', 'You do not have access to this customer’s number.');
 
   const contact = await loadContact(bookingId, b);
   if (!contact.phone) throw new HttpsError('failed-precondition', 'No contact number is on file for this booking.');
-  await logAccess({ bookingId, actorId: uid, role, action: 'reveal', reason: role === 'driver' ? 'assigned-driver' : 'staff-operations', platform, linkedId: role === 'driver' ? uid : '' });
+  await logAccess({ bookingId, actorId: uid, role, action: 'reveal', reason: role === 'driver' ? 'assigned-driver' : grant, platform, linkedId: role === 'driver' ? uid : '' });
   await snap.ref.update({ contactViews: FieldValue.increment(1), contactViewers: FieldValue.arrayUnion(uid) }).catch(() => null);
   return { phone: contact.phone, name: contact.name.split(' ')[0] ?? contact.name };
 });
@@ -103,6 +132,7 @@ export const getCustomerContact = onCall({ timeoutSeconds: 30 }, async (request)
 /** Staff correct a booking's customer contact details; the raw values go to the contact document only. */
 export const updateBookingContact = onCall({ timeoutSeconds: 30 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'edit');
   const input = request.data ?? {};
   const bookingId = typeof input.bookingId === 'string' && /^[A-Za-z0-9_-]{1,128}$/.test(input.bookingId) ? input.bookingId : '';
   if (!bookingId) throw new HttpsError('invalid-argument', 'Invalid booking.');

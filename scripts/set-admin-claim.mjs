@@ -50,6 +50,9 @@ await db.collection('admins').doc(user.uid).set(
     name: user.displayName ?? '',
     role: 'admin',
     status: 'active',
+    // Explicit Master record (functions/src/permissions.ts identityKindOf).
+    staffRole: 'super_admin',
+    roleName: 'Super Admin',
     promotedAt: FieldValue.serverTimestamp(),
   },
   { merge: true },

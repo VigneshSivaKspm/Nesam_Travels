@@ -46,6 +46,8 @@ export interface ManualBookingForm {
   discountValue: string;
   discountReason: string;
   notes: string;
+  /** Coupon code; the server validates and prices it (never a discount computed here). */
+  couponCode?: string;
   overrideEnabled: boolean;
   overrideFare: string;
   overrideReason: string;
@@ -134,6 +136,7 @@ export const quoteKey = (f: ManualBookingForm) =>
   JSON.stringify([
     f.serviceId, f.pickup && [round5(f.pickup.lat), round5(f.pickup.lng)], f.drop && [round5(f.drop.lat), round5(f.drop.lng)],
     f.categoryId, f.tripType, f.pickupAt, f.tripType === "Round Trip" ? f.tripEndAt : "", f.discountType, f.discountType === "none" ? "" : f.discountValue.trim(),
+    (f.couponCode ?? "").trim(),
   ]);
 
 /** The discount as a number, or an error message. null value = no discount. */
@@ -233,6 +236,7 @@ const bookingRequest = (f: ManualBookingForm, requestId: string) => ({
     const d = discountOf(f).value;
     return d ? { ...d, reason: f.discountReason.trim() } : null;
   })(),
+  couponCode: (f.couponCode ?? "").trim(),
 });
 
 export interface FareQuote {
@@ -245,6 +249,9 @@ export interface FareQuote {
   service: string;
   categoryName: string;
   adjustmentApplied?: { name: string; direction: string; percent: number; amount: number } | null;
+  /** Present when the quote was priced with a coupon the server accepted. */
+  couponCode?: string;
+  couponDiscount?: number;
 }
 /** @deprecated use FareQuote */
 export type AdminQuote = FareQuote;

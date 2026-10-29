@@ -8,7 +8,7 @@ import type { AdminAccess } from "../../config/permissions";
 import { PERMISSION_INFO } from "../../config/permissions";
 import { subscribeStaffAccounts, type StaffAccount } from "../../services/staffService";
 import {
-  DEFAULT_STAFF, REQUEST_STATUSES, decideRequest, revokeSessions, riskAlerts, savePolicy, saveStaffPrivacy, subscribeAccessLog, subscribePolicy,
+  DEFAULT_STAFF, REQUEST_STATUSES, decideRequest, riskAlerts, savePolicy, saveStaffPrivacy, subscribeAccessLog, subscribePolicy,
   subscribeRequests, subscribeStaffPrivacy, type AccessLog, type PrivacyPolicy, type PrivacyRequest, type StaffPrivacy,
 } from "../../services/privacyService";
 import {
@@ -17,6 +17,7 @@ import {
 } from "../../utils/notificationSound";
 import { useNotifications } from "../NotificationHost";
 import { formatDateTime12 } from "../../utils/time";
+import { revokeStaffSessions } from "../../services/staffSessionService";
 
 /** Partner status in the reference words (Active · Pending · Suspended …). */
 const statusWord = (v: string) => (/^(approved|active)$/i.test(v) ? "Active" : /pending/i.test(v) ? "Pending" : v ? v.charAt(0).toUpperCase() + v.slice(1).toLowerCase().replace(/_/g, " ") : "—");
@@ -183,7 +184,7 @@ export function PrivacyDialog({ onClose, isSuper }: { onClose: () => void; isSup
                   <td>{c.copyControl}</td>
                   <td className="ds-actions"><div>
                     <Button size="sm" disabled={!isSuper || s.isSuper} onClick={() => setEditing(s)}>Edit privacy access</Button>
-                    <Button size="sm" variant="ghost" disabled={!isSuper || s.uid === auth.currentUser?.uid} onClick={() => revokeSessions(s.uid)}>Revoke sessions</Button>
+                    <Button size="sm" variant="ghost" disabled={!isSuper || s.uid === auth.currentUser?.uid} onClick={() => void revokeStaffSessions(s.uid).catch(() => undefined)}>Revoke sessions</Button>
                   </div></td>
                 </tr>
               );

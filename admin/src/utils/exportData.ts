@@ -108,7 +108,22 @@ function printTable(title: string, headers: string[], rows: Cell[][]) {
 }
 
 /** Exports `rows` in the chosen format. `name` becomes the file / sheet name. */
+/**
+ * Set by the app shell for the page that is open: null when the signed-in admin may export from
+ * it, otherwise the reason. Exports are built in the browser from data the admin can already read,
+ * so this is a usability control on top of the read rules, not a security boundary.
+ */
+let exportGuard: () => string | null = () => null;
+export function setExportGuard(fn: () => string | null): void {
+  exportGuard = fn;
+}
+
 export function exportRows(name: string, headers: string[], rows: Cell[][], format: ExportFormat): void {
+  const denied = exportGuard();
+  if (denied) {
+    window.alert(denied);
+    return;
+  }
   const stamp = new Date().toISOString().slice(0, 10);
   const file = `${name.replace(/[^a-z0-9]+/gi, "_").toLowerCase()}_${stamp}`;
   if (format === "csv") download(`${file}.csv`, new Blob(["﻿" + csv(headers, rows)], { type: "text/csv;charset=utf-8" }));

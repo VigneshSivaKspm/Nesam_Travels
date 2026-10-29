@@ -9,7 +9,7 @@ import { auditInTx } from './audit';
 import { PENALTY_STATUSES, PenaltyStatusName, penaltyBlocker, penaltyStatusOf } from './domain/bookingFlow';
 import { recomputeWallet, walletId } from './ledger';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { approved, requireAdmin, requirePermission, text } from './shared';
+import { approved, requireAdmin, requirePermission, text, requireAction } from './shared';
 
 export const MAX_PENALTY = 100000;
 export const ACK_TEXT = 'I have read and understood the penalty information.';
@@ -27,6 +27,7 @@ const docId = (v: unknown, what: string): string => {
 
 export const issuePenalty = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'compliance');
+  requireAction(admin, 'Penalties', 'create');
   const input = request.data ?? {};
   const party = input.party === 'Vendor' ? 'Vendor' : input.party === 'Driver' ? 'Driver' : null;
   if (!party) throw new HttpsError('invalid-argument', 'Choose whether the penalty is for a driver or a vendor.');
@@ -102,6 +103,7 @@ export const transitionPenalty = onCall(async (request) => {
   if (!(PENALTY_STATUSES as readonly string[]).includes(to) || to === 'Acknowledged' || to === 'Disputed') throw new HttpsError('invalid-argument', 'Choose Pending, Paid, Deducted or Waived.');
   const needsFinance = to === 'Paid' || to === 'Deducted';
   if (!admin.permissions.includes(needsFinance ? 'finance' : 'compliance')) throw new HttpsError('permission-denied', needsFinance ? 'Recording a payment or deduction needs finance access.' : 'Your role does not include compliance access.');
+  requireAction(admin, needsFinance ? 'Accounts' : 'Penalties', 'approve');
   const note = text(input.note, 500);
   const reference = text(input.reference, 120);
   if ((to === 'Waived' || to === 'Pending') && note.length < 5) throw new HttpsError('invalid-argument', to === 'Waived' ? 'Give the reason for the waiver.' : 'Give the decision note.');

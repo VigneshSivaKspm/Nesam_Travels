@@ -13,7 +13,7 @@ import { contactOf } from './customerComms';
 import { deliveryRow } from './notify';
 import { Channel, SendResult, mask, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
 import { logSecurityEvent, requestIp } from './security';
-import { requirePermission, text } from './shared';
+import { requirePermission, text, requireAction } from './shared';
 
 const CODE_TTL_MS = 10 * 60000;
 const RESEND_COOLDOWN_MS = 60000;
@@ -33,6 +33,7 @@ const CHANNELS: Channel[] = ['whatsapp', 'sms', 'email'];
 
 export const sendVerificationCode = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'create');
   const bookingId = text(request.data?.bookingId, 128);
   const wanted = (Array.isArray(request.data?.channels) ? request.data.channels : CHANNELS).filter((c: unknown): c is Channel => CHANNELS.includes(c as Channel));
   if (!bookingId) throw new HttpsError('invalid-argument', 'Choose a booking.');
@@ -98,6 +99,7 @@ export const sendVerificationCode = onCall({ timeoutSeconds: 60 }, async (reques
 
 export const verifyCustomerCode = onCall(async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'create');
   const bookingId = text(request.data?.bookingId, 128);
   const code = text(request.data?.code, 8);
   if (!/^\d{6}$/.test(code)) throw new HttpsError('invalid-argument', 'Enter the 6-digit code.');

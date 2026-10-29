@@ -17,7 +17,7 @@ import { assertDriverEligible, assertVehicleEligible, loadScheduleConfig } from 
 import { formatDateTime12, pickupInstant } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { assertDeviceTrusted, logSecurityEvent, requestIp } from './security';
-import { approved, inIndia, requirePermission, text } from './shared';
+import { approved, inIndia, requirePermission, text, requireAction } from './shared';
 
 // Operational limits. All are staff-configurable in settings/operations; these defaults are the
 // working values in the Tariff & Operations spec (pickup radius 3 km, subject to confirmation).
@@ -305,6 +305,7 @@ export const verifyBoarding = onCall(async (request) => {
  */
 export const overrideReachedPickup = onCall({ timeoutSeconds: 60 }, async (request) => {
   const admin = await requirePermission(request.auth, 'operations');
+  requireAction(admin, 'Bookings', 'edit');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const reason = text(request.data?.reason, 300);
   if (reason.length < 10) throw new HttpsError('invalid-argument', 'Give the reason (at least 10 characters). It is kept on the trip record.');

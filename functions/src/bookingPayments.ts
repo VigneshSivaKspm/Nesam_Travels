@@ -11,7 +11,7 @@ import { auditInTx, AuditRole } from './audit';
 import { PAYMENT_KINDS, MANUAL_PAYMENT_METHODS, CollectorType, COLLECTOR_TYPES, PaymentTxn, PaymentSummary, amountDueFor, legacyPaymentField, summarizePayments } from './domain/bookingFlow';
 import { formatDateTime12 } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { approved, requestIdOf, requireAdmin, text } from './shared';
+import { approved, requestIdOf, requireAdmin, text, requireAction } from './shared';
 import type { AdminAccess } from './permissions';
 
 const MAX_PAYMENT = 10000000;
@@ -76,6 +76,7 @@ async function resolveCaller(auth: { uid: string; token?: { email?: string } } |
   if (adminSnap.exists && adminSnap.data()?.role === 'admin' && adminSnap.data()?.status === 'active') {
     const admin = await requireAdmin(auth);
     if (!admin.permissions.includes('finance')) throw new HttpsError('permission-denied', 'Recording payments needs finance access.');
+    requireAction(admin, 'Accounts', 'create');
     const requested = String(input.collectorType ?? 'admin');
     if (!(COLLECTOR_TYPES as readonly string[]).includes(requested)) throw new HttpsError('invalid-argument', 'Choose who collected the payment.');
     let collectorId = admin.uid;
@@ -197,6 +198,7 @@ export const recordPayment = onCall(async (request) => {
 export const voidPayment = onCall(async (request) => {
   const admin = await requireAdmin(request.auth);
   if (!admin.permissions.includes('finance')) throw new HttpsError('permission-denied', 'Voiding a payment needs finance access.');
+  requireAction(admin, 'Accounts', 'approve');
   const bookingId = docId(request.data?.bookingId, 'booking');
   const txId = docId(request.data?.paymentId, 'payment');
   const reason = text(request.data?.reason, 300);
