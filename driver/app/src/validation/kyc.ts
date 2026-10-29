@@ -6,7 +6,7 @@
 // vendor. Dates are compared as local calendar days (the Web used UTC, which
 // misjudged expiry before 05:30 IST). The format validators below are shared
 // with the profile screen.
-import type { RegistrationData } from '../types/driver';
+import type { IdentityDetails, RegistrationData } from '../types/driver';
 
 export type Errors = Record<string, string>;
 
@@ -51,6 +51,10 @@ export function isValidAadhaar(value: string): boolean {
 }
 
 export const PAN_RE = /^[A-Z]{5}\d{4}[A-Z]$/;
+
+/** The forms the identity numbers are compared and stored in (spaces dropped; PAN upper-case). */
+export const normalizeAadhaar = (v: string | undefined) => (v ?? '').replace(/\s/g, '');
+export const normalizePan = (v: string | undefined) => (v ?? '').trim().toUpperCase();
 export const IFSC_RE = /^[A-Z]{4}0[A-Z0-9]{6}$/;
 export const UPI_RE = /^[A-Za-z0-9.\-_]{2,256}@[A-Za-z][A-Za-z0-9]{1,63}$/;
 export const VEHICLE_NO_RE = /^[A-Z]{2}[\s-]?\d{1,2}[\s-]?[A-Z]{0,3}[\s-]?\d{1,4}$/;
@@ -68,6 +72,11 @@ export const AUTO_VEHICLE_DETECTION = false;
 export interface ValidateOptions {
   /** A vendor's employee: no vehicle step. */
   fleetDriver?: boolean;
+  /**
+   * Update / resubmission: the identity already saved. A number identical to it (after normalising) is not validated again, so a
+   * legacy value that predates the current checks cannot block an unrelated document update. Omit at signup: every number is validated.
+   */
+  originalIdentity?: Partial<IdentityDetails>;
   /** Override AUTO_VEHICLE_DETECTION (tests). */
   autoDetect?: boolean;
   today?: string;
@@ -95,6 +104,13 @@ export function validateStep(step: number, d: RegistrationData, opts: ValidateOp
     if (l.expiryDate && !isFutureDate(l.expiryDate, today)) e.licenseExpiry = 'Licence has expired';
     req('dlFront', l.frontPhotoUrl, 'Licence front photo is required');
     req('dlBack', l.backPhotoUrl, 'Licence back photo is required');
+    // Aadhaar and PAN are optional; a number that is entered must be valid.
+    const id = d.identity;
+    const was = opts.originalIdentity;
+    const aadhaar = normalizeAadhaar(id?.aadhaarNumber);
+    const pan = normalizePan(id?.panNumber);
+    if (aadhaar && (!was || aadhaar !== normalizeAadhaar(was.aadhaarNumber)) && !isValidAadhaar(aadhaar)) e.aadhaarNumber = 'Enter a valid 12-digit Aadhaar number';
+    if (pan && (!was || pan !== normalizePan(was.panNumber)) && !PAN_RE.test(pan)) e.panNumber = 'Enter a valid PAN (e.g. ABCDE1234F)';
   }
 
   if (step === 2 && !opts.fleetDriver) {

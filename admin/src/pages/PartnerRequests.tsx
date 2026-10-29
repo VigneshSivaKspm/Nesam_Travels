@@ -53,7 +53,7 @@ interface PartnerRequest {
 }
 
 interface Deposit { id: string; partyType: string; partyId: string; amount: number; status: string; reference: string; updatedAt: Date | null }
-interface Recharge { id: string; partyType: string; partyName: string; amount: number; status: string; paymentId: string; createdAt: Date | null }
+interface Recharge { id: string; kind: "recharge" | "dues"; partyType: string; partyName: string; amount: number; status: string; paymentId: string; createdAt: Date | null; applied: number; held: number; review: boolean }
 
 const dateOf = (v: unknown): Date | null => (v && typeof (v as Timestamp).toDate === "function" ? (v as Timestamp).toDate() : null);
 const s = (v: unknown) => (typeof v === "string" ? v : "");
@@ -87,6 +87,7 @@ export default function PartnerRequests({ onOpenBooking }: { onOpenBooking?: (id
   const [requests, setRequests] = useState<PartnerRequest[]>([]);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [recharges, setRecharges] = useState<Recharge[]>([]);
+  const [duePayments, setDuePayments] = useState<Recharge[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -114,12 +115,27 @@ export default function PartnerRequests({ onOpenBooking }: { onOpenBooking?: (id
       })), () => undefined));
       unsubs.push(onSnapshot(query(collection(db, "wallet_recharges"), orderBy("createdAt", "desc"), limit(200)), (snap) => setRecharges(snap.docs.map((d) => {
         const x = d.data();
-        return { id: d.id, partyType: s(x.partyType), partyName: s(x.partyName), amount: n(x.amount), status: s(x.status), paymentId: s(x.paymentId), createdAt: dateOf(x.createdAt) };
+        return { id: d.id, kind: "recharge" as const, partyType: s(x.partyType), partyName: s(x.partyName), amount: n(x.amount), status: s(x.status), paymentId: s(x.paymentId), createdAt: dateOf(x.createdAt), applied: 0, held: 0, review: false };
+      })), () => undefined));
+      unsubs.push(onSnapshot(query(collection(db, "due_payments"), orderBy("createdAt", "desc"), limit(200)), (snap) => setDuePayments(snap.docs.map((d) => {
+        const x = d.data();
+        const paymentIds = [s(x.paymentId), ...(Array.isArray(x.unmatchedPaymentIds) ? x.unmatchedPaymentIds.map(s) : [])].filter(Boolean);
+        return {
+          id: d.id, kind: "dues" as const, partyType: s(x.partyType), partyName: s(x.partyName),
+          amount: n(x.totalCapturedPaise ?? x.capturedPaise) / 100, status: s(x.status),
+          paymentId: [...new Set(paymentIds)].join(", "), createdAt: dateOf(x.createdAt),
+          applied: n(x.totalAppliedPaise ?? x.appliedPaise) / 100,
+          held: n(x.totalHeldPaise ?? x.heldPaise) / 100, review: x.reconciliation === "review",
+        };
       })), () => undefined));
     }
     return () => unsubs.forEach((u) => u());
   }, [retryKey, canFinance]);
 
+  const payments = useMemo(
+    () => [...recharges, ...duePayments].sort((a, b) => (b.createdAt?.getTime() ?? 0) - (a.createdAt?.getTime() ?? 0)),
+    [recharges, duePayments],
+  );
   const vendorName = (id: string) => vendors.find((v) => v.id === id)?.companyName || id;
   const pending = requests.filter((r) => r.status === "Pending");
   const list = useMemo(() => {
@@ -133,7 +149,7 @@ export default function PartnerRequests({ onOpenBooking }: { onOpenBooking?: (id
     ["cancellation", "Cancellations"],
     ["bank_change", "Bank changes"],
     ["document_renewal", "Document renewals"],
-    ...(canFinance ? ([["deposits", "Security deposits"], ["recharges", "Wallet recharges"]] as [Tab, string][]) : []),
+    ...(canFinance ? ([["deposits", "Security deposits"], ["recharges", "Payments", duePayments.filter((r) => r.review).length]] as [Tab, string, number?][]) : []),
   ];
 
   return (
@@ -214,7 +230,7 @@ export default function PartnerRequests({ onOpenBooking }: { onOpenBooking?: (id
           </div>
           {deposits.length === 0 ? <div className="py-12 text-center text-sm text-muted">No security deposits recorded.</div> : (
             <table className="w-full text-sm">
-              <thead className="text-left text-xs uppercase tracking-wide text-muted bg-surface-2"><tr><th className="px-4 py-2.5">Partner</th><th className="px-4 py-2.5">Amount</th><th className="px-4 py-2.5">Status</th><th className="px-4 py-2.5">Reference</th><th className="px-4 py-2.5">Updated</th><th className="px-4 py-2.5" /></tr></thead>
+              <thead className="text-left text-xs uppercase tracking-wide text-muted bg-surface-2"><tr><th className="px-4 py-2.5">Partner</th><th className="px-4 py-2.5">Paid</th><th className="px-4 py-2.5">Applied to dues</th><th className="px-4 py-2.5">Held for review</th><th className="px-4 py-2.5">Status</th><th className="px-4 py-2.5">Reference</th><th className="px-4 py-2.5">Updated</th><th className="px-4 py-2.5" /></tr></thead>
               <tbody className="divide-y divide-line">
                 {deposits.map((d) => (
                   <tr key={d.id}>
@@ -234,15 +250,25 @@ export default function PartnerRequests({ onOpenBooking }: { onOpenBooking?: (id
 
       {tab === "recharges" && (
         <div className="bg-white rounded-xl border border-line shadow-sm overflow-hidden">
-          {recharges.length === 0 ? <div className="py-12 text-center text-sm text-muted">No wallet recharges yet.</div> : (
+          {payments.length === 0 ? <div className="py-12 text-center text-sm text-muted">No partner payments yet.</div> : (
             <table className="w-full text-sm">
               <thead className="text-left text-xs uppercase tracking-wide text-muted bg-surface-2"><tr><th className="px-4 py-2.5">Partner</th><th className="px-4 py-2.5">Amount</th><th className="px-4 py-2.5">Status</th><th className="px-4 py-2.5">Payment</th><th className="px-4 py-2.5">Started</th></tr></thead>
               <tbody className="divide-y divide-line">
-                {recharges.map((r) => (
-                  <tr key={r.id}>
-                    <td className="px-4 py-3">{r.partyName}<div className="text-xs text-muted">{r.partyType}</div></td>
+                {payments.map((r) => (
+                  <tr key={r.kind + r.id}>
+                    <td className="px-4 py-3">{r.partyName}<div className="text-xs text-muted">{r.partyType} · {r.kind === "dues" ? "Outstanding dues" : "Wallet recharge"}</div></td>
                     <td className="px-4 py-3 font-semibold">{rupee(r.amount)}</td>
-                    <td className="px-4 py-3">{r.status === "credited" ? "Credited to wallet" : r.status === "failed" ? "Payment failed" : "Awaiting payment"}</td>
+                    <td className="px-4 py-3">{r.kind === "dues" && r.status !== "created" ? rupee(r.applied) : "—"}</td>
+                    <td className={`px-4 py-3 ${r.held > 0 ? "font-semibold text-amber-700" : ""}`}>{r.held > 0 ? rupee(r.held) : "—"}</td>
+                    <td className="px-4 py-3">
+                      {r.kind === "dues"
+                        ? r.status === "applied" ? r.review ? "Dues cleared · extra payment needs review" : "Dues cleared"
+                          : r.status === "partly_applied" ? "Partly applied · needs finance review"
+                          : r.status === "held" ? "Nothing applied · needs finance review"
+                          : r.status === "failed" ? "Payment failed" : r.status === "superseded" ? "Superseded · not offered for payment" : "Awaiting payment"
+                        : r.status === "credited" ? "Credited to wallet" : r.status === "failed" ? "Payment failed" : "Awaiting payment"}
+                      {r.review ? <div className="text-xs text-amber-700">Held money is not withdrawable. Resolution (refund or release) is not enabled: the policy is not approved yet.</div> : null}
+                    </td>
                     <td className="px-4 py-3 text-muted">{r.paymentId || r.id}</td>
                     <td className="px-4 py-3 text-xs text-muted">{formatDateTime12(r.createdAt) || "—"}</td>
                   </tr>

@@ -2,13 +2,16 @@
 // trip stages, penalties, verification and legal acceptance are written only by
 // these functions (see firestore.rules).
 export { createBooking } from './commerce';
+export { createRazorpayOrder, verifyRazorpayPayment } from './payments';
+export { razorpayWebhook } from './paymentWebhook';
+export { reconcile } from './reconcile';
 export { createAdminBooking, overrideBookingFare } from './adminBookings';
 export { approveBooking, rejectBooking, cancelBooking, updateRefund, assignDriver, acknowledgeUnassignedAlert, migrateMarketplaceVisibility, backfillFulfilmentRoute, onBookingCancelled } from './bookingOps';
 export { recordPayment, voidPayment, onBookingMoneyChange } from './bookingPayments';
 export { saveFareAdjustment } from './fareConfig';
 export { saveServiceRule, setServiceRuleStatus } from './serviceRules';
 export { issuePenalty, transitionPenalty, acknowledgePenalty, disputePenalty } from './penalties';
-export { requestDutyCancellation, submitPartnerRequest, decidePartnerRequest, acknowledgeAssignment, setVehicleAvailability, createWalletRecharge, verifyWalletRecharge, setSecurityDeposit, requestDepositRefund } from './partnerOps';
+export { requestDutyCancellation, submitPartnerRequest, decidePartnerRequest, acknowledgeAssignment, setVehicleAvailability, createWalletRecharge, verifyWalletRecharge, getDuesSummary, createDuesPayment, verifyDuesPayment, setSecurityDeposit, requestDepositRefund } from './partnerOps';
 export { advanceTrip, verifyBoarding, overrideReachedPickup } from './trips';
 export { saveTariffConfig, quoteBooking } from './quote';
 export { saveTariffSection } from './tariffSections';

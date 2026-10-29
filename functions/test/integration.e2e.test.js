@@ -182,7 +182,10 @@ test('M2. bid_review mode: claim refused, owner and vendor bids reviewed and awa
   const claim = await call(U.vendorA, 'claimMarketplaceDuty', { bookingId: id });
   assert.equal(claim.ok, false);
   assert.equal(claim.details?.code, 'bid-only');
-  assert.equal((await call(U.vendorA, 'submitMarketplaceBid', { tripId: id, rate: 1800, note: 'Can do' })).ok, true);
+  const noConsent = await call(U.vendorA, 'submitMarketplaceBid', { tripId: id, rate: 1800 });
+  assert.equal(noConsent.ok, false);
+  assert.equal(noConsent.details?.code, 'consent-required');
+  assert.equal((await call(U.vendorA, 'submitMarketplaceBid', { tripId: id, rate: 1800, note: 'Can do', autoAcceptConsent: true })).ok, true);
   assert.equal((await call(U.owner, 'submitMarketplaceBid', { tripId: id, rate: 1700 })).ok, true);
   assert.equal((await call(U.vendorB, 'submitMarketplaceBid', { tripId: id, rate: 99999 })).ok, false, 'a bid above the customer fare is refused');
   // Partners cannot award or write bids directly.
@@ -302,18 +305,12 @@ test('X2. trip execution gates, final fare and settlement due', async () => {
   assert.equal(b.driverPayout, 2055);
   assert.equal(b.payoutSource, 'tariff');
   const reach = (location) => call(U.ownerTop, 'advanceTrip', { bookingId: id, to: 'Reached Pickup', location, requestId: rid('g') });
-  const none = await reach(undefined);
-  assert.equal(none.ok, false);
-  assert.equal(none.details?.code, 'location-required');
-  assert.equal((await reach(driverFix({ capturedAt: Date.now() - 10 * 60000 }))).details?.code, 'location-stale');
-  assert.equal((await reach(driverFix({ accuracy: 900 }))).details?.code, 'location-inaccurate');
-  const far = await reach(driverFix({ lat: 10.2, lng: 77.6 }));
-  assert.equal(far.ok, false);
-  assert.match(far.message, /km from the pickup/);
   // Total KM is mandatory at the end; the driver cannot send a fare or rate.
   const otpBefore = await call(U.ownerTop, 'verifyBoarding', { bookingId: id, otp: '0000' });
   assert.equal(otpBefore.ok, false, 'boarding OTP before Reached is refused');
-  assert.equal((await reach(driverFix())).ok, true);
+  assert.equal((await reach(undefined)).ok, true);
+  assert.equal((await booking(id)).reachedPickupVerification, 'driver-confirmed');
+  assert.equal((await booking(id)).reachedPickupLocation, null);
   const wrong = await call(U.ownerTop, 'verifyBoarding', { bookingId: id, otp: '0000' });
   assert.equal(wrong.ok, false);
   const otp = (await db.doc(`booking_secrets/${id}`).get()).data().otp;

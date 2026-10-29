@@ -358,7 +358,7 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
   } else if (activePage === 'camera') {
     body = viewTrip ? <VehicleVerificationScreen trip={viewTrip} onDone={handleVerified} onCancel={() => go('trip')} /> : null;
   } else if (activePage === 'earnings') {
-    body = <EarningsScreen earnings={earnings} completedTrips={completedTrips} ledger={ledger} fleetDriver={!independent} fleetName={driver.vendorName} onOpenWallet={() => go('wallet')} />;
+    body = <EarningsScreen earnings={earnings} completedTrips={completedTrips} ledger={ledger} fleetDriver={!independent} fleetName={driver.vendorName} />;
   } else if (activePage === 'wallet') {
     body = (
       <WalletPayoutScreen

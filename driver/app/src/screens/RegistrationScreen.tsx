@@ -18,7 +18,7 @@ import { Badge, Button, Card, Notice, Row, TextField } from '../components/ui';
 import { DateField, OptionChips, PhotoField, displayDate } from '../components/forms';
 import { registerDriver, resubmitDriverDocuments } from '../services/driverService';
 import { lookupVehicle, manualSnapshot, snapshotFrom, vehiclePatchFrom } from '../services/vehicleLookup';
-import { AUTO_VEHICLE_DETECTION, isPlate, localDateISO, normalizePlate, validateStep, type Errors } from '../validation/kyc';
+import { AUTO_VEHICLE_DETECTION, isPlate, localDateISO, maskAadhaar, normalizePlate, validateStep, type Errors } from '../validation/kyc';
 import { describeError } from '../utils/retry';
 import { colors, radius, space, type } from '../theme';
 
@@ -125,6 +125,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
   const setProfile = (patch: Partial<RegistrationData['profile']>) => setData((d) => ({ ...d, profile: { ...d.profile, ...patch } }));
   const setLicense = (patch: Partial<RegistrationData['license']>) => setData((d) => ({ ...d, license: { ...d.license, ...patch } }));
   const setVehicle = (patch: Partial<RegistrationData['vehicle']>) => setData((d) => ({ ...d, vehicle: { ...d.vehicle, ...patch } }));
+  const setIdentity = (patch: Partial<RegistrationData['identity']>) => setData((d) => ({ ...d, identity: { ...d.identity, ...patch } }));
   const onBusy = (busy: boolean) => setUploads((n) => Math.max(0, n + (busy ? 1 : -1)));
 
   const v = data.vehicle;
@@ -192,7 +193,9 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
     } else setVehicle({ vehicleNumber: upper });
   };
 
-  const validate = (s: number) => validateStep(s, data, { fleetDriver });
+  // The identity saved before this session: unchanged legacy numbers are not re-validated, changed or new ones are.
+  const savedIdentity = mode === 'signup' ? undefined : initial.identity;
+  const validate = (s: number) => validateStep(s, data, { fleetDriver, originalIdentity: savedIdentity });
 
   const goNext = () => {
     if (uploads > 0) return setSubmitError('Please wait for uploads to finish.');
@@ -247,7 +250,7 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
         await registerDriver(data);
         await AsyncStorage.removeItem(draftKey(uid)).catch(() => undefined);
       } else {
-        await resubmitDriverDocuments(uid, data, currentStatus ?? 'Pending', { fleetDriver });
+        await resubmitDriverDocuments(uid, data, currentStatus ?? 'Pending', { fleetDriver, originalIdentity: savedIdentity });
       }
       onDone?.();
     } catch (err) {
@@ -342,6 +345,28 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
               <DateField label="Licence valid till" required value={l.expiryDate} onChange={(d) => setLicense({ expiryDate: d })} minimumDate={new Date()} error={errors.licenseExpiry} />
               <PhotoField label="Licence front" value={l.frontPhotoUrl} folder="kyc" name="dl-front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ frontPhotoUrl: url })} />
               <PhotoField label="Licence back" value={l.backPhotoUrl} folder="kyc" name="dl-back" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setLicense({ backPhotoUrl: url })} />
+
+              <Text style={[styles.sectionTitle, { marginTop: space.md }]}>Aadhaar & PAN (optional)</Text>
+              <Text style={[type.tiny, { marginBottom: space.sm }]}>Kept private: only you and the NESAM verification team can see these. A blank field keeps what is already saved.</Text>
+              <TextField
+                label="Aadhaar number"
+                value={data.identity.aadhaarNumber}
+                onChangeText={(t) => setIdentity({ aadhaarNumber: t.replace(/\D/g, '').slice(0, 12) })}
+                keyboardType="number-pad"
+                placeholder="12-digit Aadhaar number"
+                error={errors.aadhaarNumber}
+              />
+              <PhotoField label="Aadhaar front" value={data.identity.aadhaarFrontUrl} folder="kyc" name="aadhaar-front" onBusyChange={onBusy} onChange={(url) => setIdentity({ aadhaarFrontUrl: url })} />
+              <PhotoField label="Aadhaar back" value={data.identity.aadhaarBackUrl} folder="kyc" name="aadhaar-back" onBusyChange={onBusy} onChange={(url) => setIdentity({ aadhaarBackUrl: url })} />
+              <TextField
+                label="PAN number"
+                value={data.identity.panNumber}
+                onChangeText={(t) => setIdentity({ panNumber: t.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 10) })}
+                autoCapitalize="characters"
+                placeholder="ABCDE1234F"
+                error={errors.panNumber}
+              />
+              <PhotoField label="PAN card" value={data.identity.panPhotoUrl} folder="kyc" name="pan" onBusyChange={onBusy} onChange={(url) => setIdentity({ panPhotoUrl: url })} />
             </>
           ) : null}
 
@@ -414,6 +439,8 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
                 </>
               ) : null}
 
+              <TextField label="Colour (optional)" value={v.color} onChangeText={(t) => setVehicle({ color: t })} placeholder="White" autoCapitalize="words" />
+
               <Text style={[styles.sectionTitle, { marginTop: space.md }]}>Vehicle documents</Text>
               <PhotoField label="RC (registration certificate)" value={v.rcDocUrl} folder="vehicle" name="rc" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ rcDocUrl: url })} />
               <PhotoField label="Insurance" value={v.insuranceDocUrl} folder="vehicle" name="insurance" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ insuranceDocUrl: url })} />
@@ -423,6 +450,9 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
               <PhotoField label="Permit" value={v.statePermitDocUrl} folder="vehicle" name="permit" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ statePermitDocUrl: url })} />
               <DateField label="Permit valid till" required value={v.permitExpiry} onChange={(d) => setVehicle({ permitExpiry: d })} minimumDate={new Date()} error={errors.permitExpiry} />
               <PhotoField label="Vehicle front (with plate)" value={v.frontPhotoUrl} folder="vehicle" name="front" required showError={showPhotoErrors} onBusyChange={onBusy} onChange={(url) => setVehicle({ frontPhotoUrl: url })} />
+              <PhotoField label="Vehicle rear (optional)" value={v.rearPhotoUrl} folder="vehicle" name="rear" onBusyChange={onBusy} onChange={(url) => setVehicle({ rearPhotoUrl: url })} />
+              <PhotoField label="Vehicle side (optional)" value={v.sidePhotoUrl} folder="vehicle" name="side" onBusyChange={onBusy} onChange={(url) => setVehicle({ sidePhotoUrl: url })} />
+              <PhotoField label="Vehicle interior (optional)" value={v.interiorPhotoUrl} folder="vehicle" name="interior" onBusyChange={onBusy} onChange={(url) => setVehicle({ interiorPhotoUrl: url })} />
             </>
           ) : null}
 
@@ -439,10 +469,13 @@ export function RegistrationScreen({ uid, mode, initial, currentStatus, rejectio
               <ReviewSection title="Licence" onEdit={() => setStep(1)}>
                 <Row label="Licence no." value={l.number} />
                 <Row label="Valid till" value={displayDate(l.expiryDate)} />
+                {data.identity.aadhaarNumber ? <Row label="Aadhaar" value={maskAadhaar(data.identity.aadhaarNumber)} /> : null}
+                {data.identity.panNumber ? <Row label="PAN" value={data.identity.panNumber} /> : null}
               </ReviewSection>
               {!fleetDriver ? (
                 <ReviewSection title="Vehicle" onEdit={() => setStep(vehicleStep)}>
                   <Row label="Registration" value={v.vehicleNumber} />
+                  {v.color ? <Row label="Colour" value={v.color} /> : null}
                   <Row label="Vehicle" value={[v.make, v.model].filter(Boolean).join(' ') || v.vehicleType} />
                   <Row label="Category" value={`${v.vehicleType}${v.capacity ? ` • ${v.capacity}+1 seats` : ''}${v.fuelType ? ` • ${v.fuelType}` : ''}`} />
                   <Row label="Insurance till" value={displayDate(v.insuranceExpiry)} />

@@ -193,8 +193,9 @@ export function buildFinanceSnapshot(b: Record<string, any>): FinanceSnapshot | 
 
 // ── Ledger and wallet ─────────────────────────────────────────────────────
 
-export type LedgerType = 'trip_earning' | 'toll_reimbursement' | 'cash_collected' | 'payout' | 'penalty_deduction';
-export type LedgerStatus = 'pending' | 'available' | 'reserved' | 'completed' | 'cancelled';
+export type LedgerType = 'trip_earning' | 'toll_reimbursement' | 'cash_collected' | 'payout' | 'penalty_deduction' | 'wallet_recharge' | 'due_payment' | 'due_payment_held';
+/** `held`: money received and kept for finance review — counted in no balance (see due_payment_held). */
+export type LedgerStatus = 'pending' | 'available' | 'reserved' | 'completed' | 'cancelled' | 'held';
 
 /** wallet_ledger/{id} — server-written only; ids are deterministic per event. */
 export interface LedgerEntry {

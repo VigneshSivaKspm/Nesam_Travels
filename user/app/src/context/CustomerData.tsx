@@ -32,8 +32,13 @@ export function useCustomerData(): CustomerDataValue {
 }
 
 export function CustomerDataProvider({ profile = null, children }: { profile?: UserProfile | null; children: React.ReactNode }) {
+  return <SessionDataProvider key={profile?.uid ?? 'guest'} profile={profile}>{children}</SessionDataProvider>;
+}
+
+// Changing accounts remounts the subscriptions and clears the previous account's data immediately.
+function SessionDataProvider({ profile, children }: { profile: UserProfile | null; children: React.ReactNode }) {
   const [trips, setTrips] = useState<TripRecord[]>([]);
-  const [tripsLoading, setTripsLoading] = useState(false);
+  const [tripsLoading, setTripsLoading] = useState(!!profile);
   const [tripsError, setTripsError] = useState('');
   const [tripsKey, setTripsKey] = useState(0);
   const [savedPlaces, setSavedPlaces] = useState<LocationItem[]>([]);
@@ -44,13 +49,7 @@ export function CustomerDataProvider({ profile = null, children }: { profile?: U
   // The provider is keyed by uid, so only an explicit retry needs a reset —
   // done in retryTrips, not here.
   useEffect(() => {
-    if (!uid) {
-      setTrips([]);
-      setTripsLoading(false);
-      setTripsError('');
-      return undefined;
-    }
-    setTripsLoading(true);
+    if (!uid) return undefined;
     return subscribeToUserBookings(
       uid,
       (t) => {
@@ -66,10 +65,7 @@ export function CustomerDataProvider({ profile = null, children }: { profile?: U
   }, [uid, tripsKey]);
 
   useEffect(() => {
-    if (!uid) {
-      setSavedPlaces([]);
-      return undefined;
-    }
+    if (!uid) return undefined;
     return subscribeToSavedPlaces(uid, setSavedPlaces);
   }, [uid]);
 

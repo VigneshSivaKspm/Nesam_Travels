@@ -1,8 +1,8 @@
 // Brand pieces shared by the customer screens: the modern header (emblem,
 // dynamic page heading, notification + support actions) and the modern five-item service
 // navigation (Airport · Multicity · Outstation · Local Rental · Account) with prominent middle hero.
-import React, { useRef } from 'react';
-import { Animated, Image, Linking, Pressable, type PressableProps, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { Animated, Image, Linking, Pressable, type PressableProps, type StyleProp, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardHeight } from './KeyboardAvoid';
 import { useNavigation } from '@react-navigation/native';
@@ -27,13 +27,16 @@ export function PressableScale({
   style,
   children,
   activeScale = 0.93,
+  containerStyle,
   disabled,
   ...props
 }: PressableProps & {
   activeScale?: number;
+  /** Layout of the outer Animated.View (the element a flex row actually sees), e.g. to share a row's width. */
+  containerStyle?: StyleProp<ViewStyle>;
   children: React.ReactNode | ((state: { pressed: boolean }) => React.ReactNode);
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = (e: any) => {
     if (disabled) return;
@@ -57,7 +60,7 @@ export function PressableScale({
   };
 
   return (
-    <Animated.View style={{ transform: [{ scale }] }}>
+    <Animated.View style={[containerStyle, { transform: [{ scale }] }]}>
       <Pressable
         {...props}
         disabled={disabled}
@@ -131,6 +134,21 @@ function HeaderAction({ icon, label, onPress, active, badge }: { icon: IconName;
   );
 }
 
+/** Notifications bell with the unread count. Needs InboxProvider, so it renders only with the header actions (signed-in screens). */
+function NotificationsAction({ active }: { active: boolean }) {
+  const navigation = useNavigation();
+  const { unreadCount } = useInbox();
+  return (
+    <HeaderAction
+      icon="bell"
+      label="Notifications"
+      active={active}
+      badge={unreadCount}
+      onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' })}
+    />
+  );
+}
+
 /**
  * The app header. Renders the logo emblem on the left with the page heading right to it,
  * optional back button when navigating, and action icons (notifications with unread count + support) on the right.
@@ -151,7 +169,6 @@ export function AppHeader({
   rightAction?: React.ReactNode;
 }) {
   const navigation = useNavigation();
-  const { unreadCount } = useInbox();
 
   return (
     <View style={styles.top}>
@@ -179,13 +196,7 @@ export function AppHeader({
           rightAction
         ) : actions ? (
           <>
-            <HeaderAction
-              icon="bell"
-              label="Notifications"
-              active={active === 'alerts'}
-              badge={unreadCount}
-              onPress={() => navigation.navigate('Tabs', { screen: 'Alerts' })}
-            />
+            <NotificationsAction active={active === 'alerts'} />
             <HeaderAction
               icon="headphones"
               label="Help and support"
@@ -254,6 +265,7 @@ export function BottomNav({ active }: { active?: NavKey }) {
                 setService('outstation');
                 navigation.navigate('Tabs', { screen: 'Book' });
               }}
+              containerStyle={styles.navCell}
               style={styles.navItemMiddle}
             >
               <View style={[styles.middleCircle, on && styles.middleCircleOn]}>
@@ -282,6 +294,7 @@ export function BottomNav({ active }: { active?: NavKey }) {
               setService(item.key);
               navigation.navigate('Tabs', { screen: 'Book' });
             }}
+            containerStyle={styles.navCell}
             style={styles.navItem}
           >
             <View style={styles.navSymbol}>
@@ -469,15 +482,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     alignItems: 'flex-end',
   },
+  // Every tab shares the row equally; the Pressable inside fills its cell.
+  navCell: { flex: 1, minWidth: 0 },
   navItem: {
-    flex: 1,
     alignItems: 'center',
     paddingTop: 4,
     paddingBottom: 2,
     minHeight: 52,
   },
   navItemMiddle: {
-    flex: 1,
     alignItems: 'center',
     justifyContent: 'flex-end',
     marginTop: -22,

@@ -91,6 +91,8 @@ export interface FleetVehicle {
   make: string;
   model: string;
   year: string;
+  /** Optional vehicle colour (vehicles/{id}.color). */
+  color?: string;
   seatingCapacity: number;
   fuelType: string;
   status: VehicleStatus;

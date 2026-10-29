@@ -178,7 +178,33 @@ export async function handleRazorpayEvent(event: any): Promise<{ handled: boolea
   if (!entity?.id || !entity.order_id) return { handled: false, detail: 'no payment entity' };
   // The booking is found through the order we created, never trusted from the payload notes alone.
   const orders = await db.collectionGroup('gateway_orders').where('orderId', '==', entity.order_id).limit(1).get();
-  if (orders.empty) return { handled: false, detail: 'unknown order' };
+  if (orders.empty) {
+    // Wallet checkout may close before capture completes. The signed webhook must
+    // finish that payment without depending on the customer's callback returning.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(entity.order_id)) return { handled: false, detail: 'unknown order' };
+    // A dues payment is applied to the ledger debits it was created for (see applyDuesPayment), never as a generic top-up.
+    const duePayment = await db.doc(`due_payments/${entity.order_id}`).get();
+    if (duePayment.exists) {
+      const d = duePayment.data()!;
+      if (type !== 'payment.captured' && type !== 'order.paid') return { handled: false, detail: `ignored ${type}` };
+      if (entity.status !== 'captured' || entity.currency !== 'INR' || !Number.isSafeInteger(entity.amount) || entity.amount <= 0) return { handled: false, detail: 'invalid captured payment' };
+      if (entity.amount !== d.amountPaise) return { handled: false, detail: 'amount mismatch' };
+      if (!['vendor', 'driver'].includes(d.partyType) || typeof d.partyId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(d.partyId)) return { handled: false, detail: 'invalid dues owner' };
+      const { applyDuesPayment } = await import('./partnerOps');
+      await applyDuesPayment(duePayment.id, entity.id, d.partyType, d.partyId, entity.amount);
+      return { handled: true, detail: 'dues payment reconciled' };
+    }
+    const recharge = await db.doc(`wallet_recharges/${entity.order_id}`).get();
+    if (!recharge.exists) return { handled: false, detail: 'unknown order' };
+    const r = recharge.data()!;
+    if (type !== 'payment.captured' && type !== 'order.paid') return { handled: false, detail: `ignored ${type}` };
+    if (entity.status !== 'captured' || entity.currency !== 'INR' || !Number.isSafeInteger(entity.amount) || entity.amount <= 0) return { handled: false, detail: 'invalid captured payment' };
+    if (entity.amount !== r.amountPaise) return { handled: false, detail: 'amount mismatch' };
+    if (!['vendor', 'driver'].includes(r.partyType) || typeof r.partyId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(r.partyId)) return { handled: false, detail: 'invalid wallet owner' };
+    const { creditRecharge } = await import('./partnerOps');
+    await creditRecharge(recharge.id, entity.id, r.partyType, r.partyId);
+    return { handled: true, detail: 'wallet recharge reconciled' };
+  }
   const order = orders.docs[0]!;
   const o = order.data();
   const bookingId = String(o.bookingId);

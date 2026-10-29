@@ -8,7 +8,7 @@ import { acknowledgePenalty, disputePenalty } from '../../services/partnerNotifi
 import { Icon } from '../Icon';
 import { Badge, Btn, Check, Dialog, Empty, ErrorLine, ExtraTag, Field, KV, Notice, PageHeading, Tabs } from '../ui';
 import { day, dayTime, rupees, signedRupees } from '../format';
-import { rechargeWallet, requestDepositRefund } from '../services';
+import { getDuesSummary, payOutstandingDues, requestDepositRefund, type DuesSummary } from '../services';
 import { useWorkspace } from '../Workspace';
 
 const DUE_GROUP: Record<string, 'Wallet posted' | 'Bank settled' | 'Processing'> = { Wallet: 'Wallet posted', Paid: 'Bank settled', Due: 'Processing', Processing: 'Processing', 'On Hold': 'Processing', Failed: 'Processing' };
@@ -94,9 +94,11 @@ const LEDGER_LABEL: Record<string, [string, string, string]> = {
   payout: ['Payout to bank', 'landmark', 'q-kind-payout'],
   penalty_deduction: ['Confirmed penalty', 'triangle-alert', 'q-kind-penalty'],
   wallet_recharge: ['Wallet recharge', 'plus', 'q-kind-recharge'],
+  due_payment: ['Dues payment', 'receipt-text', 'q-kind-recharge'],
+  due_payment_held: ['Dues payment · held for review', 'triangle-alert', 'q-kind-penalty'],
 };
 const tabOf = (e: TransactionRecord): WalletTab =>
-  e.type === 'wallet_recharge' ? 'Recharges' : e.type === 'penalty_deduction' ? 'Penalties' : e.type === 'payout' ? 'Payouts' : 'Trips';
+  e.type === 'wallet_recharge' || e.type === 'due_payment' || e.type === 'due_payment_held' ? 'Recharges' : e.type === 'penalty_deduction' ? 'Penalties' : e.type === 'payout' ? 'Payouts' : 'Trips';
 /** Same reading as the server's walletTotals: what counts towards the available balance. */
 const counts = (e: TransactionRecord) => e.status !== 'cancelled' && (e.direction === 'credit' ? e.status === 'available' : e.status === 'reserved' || e.status === 'completed');
 
@@ -104,7 +106,7 @@ export const WalletScreen: React.FC = () => {
   const p = usePartner();
   const ws = useWorkspace();
   const [tab, setTab] = useState<WalletTab>('All');
-  const [sheet, setSheet] = useState<'' | 'recharge' | 'withdraw' | 'refund'>('');
+  const [sheet, setSheet] = useState<'' | 'dues' | 'withdraw' | 'refund'>('');
   const [entry, setEntry] = useState<TransactionRecord | null>(null);
 
   const withBalance = useMemo(() => {
@@ -127,7 +129,7 @@ export const WalletScreen: React.FC = () => {
           <strong className={p.wallet.available < 0 ? 'q-negative' : ''}>{rupees(p.wallet.available)}</strong>
           <p>Available balance{p.wallet.pending ? ` · ${rupees(p.wallet.pending)} awaiting customer payment` : ''}{p.wallet.reserved ? ` · ${rupees(p.wallet.reserved)} in payout requests` : ''}</p>
           <div className="v-action-row">
-            <Btn icon="plus" onClick={() => setSheet('recharge')}>Add money</Btn>
+            {p.wallet.available < 0 ? <Btn icon="receipt-text" onClick={() => setSheet('dues')}>Pay outstanding dues</Btn> : null}
             <Btn style="secondary" icon="landmark" disabled={p.wallet.available <= 0} onClick={() => setSheet('withdraw')}>Withdraw</Btn>
           </div>
         </section>
@@ -151,7 +153,7 @@ export const WalletScreen: React.FC = () => {
               <button key={e.id} type="button" className="q-ledger-row" onClick={() => setEntry(e)}>
                 <span className={`q-ledger-icon ${cls}`}><Icon name={icon} /></span>
                 <span className="q-ledger-copy">
-                  <strong>{label}{e.status === 'pending' ? ' · pending' : e.status === 'reserved' ? ' · processing' : ''}</strong>
+                  <strong>{label}{e.status === 'pending' ? ' · pending' : e.status === 'reserved' ? ' · processing' : e.status === 'held' ? ' · held for review' : ''}</strong>
                   <small>{e.bookingCode || e.reference || e.id} · {dayTime(e.createdAt)}</small>
                   <small>Balance after {rupees(after)}</small>
                 </span>
@@ -172,7 +174,7 @@ export const WalletScreen: React.FC = () => {
           ))}
         </section>
       ) : null}
-      {sheet === 'recharge' ? <RechargeSheet onClose={() => setSheet('')} /> : null}
+      {sheet === 'dues' ? <DuesSheet onClose={() => setSheet('')} /> : null}
       {sheet === 'withdraw' ? <WithdrawSheet onClose={() => setSheet('')} /> : null}
       {sheet === 'refund' ? <RefundSheet onClose={() => setSheet('')} /> : null}
       {entry ? <LedgerSheet e={entry} onClose={() => setEntry(null)} /> : null}
@@ -180,30 +182,35 @@ export const WalletScreen: React.FC = () => {
   );
 };
 
-const RechargeSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+const DuesSheet: React.FC<{ onClose: () => void }> = ({ onClose }) => {
   const ws = useWorkspace();
-  const [amount, setAmount] = useState('1000');
+  const [summary, setSummary] = useState<DuesSummary | null>(null);
+  const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const n = Number(amount);
-    if (!Number.isSafeInteger(n) || n < 100 || n > 100000) { setError('Enter an amount from ₹100 to ₹1,00,000.'); return; }
-    setBusy(true); setError('');
-    try { const msg = await rechargeWallet(n); onClose(); ws.say(msg); } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
+  const load = () => {
+    setLoading(true); setError('');
+    getDuesSummary().then(setSummary, (err: Error) => setError(err.message)).finally(() => setLoading(false));
   };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  React.useEffect(load, []);
+  const pay = async () => {
+    setBusy(true); setError('');
+    try { const msg = await payOutstandingDues(); onClose(); ws.say(msg); } catch (err) { setError((err as Error).message); load(); } finally { setBusy(false); }
+  };
+  const payable = summary?.payable ?? 0;
   return (
-    <Dialog title="Add money" onClose={onClose} busy={busy}>
-      <p className="v-modal-intro">Add funds to your working wallet.</p>
-      <form onSubmit={submit}>
-        <div className="q-presets">
-          {[500, 1000, 2000].map((v) => <button key={v} type="button" aria-pressed={amount === String(v)} onClick={() => setAmount(String(v))}>₹{v.toLocaleString('en-IN')}</button>)}
-        </div>
-        <Field label="Enter amount (₹)"><input type="number" required min={100} max={100000} step={1} value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
-        <p className="v-small v-muted">Range: ₹100–₹1,00,000. Your wallet is credited after the payment is confirmed.</p>
-        <ErrorLine message={error} />
-        <Btn submit full icon="arrow-right" busy={busy}>Continue to payment</Btn>
-      </form>
+    <Dialog title="Pay outstanding dues" onClose={onClose} busy={busy}>
+      {loading ? <p className="v-modal-intro">Checking your dues…</p> : payable > 0 ? (
+        <>
+          <p className="v-modal-intro">Confirmed dues to pay</p>
+          <strong className="q-negative" style={{ fontSize: 28 }}>{rupees(payable)}</strong>
+          <KV mt rows={(summary?.items ?? []).map((i) => [i.label, rupees(i.amount)] as [React.ReactNode, React.ReactNode])} />
+          <p className="v-small v-muted">NESAM calculates this from confirmed cash collections and penalties. Paying it clears these dues; they are not deducted again from your settlement.</p>
+        </>
+      ) : <p className="v-modal-intro">You have no confirmed dues to pay right now.</p>}
+      <ErrorLine message={error} />
+      {payable > 0 ? <Btn full icon="arrow-right" busy={busy} onClick={() => void pay()}>{`Pay ${rupees(payable)}`}</Btn> : null}
       <p className="w-demo-note">Secure payment by Razorpay · UPI, cards and net banking.</p>
     </Dialog>
   );
@@ -276,7 +283,7 @@ const LedgerSheet: React.FC<{ e: TransactionRecord; onClose: () => void }> = ({ 
       <KV mt rows={[
         ...(e.bookingCode ? [['Duty ID', e.bookingCode] as [string, string]] : []),
         ['Recorded', dayTime(e.createdAt)],
-        ['Status', ({ available: 'Credited', pending: 'Awaiting customer payment', reserved: 'Processing', completed: 'Completed', cancelled: 'Cancelled' } as Record<string, string>)[e.status] ?? e.status],
+        ['Status', ({ available: 'Credited', pending: 'Awaiting customer payment', reserved: 'Processing', completed: 'Completed', cancelled: 'Cancelled', held: 'Held by NESAM for review · not withdrawable' } as Record<string, string>)[e.status] ?? e.status],
         ...(e.penaltyId ? [['Penalty notice', e.penaltyId] as [string, string]] : []),
         ...(e.payoutRequestId ? [['Payout request', e.payoutRequestId] as [string, string]] : []),
         ...(e.reference ? [['Reference', e.reference] as [string, string]] : []),

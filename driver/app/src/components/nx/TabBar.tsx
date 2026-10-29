@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from './Text';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
@@ -39,7 +39,7 @@ function TabPressable({
   selected: boolean;
   activeScale?: number;
 }) {
-  const scale = useRef(new Animated.Value(1)).current;
+  const [scale] = useState(() => new Animated.Value(1));
 
   const handlePressIn = () => {
     Animated.spring(scale, {

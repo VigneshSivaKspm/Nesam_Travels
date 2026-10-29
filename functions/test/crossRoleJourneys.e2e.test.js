@@ -158,6 +158,7 @@ test('CJ1: Complete 12-step booking-to-completion journey with vendor dispatch a
     tripId: bookingId,
     rate: 2100,
     note: 'Clean car ready',
+    autoAcceptConsent: true,
   });
   assert.equal(bidRes.ok, true, JSON.stringify(bidRes));
 
@@ -429,12 +430,16 @@ test('AP1: Customer cancellation while Pending is free; cancellation closes mark
 // ══════════════════════════════════════════════════════════════════════════════
 test('AP2: Overlapping trips are blocked for driver and vehicle; reassignment updates state', async () => {
   const t1 = await bookAs(U.custA, { scheduledAt: inHours(50) });
-  await call(U.adminOps, 'approveBooking', { bookingId: t1.requestId });
-  await call(U.adminOps, 'assignDriver', { bookingId: t1.requestId, driverId: U.driverOwner });
+  assert.equal(t1.ok, true, JSON.stringify(t1));
+  const approvedFirst = await call(U.adminOps, 'approveBooking', { bookingId: t1.requestId });
+  assert.equal(approvedFirst.ok, true, JSON.stringify(approvedFirst));
+  const assignedFirst = await call(U.adminOps, 'assignDriver', { bookingId: t1.requestId, driverId: U.driverOwner });
+  assert.equal(assignedFirst.ok, true, JSON.stringify(assignedFirst));
 
   // Second trip at exactly same time
   const t2 = await bookAs(U.custB, { scheduledAt: inHours(50.5) });
-  await call(U.adminOps, 'approveBooking', { bookingId: t2.requestId });
+  assert.equal(t2.ok, true, JSON.stringify(t2));
+  assert.equal((await call(U.adminOps, 'approveBooking', { bookingId: t2.requestId })).ok, true);
 
   // Overlap rejected for driver
   const overlapRes = await call(U.adminOps, 'assignDriver', {
@@ -519,46 +524,33 @@ test('AP3: Penalty issuance, partner acknowledgement, dispute, and finance walle
 // ══════════════════════════════════════════════════════════════════════════════
 // ALTERNATE PATH 4: Location & Boarding Edge Cases
 // ══════════════════════════════════════════════════════════════════════════════
-test('AP4: Location validation gates and audited admin override', async () => {
+test('AP4: Driver-confirmed arrival without GPS and audited admin override', async () => {
   const bRes = await bookAs(U.custA, { scheduledAt: inHours(4.5) });
   const id = bRes.requestId;
   await call(U.adminOps, 'approveBooking', { bookingId: id });
   await call(U.adminOps, 'assignDriver', { bookingId: id, driverId: U.driverOwner });
 
-  // Missing GPS
+  // The app deliberately uses driver-confirmed arrival; GPS is optional.
   const rNoGps = await call(U.driverOwner, 'advanceTrip', {
     bookingId: id, to: 'Reached Pickup', requestId: rid('nogps'),
   });
-  assert.equal(rNoGps.ok, false);
-  assert.equal(rNoGps.details?.code, 'location-required');
+  assert.equal(rNoGps.ok, true, JSON.stringify(rNoGps));
+  assert.equal((await booking(id)).reachedPickupVerification, 'driver-confirmed');
+  assert.equal((await booking(id)).reachedPickupLocation, null);
 
-  // Stale GPS (10 min old)
-  const rStale = await call(U.driverOwner, 'advanceTrip', {
-    bookingId: id, to: 'Reached Pickup', location: driverLocationFix({ capturedAt: Date.now() - 600000 }), requestId: rid('stale'),
-  });
-  assert.equal(rStale.ok, false);
-  assert.equal(rStale.details?.code, 'location-stale');
-
-  // Inaccurate GPS (1500m accuracy)
-  const rInacc = await call(U.driverOwner, 'advanceTrip', {
-    bookingId: id, to: 'Reached Pickup', location: driverLocationFix({ accuracy: 1500 }), requestId: rid('inacc'),
-  });
-  assert.equal(rInacc.ok, false);
-  assert.equal(rInacc.details?.code, 'location-inaccurate');
-
-  // Out of radius (50 km away)
-  const rFar = await call(U.driverOwner, 'advanceTrip', {
-    bookingId: id, to: 'Reached Pickup', location: driverLocationFix({ lat: 10.5, lng: 78.0 }), requestId: rid('far'),
-  });
-  assert.equal(rFar.ok, false);
+  // An office override is still available for a different, not-yet-reached duty.
+  const other = await bookAs(U.custA, { scheduledAt: inHours(100) });
+  assert.equal(other.ok, true, JSON.stringify(other));
+  assert.equal((await call(U.adminOps, 'approveBooking', { bookingId: other.requestId })).ok, true);
+  assert.equal((await call(U.adminOps, 'assignDriver', { bookingId: other.requestId, driverId: U.driverOwner })).ok, true);
 
   // Audited Admin override for Reached Pickup (e.g. driver device battery died at pickup)
   const overrideRes = await call(U.adminOps, 'overrideReachedPickup', {
-    bookingId: id,
+    bookingId: other.requestId,
     reason: 'Driver at pickup confirmed by customer phone call',
   });
   assert.equal(overrideRes.ok, true, JSON.stringify(overrideRes));
-  const bOverridden = await booking(id);
+  const bOverridden = await booking(other.requestId);
   assert.equal(bOverridden.tripSubStatus, 'Reached Pickup');
   assert.equal(bOverridden.reachedPickupOverride?.by, U.adminOps);
 });

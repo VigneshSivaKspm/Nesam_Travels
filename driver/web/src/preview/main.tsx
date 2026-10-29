@@ -91,7 +91,7 @@ const Preview: React.FC = () => {
     body = <VehicleVerificationScreen trip={fx.trips.confirmed} onDone={() => undefined} onCancel={() => undefined} />;
   } else if (screen.startsWith('earnings')) {
     page = 'earnings';
-    body = <EarningsScreen earnings={earnings} completedTrips={completed} ledger={fx.ledger} fleetDriver={fleet} fleetName="Sample Fleet" onOpenWallet={() => undefined} />;
+    body = <EarningsScreen earnings={earnings} completedTrips={completed} ledger={fx.ledger} fleetDriver={fleet} fleetName="Sample Fleet" />;
   } else if (screen.startsWith('wallet')) {
     page = 'wallet';
     body = <WalletPayoutScreen wallet={fx.wallet} bank={fx.account.bank} payoutRequests={fx.payouts} ledger={fx.ledger} fleetDriver={fleet} onRequestPayout={noop} onSupport={() => setSupport(true)} />;

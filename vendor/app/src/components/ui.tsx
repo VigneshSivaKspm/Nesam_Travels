@@ -17,7 +17,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import { SafeAreaView, Edge } from 'react-native-safe-area-context';
-import { KeyboardAvoid } from './KeyboardAvoid';
+import { KeyboardAvoid, useKeyboardHeight } from './KeyboardAvoid';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, space, type } from '../theme';
 import { initials } from '../utils/format';
@@ -328,12 +328,16 @@ export function Sheet({
   children: React.ReactNode;
   dismissible?: boolean;
 }) {
+  // Edge-to-edge Android does not resize the window for the keyboard, so the sheet is lifted by the keyboard height
+  // (reported above the navigation bar, which the sheet's bottom safe-area padding already clears). The sheet and its
+  // scroll body may shrink, so the focused field and the actions stay reachable by scrolling. iOS keeps KeyboardAvoidingView.
+  const keyboardHeight = useKeyboardHeight();
   return (
     <Modal visible={visible} transparent animationType="slide" statusBarTranslucent onRequestClose={dismissible ? onClose : () => undefined}>
-      <View style={styles.sheetBackdrop}>
+      <View style={[styles.sheetBackdrop, { paddingBottom: Platform.OS === 'android' ? keyboardHeight : 0 }]}>
         <Pressable style={{ flex: 1 }} onPress={dismissible ? onClose : undefined} accessibilityLabel="Close" />
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <SafeAreaView edges={['bottom']} style={styles.sheet}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.sheetShrink}>
+          <SafeAreaView edges={['bottom']} style={[styles.sheet, styles.sheetShrink]}>
             <View style={styles.sheetHandle} />
             <View style={styles.sheetHeader}>
               <Text style={type.h2} numberOfLines={2}>
@@ -345,7 +349,7 @@ export function Sheet({
                 </Text>
               ) : null}
             </View>
-            <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.lg }}>
+            <ScrollView style={styles.sheetShrink} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingBottom: space.lg }}>
               {children}
             </ScrollView>
           </SafeAreaView>
@@ -558,7 +562,8 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 11.5, fontWeight: '700' },
   avatar: { backgroundColor: colors.primarySoft, alignItems: 'center', justifyContent: 'center' },
   avatarText: { color: colors.primary, fontWeight: '800' },
-  sheetBackdrop: { flex: 1, backgroundColor: colors.overlay },
+  sheetBackdrop: { flex: 1, backgroundColor: colors.overlay, paddingTop: 40 },
+  sheetShrink: { flexShrink: 1 },
   sheet: {
     backgroundColor: colors.card,
     borderTopLeftRadius: radius.xl,

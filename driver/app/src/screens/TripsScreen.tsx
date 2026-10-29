@@ -32,6 +32,7 @@ export function TripsScreen() {
   return (
     <NxScreen title="My Trips" subtitle="Duty History & Schedule">
       <NxPills<Tab>
+        scroll
         label="Trip list"
         value={tab}
         onChange={setTab}

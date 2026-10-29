@@ -65,7 +65,9 @@ export const setVehicleAvailability = (vehicleId: string, availableFrom: string,
 
 export const requestDepositRefund = () => callFunction('requestDepositRefund', {});
 
-interface RechargeOrder { orderId: string; amount: number; currency: string; keyId: string; name: string; phone: string }
+interface DuesOrder { orderId: string; amount: number; currency: string; keyId: string; name: string; phone: string; payable: number; items: DuesItem[] }
+export interface DuesItem { label: string; amount: number }
+export interface DuesSummary { payable: number; items: DuesItem[] }
 interface RazorpayResult { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }
 declare global { interface Window { Razorpay?: new (o: Record<string, unknown>) => { open(): void; on(e: string, f: (r: unknown) => void): void } } }
 
@@ -80,22 +82,40 @@ function loadCheckout(): Promise<void> {
   });
 }
 
+/** The server's account of a dues payment: what was captured, applied to dues and held for NESAM to review. */
+export interface DuesOutcome { status: 'applied' | 'partly_applied' | 'held' | 'pending'; captured?: number; applied?: number; held?: number; reconciliation?: string; message?: string }
+const inr = (n: number) => `₹${n.toLocaleString('en-IN')}`;
+
+/** Never says "paid" unless an amount was actually applied to the dues. */
+export function duesMessage(v: DuesOutcome): string {
+  const captured = v.captured ?? 0;
+  const applied = v.applied ?? 0;
+  const held = v.held ?? 0;
+  if (v.status === 'applied' && applied > 0) return `${inr(applied)} paid. Your dues have been updated.`;
+  if (v.status === 'partly_applied' && applied > 0) return `${inr(applied)} of your ${inr(captured)} payment was applied to your dues. ${inr(held)} is held by NESAM for review and is not available to withdraw.`;
+  if (v.status === 'held' || (v.status === 'applied' && applied <= 0)) return `Your payment of ${inr(captured || held)} was received, but your dues changed while you were paying, so none of it was applied. NESAM is holding it for review. No dues were marked paid.`;
+  return v.message || 'Your payment is being confirmed. Your dues update shortly.';
+}
+
+/** What the server says is payable now (derived from confirmed ledger debits) and what it covers. */
+export const getDuesSummary = () => callFunction<Record<string, never>, DuesSummary>('getDuesSummary', {});
+
 /**
- * Add money: the server creates the gateway order for the amount; the wallet is credited only after the server
- * verifies the captured payment. Resolves with a message for the screen.
+ * Pay outstanding dues: the server decides the amount and binds the gateway order to the dues; the dues are marked paid only
+ * after the server verifies the captured payment. The client never sends an amount. Resolves with a message for the screen.
  */
-export async function rechargeWallet(amount: number): Promise<string> {
-  let order: RechargeOrder;
+export async function payOutstandingDues(): Promise<string> {
+  let order: DuesOrder;
   try {
-    order = await callFunction<{ amount: number }, RechargeOrder>('createWalletRecharge', { amount });
+    order = await callFunction<Record<string, never>, DuesOrder>('createDuesPayment', {});
   } catch (e) {
-    if (/PAYMENT_NOT_CONFIGURED/.test((e as Error).message)) throw new Error('Online payment is not switched on yet. Contact the NESAM office to add money to your wallet.');
+    if (/PAYMENT_NOT_CONFIGURED/.test((e as Error).message)) throw new Error('Online payment is not switched on yet. Contact the NESAM office to pay your dues.');
     throw e;
   }
   await loadCheckout();
   const result = await new Promise<RazorpayResult>((resolve, reject) => {
     const rz = new window.Razorpay!({
-      key: order.keyId, amount: order.amount, currency: order.currency, order_id: order.orderId, name: 'NESAM Partner', description: 'Working wallet recharge',
+      key: order.keyId, amount: order.amount, currency: order.currency, order_id: order.orderId, name: 'NESAM Partner', description: 'Outstanding dues',
       prefill: { name: order.name, contact: order.phone }, theme: { color: '#c62828' },
       handler: (r: RazorpayResult) => resolve(r),
       modal: { ondismiss: () => reject(new Error('Payment was cancelled. No money was taken.')) },
@@ -103,8 +123,8 @@ export async function rechargeWallet(amount: number): Promise<string> {
     rz.on('payment.failed', () => reject(new Error('The payment failed. You have not been charged; please try again.')));
     rz.open();
   });
-  const v = await callFunction<unknown, { status: string; message?: string }>('verifyWalletRecharge', {
+  const v = await callFunction<unknown, DuesOutcome>('verifyDuesPayment', {
     razorpayOrderId: result.razorpay_order_id, razorpayPaymentId: result.razorpay_payment_id, razorpaySignature: result.razorpay_signature,
   });
-  return v.status === 'credited' ? `₹${amount.toLocaleString('en-IN')} added to your working wallet.` : v.message || 'Your payment is being confirmed.';
+  return duesMessage(v);
 }

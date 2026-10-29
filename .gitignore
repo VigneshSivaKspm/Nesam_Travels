@@ -176,6 +176,8 @@ coverage/
 
 # Test result logs (keep test source; ignore heavy output files)
 tests/firestore-rules/latest-results.log
+output/jest-*/
+output/wiring-*.json
 structure.txt
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -14,6 +14,10 @@ export async function health(_req: ApiRequest, res: ApiResponse): Promise<void> 
 }
 
 async function readRawBody(req: ApiRequest, limit = 1_000_000): Promise<Buffer> {
+  if (Buffer.isBuffer(req.rawBody)) {
+    if (req.rawBody.length > limit) throw new Error('body too large');
+    return req.rawBody;
+  }
   const chunks: Buffer[] = [];
   let size = 0;
   for await (const chunk of req) {

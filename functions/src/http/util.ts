@@ -5,6 +5,8 @@ import { timingSafeEqual } from 'crypto';
 /** The parts of Vercel's Node request helpers these handlers use. */
 export interface ApiRequest extends IncomingMessage {
   body?: unknown;
+  /** Firebase preserves these exact bytes before parsing JSON. */
+  rawBody?: Buffer;
   query: Record<string, string | string[] | undefined>;
 }
 export type ApiResponse = ServerResponse;

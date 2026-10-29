@@ -77,8 +77,8 @@ function PopupCard({
 }) {
   const currentTone = toneOf(n);
   const tone = TONE_COLORS[currentTone];
-  const translateY = useRef(new Animated.Value(-30)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
+  const [translateY] = useState(() => new Animated.Value(-30));
+  const [opacity] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
     Animated.parallel([

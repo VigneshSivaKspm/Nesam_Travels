@@ -400,6 +400,7 @@ export function mapVehicle(id: string, d: DocumentData): FleetVehicle {
     make: str(d.make),
     model: str(d.model || d.name),
     year: str(d.year),
+    color: str(d.color || d.colour),
     seatingCapacity: num(d.seatingCapacity || d.seats, 4),
     fuelType: str(d.fuelType || d.fuel),
     status: VEHICLE_STATUSES.includes(d.status) ? d.status : 'Active',

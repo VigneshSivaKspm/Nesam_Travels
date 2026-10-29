@@ -119,6 +119,17 @@ export const requestBankChange = (accountHolder: string, accountLast4: string, i
 
 export const requestDepositRefund = () => callFunction('requestDepositRefund', {});
 
+/** Outstanding dues: the amount and what it covers are decided by the server from confirmed ledger debits. */
+export interface DuesItem { label: string; amount: number }
+export interface DuesSummary { payable: number; items: DuesItem[] }
+export interface DuesOrder extends RechargeOrder { payable: number; items: DuesItem[] }
+export const getDuesSummary = () => callFunction<Record<string, never>, DuesSummary>('getDuesSummary', {});
+export const createDuesPayment = () => callFunction<Record<string, never>, DuesOrder>('createDuesPayment', {});
+/** The server's account of a dues payment: what was captured, applied to dues and held for NESAM to review. */
+export interface DuesOutcome { status: 'applied' | 'partly_applied' | 'held' | 'pending'; captured?: number; applied?: number; held?: number; reconciliation?: string; message?: string }
+export const verifyDuesPayment = (orderId: string, paymentId: string, signature: string) =>
+  callFunction<unknown, DuesOutcome>('verifyDuesPayment', { razorpayOrderId: orderId, razorpayPaymentId: paymentId, razorpaySignature: signature });
+
 export interface RechargeOrder { orderId: string; amount: number; currency: string; keyId: string; name: string; phone: string }
 export const createWalletRecharge = (amount: number) => callFunction<{ amount: number }, RechargeOrder>('createWalletRecharge', { amount });
 export const verifyWalletRecharge = (orderId: string, paymentId: string, signature: string) =>

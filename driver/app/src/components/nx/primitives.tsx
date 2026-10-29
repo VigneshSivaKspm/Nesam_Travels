@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleProp, StyleSheet, TextInputProps, TextStyle, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, TextInputProps, TextStyle, View, ViewStyle } from 'react-native';
 import { Text, TextInput } from './Text';
 import { nx, nxRadius, nxShadow } from '../../theme/nx';
 import { NxIcon, NxIconName } from './Icon';
@@ -117,17 +117,36 @@ export function NxTextButton({ title, onPress, icon, trailingIcon, color = nx.re
 
 // ── Pill tabs ───────────────────────────────────────────────────────────────
 
-export function NxPills<T extends string>({ options, value, onChange, label }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label: string }) {
+/** `scroll` keeps every pill on one line in a horizontally scrolling row instead of wrapping. */
+export function NxPills<T extends string>({ options, value, onChange, label, scroll = false }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void; label: string; scroll?: boolean }) {
+  const pills = options.map((o) => {
+    const on = o.value === value;
+    return (
+      <Pressable key={o.value} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)} style={[styles.pill, scroll && styles.pillNoShrink, on && styles.pillOn]}>
+        <Text style={[styles.pillText, on && { color: nx.white }]} numberOfLines={scroll ? 1 : undefined}>
+          {o.label}
+        </Text>
+      </Pressable>
+    );
+  });
+  if (scroll) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.pillsScroll}
+        contentContainerStyle={styles.pillsRow}
+        keyboardShouldPersistTaps="handled"
+        accessibilityRole="tablist"
+        accessibilityLabel={label}
+      >
+        {pills}
+      </ScrollView>
+    );
+  }
   return (
     <View style={styles.pills} accessibilityRole="tablist" accessibilityLabel={label}>
-      {options.map((o) => {
-        const on = o.value === value;
-        return (
-          <Pressable key={o.value} accessibilityRole="tab" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)} style={[styles.pill, on && styles.pillOn]}>
-            <Text style={[styles.pillText, on && { color: nx.white }]}>{o.label}</Text>
-          </Pressable>
-        );
-      })}
+      {pills}
     </View>
   );
 }
@@ -271,6 +290,9 @@ const styles = StyleSheet.create({
   textButton: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 30 },
   textButtonText: { fontSize: 11.5, fontWeight: '700' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 20 },
+  pillsScroll: { flexGrow: 0, marginBottom: 20 },
+  pillsRow: { flexDirection: 'row', gap: 8 },
+  pillNoShrink: { flexShrink: 0 },
   pill: { minHeight: 38, paddingVertical: 8, paddingHorizontal: 15, borderWidth: 1, borderColor: nx.line, borderRadius: 9, backgroundColor: nx.white, alignItems: 'center', justifyContent: 'center' },
   pillOn: { backgroundColor: nx.ink, borderColor: nx.ink },
   pillText: { fontSize: 11.5, fontWeight: '700', color: nx.muted },

@@ -1,5 +1,7 @@
 # NESAM Travels — End-to-End Verification & Release Readiness Report
 
+> Historical report. Its broad release-readiness and external-provider claims are not current verification evidence. See [the 29 October wiring audit](WIRING_AUDIT_2026-10-29.md) for fresh results, fixes and explicit limits.
+
 **Project Root**: `E:\Legendary One\Nesam_Travels`  
 **Execution Timestamp**: 2026-10-15  
 **Release Decision**: **PASS**  

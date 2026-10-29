@@ -1,6 +1,6 @@
 // Bookings — accepted duties and the assigned team (client reference vBookings, booking details, cancellation request).
 import React, { useMemo, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useVendorData } from '../context/VendorData';
 import { EmptyState, Screen, Sheet, TextField, Chip } from '../components/ui';
@@ -61,7 +61,9 @@ export function BookingsScreen() {
         <UTabs value={tab} onChange={setTab} items={(['Accepted', 'Upcoming', 'On Trip', 'Completed'] as Stage[]).map((id) => ({ id, label: id, count: counts[id] }))} />
       ) : <Text style={styles.section}>Cancelled history</Text>}
       <TextField placeholder="Search route or Duty ID" value={search} onChangeText={setSearch} accessibilityLabel="Search route or Duty ID" />
-      <View style={styles.chips}>{SERVICES.map((s) => <Chip key={s} label={s === 'All' ? 'All services' : s} active={service === s} onPress={() => setService(s)} />)}</View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll} contentContainerStyle={styles.chips} keyboardShouldPersistTaps="handled">
+        {SERVICES.map((s) => <Chip key={s} label={s === 'All' ? 'All services' : s} active={service === s} onPress={() => setService(s)} />)}
+      </ScrollView>
       {d.errors.bookings ? <Feedback tone="error" message={d.errors.bookings} /> : null}
       {list.length || (tab === 'Cancelled' && released.length) ? (
         <>
@@ -289,7 +291,8 @@ const styles = StyleSheet.create({
   pendingTitle: { fontSize: 14, fontWeight: '700', color: colors.ink },
   small: { fontSize: 12, color: colors.muted, lineHeight: 17 },
   section: { fontSize: 16, fontWeight: '700', color: colors.ink, marginBottom: space.md },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, alignItems: 'center' },
+  chipsScroll: { flexGrow: 0 },
+  chips: { flexDirection: 'row', gap: 6, alignItems: 'center', paddingRight: space.lg },
   deadline: { fontSize: 12, color: colors.warning, fontWeight: '600', marginTop: 8 },
   between: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.sm },
   route: { fontSize: 18, fontWeight: '600', color: colors.ink, marginTop: 10 },

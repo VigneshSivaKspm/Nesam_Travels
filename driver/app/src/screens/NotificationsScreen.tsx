@@ -23,14 +23,16 @@ export function NotificationsScreen() {
   const unread = (c: NotificationCategory | 'all') => notifications.filter((n) => !n.read && (c === 'all' || n.category === c)).length;
 
   return (
-    <NxScreen tabs={false} title="Notifications" subtitle="Updates & Alerts">
-      <Pressable style={styles.back} onPress={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))} accessibilityRole="button" accessibilityLabel="Back">
-        <NxIcon name="back" size={16} color={nx.muted} />
-        <Text style={styles.backText}>Back</Text>
-      </Pressable>
+    <NxScreen
+      tabs={false}
+      title="Notifications"
+      subtitle="Updates & Alerts"
+      onBack={() => (navigation.canGoBack() ? navigation.goBack() : navigation.navigate('Tabs', { screen: 'Home' }))}
+    >
       <Text style={nxText.routeTitle}>Driver updates</Text>
       <Text style={[nxText.copy, { marginTop: 6, marginBottom: 18 }]}>Trips, approvals, payments and penalties from NESAM.</Text>
       <NxPills<NotificationCategory | 'all'>
+        scroll
         label="Notification categories"
         value={filter}
         onChange={setFilter}
@@ -74,8 +76,6 @@ export function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  back: { flexDirection: 'row', alignItems: 'center', gap: 5, minHeight: 44, alignSelf: 'flex-start' },
-  backText: { fontSize: 14, color: nx.muted },
   item: { flexDirection: 'row', gap: 12, paddingVertical: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: nx.line },
   icon: { width: 36, height: 36, borderRadius: 10, backgroundColor: nx.page, alignItems: 'center', justifyContent: 'center' },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 3 },

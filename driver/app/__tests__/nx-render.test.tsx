@@ -104,11 +104,19 @@ import { ShellProvider } from '../src/components/nx/Shell';
 import { NxTabBar } from '../src/components/nx/TabBar';
 import { NxBrand } from '../src/components/nx/Brand';
 
+const mountedTrees: renderer.ReactTestRenderer[] = [];
+afterEach(() => {
+  act(() => {
+    for (const tree of mountedTrees.splice(0)) tree.unmount();
+  });
+});
+
 function mount(el: React.ReactElement) {
   let tree!: renderer.ReactTestRenderer;
   act(() => {
     tree = renderer.create(<ShellProvider>{el}</ShellProvider>);
   });
+  mountedTrees.push(tree);
   return tree;
 }
 
@@ -288,6 +296,7 @@ function mountBare(el: React.ReactElement) {
   act(() => {
     tree = renderer.create(el);
   });
+  mountedTrees.push(tree);
   return tree;
 }
 

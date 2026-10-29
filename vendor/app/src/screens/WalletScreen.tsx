@@ -12,7 +12,7 @@ import { describeDataError } from '../utils/retry';
 import { colors, space, type } from '../theme';
 import { useNavigation } from '@react-navigation/native';
 import { Alert } from 'react-native';
-import { RechargeSheet } from '../components/RechargeSheet';
+import { DuesPaymentSheet } from '../components/DuesPaymentSheet';
 import { Feedback, PageHeading, PBadge, PButton } from '../components/partner';
 import { requestDepositRefund } from '../services/partnerOps';
 
@@ -23,6 +23,8 @@ const ENTRY_LABEL: Record<string, string> = {
   payout: 'Payout',
   penalty_deduction: 'Confirmed penalty',
   wallet_recharge: 'Wallet recharge',
+  due_payment: 'Dues payment',
+  due_payment_held: 'Dues payment · held for review',
 };
 const ENTRY_STATUS: Record<string, string> = {
   pending: 'Awaiting customer payment',
@@ -30,6 +32,7 @@ const ENTRY_STATUS: Record<string, string> = {
   reserved: 'Held for payout',
   completed: 'Completed',
   cancelled: 'Released',
+  held: 'Held by NESAM for review · not withdrawable',
 };
 
 export function WalletScreen() {
@@ -37,7 +40,7 @@ export function WalletScreen() {
   const navigation = useNavigation();
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
-  const [recharge, setRecharge] = useState(false);
+  const [payDues, setPayDues] = useState(false);
   const [notice, setNotice] = useState('');
   const withdrawable = Math.max(0, Math.floor(wallet.available));
   const askRefund = () => Alert.alert('Security deposit refund', 'The deposit is refunded at Full & Final settlement, after account closure, completed duties and clearance of outstanding accounts. Request it now?', [
@@ -49,7 +52,7 @@ export function WalletScreen() {
     <Screen edges={[]}>
       <PageHeading title="Wallet" subtitle="Your working balance and security deposit." />
       <Feedback message={notice} />
-      {recharge ? <RechargeSheet onClose={() => setRecharge(false)} onDone={(m) => { setRecharge(false); setNotice(m); }} /> : null}
+      {payDues ? <DuesPaymentSheet onClose={() => setPayDues(false)} onDone={(m) => { setPayDues(false); setNotice(m); }} /> : null}
       <Card>
         <Text style={type.tiny}>SECURITY DEPOSIT</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
@@ -60,7 +63,7 @@ export function WalletScreen() {
         {deposit?.status === 'Active' && deposit.amount > 0 ? <PButton style="text" icon="chevron-forward" title="Request refund at closure" onPress={askRefund} /> : null}
       </Card>
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: space.md }}>
-        <PButton title="Add money" icon="add" onPress={() => setRecharge(true)} containerStyle={{ flex: 1 }} />
+        {wallet.available < 0 ? <PButton title="Pay outstanding dues" icon="card-outline" onPress={() => setPayDues(true)} containerStyle={{ flex: 1 }} /> : null}
         <PButton title="Penalty notices" style="secondary" icon="warning-outline" onPress={() => navigation.navigate('Penalties')} containerStyle={{ flex: 1 }} />
       </View>
       {open ? (

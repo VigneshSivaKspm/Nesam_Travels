@@ -12,14 +12,13 @@ interface EarningsScreenProps {
   /** Fleet drivers are paid by their vendor, not by NESAM. */
   fleetDriver: boolean;
   fleetName?: string;
-  onOpenWallet: () => void;
 }
 
 const STATUS_LABEL: Record<string, string> = { pending: 'Awaiting payment', available: 'In wallet', cancelled: 'Reversed' };
 
 const dayName = (d: Date) => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' });
 
-export const EarningsScreen: React.FC<EarningsScreenProps> = ({ earnings, completedTrips, ledger, fleetDriver, fleetName, onOpenWallet }) => {
+export const EarningsScreen: React.FC<EarningsScreenProps> = ({ earnings, completedTrips, ledger, fleetDriver, fleetName }) => {
   const [period, setPeriod] = useState<'today' | 'week'>('today');
 
   // Credited earnings for the last 7 days, oldest first.
@@ -142,9 +141,6 @@ export const EarningsScreen: React.FC<EarningsScreenProps> = ({ earnings, comple
           </div>
           <div className="chart-total">{inr(waitingTotal)}</div>
           <p className="profile-note">Agreed driver payouts only. NESAM verifies customer collections before settlement.</p>
-          <button type="button" className="button secondary full" style={{ marginTop: 17 }} onClick={onOpenWallet}>
-            View wallet status <Icon name="arrow" />
-          </button>
         </section>
 
         <section className="panel page-card">

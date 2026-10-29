@@ -21,13 +21,20 @@ adminAuth.getAuth = () => ({
 });
 
 const { handler: call } = require('../lib/http/call');
-const { health, whatsappWebhook, cronAlerts, cronReconcile } = require('../lib/http/other');
+const { health, whatsappWebhook, razorpayWebhook, cronAlerts, cronReconcile } = require('../lib/http/other');
 const { CALLABLES } = require('../lib/registry');
+const firebaseExports = require('../lib/index');
+
+test('every HTTP callable is also exported for Firebase deployment', () => {
+  for (const [name, fn] of Object.entries(CALLABLES)) {
+    assert.equal(firebaseExports[name], fn, `${name} is missing from the Firebase entry point`);
+  }
+});
 
 /** Minimal request / response doubles with the surface the handlers use. */
-function run(fn, { method = 'POST', headers = {}, query = {}, body, raw } = {}) {
+function run(fn, { method = 'POST', headers = {}, query = {}, body, raw, rawBody } = {}) {
   const req = raw !== undefined ? Readable.from([Buffer.from(raw)]) : Readable.from([]);
-  Object.assign(req, { method, headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])), query, body });
+  Object.assign(req, { method, headers: Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v])), query, body, rawBody });
   return new Promise((resolve, reject) => {
     const res = {
       statusCode: 200,
@@ -44,6 +51,20 @@ test('health', async () => {
   const r = await run(health, { method: 'GET' });
   assert.equal(r.status, 200);
   assert.equal(json(r).ok, true);
+});
+
+test('Razorpay webhook accepts signed raw bytes on both hosting transports', async () => {
+  process.env.RAZORPAY_WEBHOOK_SECRET = 'test-webhook-secret';
+  const raw = JSON.stringify({ event: 'unhandled.event', payload: {} });
+  const signature = createHmac('sha256', process.env.RAZORPAY_WEBHOOK_SECRET).update(raw).digest('hex');
+  const headers = { 'x-razorpay-signature': signature };
+  assert.equal(typeof firebaseExports.razorpayWebhook, 'function');
+  assert.equal(Object.hasOwn(CALLABLES, 'razorpayWebhook'), false);
+  assert.equal((await run(razorpayWebhook, { raw, headers })).status, 200);
+  assert.equal((await run(razorpayWebhook, { rawBody: Buffer.from(raw), body: JSON.parse(raw), headers })).status, 200);
+  assert.equal((await run(razorpayWebhook, { rawBody: Buffer.from(raw + ' '), headers })).status, 403);
+  assert.equal((await run(razorpayWebhook, { rawBody: Buffer.alloc(1_000_001), headers })).status, 413);
+  delete process.env.RAZORPAY_WEBHOOK_SECRET;
 });
 
 test('CORS: allowed origins only, preflight answered', async () => {

@@ -1071,6 +1071,13 @@ service cloud.firestore {
                   || (isDriver() && resource.data.get('driverId', '') == uid());
       allow write: if false;
     }
+    // Outstanding-dues payment orders (createDuesPayment / verifyDuesPayment).
+    match /due_payments/{orderId} {
+      allow read: if canReadFinance()
+                  || (isVendor() && resource.data.get('vendorId', '') == uid())
+                  || (isDriver() && resource.data.get('driverId', '') == uid());
+      allow write: if false;
+    }
     // Penalties are issued, changed, acknowledged and disputed only through
     // issuePenalty / transitionPenalty / acknowledgePenalty / disputePenalty.
     match /penalties/{penaltyId} {

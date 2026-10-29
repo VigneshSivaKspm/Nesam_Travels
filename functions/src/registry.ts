@@ -89,6 +89,9 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   setVehicleAvailability: fns.setVehicleAvailability,
   createWalletRecharge: fns.createWalletRecharge,
   verifyWalletRecharge: fns.verifyWalletRecharge,
+  getDuesSummary: fns.getDuesSummary,
+  createDuesPayment: fns.createDuesPayment,
+  verifyDuesPayment: fns.verifyDuesPayment,
   setSecurityDeposit: fns.setSecurityDeposit,
   requestDepositRefund: fns.requestDepositRefund,
   // identity, legal, security

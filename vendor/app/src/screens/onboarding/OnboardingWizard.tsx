@@ -98,10 +98,7 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
 
   // Load private KYC details for resuming vendors (so bank fields pre-fill).
   useEffect(() => {
-    if (!hasRecord) {
-      setPrefillLoading(false);
-      return;
-    }
+    if (!hasRecord) return;
     let alive = true;
     getVendorKyc()
       .catch(() => null)
@@ -126,7 +123,7 @@ export function OnboardingWizard({ record, phone, notice, onSignOut }: WizardPro
     return () => sub.remove();
   }, [step, back]);
 
-  if (prefillLoading) return <FullScreenLoader label="Preparing your application…" />;
+  if (hasRecord && prefillLoading) return <FullScreenLoader label="Preparing your application…" />;
   // If record is still null (the application was just created), wait.
   if (!record) return <FullScreenLoader label="Setting up your application…" />;
 

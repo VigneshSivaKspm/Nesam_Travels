@@ -1,7 +1,7 @@
 // Driver profile: identity, earnings (moved inside profile), contact & payout account,
 // licence & ID, document status with expiry badges, and help/sign-out.
 // All sections are minimized by default and only expand when clicked.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Text } from '../components/nx/Text';
 import { useNavigation } from '@react-navigation/native';
@@ -25,8 +25,8 @@ import {
   nxText,
 } from '../components/nx/primitives';
 import { updateDriverContactDetails, type ContactFields } from '../services/driverService';
-import { displayDate } from '../components/forms';
-import { IFSC_RE, MOBILE_RE, UPI_RE } from '../validation/kyc';
+import { DateField, displayDate } from '../components/forms';
+import { IFSC_RE, MOBILE_RE, UPI_RE, localDateISO } from '../validation/kyc';
 import { formatINR, initials } from '../utils/format';
 import { last7Days, tripEarningStatus } from '../utils/ledger';
 import { describeError } from '../utils/retry';
@@ -122,7 +122,13 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
   const fleet = !!driver.vendorId;
 
   // By default, ALL sections are minimized. Only expand when clicked!
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const targetSection = route?.params?.openSection;
+  const [previousSection, setPreviousSection] = useState(targetSection);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>(() => targetSection ? { [targetSection]: true } : {});
+  if (targetSection !== previousSection) {
+    setPreviousSection(targetSection);
+    if (targetSection) setExpanded((prev) => ({ ...prev, [targetSection]: true }));
+  }
   const [editing, setEditing] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -135,13 +141,6 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
   const waiting = completedTrips.filter((t) => tripEarningStatus(ledger, t.id) !== 'available' && !t.fleetTrip);
   const waitingTotal = waiting.reduce((s, t) => s + (t.payoutRecorded ? t.driverEarnings : 0), 0);
 
-  // If navigated here with a specific section request (e.g. from Home's earnings metric), expand it
-  useEffect(() => {
-    const targetSection = route?.params?.openSection;
-    if (targetSection) {
-      setExpanded((prev) => ({ ...prev, [targetSection]: true }));
-    }
-  }, [route?.params?.openSection]);
 
   const toggle = (key: string) => {
     setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -200,6 +199,7 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
                 {driver.joiningDate ? <NxRow label="Partner since" value={driver.joiningDate} /> : null}
                 <NxRow label="Vehicle" value={[vehicle.make, vehicle.model].filter(Boolean).join(' ') || '—'} />
                 <NxRow label="Registration" value={vehicle.vehicleNumber || '—'} />
+                <NxRow label="Colour" value={vehicle.color || '—'} />
                 <NxRow
                   label="Category"
                   value={`${vehicle.vehicleType}${vehicle.capacity ? ` · ${vehicle.capacity} seats` : ''}${vehicle.fuelType ? ` · ${vehicle.fuelType}` : ''}`}
@@ -291,14 +291,6 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
                     <Text style={nxText.note}>
                       {waiting.length} completed trip{waiting.length === 1 ? '' : 's'} awaiting settlement verification.
                     </Text>
-                    <NxButton
-                      title="Open wallet balance"
-                      trailingIcon="arrow"
-                      variant="secondary"
-                      compact
-                      onPress={() => navigation.navigate('Tabs', { screen: 'Wallet' } as never)}
-                      style={{ marginTop: 12 }}
-                    />
                   </View>
                 </>
               )}
@@ -355,7 +347,6 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
                 value={identity.aadhaarNumber ? `XXXX XXXX ${identity.aadhaarNumber.slice(-4)}` : '—'}
               />
               <NxRow label="PAN" value={identity.panNumber || '—'} />
-              <NxRow label="Colour" value={vehicle.color || '—'} />
             </View>
           ) : null}
         </NxPanel>
@@ -431,11 +422,20 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
   );
 }
 
+/** A real calendar date in YYYY-MM-DD form (rejects 2001-02-30). */
+function isRealDate(iso: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  if (!m) return false;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3]);
+}
+
 function ContactDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const { account } = useDriverData();
   const { driver, bank } = account;
   const [form, setForm] = useState<ContactFields>({
     email: driver.email,
+    dob: driver.dob,
     address: driver.address,
     city: driver.city,
     pincode: driver.pincode,
@@ -451,6 +451,8 @@ function ContactDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
 
   const save = async () => {
     if (form.email && !/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(form.email.trim())) return setError('Invalid email.');
+    // A previously saved value is kept as it is; a newly picked date must be a real, non-future date.
+    if (form.dob && form.dob !== driver.dob && (!isRealDate(form.dob) || form.dob > localDateISO())) return setError('Enter a valid date of birth (not in the future).');
     if (!form.address.trim() || !form.city.trim()) return setError('Enter your address and city.');
     if (!/^[1-9]\d{5}$/.test(form.pincode)) return setError('Enter a 6-digit pincode.');
     if (!form.emergencyContactName.trim()) return setError('Enter the emergency contact name.');
@@ -483,6 +485,9 @@ function ContactDialog({ onClose, onSaved }: { onClose: () => void; onSaved: () 
   return (
     <NxDialog visible onClose={onClose} eyebrow="PROFILE" title="Edit contact & payout account" locked={saving}>
       <NxField label="Email" value={form.email} onChangeText={(t) => set({ email: t })} keyboardType="email-address" autoCapitalize="none" style={{ marginTop: 0 }} />
+      <View style={{ marginTop: 16 }}>
+        <DateField label="Date of birth" value={form.dob} onChange={(d) => set({ dob: d })} maximumDate={new Date()} />
+      </View>
       <NxField label="Address" value={form.address} onChangeText={(t) => set({ address: t })} multiline />
       <NxField label="City" value={form.city} onChangeText={(t) => set({ city: t })} />
       <NxField label="Pincode" value={form.pincode} onChangeText={(t) => set({ pincode: t.replace(/\D/g, '').slice(0, 6) })} keyboardType="number-pad" />

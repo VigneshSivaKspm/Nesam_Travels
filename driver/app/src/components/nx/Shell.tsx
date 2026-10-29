@@ -102,7 +102,7 @@ function SupportDialog({ visible, onClose, context }: { visible: boolean; onClos
 
 // ── Top bar ─────────────────────────────────────────────────────────────────
 
-function NxTopbar({ title, subtitle }: { title?: string; subtitle?: string }) {
+function NxTopbar({ title, subtitle, onBack }: { title?: string; subtitle?: string; onBack?: () => void }) {
   const navigation = useNavigation();
   const { unreadCount } = useDriverData();
   const { notify, openSupport } = useShell();
@@ -110,7 +110,12 @@ function NxTopbar({ title, subtitle }: { title?: string; subtitle?: string }) {
   const { width, short } = useLayout();
   const narrow = width <= 374;
   return (
-    <View style={[styles.topbar, short && { minHeight: 56, paddingVertical: 8 }]}>
+    <View style={[styles.topbar, short && { minHeight: 56, paddingVertical: 8 }, onBack && styles.topbarBack]}>
+      {onBack ? (
+        <Pressable style={styles.backButton} onPress={onBack} hitSlop={6} accessibilityRole="button" accessibilityLabel="Back">
+          <NxIcon name="back" size={18} color={nx.ink} />
+        </Pressable>
+      ) : null}
       <NxBrand title={title} subtitle={subtitle} />
       <View style={styles.actions}>
         <Pressable
@@ -153,19 +158,22 @@ export function NxScreen({
   refreshControl,
   title,
   subtitle,
+  onBack,
 }: {
   children: React.ReactNode;
   tabs?: boolean;
   refreshControl?: React.ReactElement<RefreshControlProps>;
   title?: string;
   subtitle?: string;
+  /** Shows a Back control at the top-left, beside the page heading. */
+  onBack?: () => void;
 }) {
   const { wide, width } = useLayout();
   // Phones use the full width; tablets keep a readable column (one column up to 760, two columns up to 1180).
   const gutter = width >= 600 ? 28 : 17;
   return (
     <SafeAreaView style={styles.root} edges={['top', 'left', 'right']}>
-      <NxTopbar title={title} subtitle={subtitle} />
+      <NxTopbar title={title} subtitle={subtitle} onBack={onBack} />
       <KeyboardAvoid>
       <ScrollView
         style={{ flex: 1 }}
@@ -189,6 +197,8 @@ export function NxScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: nx.page },
   topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 74, paddingHorizontal: 17, paddingVertical: 14, backgroundColor: nx.white, borderBottomWidth: 1, borderBottomColor: nx.line },
+  topbarBack: { gap: 8, paddingLeft: 10 },
+  backButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   actions: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   status: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, paddingHorizontal: 9, borderRadius: 24, backgroundColor: nx.statusBg, borderWidth: 1, borderColor: nx.statusBorder },
   statusOff: { backgroundColor: nx.page, borderColor: nx.line },

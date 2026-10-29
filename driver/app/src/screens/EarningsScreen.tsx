@@ -4,12 +4,11 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Text } from '../components/nx/Text';
-import { useNavigation } from '@react-navigation/native';
 import { useDriverData } from '../context/DriverData';
 import { NxScreen } from '../components/nx/Shell';
 import { NxColumns } from '../components/nx/layout';
 import { NxIcon } from '../components/nx/Icon';
-import { NxBadge, NxButton, NxEmpty, NxInfo, NxPanel, NxPills, NxRow, NxSectionHeading, nxText, placeName } from '../components/nx/primitives';
+import { NxBadge, NxEmpty, NxInfo, NxPanel, NxPills, NxRow, NxSectionHeading, nxText, placeName } from '../components/nx/primitives';
 import { payoutLabel } from '../components/nx/tripFormat';
 import { last7Days, tripEarningStatus } from '../utils/ledger';
 import { formatINR } from '../utils/format';
@@ -20,7 +19,6 @@ type Period = 'today' | 'week';
 const STATUS: Record<string, string> = { pending: 'Awaiting payment', available: 'In wallet', cancelled: 'Reversed' };
 
 export function EarningsScreen() {
-  const navigation = useNavigation();
   const { earnings, completedTrips, ledger } = useDriverData();
   const [period, setPeriod] = useState<Period>('today');
   const days = useMemo(() => last7Days(ledger), [ledger]);
@@ -82,7 +80,6 @@ export function EarningsScreen() {
         />
         <Text style={styles.total}>{formatINR(waitingTotal)}</Text>
         <Text style={nxText.note}>Agreed driver payouts only. NESAM verifies customer collections before settlement.</Text>
-        <NxButton title="View wallet status" trailingIcon="arrow" variant="secondary" onPress={() => navigation.navigate('Tabs', { screen: 'Wallet' })} style={{ marginTop: 16 }} />
       </NxPanel>
 
       <NxPanel>

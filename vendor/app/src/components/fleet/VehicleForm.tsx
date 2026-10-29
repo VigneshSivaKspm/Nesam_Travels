@@ -33,6 +33,7 @@ export function VehicleForm({
     make: existing?.make ?? '',
     model: existing?.model ?? '',
     year: existing?.year ?? '',
+    color: existing?.color ?? '',
     seatingCapacity: existing?.seatingCapacity ?? 4,
     fuelType: existing?.fuelType ?? 'Diesel',
     status: existing?.status ?? 'Active',
@@ -122,6 +123,7 @@ export function VehicleForm({
           </View>
           <TextField label="Make" required value={form.make} onChangeText={(t) => set('make', t)} error={err('make')} placeholder="Toyota" />
           <TextField label="Model" required value={form.model} onChangeText={(t) => set('model', t)} error={err('model')} placeholder="Innova Crysta" />
+          <TextField label="Colour (optional)" value={form.color ?? ''} onChangeText={(t) => set('color', t)} placeholder="White" autoCapitalize="words" />
           <TextField
             label="Year"
             required

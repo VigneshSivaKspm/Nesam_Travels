@@ -51,6 +51,7 @@ import type {
   VehicleDetails,
 } from '../types/driver';
 import { withTimeout } from '../utils/retry';
+import { normalizeAadhaar, normalizePan } from '../validation/kyc';
 import { toDate as toDateTime } from '../utils/time';
 import { tripSubStatusOf } from '../utils/tripFlow';
 import { mapLedgerEntry, mapWallet } from '../utils/ledger';
@@ -315,6 +316,24 @@ export function registrationFields(data: RegistrationData, opts: { fleetDriver?:
   };
 }
 
+/**
+ * Aadhaar / PAN numbers and photos the driver entered, for driver_private (never the vendor-readable drivers doc).
+ * Blank fields are left out and the write merges, so a partial update never clears a saved value. firestore.rules
+ * accept an identity change only together with docStatus 'Pending', i.e. with a document resubmission for review.
+ */
+export function identityFields(data: RegistrationData, original?: Partial<IdentityDetails>): { identity?: Partial<IdentityDetails> } {
+  const id = data.identity ?? EMPTY_IDENTITY;
+  const cleaned: IdentityDetails = { ...EMPTY_IDENTITY, ...id, aadhaarNumber: normalizeAadhaar(id.aadhaarNumber), panNumber: normalizePan(id.panNumber) };
+  const saved: IdentityDetails = { ...EMPTY_IDENTITY, ...(original ?? {}), aadhaarNumber: normalizeAadhaar(original?.aadhaarNumber), panNumber: normalizePan(original?.panNumber) };
+  // Only what is entered and differs from what is already saved: unchanged values are not rewritten, blanks never erase.
+  const entered = Object.fromEntries(
+    (Object.keys(cleaned) as (keyof IdentityDetails)[])
+      .map((k) => [k, (cleaned[k] ?? '').trim()] as const)
+      .filter(([k, v]) => v !== '' && v !== (saved[k] ?? '').trim()),
+  ) as Partial<IdentityDetails>;
+  return Object.keys(entered).length ? { identity: entered } : {};
+}
+
 /** The drivers/{uid} document firestore.rules (driverSelfCreateOk) accepts. */
 export function buildNewDriverDoc(uid: string, phoneE164: string, data: RegistrationData, invite: DriverInvite | null) {
   return {
@@ -341,24 +360,25 @@ export async function registerDriver(data: RegistrationData): Promise<void> {
   if (!user) throw new DriverActionError('unauthenticated', 'Your session has expired. Please sign in again.');
   const phoneE164 = user.phoneNumber || '';
   const invite = await getDriverInvite(phoneE164);
-  await withTimeout(writeDriverProfile(user.uid, buildNewDriverDoc(user.uid, phoneE164, data, invite), true), WRITE_TIMEOUT_MS);
+  await withTimeout(writeDriverProfile(user.uid, { ...buildNewDriverDoc(user.uid, phoneE164, data, invite), ...identityFields(data) }, true), WRITE_TIMEOUT_MS);
 }
 
 /**
  * Updates KYC details. A rejected driver goes back to 'Pending' for another
  * review; an approved driver stays approved but docStatus drops to 'Pending'.
  */
-export async function resubmitDriverDocuments(uid: string, data: RegistrationData, currentStatus: ApprovalStatus, opts: { fleetDriver?: boolean } = {}): Promise<void> {
+export async function resubmitDriverDocuments(uid: string, data: RegistrationData, currentStatus: ApprovalStatus, opts: { fleetDriver?: boolean; originalIdentity?: Partial<IdentityDetails> } = {}): Promise<void> {
   await withTimeout(
     writeDriverProfile(uid, {
       ...registrationFields(data, opts),
+      ...identityFields(data, opts.originalIdentity),
       ...(currentStatus === 'Rejected' ? { status: 'Pending', rejectionReason: '' } : {}),
     }),
     WRITE_TIMEOUT_MS,
   );
 }
 
-export type ContactFields = Pick<DriverProfile, 'email' | 'address' | 'city' | 'pincode' | 'emergencyContactName' | 'emergencyContact'> & {
+export type ContactFields = Pick<DriverProfile, 'email' | 'dob' | 'address' | 'city' | 'pincode' | 'emergencyContactName' | 'emergencyContact'> & {
   bank: BankDetails;
 };
 

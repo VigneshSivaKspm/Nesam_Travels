@@ -177,7 +177,10 @@ export function ChooseRideScreen() {
 
         <Notice message={quoteProblem} style={{ marginTop: space.md }} />
         {tooFar ? <Button title={`Call NESAM · ${SUPPORT_PHONE_DISPLAY}`} icon="phone" variant="secondary" onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} style={{ marginBottom: 12 }} /> : null}
-        <FlowFooter onBack={() => navigation.goBack()} onHome={goHome} />
+        {/* The cab list is the last content in this ScrollView, so the gap above Back / Home is set here. */}
+        <View style={{ marginTop: space.md }}>
+          <FlowFooter onBack={() => navigation.goBack()} onHome={goHome} />
+        </View>
       </ScrollView>
 
       {/* Floating total + CTA */}

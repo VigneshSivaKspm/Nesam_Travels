@@ -7,20 +7,24 @@
 //   decidePartnerRequest      office decision (approve / decline; for a cancellation: apply or waive the charge).
 //   acknowledgeAssignment     the assigned driver has seen / acknowledged a dispatched duty (shown to the vendor).
 //   setVehicleAvailability    vendor marks when and where a fleet vehicle is available for new duties.
-//   createWalletRecharge /    "Add money" to the working wallet through the payment gateway; the credit is written
-//   verifyWalletRecharge      only after the provider confirms a captured payment.
+//   createWalletRecharge /    generic wallet top-up (no longer offered in the partner apps; kept for existing callers and
+//   verifyWalletRecharge      for orders already in flight).
+//   getDuesSummary /          "Pay outstanding dues": the amount is derived from the confirmed ledger debits on the
+//   createDuesPayment /       server; the payment is verified and applied once (see planDues / applyDuesPayment).
+//   verifyDuesPayment
 //   setSecurityDeposit        office records a partner's security deposit; requestDepositRefund asks for it at
 //   requestDepositRefund      full & final settlement.
 //
 // Every record is server-written (firestore.rules deny client writes) and audited.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
-import { createHmac, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 import Razorpay from 'razorpay';
 import { DocumentData, FieldValue, Timestamp, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
 import { pickupInstant } from './domain/time';
+import { walletTotals } from './domain/finance';
 import { recomputeWallet, walletId } from './ledger';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { approved, requireAdmin, requirePermission, text, requireAction, requireDuty, requireStaffFlag } from './shared';
@@ -507,7 +511,7 @@ export async function creditRecharge(orderId: string, paymentId: string, type: P
   const entryId = `recharge_${paymentId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80)}`;
   await db.runTransaction(async (tx: Transaction) => {
     const [o, e] = await Promise.all([tx.get(orderRef), tx.get(db.doc(`wallet_ledger/${entryId}`))]);
-    if (e.exists || !o.exists) return;
+    if (e.exists || !o.exists || o.data()!.status === 'credited') return;
     const amount = Number(o.data()!.amount);
     const stamp = FieldValue.serverTimestamp();
     tx.set(db.doc(`wallet_ledger/${entryId}`), {
@@ -519,6 +523,320 @@ export async function creditRecharge(orderId: string, paymentId: string, type: P
     auditInTx(tx, { action: 'wallet_recharged', entity: 'wallet', entityId: walletId(type, id), performedBy: id, performedByName: text(o.data()!.partyName), role: type, next: { amount, paymentId } });
   });
   await recomputeWallet(type, id);
+}
+
+// ── Outstanding dues payment ────────────────────────────────────────────────
+// A partner owes NESAM only what the ledger says is confirmed and not yet covered:
+//   • cash_collected — cash the partner collected on a trip whose customer payment the office has confirmed;
+//   • penalty_deduction — a finalised penalty.
+// Both are `completed` debits, so wallets/{type}_{id}.available is already negative by the uncovered amount, and later trip
+// earnings (and any other available credit) are netted against it in AGGREGATE — the ledger does not record which debit an
+// earning offset. The amount to pay is therefore always derived here from the ledger, never from the client.
+//
+// A checkout is bound to a SNAPSHOT taken when the order is created: the exact debits disclosed to the partner, each with the
+// amount allocated to it, plus the ledger position (outstanding, other available credits, earlier dues payments). The payment
+// may settle only those debits, each capped by its allocation and by what is still unpaid (`duePaidPaise`), and only up to the
+// amount the ledger can still PROVE is owed: any available credit that arrived since the snapshot (a settlement completing, a
+// waived debit's offset…) might have covered the disclosed dues, so it reduces what can be applied. Dues created after the
+// snapshot are never in it and can never absorb the payment. Whatever cannot be applied is HELD for finance review — the
+// ledger lacks the information to say which due it should clear, and no refund / release policy has been approved.
+//
+//   applied  → one `due_payment` credit (status available) that offsets exactly the covered debits;
+//   held     → one `due_payment_held` credit with status `held`: visible in the partner's ledger, excluded from the available,
+//              pending and earnings totals (so it cannot be withdrawn), linked to the order and payment.
+// applied + held = the verified captured amount. Everything is one transaction per payment, keyed by the provider payment id.
+
+const DUE_ENTRY_TYPES = ['cash_collected', 'penalty_deduction'];
+const DUES_ORDER_TTL_MS = 30 * 60 * 1000;
+const DUES_LOCK_MS = 60 * 1000;
+const FINAL_DUE_STATES = ['applied', 'partly_applied', 'held'];
+const toPaise = (rupees: unknown) => Math.round((Number(rupees) || 0) * 100);
+
+export interface DueAllocation { entryId: string; amountPaise: number; type: string; reference: string }
+interface DebitPosition { entryId: string; amountPaise: number }
+export interface DuesPlan {
+  outstandingPaise: number;
+  payablePaise: number;
+  /** Available credits other than dues payments (trip earnings, tolls, recharges…) — they net against dues. */
+  creditPaise: number;
+  /** Available credits that are earlier dues payments. */
+  dueCreditPaise: number;
+  /** All debits contributing to the disclosed balance, including those already offset by earnings. */
+  debitPositions: DebitPosition[];
+  allocations: DueAllocation[];
+}
+export interface DuesResult { capturedPaise: number; appliedPaise: number; heldPaise: number }
+
+/**
+ * What a partner owes and which ledger debits it settles. Earnings net against the oldest debits first, so what is still
+ * outstanding belongs to the newest ones: those are allocated first.
+ */
+export function planDues(entries: { id: string; data: DocumentData }[]): DuesPlan {
+  const totals = walletTotals(entries.map((e) => e.data));
+  const outstandingPaise = Math.max(0, -Math.round(totals.available * 100));
+  let creditPaise = 0;
+  let dueCreditPaise = 0;
+  for (const { data: d } of entries) {
+    if (d.schema !== 2 || d.direction !== 'credit' || d.status !== 'available') continue;
+    if (d.type === 'due_payment') dueCreditPaise += toPaise(d.netAmount);
+    else creditPaise += toPaise(d.netAmount);
+  }
+  const rows = entries
+    .filter((e) => isOpenDue(e.data))
+    .map((e) => ({ id: e.id, data: e.data, remaining: remainingPaise(e.data) }))
+    .filter((r) => r.remaining > 0)
+    .sort((a, b) => (millisOf(b.data.createdAt) ?? 0) - (millisOf(a.data.createdAt) ?? 0) || b.id.localeCompare(a.id));
+  const allocations: DueAllocation[] = [];
+  let left = outstandingPaise;
+  for (const r of rows) {
+    if (left <= 0) break;
+    const amountPaise = Math.min(left, r.remaining);
+    allocations.push({ entryId: r.id, amountPaise, type: String(r.data.type), reference: text(r.data.bookingCode) || text(r.data.reference) || r.id });
+    left -= amountPaise;
+  }
+  const debitPositions = entries
+    .map((e) => ({ entryId: e.id, amountPaise: activeDebitPaise(e.data) }))
+    .filter((e) => e.amountPaise > 0)
+    .sort((a, b) => a.entryId.localeCompare(b.entryId));
+  return { outstandingPaise, payablePaise: outstandingPaise - left, creditPaise, dueCreditPaise, debitPositions, allocations };
+}
+
+function activeDebitPaise(d: DocumentData | undefined): number {
+  return d?.schema === 2 && d.direction === 'debit' && (d.status === 'completed' || d.status === 'reserved')
+    && typeof d.netAmount === 'number' && Number.isFinite(d.netAmount) ? Math.max(0, toPaise(d.netAmount)) : 0;
+}
+
+/** A confirmed due that is still in force: a completed due-type debit (a waived / cancelled one is no longer a due). */
+function isOpenDue(d: DocumentData): boolean {
+  return d.schema === 2 && d.direction === 'debit' && d.status === 'completed' && DUE_ENTRY_TYPES.includes(d.type);
+}
+const remainingPaise = (d: DocumentData) => toPaise(d.netAmount) - Math.round(Number(d.duePaidPaise) || 0);
+
+/** Identifies the exact disclosure: the same dues, amounts and ledger position give the same key. */
+const snapshotKeyOf = (plan: DuesPlan) =>
+  createHash('sha256').update(JSON.stringify([plan.outstandingPaise, plan.creditPaise, plan.dueCreditPaise, plan.debitPositions, plan.allocations.map((a) => [a.entryId, a.amountPaise])])).digest('hex').slice(0, 32);
+
+/** Only a partner with their own wallet can owe: a vendor's employee driver settles through the vendor. */
+async function duesParty(uid: string | undefined): Promise<Party> {
+  const party = await partyOf(uid);
+  if (party.type === 'driver' && party.data.vendorId) throw new HttpsError('permission-denied', 'Your fleet operator settles dues with NESAM.', { code: 'employee-denied' });
+  return party;
+}
+
+const ledgerQuery = (party: { type: PartyType; uid: string }) => db.collection('wallet_ledger').where('walletId', '==', walletId(party.type, party.uid));
+const entriesOf = (snap: { docs: { id: string; data(): DocumentData }[] }) => snap.docs.map((d) => ({ id: d.id, data: d.data() }));
+const dueLabel = (a: DueAllocation) => `${a.type === 'penalty_deduction' ? 'Penalty' : 'Cash collected'} · ${a.reference}`;
+const itemsOf = (allocations: DueAllocation[]) => allocations.map((a) => ({ label: dueLabel(a), amount: a.amountPaise / 100 }));
+
+/** Read-only: the payable amount and what it covers, so the partner sees the same figure the server will charge. */
+export const getDuesSummary = onCall(async (request) => {
+  const party = await duesParty(request.auth?.uid);
+  const plan = planDues(entriesOf(await ledgerQuery(party).get()));
+  return { payable: plan.payablePaise / 100, items: itemsOf(plan.allocations) };
+});
+
+/** A saved order may be handed out again only if it is still open and describes exactly the dues disclosed now. */
+function reusableOrder(order: DocumentData | undefined, party: Party, key: string, plan: DuesPlan): boolean {
+  return !!order && order.status === 'created' && order.partyType === party.type && order.partyId === party.uid && order.currency === 'INR'
+    && order.snapshot?.key === key && order.amountPaise === plan.payablePaise && (millisOf(order.createdAt) ?? 0) > Date.now() - DUES_ORDER_TTL_MS;
+}
+
+export const createDuesPayment = onCall({ secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET] }, async (request) => {
+  const party = await duesParty(request.auth?.uid);
+  const keyId = RAZORPAY_KEY_ID.value();
+  const keySecret = RAZORPAY_KEY_SECRET.value();
+  if (!configured(keyId, keySecret)) throw new HttpsError('failed-precondition', 'PAYMENT_NOT_CONFIGURED');
+  const lockRef = db.doc(`due_payment_locks/${party.type}_${party.uid}`);
+  const token = randomBytes(8).toString('hex');
+  const respond = (id: string, o: DocumentData) => ({
+    orderId: id, amount: o.amountPaise, currency: o.currency, keyId, name: party.name, phone: text(party.data.phone, 20), payable: o.amountPaise / 100, items: o.items ?? [],
+  });
+
+  // 1 — in one transaction: read the ledger, take the party's order-creation lock, or hand back the open order that matches.
+  const step = await db.runTransaction(async (tx: Transaction) => {
+    const [lock, ledger] = await Promise.all([tx.get(lockRef), tx.get(ledgerQuery(party))]);
+    const plan = planDues(entriesOf(ledger));
+    if (plan.payablePaise <= 0) throw new HttpsError('failed-precondition', 'You have no confirmed dues to pay.', { code: 'no-dues' });
+    if (plan.payablePaise < 100) throw new HttpsError('failed-precondition', 'The outstanding amount is under ₹1 and will be adjusted from your next settlement.', { code: 'dues-too-small' });
+    const key = snapshotKeyOf(plan);
+    const l = lock.data();
+    if (l?.status === 'creating' && Date.now() - (Number(l.startedMs) || 0) < DUES_LOCK_MS) {
+      throw new HttpsError('failed-precondition', 'A payment is already being prepared. Please try again in a moment.', { code: 'order-in-progress' });
+    }
+    if (typeof l?.orderId === 'string') {
+      const open = await tx.get(db.doc(`due_payments/${l.orderId}`));
+      if (open.exists && reusableOrder(open.data(), party, key, plan)) return { reuse: { id: open.id, data: open.data()! } };
+    }
+    tx.set(lockRef, { status: 'creating', token, startedMs: Date.now(), snapshotKey: key, updatedAt: FieldValue.serverTimestamp() }, { merge: true });
+    return { plan, key };
+  });
+  if ('reuse' in step && step.reuse) return respond(step.reuse.id, step.reuse.data);
+  const { plan, key } = step as { plan: DuesPlan; key: string };
+
+  // 2 — the gateway order, outside any transaction; only its owner may release the lock.
+  let orderId: string;
+  try {
+    const razorpay = new Razorpay({ key_id: keyId, key_secret: keySecret });
+    const order = await razorpay.orders.create({ amount: plan.payablePaise, currency: 'INR', receipt: `dp_${party.uid}`.slice(0, 40), notes: { purpose: 'dues_payment', partyType: party.type, partyId: party.uid } });
+    orderId = String(order.id);
+  } catch (err) {
+    await db.runTransaction(async (tx: Transaction) => {
+      const lock = await tx.get(lockRef);
+      if (lock.data()?.token === token && lock.data()?.status === 'creating') {
+        tx.update(lockRef, { status: 'idle', updatedAt: FieldValue.serverTimestamp() });
+      }
+    });
+    throw err;
+  }
+
+  // 3 — fence a late gateway response: it must never replace a newer request's lock.
+  const saved = {
+    orderId, partyType: party.type, partyId: party.uid, partyName: party.name, [party.type === 'vendor' ? 'vendorId' : 'driverId']: party.uid,
+    amountPaise: plan.payablePaise, currency: 'INR', allocations: plan.allocations, items: itemsOf(plan.allocations),
+    snapshot: { key, outstandingPaise: plan.outstandingPaise, creditPaise: plan.creditPaise, dueCreditPaise: plan.dueCreditPaise, debitPositions: plan.debitPositions },
+    status: 'created', reconciliation: 'none',
+  };
+  const published = await db.runTransaction(async (tx: Transaction) => {
+    const lock = await tx.get(lockRef);
+    const ownsLock = lock.data()?.token === token && lock.data()?.status === 'creating';
+    // Keep the provider order traceable even when its lease was taken over, but do not offer it at checkout.
+    tx.set(db.doc(`due_payments/${orderId}`), {
+      ...saved, status: ownsLock ? 'created' : 'superseded', createdAt: FieldValue.serverTimestamp(),
+    });
+    if (ownsLock) {
+      tx.update(lockRef, { status: 'open', orderId, snapshotKey: key, updatedAt: FieldValue.serverTimestamp() });
+    }
+    return ownsLock;
+  });
+  if (!published) throw new HttpsError('failed-precondition', 'This payment preparation was superseded. Please reopen payment to use the current order.', { code: 'order-superseded' });
+  return respond(orderId, { ...saved, items: saved.items });
+});
+
+/** The partner-facing outcome of a payment: the same truthful answer however many times it is asked for. */
+function duesOutcome(r: DuesResult) {
+  const status = r.heldPaise === 0 ? 'applied' : r.appliedPaise === 0 ? 'held' : 'partly_applied';
+  return { verified: true, status, captured: r.capturedPaise / 100, applied: r.appliedPaise / 100, held: r.heldPaise / 100, reconciliation: r.heldPaise > 0 ? 'review' : 'none' };
+}
+const storedResult = (o: DocumentData): DuesResult => ({ capturedPaise: Number(o.capturedPaise) || 0, appliedPaise: Number(o.appliedPaise) || 0, heldPaise: Number(o.heldPaise) || 0 });
+
+export const verifyDuesPayment = onCall({ secrets: [RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET] }, async (request) => {
+  const party = await duesParty(request.auth?.uid);
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = (request.data ?? {}) as Record<string, string | undefined>;
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) throw new HttpsError('invalid-argument', 'Missing payment verification fields.');
+  const keyId = RAZORPAY_KEY_ID.value();
+  const keySecret = RAZORPAY_KEY_SECRET.value();
+  if (!configured(keyId, keySecret)) throw new HttpsError('failed-precondition', 'PAYMENT_NOT_CONFIGURED');
+  const orderRef = db.doc(`due_payments/${docId(razorpayOrderId, 'order')}`);
+  const order = await orderRef.get();
+  if (!order.exists || order.data()!.partyId !== party.uid || order.data()!.partyType !== party.type) throw new HttpsError('failed-precondition', 'This payment does not belong to your account.');
+  const expected = createHmac('sha256', keySecret).update(`${razorpayOrderId}|${razorpayPaymentId}`).digest('hex');
+  if (!safeEq(expected, razorpaySignature)) throw new HttpsError('invalid-argument', 'Payment signature verification failed.');
+  // The webhook may have settled this payment first: answer with the stored outcome instead of settling it again.
+  if (FINAL_DUE_STATES.includes(order.data()!.status) && order.data()!.paymentId === razorpayPaymentId) return duesOutcome(storedResult(order.data()!));
+  const p = await (new Razorpay({ key_id: keyId, key_secret: keySecret }) as unknown as { payments: { fetch(id: string): Promise<{ order_id: string; status: string; amount: number; currency: string }> } }).payments.fetch(razorpayPaymentId);
+  if (p.order_id !== razorpayOrderId) throw new HttpsError('failed-precondition', 'The payment does not belong to this order.');
+  if (p.status === 'failed') {
+    if (order.data()!.status === 'created') await orderRef.update({ status: 'failed', lastPaymentId: razorpayPaymentId, updatedAt: FieldValue.serverTimestamp() });
+    throw new HttpsError('failed-precondition', 'The payment failed. You have not been charged; please try again.');
+  }
+  if (p.status !== 'captured') return { verified: true, status: 'pending', message: 'Your payment is being confirmed. Your dues update shortly.' };
+  if (p.currency !== 'INR' || p.amount !== order.data()!.amountPaise) throw new HttpsError('failed-precondition', 'The paid amount does not match the order.');
+  return duesOutcome(await applyDuesPayment(orderRef.id, razorpayPaymentId, party.type, party.uid, p.amount));
+});
+
+/**
+ * Idempotent per provider payment id: one settlement, whatever the number of verifications / webhooks, in whichever order.
+ * `capturedPaise` is the amount the provider reports as captured (already checked against the order by the callers).
+ */
+export async function applyDuesPayment(orderId: string, paymentId: string, type: PartyType, id: string, capturedPaise: number): Promise<DuesResult> {
+  const orderRef = db.doc(`due_payments/${orderId}`);
+  const safePayment = paymentId.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 80);
+  const appliedId = `duepay_${safePayment}`;
+  const heldId = `dueheld_${safePayment}`;
+  const wid = walletId(type, id);
+  const result = await db.runTransaction(async (tx: Transaction) => {
+    const [o, ledger] = await Promise.all([tx.get(orderRef), tx.get(ledgerQuery({ type, uid: id }))]);
+    if (!o.exists) throw new HttpsError('not-found', 'Payment order not found.');
+    const order = o.data()!;
+    if (order.partyId !== id || order.partyType !== type) throw new HttpsError('permission-denied', 'This payment belongs to another account.');
+    if (order.currency !== 'INR' || !Number.isSafeInteger(capturedPaise) || capturedPaise !== order.amountPaise) throw new HttpsError('failed-precondition', 'The paid amount does not match the order.');
+    const docs = ledger.docs;
+    const stamp = FieldValue.serverTimestamp();
+    const owner = { schema: 2, actorType: type, actorId: id, walletId: wid, [type === 'vendor' ? 'vendorId' : 'driverId']: id, bookingId: '', bookingCode: '', payoutRequestId: '', commissionAmount: 0, dueOrderId: orderId, reference: paymentId, createdAt: stamp };
+    const heldEntry = (paise: number, reason: string) => tx.set(db.doc(`wallet_ledger/${heldId}`), { ...owner, type: 'due_payment_held', direction: 'credit', netAmount: paise / 100, grossAmount: paise / 100, status: 'held', source: reason });
+
+    if (FINAL_DUE_STATES.includes(order.status)) {
+      if (order.paymentId === paymentId) return storedResult(order);
+      // A second captured payment against an order that is already settled: keep the money, held for review.
+      const prior = docs.find((d) => d.id === heldId);
+      // Per-payment results stay unchanged for retries; order totals include every distinct captured payment.
+      const duplicateHeldPaise = docs.reduce((sum, d) => {
+        const entry = d.data();
+        return sum + (entry.dueOrderId === orderId && entry.source === 'dues_payment_duplicate'
+          && entry.direction === 'credit' ? toPaise(entry.netAmount) : 0);
+      }, 0) + (prior ? 0 : capturedPaise);
+      const primary = storedResult(order);
+      if (!prior) heldEntry(capturedPaise, 'dues_payment_duplicate');
+      tx.update(orderRef, {
+        totalCapturedPaise: primary.capturedPaise + duplicateHeldPaise,
+        totalAppliedPaise: primary.appliedPaise,
+        totalHeldPaise: primary.heldPaise + duplicateHeldPaise,
+        reconciliation: 'review', unmatchedPaymentIds: FieldValue.arrayUnion(paymentId), updatedAt: stamp,
+      });
+      if (prior) { const p = toPaise(prior.data().netAmount); return { capturedPaise: p, appliedPaise: 0, heldPaise: p }; }
+      auditInTx(tx, { action: 'dues_payment_held', entity: 'wallet', entityId: wid, performedBy: id, performedByName: text(order.partyName), role: type, next: { orderId, paymentId, heldPaise: capturedPaise, reason: 'duplicate_payment' } });
+      return { capturedPaise, appliedPaise: 0, heldPaise: capturedPaise };
+    }
+
+    // Only the dues disclosed in the snapshot may be settled, each within its allocation and what is still unpaid …
+    const byId = new Map(docs.map((d) => [d.id, d.data()]));
+    const caps = (order.allocations as DueAllocation[]).map((a) => {
+      const e = byId.get(a.entryId);
+      return { a, cap: e && isOpenDue(e) ? Math.max(0, Math.min(a.amountPaise, remainingPaise(e))) : 0 };
+    });
+    // Exclude new/increased debits when proving the old balance. Otherwise cancelling an older, already-offset debit
+    // and adding a new due could make the same earnings appear available to pay the disclosed due twice.
+    const now = planDues(entriesOf({ docs }));
+    const snap = (order.snapshot ?? {}) as { outstandingPaise?: number; debitPositions?: DebitPosition[] };
+    // Older orders without the debit baseline cannot prove this allocation: retain captured funds for review.
+    const originalDebitsNow = Array.isArray(snap.debitPositions)
+      ? snap.debitPositions.reduce((sum, d) => sum + Math.max(0, Math.min(d.amountPaise, activeDebitPaise(byId.get(d.entryId)))), 0)
+      : 0;
+    const provable = Math.max(0, Math.min(Number(snap.outstandingPaise) || 0,
+      originalDebitsNow - now.creditPaise - now.dueCreditPaise));
+    // A cancelled/reduced debit can clear the balance without adding a credit. Never turn that reduction into a top-up.
+    let room = Math.min(capturedPaise, provable, now.payablePaise);
+    const applied: DueAllocation[] = [];
+    for (const { a, cap } of caps) {
+      const amountPaise = Math.min(cap, room);
+      if (amountPaise <= 0) continue;
+      applied.push({ ...a, amountPaise });
+      room -= amountPaise;
+    }
+    const appliedPaise = applied.reduce((s, a) => s + a.amountPaise, 0);
+    const heldPaise = capturedPaise - appliedPaise;
+
+    for (const a of applied) {
+      const prior = Math.round(Number(byId.get(a.entryId)!.duePaidPaise) || 0);
+      tx.update(db.doc(`wallet_ledger/${a.entryId}`), { duePaidPaise: prior + a.amountPaise, duePaymentIds: FieldValue.arrayUnion(paymentId), dueLastPaidAt: stamp });
+    }
+    if (appliedPaise > 0) {
+      tx.set(db.doc(`wallet_ledger/${appliedId}`), { ...owner, type: 'due_payment', direction: 'credit', netAmount: appliedPaise / 100, grossAmount: appliedPaise / 100, status: 'available', source: 'dues_payment', coveredEntries: applied.map((a) => ({ entryId: a.entryId, amountPaise: a.amountPaise })), finalizedAt: stamp });
+    }
+    if (heldPaise > 0) heldEntry(heldPaise, 'dues_payment_held');
+    tx.update(orderRef, {
+      status: heldPaise === 0 ? 'applied' : appliedPaise === 0 ? 'held' : 'partly_applied',
+      reconciliation: heldPaise > 0 ? 'review' : 'none',
+      ...(heldPaise > 0 ? { reviewReason: 'The disclosed dues changed while the payment was in progress, so part of the payment could not be applied to them.' } : {}),
+      paymentId, capturedPaise, appliedPaise, heldPaise,
+      totalCapturedPaise: capturedPaise, totalAppliedPaise: appliedPaise, totalHeldPaise: heldPaise,
+      ledgerEntryId: appliedPaise > 0 ? appliedId : '', heldEntryId: heldPaise > 0 ? heldId : '', appliedEntries: applied.map((a) => ({ entryId: a.entryId, amountPaise: a.amountPaise })), appliedAt: stamp,
+    });
+    auditInTx(tx, { action: heldPaise > 0 ? 'dues_payment_partly_held' : 'dues_paid', entity: 'wallet', entityId: wid, performedBy: id, performedByName: text(order.partyName), role: type, next: { orderId, paymentId, capturedPaise, appliedPaise, heldPaise, entries: applied.map((a) => a.entryId) } });
+    return { capturedPaise, appliedPaise, heldPaise };
+  });
+  await recomputeWallet(type, id);
+  return result;
 }
 
 // ── Security deposit ────────────────────────────────────────────────────────

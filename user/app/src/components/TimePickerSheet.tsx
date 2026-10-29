@@ -21,6 +21,25 @@ function compose(day: Date, hour12: number, minute: number, period: Period): Dat
   return d;
 }
 
+/**
+ * The time a fresh picker opens on, from the same rule that validates the choice (`problemOf`): today starts at the next
+ * 5-minute mark that is allowed; a later day starts at 9:00 AM. If that is not allowed the next allowed time of that day is used.
+ * null when no time of the day can be chosen.
+ */
+export function defaultTimeFor(day: Date, problemOf: (at: Date) => string, now = new Date()): Date | null {
+  const at = (minutes: number) => {
+    const d = new Date(day);
+    d.setHours(0, minutes, 0, 0);
+    return d;
+  };
+  const today = day.toDateString() === now.toDateString();
+  const first = today ? Math.ceil((now.getHours() * 60 + now.getMinutes() + 1) / 5) * 5 : 9 * 60;
+  for (let m = Math.min(first, 1439); m < 1440; m += 5) if (!problemOf(at(m))) return at(m);
+  for (let m = 0; m < Math.min(first, 1440); m += 5) if (!problemOf(at(m))) return at(m);
+  for (let m = 0; m < 1440; m++) if (!problemOf(at(m))) return at(m);
+  return null;
+}
+
 function zoneLabel(d: Date): string {
   return -d.getTimezoneOffset() === 330 ? 'Indian Standard Time' : 'Your phone’s time zone';
 }
@@ -45,7 +64,11 @@ export function TimePickerSheet({
   onClose: () => void;
   onConfirm: (at: Date) => void;
 }) {
-  const initial = value ?? compose(day, 6, 0, 'PM');
+  // An existing choice is kept when the sheet reopens; otherwise open on a time that is allowed for this day.
+  const kept = value && !Number.isNaN(value.getTime()) ? value : null;
+  const [auto] = useState(() => (kept ? null : defaultTimeFor(day, problemOf)));
+  const noTimes = !kept && !auto;
+  const initial = kept ?? auto ?? compose(day, 12, 0, 'AM');
   const [hour, setHour] = useState(() => initial.getHours() % 12 || 12);
   const [minute, setMinute] = useState(() => initial.getMinutes());
   const [period, setPeriod] = useState<Period>(() => (initial.getHours() >= 12 ? 'PM' : 'AM'));
@@ -53,7 +76,7 @@ export function TimePickerSheet({
 
   const ok = (h: number, m: number, p: Period) => !problemOf(compose(day, h, m, p));
   const current = useMemo(() => compose(day, hour, minute, period), [day, hour, minute, period]);
-  const currentProblem = problemOf(current);
+  const currentProblem = noTimes ? `No pickup time is available on ${day.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}. Please choose another date.` : problemOf(current);
   const dayText = day.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
 
   const choose = <T,>(set: (v: T) => void) => (v: T) => {
@@ -73,18 +96,21 @@ export function TimePickerSheet({
 
   return (
     <Sheet visible={visible} onClose={onClose} title={title} subtitle={`${dayText} · ${zoneLabel(day)}`}>
-      <Text style={styles.value} accessibilityLiveRegion="polite">
-        {hour}:{pad(minute)} {period}
-      </Text>
-      <View style={styles.wheels}>
+      {noTimes ? null : (
+        <Text style={styles.value} accessibilityLiveRegion="polite">
+          {hour}:{pad(minute)} {period}
+        </Text>
+      )}
+      <View style={noTimes ? styles.hidden : styles.wheels}>
         <View pointerEvents="none" style={styles.band} />
         <Wheel label="Hour" items={HOURS} value={hour} format={String} isDisabled={(h) => !MINUTES.some((m) => ok(h, m, period))} onChange={choose(setHour)} />
         <Wheel label="Minute" items={MINUTES} value={minute} format={pad} isDisabled={(m) => !ok(hour, m, period)} onChange={choose(setMinute)} />
         <Wheel label="AM or PM" items={PERIODS} value={period} format={String} isDisabled={(p) => !HOURS.some((h) => MINUTES.some((m) => ok(h, m, p)))} onChange={choose(setPeriod)} />
       </View>
       {currentProblem || error ? <Notice tone="warning" message={error || currentProblem} /> : null}
+      {noTimes ? <Button title="Choose another date" variant="secondary" onPress={onClose} style={{ marginTop: space.md }} /> : null}
       <Text style={styles.note}>Past times are unavailable. The time is checked again before your booking is confirmed.</Text>
-      <Button title="Confirm time" icon="check" onPress={confirm} disabled={!!currentProblem} style={{ marginTop: space.lg }} />
+      <Button title="Confirm time" icon="check" onPress={confirm} disabled={!!currentProblem || noTimes} style={{ marginTop: space.lg }} />
     </Sheet>
   );
 }
@@ -137,8 +163,8 @@ function Wheel<T extends string | number>({
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         contentContainerStyle={{ paddingVertical: ITEM_H * PAD_ROWS }}
-        onLayout={() => {
-          // Start on the current value once; afterwards the wheel keeps its own position.
+        onContentSizeChange={() => {
+          // Start on the current value once the rows have been laid out; afterwards the wheel keeps its own position.
           if (placed.current) return;
           placed.current = true;
           ref.current?.scrollTo({ y: index * ITEM_H, animated: false });
@@ -174,6 +200,7 @@ const styles = StyleSheet.create({
     borderColor: colors.primary,
     backgroundColor: '#FFF6F5',
   },
+  hidden: { height: 0, overflow: 'hidden' },
   wheel: { flex: 1 },
   item: { height: ITEM_H, alignItems: 'center', justifyContent: 'center' },
   itemText: { fontFamily: fonts.medium, fontSize: 17, color: colors.muted },
