@@ -10,8 +10,11 @@ export function serviceAllowsCategory(service:Record<string,any>,id:string):bool
 /** An absent master retains legacy service availability; configured masters are authoritative. */
 export async function assertOnlineCatalog(tripType:string,categoryId?:string):Promise<void> {
   const docs=await db.collection('services').get();
+  assertCatalogAvailable(docs.docs.map(d=>d.data()),tripType,categoryId);
+}
+export function assertCatalogAvailable(masters:Record<string,any>[],tripType:string,categoryId?:string):void {
   const known=['One Way Taxi','Outstation Cab','Airport Taxi','Local Rental'];
-  const matching=docs.docs.map(d=>d.data()).filter(s=>known.includes(s.serviceType)&&supportsTrip(s,tripType));
+  const matching=masters.filter(s=>known.includes(s.serviceType)&&supportsTrip(s,tripType));
   if(!matching.length)return;
   const available=matching.some(s=>s.status==='Active'&&s.onlineBookingEnabled===true&&(!categoryId||serviceAllowsCategory(s,categoryId))&&
     !(s.serviceType==='Outstation Cab'&&s.outstationOptions?.[tripType==='Round Trip'?'roundTripAllowed':'oneWayAllowed']===false));

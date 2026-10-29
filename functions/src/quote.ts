@@ -17,6 +17,7 @@ import {
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
 import { requirePermission, text, requireAction } from './shared';
+import { assertCatalogAvailable } from './onlineCatalog';
 
 export const TARIFF_DOC = 'business_config/tariff_v2';
 
@@ -147,7 +148,7 @@ export function priceBooking(i: PriceInput): PriceResult {
     }));
     if (i.businessContract?.perKm) {
       const c=i.businessContract;
-      q.pricing={...q.pricing,model:'business_contract_per_km',extraKmRatePaise:paise(c.customerRate/(c.rule.gstMode==='included'?1+q.pricing.gstRate:1)),partner:{...q.pricing.partner!,minKm:q.pricing.quotedKm,ratePaise:paise(c.partnerRate)}};
+      q.pricing={...q.pricing,model:'business_contract_per_km',businessCustomerRatePaise:paise(c.customerRate),businessGstMode:c.rule.gstMode,extraKmRatePaise:paise(c.customerRate/(c.rule.gstMode==='included'?1+q.pricing.gstRate:1)),partner:{...q.pricing.partner!,minKm:q.pricing.quotedKm,ratePaise:paise(c.partnerRate)}};
     }
     return { fare: q.fare, pricing: q.pricing, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, outstation, q.pricing), usesCommissionPolicy: false };
   }
@@ -352,6 +353,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
+  const onlineMasters=(await db.collection('services').get()).docs.map(d=>d.data());
   const quotes = categories.docs
     .map((d) => ({ d, c: mapCategory(d.id, d.data()) }))
     .filter((x): x is { d: FirebaseFirestore.QueryDocumentSnapshot; c: NonNullable<ReturnType<typeof mapCategory>> } => x.c !== null)
@@ -360,6 +362,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
       const base = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null };
       try {
+        assertCatalogAvailable(onlineMasters,tripType,category.id);
         assertBookable(rules, category.name);
         const before = priceBooking(base);
         let couponMessage = '', discount = 0;

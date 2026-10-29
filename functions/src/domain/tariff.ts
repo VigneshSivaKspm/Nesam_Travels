@@ -280,6 +280,8 @@ export interface PricingSnapshot {
   fixedRouteId?: string;
   fixedRouteVersion?: number;
   fixedRouteReversed?: boolean;
+  businessCustomerRatePaise?: number;
+  businessGstMode?: GstMode;
   /** Dates charged, IST, for round trips. */
   pickupDate: string;
   endDate: string | null;
@@ -718,7 +720,11 @@ export function finalizeFare(i: FinalInput): FinalResult {
     }
   }
   const extraKm = Math.max(0, Math.round((totalKm - includedKm) * 10) / 10);
-  const extraKmPaise = kmAmountPaise(extraKm, p.extraKmRatePaise);
+  const businessTotal=p.model==='business_contract_per_km'&&typeof p.businessCustomerRatePaise==='number'
+    ? kmAmountPaise(Math.max(totalKm,p.quotedKm),p.businessCustomerRatePaise):null;
+  const extraKmPaise = businessTotal!==null
+    ? Math.max(0,(p.businessGstMode==='included'?taxableFromInclusivePaise(businessTotal,p.gstRate):businessTotal)-packagePaise)
+    : kmAmountPaise(extraKm, p.extraKmRatePaise);
   const total = packagePaise + extraKmPaise;
   const pre = r2(total / 100);
   const adjustmentAmount = p.adjustmentPercent > 0 ? (p.adjustmentDirection === 'decrease' ? -1 : 1) * r2((pre * p.adjustmentPercent) / 100) : 0;

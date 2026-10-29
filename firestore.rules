@@ -988,17 +988,17 @@ service cloud.firestore {
     // Renames in one module keep copied names in other modules in step; those
     // writes are limited to exactly the copied fields.
     match /services/{serviceId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow write: if can('content');
       allow update: if can('pricing') && onlyChanges(['allowedVehicleCategoryNames', 'updatedAt']);
     }
     match /tour_packages/{packageId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow write: if can('content');
       allow update: if can('pricing') && onlyChanges(['allowedVehicleCategoryNames', 'updatedAt']);
     }
     match /locations/{locId} {
-      allow read: if isSignedIn();
+      allow read: if isAdmin();
       allow write: if can('content');
     }
     match /fare_rules/{ruleId} {
@@ -1023,12 +1023,11 @@ service cloud.firestore {
     }
 
     // Customers may submit one review for their own completed trip; it
-    // lands as 'Pending' for admin moderation. Only published reviews are
-    // public.
+    // lands as 'Pending' for admin moderation. Public readers use the
+    // whitelisted public_content projection, never other customers' raw records.
     match /reviews/{reviewId} {
       allow read: if isAdmin()
-                  || (isSignedIn() && resource.data.customerId == uid())
-                  || (isSignedIn() && resource.data.status == 'Published');
+                  || (isSignedIn() && resource.data.customerId == uid());
       allow create: if can('engagement') || (
                        isCustomer()
                        && reviewId == request.resource.data.bookingId

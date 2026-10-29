@@ -10,7 +10,7 @@ export function businessContract(account: Record<string, any>, i: { pickup: Reco
   if (!matches.length) return null;
   if (matches.length !== 1) throw Error('More than one active business contract matches this trip. Resolve duplicate rates first.');
   const r = matches[0];
-  if (!['Fixed fare','Per km'].includes(r.contractType) || !['Including GST','Excluding GST'].includes(r.priceEntered) || ![r.customerRate,r.partnerPayout].every(v => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 1000000)) throw Error('The matching business contract has invalid rates. Correct the contract first.');
+  if (typeof r.id!=='string'||!r.id.trim()||!['Fixed fare','Per km'].includes(r.contractType) || !['Including GST','Excluding GST'].includes(r.priceEntered) || ![r.customerRate,r.partnerPayout].every(v => typeof v === 'number' && Number.isFinite(v) && v > 0 && v <= 1000000 && Math.abs(Math.round(v*100)/100-v)<0.000001)) throw Error('The matching business contract has invalid rates. Correct the contract first.');
   const perKm = r.contractType === 'Per km', km = perKm ? i.km : 1;
   return { perKm, customerRate:r.customerRate, partnerRate:r.partnerPayout, rule:{id:`business:${r.id}`,name:`Business contract ${r.id}`,originId:'',destinationId:'',categoryId:'',serviceId:'',customerFare:Math.round(r.customerRate*km*100)/100,partnerPayout:Math.round(r.partnerPayout*km*100)/100,gstMode:r.priceEntered==='Including GST'?'included':'excluded',peakAdjustment:r.peak?'apply':'exclude',reverseDirection:false,priority:0,effectiveFrom:'',effectiveUntil:'',version:1} };
 }

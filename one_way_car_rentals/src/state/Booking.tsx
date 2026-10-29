@@ -131,17 +131,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       couponCode: promoCode || '',
     };
   }, [draft]);
-  // Guests are quoted too (without coupons). Signing in or out starts a fresh quote for the current
-  // draft even when the trip itself has not changed, so a coupon follows the account.
+  // The deployed quote endpoint requires authentication. Enabling the hook after account
+  // resolution starts a fresh request, even when the saved trip has not changed.
   const { state: auth } = useAuth();
-  const serverQuote = useServerQuotes(quoteRequest);
-  const ready = auth.status === 'ready';
-  const wasReady = useRef(ready);
-  const retryQuote = serverQuote.retry;
-  useEffect(() => {
-    if (ready !== wasReady.current) retryQuote();
-    wasReady.current = ready;
-  }, [ready, retryQuote]);
+  const serverQuote = useServerQuotes(quoteRequest, auth.status === 'ready');
 
   const value = useMemo<BookingValue>(
     () => ({ draft, update, reset, startFrom, route, routeStatus, retryRoute, categories, categoryStatus, adjustment, coupons, serverQuote }),

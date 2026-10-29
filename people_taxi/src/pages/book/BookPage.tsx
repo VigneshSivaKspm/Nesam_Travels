@@ -1,3 +1,4 @@
+import { ReviewsSection, CatalogSection } from '../../../../user/web/src/components/PublicContentSections';
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import type { TripType } from '@core/types';
@@ -180,6 +181,8 @@ function Home() {
         <HowSection />
         <AssuranceSection />
         <Banners />
+        <ReviewsSection />
+        <CatalogSection />
         <FaqSection />
       </div>
     </div>

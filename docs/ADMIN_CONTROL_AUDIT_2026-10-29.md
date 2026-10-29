@@ -1,5 +1,7 @@
 # Admin controls, connections and trigger audit — 29 October 2026
 
+> Follow-up fixes are recorded in [WIRING_FIXES_2026-10-29.md](WIRING_FIXES_2026-10-29.md). The open-gap list below is the audit-time baseline, not the current implementation status.
+
 **Result: several defects fixed; the whole product cannot be certified as a perfect end-to-end flow.** Every sidebar page is included in the source inventory. Browser clicking was blocked by the computer-use tool because it could not identify the current Windows browser URL confidently. No browser restriction was bypassed. This report therefore distinguishes source tracing, real handler/rules tests, earlier integration evidence and unfinished features.
 
 ## Scope and evidence

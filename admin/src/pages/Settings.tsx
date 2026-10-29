@@ -309,6 +309,7 @@ export default function Settings() {
                   </label>
                   <input
                     value={formData[f.key] || ""}
+                    readOnly={['currency','timezone','language','gstRate'].includes(f.key)}
                     onChange={(e) =>
                       setFormData({ ...formData, [f.key]: e.target.value })
                     }

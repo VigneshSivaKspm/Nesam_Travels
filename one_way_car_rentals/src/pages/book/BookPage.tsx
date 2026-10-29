@@ -1,3 +1,4 @@
+import { ReviewsSection, CatalogSection } from '../../../../user/web/src/components/PublicContentSections';
 import { useCallback, useEffect, useRef } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
@@ -8,6 +9,8 @@ import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
 import { ChooseStep } from './ChooseStep';
 import { ReviewStep } from './ReviewStep';
+import { SignInRequired } from './SignInRequired';
+import { useAuth } from '@/state/Auth';
 import {
   AssuranceSection,
   Banners,
@@ -200,6 +203,8 @@ function Home() {
         <HowSection />
         <AssuranceSection />
         <Banners />
+        <ReviewsSection />
+        <CatalogSection />
         <FaqSection />
       </div>
     </div>
@@ -231,9 +236,11 @@ export function BookPage({ step }: { step: BookStep }) {
   );
 
   const { draft } = useBooking();
+  const { state: auth } = useAuth();
   const { pickup, drop } = draft;
 
   if (step !== 'plan' && (!pickup || !drop)) return <Navigate to="/book" replace />;
+  if (step !== 'plan' && auth.status !== 'ready') return <SignInRequired />;
   if (step === 'review' && !draft.categoryId) return <Navigate to="/book/ride" replace />;
 
   if (step === 'choose') return <ChooseStep />;

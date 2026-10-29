@@ -33,7 +33,6 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const input = request.data ?? {};
   const requestId = id(input.requestId);
   if (!['Cash', 'UPI'].includes(input.paymentMethod)) throw new HttpsError('failed-precondition', 'Choose cash or UPI. Wallet and card checkout are not enabled.');
-  await assertCashAllowed(input.paymentMethod);
   const ref = db.doc(`bookings/${requestId}`);
   const existing = await ref.get();
   if (existing.exists) {
@@ -41,6 +40,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     return { id: requestId, fare: existing.data()!.fare };
   }
   // Customers must have accepted the current published Terms & Privacy Policy (none published → no block).
+  await assertCashAllowed(input.paymentMethod);
   await assertLegalAccepted(uid, 'customer');
   // NESAM takes advance bookings only. The pickup must be an unambiguous instant
   // (ISO-8601 with "Z" or an offset) inside the booking window; there is no
@@ -129,6 +129,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       c.id.replace('cat-', '') === catReq.replace('cat-', '')
     ) ?? configured[0];
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is no longer available.');
+    await assertOnlineCatalog(tripType,category.id);
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);

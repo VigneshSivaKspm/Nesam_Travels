@@ -661,7 +661,7 @@ export function QuickFareCard({ onProceed, onSaved }: { onProceed: (trip: QuickT
               {data.business.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
             </select>
           </label>
-          <span className="text-[10px] text-info">{trip.businessId ? "Business account is recorded; confirm the contract rate with the office before booking" : "Existing direct-customer pricing and booking flow"}</span>
+          <span className="text-[10px] text-info">{trip.businessId ? "Matching business contracts apply; company credit is checked on submission" : "Existing direct-customer pricing and booking flow"}</span>
         </div>
         {error && <div className="ds-error" role="alert" style={{ marginBottom: 12 }}><Icon name="circle-alert" />{error}</div>}
         <TripFields trip={trip} set={set} data={data} compact idPrefix="dash-quick" action={<Button variant="primary" icon="refresh-cw" type="submit" loading={busy}>{estimates ? "Recalculate" : "Get estimate"}</Button>} />

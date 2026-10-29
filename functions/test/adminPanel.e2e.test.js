@@ -36,6 +36,12 @@ test('content, pricing, support, review, finance and settings writes enforce suc
   await H.db.doc('support_tickets/control-audit-ticket').set({customerId:'audit-customer',status:'Open'});
   assert.equal(await F.updateFirestoreDocument('support_tickets','control-audit-ticket',{status:'Resolved'}),true);
   assert.equal(await F.saveSettings({companyName:'Local audit company',currency:'INR'}),true);
+  const originalOperations=(await H.db.doc('settings/operations').get()).data();
+  assert.equal(await F.saveSettings({advanceBookingLimit:'45',minBookingNotice:'1.5'}),true);
+  const operations=(await H.db.doc('settings/operations').get()).data();
+  assert.equal(operations.bookingMaxAdvanceDays,45);assert.equal(operations.bookingMinLeadMinutes,90);
+  assert.equal(await F.saveSettings({advanceBookingLimit:'-1'}),false);
+  if(originalOperations)await H.db.doc('settings/operations').set(originalOperations);else await H.db.doc('settings/operations').delete();
   const accounts = load('src/services/accountsService.ts');
   const entry = await accounts.addRegisterEntry({type:'Expense',amount:100,status:'Pending',description:'Local audit expense'});
   await accounts.markRegister(entry,{status:'Verified'});

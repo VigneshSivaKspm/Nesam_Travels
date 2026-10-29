@@ -58,7 +58,7 @@ export default defineConfig(({ mode }) => {
     server: {
       host: '0.0.0.0',
       port: Number(process.env.PORT || 8086),
-      fs: { allow: [here, path.resolve(here, '../user/app')] },
+      fs: { allow: [here, path.resolve(here, '../user/app'), path.resolve(here, '../user/web/src/components')] },
     },
     preview: { host: '0.0.0.0', port: Number(process.env.PORT || 8086) },
     build: {

@@ -14,6 +14,9 @@ import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
 import { useBooking } from '@/state/Booking';
+import { useAuth } from '@/state/Auth';
+import { setPendingReturn } from '@/lib/pendingReturn';
+import { saveDraft } from '@/lib/draft';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
@@ -48,6 +51,7 @@ export function BookingForm({
 }) {
   const navigate = useNavigate();
   const { draft, update } = useBooking();
+  const { state: auth, openLoginModal } = useAuth();
   const { trips, savedPlaces } = useCustomerData();
   const { position } = useDeviceLocation(true);
   const { online } = useOnline();
@@ -173,8 +177,17 @@ export function BookingForm({
       return;
     }
     if (e.form) return;
-    // Signed in: the vehicle step shows fares. A guest lands on the same URL's sign-in-required
-    // screen (BookPage) with this draft intact, and resumes here once signed in.
+    if (auth.status !== 'ready') {
+      // Account/profile loading can remount the form. Persist before opening phone sign-in;
+      // PendingReturn resumes selection after authentication and the existing legal gate.
+      saveDraft(draft);
+      setPendingReturn('/book/ride');
+      openLoginModal({
+        title: 'Sign in to compare fares',
+        subtitle: 'Verify your mobile number to continue with your saved trip.',
+      });
+      return;
+    }
     navigate('/book/ride');
   };
 

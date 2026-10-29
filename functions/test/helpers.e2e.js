@@ -30,6 +30,7 @@ async function tokenFor(uid) {
 /** Calls a callable as `uid`. Resolves { ok, data } or { ok:false, status, message, details }. */
 async function call(uid, name, data) {
   const r = await fetch(`${FN}/${name}`, {
+    signal: AbortSignal.timeout(60000),
     method: 'POST', headers: { 'content-type': 'application/json', authorization: `Bearer ${await tokenFor(uid)}` }, body: JSON.stringify({ data }),
   });
   const body = await r.json();
