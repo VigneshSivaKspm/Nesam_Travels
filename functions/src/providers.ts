@@ -20,7 +20,9 @@ export interface SendResult {
   error?: string;
 }
 
+import { channelEnabled } from './channelPolicy';
 const env = (k: string) => (process.env[k] ?? '').trim();
+const disabled=(channel:Channel):SendResult=>({ok:false,channel,status:'not_configured',provider:'settings',error:`${channel} delivery is disabled in Settings.`});
 
 /** Digits only, country code first (no '+'), as the WhatsApp and MSG91 APIs expect. */
 export function toDigits(e164: string): string {
@@ -60,6 +62,7 @@ export function whatsappConfigured(): boolean {
 }
 
 export async function sendWhatsApp(toE164: string, t: WhatsAppTemplate): Promise<SendResult> {
+  if(!await channelEnabled('whatsapp'))return disabled('whatsapp');
   if (!whatsappConfigured()) return notConfigured('whatsapp', 'whatsapp_cloud', 'WhatsApp Business API');
   const version = env('WHATSAPP_API_VERSION') || 'v20.0';
   const components: unknown[] = [{ type: 'body', parameters: t.bodyParams.map((text) => ({ type: 'text', text })) }];
@@ -102,11 +105,12 @@ export function smsProvider(): 'msg91' | 'twilio' | '' {
 }
 
 export async function sendSms(toE164: string, m: SmsMessage): Promise<SendResult> {
+  if(!await channelEnabled('sms'))return disabled('sms');
   const provider = smsProvider();
   if (!provider) return notConfigured('sms', env('SMS_PROVIDER') || 'sms', 'The SMS provider');
   try {
     if (provider === 'msg91') {
-      const templateId = m.templateId || env('MSG91_TEMPLATE_ID');
+      const templateId = m.templateId || env('SMS_MSG91_TEMPLATE_ID') || env('MSG91_TEMPLATE_ID');
       if (!templateId) return notConfigured('sms', 'msg91', 'The MSG91 template');
       const r = await postJson('https://control.msg91.com/api/v5/flow/', { authkey: env('MSG91_AUTH_KEY') }, {
         template_id: templateId, short_url: '0', recipients: [{ mobiles: toDigits(toE164), ...(m.variables ?? {}) }],
@@ -147,6 +151,7 @@ export function emailConfigured(): boolean {
 }
 
 export async function sendEmail(to: string, m: EmailMessage): Promise<SendResult> {
+  if(!await channelEnabled('email'))return disabled('email');
   if (!emailConfigured()) return notConfigured('email', 'sendgrid', 'The email provider');
   try {
     const res = await fetch('https://api.sendgrid.com/v3/mail/send', {

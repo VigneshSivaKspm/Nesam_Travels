@@ -1,4 +1,6 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { assertCashAllowed } from './channelPolicy';
+import { assertOnlineCatalog } from './onlineCatalog';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { randomInt } from 'crypto';
 import { db } from './admin';
@@ -31,6 +33,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const input = request.data ?? {};
   const requestId = id(input.requestId);
   if (!['Cash', 'UPI'].includes(input.paymentMethod)) throw new HttpsError('failed-precondition', 'Choose cash or UPI. Wallet and card checkout are not enabled.');
+  await assertCashAllowed(input.paymentMethod);
   const ref = db.doc(`bookings/${requestId}`);
   const existing = await ref.get();
   if (existing.exists) {

@@ -256,8 +256,8 @@ export interface FareQuote {
 /** @deprecated use FareQuote */
 export type AdminQuote = FareQuote;
 
-export const quoteAdminBooking = (f: ManualBookingForm, requestId: string) =>
-  callFunction<unknown, FareQuote>("createAdminBooking", { ...bookingRequest(f, requestId), quoteOnly: true });
+export const quoteAdminBooking = (f: ManualBookingForm, requestId: string, extras: { businessAccountId?: string; businessBilledTo?: string } = {}) =>
+  callFunction<unknown, FareQuote>("createAdminBooking", { ...bookingRequest(f, requestId), ...extras, quoteOnly: true });
 
 export interface CreatedAdminBooking {
   id: string;

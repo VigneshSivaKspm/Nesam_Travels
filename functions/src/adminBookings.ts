@@ -25,6 +25,9 @@ import { createContactInTx, maskPhone } from './contacts';
 import { loadFixedRoutes, loadTariffConfig, priceBooking, rentalHoursOf, sharedCityId, tariffClassOf } from './quote';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { nextBookingCode } from './bookingSequence';
+import { businessContract, availableBusinessCredit } from './domain/business';
+import { assertCashAllowed } from './channelPolicy';
+import { supportsTrip, serviceAllowsCategory } from './onlineCatalog';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text, requireAction, requireStaffFlag } from './shared';
 import { canSeePayouts } from './staffReads';
 
@@ -97,6 +100,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   const email = quoteOnly ? '' : optionalEmail(input.customerEmail);
   const paymentMethod = PAYMENT_METHODS.includes(input.paymentMethod) ? input.paymentMethod : null;
   if (!paymentMethod && !quoteOnly) throw new HttpsError('invalid-argument', `Choose how the customer will pay: ${PAYMENT_METHODS.join(', ')}.`);
+  if(!quoteOnly)await assertCashAllowed(paymentMethod);
   const tripType: TripType =
     input.tripType === 'Round Trip'
       ? 'Round Trip'
@@ -139,6 +143,8 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   }
   const pushes: { id: string; input: NotifyInput }[] = [];
   const serviceRules = await loadServiceRules();
+  const businessId=text(input.businessAccountId,128);
+  if(businessId && !/^[A-Za-z0-9_-]{1,128}$/.test(businessId))throw new HttpsError('invalid-argument','Invalid business account.');
   // Master-location places carry canonical ids, so a local trip inside one city can use that city's Local Pickup & Drop fare.
   const localCityId = tripType === 'One Way' && !isOutstation(route.distanceKm) ? await sharedCityId(pickup, drop) : null;
   const rentalHours = tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null;
@@ -166,6 +172,11 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       return { id: requestId, bookingId: previous.data()!.bookingId, fare: previous.data()!.fare };
     }
     if (customer && (!customer.exists || !approved(customer.data()!.status))) throw new HttpsError('failed-precondition', 'The selected customer account is not active.');
+    const business=businessId?await tx.get(db.doc(`business_accounts/${businessId}`)):null;
+    if(business && (!business.exists || business.data()!.status!=='Active'))throw new HttpsError('failed-precondition','The selected business account is inactive or on hold.');
+    const companyPays=!!business && input.businessBilledTo!=='Passenger pays';
+    const businessBookings=companyPays?await tx.get(db.collection('bookings').where('businessAccountId','==',businessId)):null;
+    const businessReceipts=companyPays?await tx.get(db.collection(`business_accounts/${businessId}/payments`)):null;
     const configured = categories.docs.map((d) => {
       const c = mapCategory(d.id, d.data());
       return c ? { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass } : null;
@@ -177,6 +188,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     if (serviceSnap) {
       if (!serviceSnap.exists || serviceSnap.data()!.status !== 'Active') throw new HttpsError('failed-precondition', 'The selected service is not active.');
       if (serviceSnap.data()!.adminBookingEnabled === false) throw new HttpsError('failed-precondition', 'The selected service is not enabled for admin bookings.');
+      if(!supportsTrip(serviceSnap.data()!,tripType)||!serviceAllowsCategory(serviceSnap.data()!,category.id))throw new HttpsError('failed-precondition','The selected service does not allow this trip type or vehicle category.');
       service = text(serviceSnap.data()!.name, 120) || service;
       serviceId = serviceSnap.id;
     }
@@ -184,7 +196,10 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType, service));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId };
+    let contract: ReturnType<typeof businessContract> = null;
+    try { contract=business?businessContract(business.data()!,{pickup,drop,service,tripType,category:category.name,km:route.distanceKm*(tripType==='Round Trip'?2:1)}):null; }
+    catch(e){throw new HttpsError('failed-precondition',(e as Error).message);}
+    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId, businessContract:contract };
     // Coupon: the same server checks as customer checkout (validity, usage limits, minimum fare,
     // category / service, audience) against the fare before discount; then the booking is priced with it.
     let couponDiscount = 0;
@@ -229,11 +244,17 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     const fare = override ? applyFareOverride(calculated, override.fare) : calculated;
     // An override is carried into the final fare as a fixed pre-GST adjustment.
     const pricing = override ? { ...priced.pricing, adminAdjustment: fare.adminAdjustment ?? 0, discount: fare.discount } : priced.pricing;
+    if(companyPays) {
+      const available=availableBusinessCredit(business!.data()!,businessBookings!.docs.map(d=>d.data()),businessReceipts!.docs.map(d=>d.data()));
+      if(fare.total>available+0.005)throw new HttpsError('failed-precondition',`Business credit is insufficient. Available: ₹${Math.max(0,available).toFixed(2)}.`);
+    }
     if (advanceIn && advanceIn.amount > fare.total) throw new HttpsError('invalid-argument', `The advance cannot be more than the fare (₹${fare.total}).`);
 
     const date = formatDate(when);
     const time = formatTime12(when);
     const bookingCode = await nextBookingCode(tx, now);
+    // Serialize concurrent reservations against the same account, even if their query snapshots were identical.
+    if(companyPays)tx.update(business!.ref,{reservationVersion:FieldValue.increment(1)});
     const stamp = FieldValue.serverTimestamp();
     const fareOverride = override
       ? { calculatedFare: calculated.total, overriddenFare: override.fare, reason: override.reason, byUid: admin.uid, byName: admin.name, at: Timestamp.now() }

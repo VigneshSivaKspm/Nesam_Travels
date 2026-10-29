@@ -2,6 +2,7 @@
 // trip stages, penalties, verification and legal acceptance are written only by
 // these functions (see firestore.rules).
 export { createBooking } from './commerce';
+export { onPublicReviewWritten,onPublicServiceWritten,onPublicPackageWritten,onPublicLocationWritten,refreshPublicContent } from './publicContent';
 export { createRazorpayOrder, verifyRazorpayPayment } from './payments';
 export { razorpayWebhook } from './paymentWebhook';
 export { reconcile } from './reconcile';

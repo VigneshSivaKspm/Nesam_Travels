@@ -370,11 +370,20 @@ function AccountNoticeSheet({ n, onClose, onDone }: { n: AccountNotice; onClose:
     if (n.entityKind === "vehicle") return setError("Vehicles have no email address. Notify the linked partner instead.");
     setBusy(true);
     setError(null);
-    const r = await sendAdminNotification({ target: "single_user", recipientId: n.entity, recipientType: n.entityKind === "vendor" ? "vendor" : "driver", channel: "Email", type: "approvals", title: n.subject, message: n.body });
-    const failed = !r.success || !!r.channels?.email?.failed || !!r.channels?.email?.notConfigured;
-    await updateDoc(doc(db, "account_notices", n.id), { status: failed ? "Failed" : "Sent", preparedAt: serverTimestamp(), preparedByName: "", attempts: increment(1), error: r.error ?? (r.channels?.email?.notConfigured ? "Email provider is not configured." : "") }).catch(() => undefined);
-    if (failed) { setError(r.error ?? "The email could not be sent. Check the delivery log."); setBusy(false); return; }
-    onDone("Account notice emailed.");
+    try {
+      const r = await sendAdminNotification({ target: "single_user", recipientId: n.entity, recipientType: n.entityKind === "vendor" ? "vendor" : "driver", channel: "Email", type: "approvals", title: n.subject, message: n.body });
+      const failed = !r.success || !!r.channels?.email?.failed || !!r.channels?.email?.notConfigured;
+      try {
+        await updateDoc(doc(db, "account_notices", n.id), { status: failed ? "Failed" : "Sent", preparedAt: serverTimestamp(), preparedByName: "", attempts: increment(1), error: r.error ?? (r.channels?.email?.notConfigured ? "Email provider is not configured." : "") });
+      } catch {
+        setError(failed ? "The email failed and its notice status could not be saved. Check the delivery log." : "The email was sent, but its notice status could not be saved. Check the delivery log before retrying.");
+        return;
+      }
+      if (failed) { setError(r.error ?? "The email could not be sent. Check the delivery log."); return; }
+      onDone("Account notice emailed.");
+    } catch {
+      setError("The notice could not be completed. Check the delivery log before retrying.");
+    } finally { setBusy(false); }
   };
   return (
     <Modal title="Account notice" onClose={onClose} busy={busy} footer={<Button icon="mail" loading={busy} onClick={prepare}>Prepare notice</Button>}>

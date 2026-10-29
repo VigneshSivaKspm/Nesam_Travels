@@ -1,5 +1,5 @@
-// Vehicles of this fleet. Adding starts with the registration number: a car that is new to NESAM is registered with its documents
-// for review; a car NESAM already knows is linked by a request that the driver who drove it last confirms with a code
+// Vehicles of this fleet. Adding opens manual details and documents for review. Linking a car NESAM already knows is a
+// separate request that the driver who drove it last confirms with a code
 // (see components/links). Pairing a driver and changing a vehicle's service status stay direct, rules-checked writes.
 import React, { useState } from 'react';
 import { Alert, StyleSheet, Text, View } from 'react-native';
@@ -30,7 +30,7 @@ function ExpiryBadge({ label, date }: { label: string; date: string }) {
 export function VehiclesScreen() {
   const route = useRoute<RouteProp<TabParamList, 'Fleet'>>();
   const { vehicles, drivers } = useVendorData();
-  const [adding, setAdding] = useState(false);
+  const [linking, setLinking] = useState(false);
   const [editing, setEditing] = useState<FleetVehicle | null>(null);
   const [register, setRegister] = useState<string | null>(null);
   const [pairFor, setPairFor] = useState<FleetVehicle | null>(null);
@@ -39,12 +39,12 @@ export function VehiclesScreen() {
     text: string;
   } | null>(null);
 
-  // "Add …" from another screen arrives as a fresh timestamp param; open the sheet once per value.
+  // "Add …" from another screen arrives as a fresh timestamp param; open the manual form once per value.
   const addRequest = route.params?.add;
   const [seenAdd, setSeenAdd] = useState(addRequest);
   if (addRequest !== seenAdd) {
     setSeenAdd(addRequest);
-    if (addRequest) setAdding(true);
+    if (addRequest) setRegister('');
   }
 
   const changeStatus = (v: FleetVehicle, status: VehicleStatus) => {
@@ -90,7 +90,7 @@ export function VehiclesScreen() {
           }}
         />
       ) : null}
-      {register ? (
+      {register !== null ? (
         <VehicleForm
           existing={null}
           initialPlate={register}
@@ -112,12 +112,12 @@ export function VehiclesScreen() {
           }}
         />
       ) : null}
-      {adding ? (
-        <AddVehicleSheet
-          onClose={() => setAdding(false)}
+      {linking ? (
+        <LinkVehicleSheet
+          onClose={() => setLinking(false)}
           onMessage={(text, tone = 'success') => setMessage({ tone, text })}
           onRegister={(plate) => {
-            setAdding(false);
+            setLinking(false);
             setRegister(plate);
           }}
         />
@@ -130,14 +130,15 @@ export function VehiclesScreen() {
               {vehicles.length} in your fleet · {approvedCount} approved
             </Text>
           </View>
-          <Button small title="+ Add vehicle" onPress={() => setAdding(true)} />
+          <Button small title="+ Add vehicle" onPress={() => setRegister('')} />
         </View>
+        <Button small variant="ghost" title="Link an existing NESAM vehicle" onPress={() => setLinking(true)} />
         {message ? <Notice tone={message.tone} message={message.text} /> : null}
         {vehicles.length === 0 ? (
           <EmptyState
             title="No vehicles in your fleet yet"
-            message="Enter the registration number. If the car is already on NESAM you can link it; otherwise you register it for document review."
-            action={<Button title="Add your first vehicle" onPress={() => setAdding(true)} />}
+            message="Enter your vehicle details and upload its documents for NESAM review."
+            action={<Button title="Add your first vehicle" onPress={() => setRegister('')} />}
           />
         ) : (
           vehicles.map((v) => (
@@ -225,7 +226,7 @@ function PairSheet({ vehicle, onClose, onDone }: { vehicle: FleetVehicle; onClos
 
 type Step = 'plate' | 'found' | 'code';
 
-function AddVehicleSheet({
+function LinkVehicleSheet({
   onClose,
   onMessage,
   onRegister,
@@ -285,13 +286,13 @@ function AddVehicleSheet({
     <Sheet
       visible
       onClose={onClose}
-      title={step === 'plate' ? 'Add a vehicle' : step === 'code' ? 'Confirm the change' : (f?.plate ?? 'Vehicle')}
+      title={step === 'plate' ? 'Link an existing NESAM vehicle' : step === 'code' ? 'Confirm the change' : (f?.plate ?? 'Vehicle')}
       dismissible={!busy}
     >
       {step === 'plate' ? (
         <>
           <Text style={[type.small, { marginBottom: space.md }]}>
-            Enter the registration number. If the car is already verified on NESAM you will not need to upload its documents again.
+            Check an existing NESAM vehicle to request a fleet transfer. If it is not registered yet, you can enter its details manually.
           </Text>
           <TextField
             label="Vehicle registration number"
@@ -304,7 +305,7 @@ function AddVehicleSheet({
             placeholder="TN 01 AB 1234"
             error={error}
           />
-          <Button title="Find vehicle" loading={busy} onPress={() => void check()} />
+          <Button title="Check NESAM record" loading={busy} onPress={() => void check()} />
         </>
       ) : null}
 

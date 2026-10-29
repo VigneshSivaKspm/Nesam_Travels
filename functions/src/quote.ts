@@ -98,6 +98,7 @@ export interface PriceInput {
   /** Enabled fixed route fares and the booked service. Only places with canonical location ids (never a map pin) can match one. */
   fixedRoutes?: FixedRouteFare[];
   serviceId?: string;
+  businessContract?: import('./domain/business').BusinessContract | null;
 }
 
 export interface PriceResult {
@@ -135,15 +136,19 @@ export function priceBooking(i: PriceInput): PriceResult {
   // An enabled fixed route fare replaces the distance-based base fare for exactly its route, direction, service,
   // category and dates. Anything that does not match keeps its normal pricing; a map pin never matches.
   const hasId = (id: string) => !!id && id !== 'pin';
-  const fixed = i.tripType === 'One Way' && i.fixedRoutes?.length && hasId(i.pickup.id) && hasId(i.drop.id)
+  const fixed = i.businessContract ? { rule: i.businessContract.rule, reversed: false } : i.tripType === 'One Way' && i.fixedRoutes?.length && hasId(i.pickup.id) && hasId(i.drop.id)
     ? matchFixedRoute(i.fixedRoutes, { originId: i.pickup.id, destinationId: i.drop.id, categoryId: i.category.id, serviceId: i.serviceId ?? '', date: istDate(i.pickupAt.getTime()) })
     : null;
   if (fixed) {
     const tariff = i.tariff;
     const q = withDiscounts((discount) => quoteFixedRoute({
       rule: fixed.rule, reversed: fixed.reversed, gstRate: tariff?.gstRate ?? CATEGORY_GST_RATE, tariffVersion: tariff?.version ?? 0, tariffClass: klass,
-      routeKm: i.route.distanceKm, durationMin: i.route.durationMin, pickupMs: i.pickupAt.getTime(), discount, adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
+      routeKm: i.route.distanceKm*(i.businessContract&&i.tripType==='Round Trip'?2:1), durationMin: i.route.durationMin, pickupMs: i.pickupAt.getTime(), discount, adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
     }));
+    if (i.businessContract?.perKm) {
+      const c=i.businessContract;
+      q.pricing={...q.pricing,model:'business_contract_per_km',extraKmRatePaise:paise(c.customerRate/(c.rule.gstMode==='included'?1+q.pricing.gstRate:1)),partner:{...q.pricing.partner!,minKm:q.pricing.quotedKm,ratePaise:paise(c.partnerRate)}};
+    }
     return { fare: q.fare, pricing: q.pricing, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, outstation, q.pricing), usesCommissionPolicy: false };
   }
 

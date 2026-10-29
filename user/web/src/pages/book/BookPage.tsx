@@ -20,6 +20,7 @@ import {
   JourneysSection,
   PopularRoutes,
   ReviewsSection,
+  CatalogSection,
   ServicesSection,
   TrustStrip,
   WhySection,
@@ -159,6 +160,7 @@ function Home() {
           <Banners />
         </div>
         <ReviewsSection />
+        <CatalogSection />
         <FaqSection />
         <AppSection />
       </div>

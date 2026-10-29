@@ -155,6 +155,10 @@ export const ANDROID_CHANNEL: Record<NotificationSound, string> = {
  * Without registered tokens this is a no-op recorded as `skipped`.
  */
 export async function deliverPush(notificationId: string, n: NotifyInput): Promise<void> {
+  if(!await (await import('./channelPolicy')).channelEnabled('push')) {
+    await db.collection('notification_deliveries').add(deliveryRow(notificationId,n,'push','skipped',{error:'Push delivery is disabled in Settings.'}));
+    return;
+  }
   const tokens = await db.collection('device_tokens').where('ownerId', '==', n.recipientId).limit(20).get();
   if (tokens.empty) {
     await db.collection('notification_deliveries').add(deliveryRow(notificationId, n, 'push', 'skipped', { error: 'No registered device.' }));

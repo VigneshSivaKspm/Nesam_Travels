@@ -63,7 +63,10 @@ const displayPlate = (key: string) => {
 };
 
 export const tenDigits = (v: unknown): string => String(v ?? '').replace(/\D/g, '').slice(-10);
-const phoneCandidates = (ten: string) => [`+91${ten}`, ten, `91${ten}`, `+91 ${ten}`];
+const phoneCandidates = (ten: string) => [
+  `+91${ten}`, ten, `91${ten}`, `+91 ${ten}`,
+  `+91 ${ten.slice(0, 5)} ${ten.slice(5)}`, `${ten.slice(0, 5)} ${ten.slice(5)}`,
+];
 
 const firstName = (name: string) => (text(name, 80).split(/\s+/)[0] || 'Driver');
 const millis = (v: unknown): number => (v && typeof (v as Timestamp).toMillis === 'function' ? (v as Timestamp).toMillis() : 0);
@@ -101,10 +104,22 @@ async function lastTripDriver(vehicleId: string): Promise<{ id: string; name: st
   return null;
 }
 
-async function findDriverByPhone(ten: string) {
-  if (ten.length !== 10) throw new HttpsError('invalid-argument', 'Enter the 10-digit mobile number.');
-  const snap = await db.collection('drivers').where('phone', 'in', phoneCandidates(ten)).limit(3).get();
-  return snap.docs[0] ?? null;
+async function findDriverByPhone(phone: unknown) {
+  const digits = String(phone ?? '').replace(/\D/g, '');
+  // Accept an Indian local number or its +91 form; never look up an unrelated number by truncating arbitrary prefixes.
+  const ten = digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+  if (!/^[6-9]\d{9}$/.test(ten)) throw new HttpsError('invalid-argument', 'Enter the driver’s valid 10-digit mobile number.');
+  const drivers = db.collection('drivers');
+  // Current registration stores phoneE164 plus a display-formatted phone; older records may have only phone.
+  const [canonical, legacy] = await Promise.all([
+    drivers.where('phoneE164', '==', `+91${ten}`).limit(2).get(),
+    drivers.where('phone', 'in', phoneCandidates(ten)).limit(2).get(),
+  ]);
+  const matches = new Map([...canonical.docs, ...legacy.docs].map((d) => [d.id, d]));
+  if (matches.size > 1) {
+    throw new HttpsError('failed-precondition', 'More than one driver account uses this mobile number. Contact the NESAM office before linking it.');
+  }
+  return matches.values().next().value ?? null;
 }
 
 async function findVehicleByPlate(key: string) {
@@ -269,7 +284,7 @@ async function lookupActor(auth: { uid: string } | undefined, kind: Kind) {
 /** Whether a mobile number belongs to a NESAM driver, and what kind (owner-driver / another vendor's driver). */
 export const findPartnerDriver = onCall(async (request) => {
   await lookupActor(request.auth, 'driver');
-  const doc = await findDriverByPhone(tenDigits(request.data?.phone));
+  const doc = await findDriverByPhone(request.data?.phone);
   if (!doc) return { found: false };
   const d = doc.data();
   const mine = text(d.vendorId) === (request.auth!.uid);
@@ -358,7 +373,7 @@ async function createLink(kind: Kind, subjectId: string, toVendorId: string, toV
 /** A vendor asks to add a driver who already has a NESAM account. */
 export const requestDriverLink = onCall(async (request) => {
   const vendor = await requireApprovedVendor(request.auth?.uid);
-  const doc = await findDriverByPhone(tenDigits(request.data?.phone));
+  const doc = await findDriverByPhone(request.data?.phone);
   if (!doc) throw new HttpsError('not-found', 'No NESAM driver uses that number. Send an invitation instead.');
   if (!approved(doc.data().status)) throw new HttpsError('failed-precondition', 'This driver has not been approved by NESAM yet.');
   return createLink('driver', doc.id, vendor.id, vendor.name, { role: 'vendor', id: vendor.id, name: vendor.name }, request.data?.office !== true);
@@ -379,7 +394,7 @@ export const adminCreatePartnerLink = onCall(async (request) => {
   const toVendorId = id(request.data?.toVendorId, 'vendor');
   const to = await db.doc(`vendors/${toVendorId}`).get();
   if (!to.exists || !approved(to.data()!.status)) throw new HttpsError('failed-precondition', 'Choose an approved vendor.');
-  const subject = kind === 'driver' ? await findDriverByPhone(tenDigits(request.data?.phone)) : await findVehicleByPlate(plateKey(request.data?.plate));
+  const subject = kind === 'driver' ? await findDriverByPhone(request.data?.phone) : await findVehicleByPlate(plateKey(request.data?.plate));
   if (!subject) throw new HttpsError('not-found', kind === 'driver' ? 'No NESAM driver uses that number.' : 'That vehicle is not on NESAM.');
   return createLink(kind, subject.id, toVendorId, vendorLabel(to.data()), { role: 'admin', id: admin.uid, name: admin.name }, request.data?.sendOtp !== false);
 });

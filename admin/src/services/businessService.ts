@@ -156,10 +156,24 @@ export async function revokeCredential(id: string, credId: string) {
 
 /** A verified company receipt (bank / UPI) raises the account balance. A reference is credited once. */
 export async function recordBusinessPayment(id: string, amount: number, method: string, reference: string, paidOn = "") {
-  await addDoc(collection(db, COL, id, "payments"), { amount, method, reference, paidOn, byName: who(), at: serverTimestamp(), createdBy: auth.currentUser?.uid ?? "" });
+  const cents = Math.round(amount * 100);
+  const receiptReference = reference.trim();
+  if (!Number.isFinite(amount) || amount <= 0 || !Number.isSafeInteger(cents) || Math.abs(cents / 100 - amount) > 0.000001) throw new Error("Enter a positive amount with at most two decimal places.");
+  if (!['Bank Transfer', 'UPI', 'Cheque'].includes(method) || !receiptReference || receiptReference.length > 100) throw new Error("Choose a payment method and enter its reference.");
+  if (!auth.currentUser) throw new Error("Sign in before recording a receipt.");
+  // A stable receipt identity makes retries and concurrent submissions idempotent.
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(`${method}|${receiptReference.toUpperCase()}`));
+  const paymentId = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+  const receipt = doc(db, COL, id, 'payments', paymentId);
   await runTransaction(db, async (tx) => {
     const ref = doc(db, COL, id);
-    const s = await tx.get(ref);
-    tx.update(ref, { balance: (Number(s.data()?.balance) || 0) + amount, history: arrayUnion({ action: "Payment recorded", note: `${method} ${reference}`, byName: who(), at: Timestamp.now() }) });
+    const [s, prior] = await Promise.all([tx.get(ref), tx.get(receipt)]);
+    if (!s.exists()) throw new Error("This business account no longer exists.");
+    if (prior.exists()) {
+      if (prior.data().amount !== amount) throw new Error("This reference was already recorded for a different amount.");
+      return;
+    }
+    tx.set(receipt, { amount, method, reference: receiptReference, paidOn, byName: who(), at: serverTimestamp(), createdBy: auth.currentUser!.uid });
+    tx.update(ref, { balance: Math.round(((Number(s.data()?.balance) || 0) + amount) * 100) / 100, history: arrayUnion({ action: "Payment recorded", note: `${method} ${receiptReference}`, byName: who(), at: Timestamp.now() }) });
   });
 }

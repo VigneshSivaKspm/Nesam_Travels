@@ -18,15 +18,21 @@ export default function SupportTickets() {
   const [selected, setSelected] = useState<any>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = subscribeToCollection<any>(SUPPORT_COLLECTION, setTickets);
+    const unsub = subscribeToCollection<any>(SUPPORT_COLLECTION, setTickets, setError);
     return () => unsub();
   }, []);
 
   const displayTickets = tickets;
 
   const updateStatus = async (id: string, status: string) => {
+    setError(null);
+    const ok = await updateFirestoreDocument(SUPPORT_COLLECTION, id, {
+      status, updatedAt: new Date().toISOString(),
+    });
+    if (!ok) { setError("Ticket status was not saved. Check your access and connection, then try again."); return; }
     setTickets((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status, updatedAt: new Date().toISOString() } : item,
@@ -35,10 +41,6 @@ export default function SupportTickets() {
     if (selected?.id === id) {
       setSelected((prev: any) => (prev ? { ...prev, status } : null));
     }
-    await updateFirestoreDocument(SUPPORT_COLLECTION, id, {
-      status,
-      updatedAt: new Date().toISOString(),
-    });
   };
 
   const filtered = displayTickets.filter((t) => {
@@ -60,6 +62,7 @@ export default function SupportTickets() {
 
   return (
     <div className="p-6 space-y-5">
+      {error && <div role="alert" className="ds-error">{error}</div>}
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

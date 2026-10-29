@@ -247,7 +247,7 @@ export interface PricingSnapshot {
   schema: 2;
   /** 'tariff_v2' (this module) or 'legacy_category' (admin category fares, kept for local / airport duties). */
   source: 'tariff_v2' | 'legacy_category';
-  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package' | 'fixed_route';
+  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package' | 'fixed_route' | 'business_contract_per_km';
   tariffVersion: number;
   tariffClass: TariffClass | null;
   gstRate: number;

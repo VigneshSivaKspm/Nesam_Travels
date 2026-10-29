@@ -22,7 +22,7 @@ import { isoDateIST } from "../utils/time";
 export interface NewBookingDraft {
   trip: QuickTrip;
   categoryId: string;
-  estimates: CategoryEstimate[];
+  estimates?: CategoryEstimate[];
   enquiry?: Enquiry;
 }
 
@@ -223,7 +223,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
     if (!code) return setCouponMsg({ ok: false, text: "Enter a coupon code." });
     setCheckingCoupon(true);
     try {
-      const fresh = await quoteAdminBooking({ ...bookingForm(), couponCode: code }, newRequestId());
+      const fresh = await quoteAdminBooking({ ...bookingForm(), couponCode: code }, newRequestId(), {businessAccountId:trip.businessId,businessBilledTo:billedTo});
       const discount = fresh.couponDiscount ?? 0;
       setAppliedCoupon({ code: fresh.couponCode ?? code, discount });
       setCouponMsg({ ok: true, text: `${fresh.couponCode ?? code} applied · ${rupee(discount)} off · new total ${rupee(fresh.quote.total)}. The fare is re-checked on confirmation.` });
@@ -246,7 +246,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
       // The server prices again; a changed discount needs a fresh quote first.
       let expected = q.quote.total;
       if (discountType !== "none" || appliedCoupon) {
-        const fresh = await quoteAdminBooking(form, newRequestId());
+        const fresh = await quoteAdminBooking(form, newRequestId(), {businessAccountId:trip.businessId,businessBilledTo:billedTo});
         expected = fresh.quote.total;
       }
       const created = await createAdminBooking(form, requestId.current, expected, {

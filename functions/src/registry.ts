@@ -18,6 +18,7 @@ export interface CallableLike {
 export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   // bookings
   createBooking: fns.createBooking,
+  refreshPublicContent: fns.refreshPublicContent,
   createAdminBooking: fns.createAdminBooking,
   overrideBookingFare: fns.overrideBookingFare,
   approveBooking: fns.approveBooking,

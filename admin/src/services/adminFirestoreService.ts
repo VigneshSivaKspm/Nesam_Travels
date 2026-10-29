@@ -9,9 +9,13 @@ import {
   serverTimestamp,
   addDoc,
   Timestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "./firebase";
-import { callBackend } from "./backend";
+import { callBackend, usesHttpApi } from "./backend";
+async function publishChangedContent(kind:string,id:string) {
+  if(usesHttpApi&&['reviews','services','tour_packages','locations'].includes(kind))await callBackend('refreshPublicContent',{kind,id});
+}
 
 // ── Bookings without the payout right ─────────────────────────────────────
 // Booking documents and marketplace duties carry partner payouts and margin. For an admin without
@@ -264,6 +268,7 @@ export async function updateFirestoreDocument(
   try {
     const docRef = doc(db, collectionName, docId);
     await updateDoc(docRef, { ...data, updatedAt: serverTimestamp() });
+    await publishChangedContent(collectionName,docId);
     return true;
   } catch (error) {
     console.warn(`Update ${collectionName}/${docId} error:`, error);
@@ -283,6 +288,7 @@ export async function setFirestoreDocument(
       { ...data, updatedAt: serverTimestamp() },
       { merge: true },
     );
+    await publishChangedContent(collectionName,docId);
     return true;
   } catch (error) {
     console.warn(`Set ${collectionName}/${docId} error:`, error);
@@ -323,15 +329,11 @@ export async function addFirestoreDocument(collectionName: string, data: any) {
 // Subscribe to settings
 export function subscribeSettings(cb: (data: any) => void) {
   try {
-    const settingsRef = doc(db, "settings", "config");
-    return onSnapshot(
-      settingsRef,
-      (snap) => {
-        if (snap.exists()) cb(snap.data());
-        else cb({});
-      },
-      () => cb({}),
-    );
+    let config:Record<string,unknown>={},operations:Record<string,unknown>={};
+    const emit=()=>cb({...config,...(typeof operations.bookingMaxAdvanceDays==='number'?{advanceBookingLimit:String(operations.bookingMaxAdvanceDays)}:{}),...(typeof operations.bookingMinLeadMinutes==='number'?{minBookingNotice:String(operations.bookingMinLeadMinutes/60)}:{})});
+    const a=onSnapshot(doc(db,'settings','config'),s=>{config=s.data()??{};emit();},()=>cb({}));
+    const b=onSnapshot(doc(db,'settings','operations'),s=>{operations=s.data()??{};emit();});
+    return ()=>{a();b();};
   } catch {
     cb({});
     return () => {};
@@ -341,12 +343,18 @@ export function subscribeSettings(cb: (data: any) => void) {
 // Save settings
 export async function saveSettings(data: any) {
   try {
-    const settingsRef = doc(db, "settings", "config");
-    await setDoc(
-      settingsRef,
-      { ...data, updatedAt: serverTimestamp() },
-      { merge: true },
-    );
+    const operations:Record<string,unknown>={};
+    for(const [field,target,factor,min,max] of [['advanceBookingLimit','bookingMaxAdvanceDays',1,1,365],['minBookingNotice','bookingMinLeadMinutes',60,0,168]] as const) {
+      if(data[field]!==undefined&&String(data[field]).trim()!=='') {
+        const value=Number(data[field]);
+        if(!Number.isFinite(value)||value<min||value>max)return false;
+        operations[target]=Math.round(value*factor);
+      }
+    }
+    const batch=writeBatch(db);
+    batch.set(doc(db,'settings','config'),{...data,updatedAt:serverTimestamp()},{merge:true});
+    if(Object.keys(operations).length)batch.set(doc(db,'settings','operations'),{...operations,updatedAt:serverTimestamp()},{merge:true});
+    await batch.commit();
     return true;
   } catch (error) {
     console.warn("Save settings error:", error);

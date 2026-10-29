@@ -47,6 +47,7 @@ import LegalDocuments from "./pages/LegalDocuments";
 import LegalGate from "./components/LegalGate";
 import B2BIntegrations from "./pages/B2BIntegrations";
 import NewBooking, { type NewBookingDraft } from "./pages/NewBooking";
+import { emptyTrip } from "./components/booking/QuickFare";
 import BusinessAccounts from "./pages/BusinessAccounts";
 import VendorDrivers from "./pages/VendorDrivers";
 import Verification from "./pages/Verification";
@@ -244,7 +245,7 @@ function AdminShell({ session }: { session: AdminSession }) {
       case "customers":
         return <Customers onNavigate={navigate} />;
       case "business":
-        return <BusinessAccounts onQuote={() => openNewBooking()} />;
+        return <BusinessAccounts onQuote={(businessId) => openNewBooking({ trip: { ...emptyTrip(), businessId }, categoryId: "" })} />;
       case "vendor-drivers":
         return <VendorDrivers onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "verification":

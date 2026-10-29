@@ -31,7 +31,7 @@ function reservedOf(acc: BusinessAccount, bookings: Booking[]) {
     .reduce((s, b) => s + fareOf(b), 0);
 }
 
-export default function BusinessAccounts({ onQuote }: { onQuote: () => void }) {
+export default function BusinessAccounts({ onQuote }: { onQuote: (businessId: string) => void }) {
   const [rows, setRows] = useState<BusinessAccount[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("Active");
@@ -76,13 +76,13 @@ export default function BusinessAccounts({ onQuote }: { onQuote: () => void }) {
                 <td><strong>{a.paymentTerms}</strong><small>{a.paymentTerms === "Credit" ? `Limit ${rupee(a.creditLimit)}` : "Verified funds before company-paid booking"}</small></td>
                 <td><strong>{rupee(Math.max(0, due))} due</strong><small>{rupee(reserved)} booking reserve · {rupee(available)} available</small></td>
                 <td><Badge tone={toneForStatus(a.status === "On hold" ? "hold" : a.status)}>{a.status}</Badge></td>
-                <td className="ds-actions"><div><Button size="sm" onClick={() => setViewing(a.id)}>View</Button><Button size="sm" variant="ghost" onClick={onQuote}>Quote</Button></div></td>
+                <td className="ds-actions"><div><Button size="sm" onClick={() => setViewing(a.id)}>View</Button><Button size="sm" variant="ghost" onClick={() => onQuote(a.id)}>Quote</Button></div></td>
               </tr>
             );
           })}</tbody>
         </DataTable>
       )}
-      {current && <BusinessProfile a={current} bookings={bookings} onClose={() => setViewing(null)} onEdit={() => setEditing(current)} onQuote={onQuote} onToast={show} />}
+      {current && <BusinessProfile a={current} bookings={bookings} onClose={() => setViewing(null)} onEdit={() => setEditing(current)} onQuote={() => onQuote(current.id)} onToast={show} />}
       {editing && <BusinessForm a={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={(t) => { setEditing(null); show(t); }} />}
     </div>
   );
@@ -157,13 +157,13 @@ function BusinessProfile({ a, bookings, onClose, onEdit, onQuote, onToast }: { a
             <Button icon="plus" onClick={onQuote} disabled={a.status !== "Active"}>New booking</Button>
             <Button icon="receipt-indian-rupee" onClick={() => setSheet("pay")}>Record payment</Button>
           </div>
-          <p className="text-[11px] text-faint mt-4">Confirmed business bookings retain their accepted rate / billing snapshot. Account holds and credit limits stop new company-paid bookings; existing duties remain available for handling.</p>
+          <p className="text-[11px] text-faint mt-4">Bookings retain the selected billing account. Automatic contract pricing and server enforcement of account credit limits are not connected; confirm the agreed fare and available credit before booking.</p>
         </>
       )}
       {tab === "Contract rates" && (
         <>
           <div className="flex items-start justify-between gap-3 mb-3">
-            <div><strong className="text-[15px] text-ink">Business contract rates</strong><p className="text-[12px] text-muted">Business contract → Public fixed route → Standard km fare</p></div>
+            <div><strong className="text-[15px] text-ink">Business contract rates</strong><p className="text-[12px] text-muted">Recorded for office reference. These rates are not applied automatically to booking quotes.</p></div>
             <Button icon="plus" onClick={() => setSheet("rate")}>Add contract rate</Button>
           </div>
           {(a.contractRates ?? []).length === 0 ? <EmptyState /> : (

@@ -3,16 +3,16 @@
 import React, { useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { KeyboardAvoid } from '../KeyboardAvoid';
 import { useVendorData } from '../../context/VendorData';
 import { Button, Chip, Notice, TextField } from '../ui';
 import { DateField, SingleDocField, todayIso } from '../fields';
 import { addVehicle, newVehicleId, updateVehicleDocuments, VendorActionError, type VehicleInput } from '../../services/vendorService';
 import type { FleetVehicle } from '../../types/operations';
 import { describeDataError } from '../../utils/retry';
+import { isPlate } from '../../utils/fleet';
 import { FLEET_CATEGORIES, FUEL_TYPES } from '../../config/constants';
 import { colors, space, type } from '../../theme';
-
-const VEHICLE_NO_RE = /^[A-Z]{2}[\s-]?\d{1,2}[\s-]?[A-Z]{0,3}[\s-]?\d{1,4}$/;
 
 export function VehicleForm({
   existing,
@@ -55,7 +55,7 @@ export function VehicleForm({
   const today = todayIso();
 
   const errors = {
-    vehicleNumber: VEHICLE_NO_RE.test(form.vehicleNumber.trim().toUpperCase()) ? '' : 'Enter a valid registration number (e.g. TN 01 AB 1234).',
+    vehicleNumber: isPlate(form.vehicleNumber) ? '' : 'Enter a valid registration number (e.g. TN 01 AB 1234).',
     make: form.make.trim() ? '' : 'Required',
     model: form.model.trim() ? '' : 'Required',
     year: Number(form.year) >= 2000 && Number(form.year) <= new Date().getFullYear() ? '' : 'Enter a valid year',
@@ -100,6 +100,7 @@ export function VehicleForm({
   return (
     <Modal visible animationType="slide" onRequestClose={() => !busy && onClose()}>
       <SafeAreaView style={styles.root} edges={['top', 'bottom']}>
+        <KeyboardAvoid>
         <View style={styles.formHead}>
           <Text style={[type.h2, { flex: 1 }]}>{existing ? `Update ${existing.vehicleNumber}` : 'Add vehicle'}</Text>
           <Button small variant="ghost" title="Close" disabled={busy} onPress={onClose} />
@@ -225,6 +226,7 @@ export function VehicleForm({
             onPress={() => void save()}
           />
         </ScrollView>
+        </KeyboardAvoid>
       </SafeAreaView>
     </Modal>
   );

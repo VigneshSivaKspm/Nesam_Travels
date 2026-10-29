@@ -167,6 +167,7 @@ export default function Settings() {
 
         {activeTab === "Booking" && (
           <div className="space-y-5 max-w-xl">
+            <p className="ds-note">Booking horizon and minimum notice update the server booking rules. Cash availability applies to new bookings. Customer cancellation follows the current published policy; the old percentage controls below are read-only.</p>
             <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
@@ -192,6 +193,7 @@ export default function Settings() {
                 </label>
                 <input
                   type="number"
+                  disabled={['cancelWindow','cancelCharge'].includes(f.key)}
                   value={formData[f.key] || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, [f.key]: e.target.value })
@@ -225,6 +227,7 @@ export default function Settings() {
 
         {activeTab === "Notifications" && (
           <div className="space-y-4 max-w-xl">
+            <p className="ds-note">These switches control NESAM server delivery. A channel must also have a configured provider. Firebase sign-in OTP is managed separately by Firebase Authentication.</p>
             <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
@@ -285,6 +288,7 @@ export default function Settings() {
 
         {activeTab === "General" && (
           <div className="space-y-5 max-w-xl">
+            <p className="ds-note">These are office display preferences. Saving a GST rate here does not change quote taxes; booking fares use the server tariff configuration.</p>
             <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"

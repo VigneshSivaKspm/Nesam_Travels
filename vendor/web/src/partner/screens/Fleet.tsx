@@ -19,6 +19,7 @@ import {
 } from '../derive';
 import { setVehicleAvailability, submitRenewal } from '../services';
 import { useWorkspace } from '../Workspace';
+import { isPlate, normalizePlate } from '../../utils/fleet';
 
 type FleetTab = 'Vehicles' | 'Drivers';
 const STATUSES = ['All', 'Active', 'Inactive', 'Suspended', 'Pending', 'Rejected', 'Expired', 'Dispute'];
@@ -370,33 +371,48 @@ export const AddEntity: React.FC<{ what: 'car' | 'driver' }> = ({ what }) => {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [found, setFound] = useState<null | { car?: VehicleLookup; driver?: DriverLookup; key: string }>(null);
+  const [linkExisting, setLinkExisting] = useState(false);
   const car = what === 'car';
 
   const find = async (e: React.FormEvent) => {
     e.preventDefault();
-    const key = car ? lookup.toUpperCase().replace(/[^A-Z0-9]/g, '') : lookup.replace(/\D/g, '').slice(-10);
-    if (car ? key.length < 6 : key.length !== 10) { setError(car ? 'Enter the vehicle registration number.' : 'Enter the driver’s 10-digit mobile number.'); return; }
+    const digits = lookup.replace(/\D/g, '');
+    const key = car ? lookup.toUpperCase().replace(/[^A-Z0-9]/g, '')
+      : digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits;
+    if (car ? !isPlate(key) : !/^[6-9]\d{9}$/.test(key)) { setError(car ? 'Enter the vehicle registration number.' : 'Enter the driver’s valid 10-digit mobile number.'); return; }
     setBusy(true); setError(''); setFound(null);
     try {
       setFound(car ? { car: await findVehicle(key), key } : { driver: await findDriver(key), key });
     } catch (err) { setError((err as Error).message); } finally { setBusy(false); }
   };
 
+  if (car && !linkExisting) return (
+    <>
+      <PageHeading title="Add vehicle" subtitle="Enter vehicle details and upload documents for NESAM review."
+        action={<Btn style="secondary" icon="arrow-left" onClick={() => ws.go('Fleet', 'Vehicles')}>Back to fleet</Btn>} />
+      <div className="w-narrow">
+        <Btn style="text" onClick={() => { setError(''); setFound(null); setLinkExisting(true); }}>Link an existing NESAM vehicle</Btn>
+        <NewVehicle plateKey="" />
+      </div>
+    </>
+  );
+
   return (
     <>
-      <PageHeading title={car ? 'Add vehicle' : 'Add driver'} subtitle={car ? 'Registration stays linked to one permanent Car ID.' : 'Search an existing ID before creating a new one.'}
+      <PageHeading title={car ? 'Link an existing NESAM vehicle' : 'Add driver'} subtitle={car ? 'Check NESAM records to request a fleet transfer.' : 'Search an existing ID before creating a new one.'}
         action={<Btn style="secondary" icon="arrow-left" onClick={() => ws.go('Fleet', car ? 'Vehicles' : 'Drivers')}>Back to fleet</Btn>} />
       <div className="w-narrow">
+        {car ? <Btn style="text" disabled={busy} onClick={() => { setFound(null); setError(''); setLinkExisting(false); }}>Register a new vehicle manually</Btn> : null}
         <section className="v-panel">
           <form onSubmit={find}>
             <Field label={car ? 'Vehicle registration number' : 'Driver mobile number'}>
-              <input name="lookup" type="search" required minLength={3} value={lookup} onChange={(e) => setLookup(e.target.value)} placeholder={car ? 'e.g. TN60AB1234' : 'e.g. 9876543210'} autoComplete="off" inputMode={car ? 'text' : 'numeric'} />
+              <input name="lookup" type="search" required minLength={3} disabled={busy} value={lookup} onChange={(e) => setLookup(e.target.value)} placeholder={car ? 'e.g. TN60AB1234' : 'e.g. 9876543210'} autoComplete="off" inputMode={car ? 'text' : 'numeric'} />
             </Field>
             <ErrorLine message={error} />
-            <button type="submit" className="v-button v-primary v-full q-button" disabled={busy}><Icon name="search" />{busy ? 'Searching…' : car ? 'Find vehicle' : 'Find driver'}</button>
+            <button type="submit" className="v-button v-primary v-full q-button" disabled={busy}><Icon name="search" />{busy ? 'Searching…' : car ? 'Check NESAM record' : 'Find driver'}</button>
           </form>
         </section>
-        {found?.car ? (found.car.found ? <FoundVehicle r={found.car} plateKey={found.key} /> : <NewVehicle plateKey={found.key} />) : null}
+        {found?.car ? (found.car.found ? <FoundVehicle r={found.car} plateKey={found.key} /> : <NewVehicle key={found.key} plateKey={found.key} />) : null}
         {found?.driver ? (found.driver.found ? <FoundDriver r={found.driver} phone={found.key} /> : <NewDriver phone={found.key} vehicles={p.vehicles} />) : null}
       </div>
     </>
@@ -490,7 +506,8 @@ const NewVehicle: React.FC<{ plateKey: string }> = ({ plateKey }) => {
     e.preventDefault();
     setError('');
     const n = Number(seats || category?.seatingCapacity || 0);
-    if (!/^[A-Z]{2}\d{1,2}[A-Z]{0,3}\d{1,4}$/.test(number.toUpperCase().replace(/[^A-Z0-9]/g, ''))) { setError('Enter the registration number as on the RC (e.g. TN60AB1234).'); return; }
+    if (!isPlate(number)) { setError('Enter the registration number as on the RC (e.g. TN60AB1234).'); return; }
+    if (p.vehicles.some((v) => normalizePlate(v.vehicleNumber) === normalizePlate(number))) { setError('This vehicle is already in your fleet.'); return; }
     if (!category) { setError('Choose the vehicle category.'); return; }
     if (!make.trim() || !model.trim()) { setError('Enter the make and model as on the RC.'); return; }
     if (!Number.isInteger(n) || n < 1 || n > 20) { setError('Enter the passenger capacity (driver excluded).'); return; }
@@ -520,7 +537,7 @@ const NewVehicle: React.FC<{ plateKey: string }> = ({ plateKey }) => {
 
   return (
     <>
-      <Notice title="No existing ID found" icon="circle-plus">Create a new Car ID below. Documents need office verification.</Notice>
+      <Notice title="Manual vehicle registration" icon="circle-plus">Enter the details on your RC. NESAM reviews the documents before approving the vehicle.</Notice>
       <section className="v-panel v-mt m-new-vehicle n-onboarding">
         <h2>Register new vehicle</h2>
         <p className="m-form-intro">Enter the details on your RC and add the verification files.</p>
@@ -566,14 +583,13 @@ const NewVehicle: React.FC<{ plateKey: string }> = ({ plateKey }) => {
 const NewDriver: React.FC<{ phone: string; vehicles: FleetVehicle[] }> = ({ phone, vehicles }) => {
   const p = usePartner();
   const ws = useWorkspace();
-  const [mobile, setMobile] = useState(phone);
   const [vehicle, setVehicle] = useState('');
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const digits = mobile.replace(/\D/g, '').slice(-10);
+    const digits = phone.replace(/\D/g, '');
     if (!/^[6-9]\d{9}$/.test(digits)) { setError('Enter a valid 10-digit mobile number.'); return; }
     setBusy(true); setError('');
     try {
@@ -589,7 +605,7 @@ const NewDriver: React.FC<{ phone: string; vehicles: FleetVehicle[] }> = ({ phon
         <h2>Add driver</h2>
         <p className="m-form-intro">The driver signs in to the NESAM Driver app with this mobile number, takes a live selfie and uploads the driving licence. They join your fleet once NESAM verifies them.</p>
         <form onSubmit={submit}>
-          <Field label="Mobile number *" className="v-field n-field"><input type="tel" maxLength={10} inputMode="numeric" autoComplete="tel-national" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))} /></Field>
+          <Field label="Checked mobile number" className="v-field n-field"><input type="tel" readOnly value={phone} /><small>To use another number, check it again from Add driver.</small></Field>
           <Field label="Usual vehicle (optional)" className="v-field n-field">
             <select value={vehicle} onChange={(e) => setVehicle(e.target.value)}>
               <option value="">Choose later</option>

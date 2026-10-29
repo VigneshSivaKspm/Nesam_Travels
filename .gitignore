@@ -178,6 +178,8 @@ coverage/
 tests/firestore-rules/latest-results.log
 output/jest-*/
 output/wiring-*.json
+output/admin-audit/
+output/admin-control-summary.json
 structure.txt
 
 # ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

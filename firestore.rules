@@ -1102,6 +1102,11 @@ service cloud.firestore {
       // The invoice number counter advances with every invoice finance issues.
       allow write: if can('system') || (docId in ['invoice_sequence', 'tax_policy'] && can('finance'));
     }
+    // Explicitly approved public catalog and moderated testimonial fields only.
+    match /public_content/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
 
     // ── Booking sub-records (server-written) ────────────────────────────────
     // Every receipt, with who collected it. Staff with finance/report access and

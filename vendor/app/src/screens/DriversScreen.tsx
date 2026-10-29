@@ -10,6 +10,7 @@ import { Avatar, Badge, Button, Card, Chip, EmptyState, Notice, PillTabs, Row, S
 import { CodePanel } from '../components/links/LinkParts';
 import { assignVehicle, inviteDriver, revokeInvite, setDriverFleetStatus, VendorActionError } from '../services/vendorService';
 import { findDriver, requestDriverLink, type DriverLookup, type LinkRequestResult } from '../services/partnerLinks';
+import { ActionError } from '../services/callables';
 import type { FleetDriver } from '../types/operations';
 import type { TabParamList } from '../navigation/types';
 import { displayDate } from '../components/fields';
@@ -263,7 +264,8 @@ function AddDriverSheet({
       setFound(await findDriver(mobile));
       setStep('found');
     } catch (e) {
-      setError(describeDataError(e));
+      // The callable wrapper already provides a safe, specific message; do not turn it into a generic data error.
+      setError(e instanceof ActionError ? e.message : describeDataError(e));
     } finally {
       setBusy(false);
     }
@@ -319,10 +321,13 @@ function AddDriverSheet({
             prefix="+91"
             value={mobile}
             onChangeText={(t) => {
-              setMobile(t.replace(/\D/g, '').slice(0, 10));
+              const digits = t.replace(/\D/g, '');
+              // Pasting +91 must not silently turn it into a different 10-digit number.
+              setMobile(digits.length === 12 && digits.startsWith('91') ? digits.slice(2) : digits);
               setError('');
             }}
             keyboardType="phone-pad"
+            editable={!busy}
             error={error}
           />
           <Button title="Check number" loading={busy} onPress={() => void check()} />

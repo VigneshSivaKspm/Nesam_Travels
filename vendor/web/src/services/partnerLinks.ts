@@ -5,7 +5,7 @@
 // The browser never moves a record itself: it asks, shows the status, and enters the code the driver reads out.
 import { collection, deleteDoc, doc, onSnapshot, query, where, Timestamp } from 'firebase/firestore';
 import { db } from './firebase';
-import { callFunction } from './callables';
+import { ActionError, callFunction } from './callables';
 import { describeDataError } from '../utils/retry';
 
 export type LinkStatus = 'Awaiting OTP' | 'Office review' | 'Completed' | 'Rejected' | 'Cancelled';
@@ -149,9 +149,22 @@ export interface LinkRequestResult {
   testCode?: string;
 }
 
-export const findDriver = (phone: string) => callFunction<{ phone: string }, DriverLookup>('findPartnerDriver', { phone });
+export const findDriver = async (phone: string): Promise<DriverLookup> => {
+  const result = await callFunction<{ phone: string }, DriverLookup>('findPartnerDriver', { phone });
+  if (!result || typeof result !== 'object' || typeof result.found !== 'boolean'
+    || (result.found && (typeof result.driverId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(result.driverId)))) {
+    throw new ActionError('The driver lookup service returned an incomplete response. Please try again or contact the NESAM office.', undefined, 'functions/internal', 'invalid-driver-lookup');
+  }
+  return result;
+};
 export const findVehicle = (plate: string) => callFunction<{ plate: string }, VehicleLookup>('findPartnerVehicle', { plate });
-export const requestDriverLink = (phone: string, office = false) => callFunction<unknown, LinkRequestResult>('requestDriverLink', { phone, office });
+export const requestDriverLink = async (phone: string, office = false): Promise<LinkRequestResult> => {
+  const result = await callFunction<unknown, LinkRequestResult>('requestDriverLink', { phone, office });
+  if (!result || typeof result.linkId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(result.linkId)) {
+    throw new ActionError('The linking service did not return a request ID. Check Linking requests before trying again.', undefined, 'functions/internal', 'invalid-driver-link');
+  }
+  return result;
+};
 export const requestVehicleLink = (plate: string, office = false) => callFunction<unknown, LinkRequestResult>('requestVehicleLink', { plate, office });
 export const verifyLinkCode = (linkId: string, code: string) => callFunction<unknown, { status: LinkStatus; completed: boolean; message: string }>('verifyPartnerLinkOtp', { linkId, code });
 export const resendLinkCode = (linkId: string) => callFunction<unknown, { delivered: boolean; error?: string; testCode?: string; sendsLeft: number }>('resendPartnerLinkOtp', { linkId });

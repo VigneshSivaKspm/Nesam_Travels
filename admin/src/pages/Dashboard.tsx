@@ -698,7 +698,7 @@ function MasterDashboard({
                     <StatusBadge status={b.status} />
                   </td>
                   <td className="px-4 py-3">
-                    <button className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-line hover:bg-brand-soft text-brand transition-colors">
+                    <button type="button" onClick={() => onSelectBooking(b.id)} className="text-[11px] font-medium px-2.5 py-1 rounded-lg border border-line hover:bg-brand-soft text-brand transition-colors">
                       View
                     </button>
                   </td>

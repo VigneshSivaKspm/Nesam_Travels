@@ -178,6 +178,7 @@ export default function Reviews() {
     }
 
     const ok = await updateFirestoreDocument("reviews", reviewId, patchData);
+    if (!ok) { triggerToast("Review was not saved. Check your access and connection, then try again."); return; }
     setReviews((prev) =>
       prev.map((r) => (r.id === reviewId ? { ...r, ...patchData } : r)),
     );
@@ -208,6 +209,7 @@ export default function Reviews() {
     const ok = await updateFirestoreDocument("reviews", selectedReview.id, {
       adminResponse: adminResponseData,
     });
+    if (!ok) { triggerToast("Response was not saved. Check your access and connection, then try again."); return; }
 
     setReviews((prev) =>
       prev.map((r) =>
@@ -964,7 +966,7 @@ export default function Reviews() {
           <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-2xl space-y-5">
             <div className="flex items-center justify-between border-b border-gray-200 pb-3">
               <h3 className="text-lg font-bold text-gray-900">
-                System Review Settings
+                Current Review Policy
               </h3>
               <button
                 onClick={() => setShowConfigModal(false)}
@@ -991,6 +993,7 @@ export default function Reviews() {
                 <input
                   type="checkbox"
                   defaultChecked
+                  disabled
                   className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
                 />
                 <span className="font-medium">
@@ -1001,11 +1004,22 @@ export default function Reviews() {
               <label className="flex items-center gap-3">
                 <input
                   type="checkbox"
-                  defaultChecked
+                  disabled
                   className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
                 />
                 <span className="font-medium">
-                  Auto-publish 4 & 5 star reviews without flag
+                  Automatic publication (not connected)
+                </span>
+              </label>
+
+              <label className="flex items-center gap-3">
+                <input
+                  type="checkbox"
+                  disabled
+                  className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
+                />
+                <span className="font-medium">
+                  Automatic low-rating alerts (not connected)
                 </span>
               </label>
 
@@ -1013,21 +1027,11 @@ export default function Reviews() {
                 <input
                   type="checkbox"
                   defaultChecked
+                  disabled
                   className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
                 />
                 <span className="font-medium">
-                  Notify admin on 1-star & 2-star reviews
-                </span>
-              </label>
-
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  defaultChecked
-                  className="w-4 h-4 text-red-600 rounded border-gray-300 focus:ring-red-500"
-                />
-                <span className="font-medium">
-                  Allow official company response on public site
+                  Store an official response with the review
                 </span>
               </label>
             </div>
@@ -1035,13 +1039,12 @@ export default function Reviews() {
             <div className="flex justify-end pt-3 border-t border-gray-200">
               <button
                 onClick={() => {
-                  triggerToast("Review settings saved successfully!");
                   setShowConfigModal(false);
                 }}
                 className="px-4 py-2 text-xs font-semibold text-white rounded-lg shadow-sm"
                 style={{ backgroundColor: "#c1232c" }}
               >
-                Save Settings
+                Close
               </button>
             </div>
           </div>
