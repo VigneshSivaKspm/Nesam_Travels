@@ -10,6 +10,8 @@ import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } fr
 import { CONTACT } from '@/lib/contact';
 import { PageLoader } from './ui';
 import { Icon } from './Icon';
+import { FloatingCallButton } from './FloatingCallButton';
+import { AiChatbot } from './AiChatbot';
 
 export function Brand({ light = false, to = '/book' }: { light?: boolean; to?: string }) {
   return (
@@ -290,6 +292,8 @@ export function Shell() {
 
       <Footer />
       {!flow ? <BottomNav /> : null}
+      <FloatingCallButton />
+      <AiChatbot />
     </div>
   );
 }

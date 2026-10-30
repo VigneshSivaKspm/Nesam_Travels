@@ -49,7 +49,7 @@ export function SupportPage() {
     setSending(true);
     setError('');
     try {
-      await submitSupportTicket(profile, { category, bookingId, description });
+      await submitSupportTicket(profile, { category, bookingId, description }, 'onewaycarrentals');
       setDescription('');
       setBookingId('');
       setSubmitted(true);

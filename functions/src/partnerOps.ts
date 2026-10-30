@@ -27,6 +27,7 @@ import { pickupInstant } from './domain/time';
 import { walletTotals } from './domain/finance';
 import { recomputeWallet, walletId } from './ledger';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
+import { mailOfficePartnerRequest } from './officeMail';
 import { approved, requireAdmin, requirePermission, text, requireAction, requireDuty, requireStaffFlag } from './shared';
 
 const RAZORPAY_KEY_ID = defineSecret('RAZORPAY_KEY_ID');
@@ -191,6 +192,7 @@ export const requestDutyCancellation = onCall({ timeoutSeconds: 60 }, async (req
     return { requestId: requestRef.id, quotedPenalty: quote.amount, ruleLabel: quote.ruleLabel };
   });
   await pushAfterCommit(pushes);
+  void mailOfficePartnerRequest('Duty cancellation request', [['Request ID', out.requestId], ['Penalty Quote', `₹${out.quotedPenalty}`]]).catch(() => null);
   return { ok: true, ...out };
 });
 
@@ -276,6 +278,7 @@ export const submitPartnerRequest = onCall(async (request) => {
     pushes.push({ id: notifyInTx(tx, n), input: n });
   });
   await pushAfterCommit(pushes);
+  void mailOfficePartnerRequest(`Partner ${kind} change request`, [['Request ID', ref.id], ['Party', party.uid]]).catch(() => null);
   void entityRef;
   return { ok: true, requestId: ref.id };
 });

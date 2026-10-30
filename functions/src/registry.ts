@@ -132,6 +132,10 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   submitMulticityEnquiry: fns.submitMulticityEnquiry,
   acceptEnquiryQuote: fns.acceptEnquiryQuote,
   getCustomerEnquiries: fns.getCustomerEnquiries,
+  // support & AI chatbot
+  submitSupportRequest: fns.submitSupportRequest,
+  updateSupportRequest: fns.updateSupportRequest,
+  chatWithBot: fns.chatWithBot,
 });
 
 /** Names whose result changes a booking, so the booking is reconciled right after the call. */
@@ -146,5 +150,5 @@ export const RECONCILES_BOOKING = new Set([
 ]);
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);
 
-/** Callables a signed-out visitor may use: read-only fare quotes (rate-limited per IP, nothing written). */
-export const PUBLIC_CALLABLES: ReadonlySet<string> = new Set(['quoteBooking']);
+/** Callables a signed-out visitor may use: read-only fare quotes, support requests, and AI chatbot. */
+export const PUBLIC_CALLABLES: ReadonlySet<string> = new Set(['quoteBooking', 'chatWithBot', 'submitSupportRequest']);

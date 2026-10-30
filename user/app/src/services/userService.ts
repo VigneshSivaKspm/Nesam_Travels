@@ -22,6 +22,7 @@ import { auth, db } from '../config/firebase';
 import type { LocationItem, NotificationItem, SupportTicket, UserProfile } from '../types';
 import { formatDateTime, num, str, timeAgo, toDate } from '../utils/format';
 import { withTimeout } from '../utils/retry';
+import { callFunction } from './callables';
 
 // Firestore queues and retries writes itself; re-issuing one after a timeout
 // could turn a create into a (rule-rejected) update. So: timeout only.
@@ -222,7 +223,22 @@ export interface NewSupportTicket {
   description: string;
 }
 
-export async function submitSupportTicket(profile: UserProfile, t: NewSupportTicket): Promise<void> {
+export async function submitSupportTicket(profile: UserProfile, t: NewSupportTicket, brand = 'nesam'): Promise<void> {
+  try {
+    await callFunction('submitSupportRequest', {
+      brand,
+      category: t.category,
+      bookingId: t.bookingId.trim().toUpperCase(),
+      message: t.description.trim().slice(0, 2000),
+      name: profile.name,
+      phone: profile.phone,
+      email: profile.email || '',
+      source: 'customer-app',
+    });
+    return;
+  } catch (err) {
+    console.warn('[support] server submitSupportRequest error, using direct doc write', err);
+  }
   await withTimeout(
     addDoc(collection(db, SUPPORT_COLLECTION), {
       customerId: profile.uid,

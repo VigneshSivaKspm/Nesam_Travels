@@ -57,7 +57,7 @@ export function SupportPage() {
     setSending(true);
     setError('');
     try {
-      await submitSupportTicket(profile, { category, bookingId, description });
+      await submitSupportTicket(profile, { category, bookingId, description }, 'nesam');
       setDescription('');
       setBookingId('');
       setSubmitted(true);

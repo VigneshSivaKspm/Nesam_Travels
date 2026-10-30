@@ -13,6 +13,7 @@ import { createHash, randomBytes } from 'crypto';
 import { db } from './admin';
 import { audit } from './audit';
 import { notify } from './notify';
+import { mailOfficeVendorRequest } from './officeMail';
 import { requirePermission, text, requireAction } from './shared';
 
 const DEFAULT_VALID_HOURS = 72;
@@ -55,6 +56,7 @@ export const requestVendorRegistration = onCall(async (request) => {
     title: 'Vendor registration requested', message: `${phone} asked to register as a vendor. Issue an invitation link to let them continue.`,
     cta: { label: 'Open vendors', page: 'vendors' }, dedupeKey: `vendor_request_${uid}`, push: true,
   }).catch(() => null);
+  await mailOfficeVendorRequest([['Vendor Phone', phone], ['UID', uid]]).catch(() => null);
   return { status: 'requested' as const };
 });
 

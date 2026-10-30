@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { callFunction } from "../services/callables";
 import {
   subscribeToCollection,
   updateFirestoreDocument,
@@ -29,10 +30,14 @@ export default function SupportTickets() {
 
   const updateStatus = async (id: string, status: string) => {
     setError(null);
-    const ok = await updateFirestoreDocument(SUPPORT_COLLECTION, id, {
-      status, updatedAt: new Date().toISOString(),
-    });
-    if (!ok) { setError("Ticket status was not saved. Check your access and connection, then try again."); return; }
+    try {
+      await callFunction("updateSupportRequest", { ticketId: id, status, note: "" });
+    } catch {
+      const ok = await updateFirestoreDocument(SUPPORT_COLLECTION, id, {
+        status, updatedAt: new Date().toISOString(),
+      });
+      if (!ok) { setError("Ticket status was not saved. Check your access and connection, then try again."); return; }
+    }
     setTickets((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, status, updatedAt: new Date().toISOString() } : item,

@@ -8,6 +8,8 @@ import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
+import { FloatingCallButton } from './FloatingCallButton';
+import { AiChatbot } from './AiChatbot';
 
 export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
@@ -398,6 +400,8 @@ export function Shell() {
           ))}
         </nav>
       ) : null}
+      <FloatingCallButton />
+      <AiChatbot />
     </div>
   );
 }

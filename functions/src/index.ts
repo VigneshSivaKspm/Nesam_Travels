@@ -41,3 +41,5 @@ export { periodicJobs } from './jobs';
 export { getCustomerContact, updateBookingContact, migrateBookingContacts } from './contacts';
 export { onBookingRated } from './ratings';
 export { submitMulticityEnquiry, acceptEnquiryQuote, getCustomerEnquiries } from './enquiries';
+export { submitSupportRequest, updateSupportRequest } from './support';
+export { chatWithBot } from './groqChat';

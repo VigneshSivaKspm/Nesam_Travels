@@ -125,7 +125,7 @@ function AssistanceSheet({ q, onClose, onDone }: { q: Request; onClose: () => vo
       } else if (q.kind === "sos") {
         await updateDoc(doc(db, "sos_alerts", q.id), { status: "Resolved", resolution: note.trim(), ...by });
       } else {
-        await updateDoc(doc(db, "support_tickets", q.id), { status: "Resolved", resolution: note.trim(), ...by });
+        await callFunction("updateSupportRequest", { ticketId: q.id, status: "Resolved", note: note.trim() });
       }
       onDone("Resolution saved.");
     } catch (err) {
@@ -135,8 +135,13 @@ function AssistanceSheet({ q, onClose, onDone }: { q: Request; onClose: () => vo
   };
   const progress = async () => {
     setBusy(true);
-    try { await updateDoc(doc(db, "support_tickets", q.id), { status: "In Progress", updatedAt: serverTimestamp(), handledByName: who() }); onDone("Request marked in progress."); }
-    catch { setError("The status was not changed."); setBusy(false); }
+    try {
+      await callFunction("updateSupportRequest", { ticketId: q.id, status: "In Progress", note: "" });
+      onDone("Request marked in progress.");
+    } catch {
+      setError("The status was not changed.");
+      setBusy(false);
+    }
   };
   return (
     <Modal title="Office assistance" onClose={onClose} busy={busy} footer={<Button variant="primary" type="submit" form="support-form" loading={busy}>Save resolution</Button>}>
