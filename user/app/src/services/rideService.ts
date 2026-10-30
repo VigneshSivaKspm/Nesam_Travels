@@ -156,6 +156,12 @@ export function mapBooking(id: string, d: Record<string, unknown>): TripRecord {
   const createdAt = toDate(d.createdAt);
   const when = scheduledAt ?? createdAt;
   const driverId = str(d.assignedDriverId);
+  const extras = d.extraCharges && typeof d.extraCharges === 'object'
+    ? d.extraCharges as { status?: unknown; customer?: unknown }
+    : null;
+  const extraCustomer = extras?.customer && typeof extras.customer === 'object'
+    ? extras.customer as Record<string, unknown>
+    : null;
   const driver: DriverCard | null = driverId
     ? {
         id: driverId,
@@ -196,7 +202,7 @@ export function mapBooking(id: string, d: Record<string, unknown>): TripRecord {
         ? { status: str((d.refund as Record<string, unknown>).status), amount: num((d.refund as Record<string, unknown>).amount) }
         : null,
     tollCharges: num(d.tollCharges),
-    extraCharges: d.extraCharges && d.extraCharges.status === 'approved' ? num(d.extraCharges.customer?.totalPaise) / 100 : 0,
+    extraCharges: extras?.status === 'approved' ? num(extraCustomer?.totalPaise) / 100 : 0,
     couponCode: str(d.couponCode),
     paymentMethod: str(d.paymentMethod) || 'Cash',
     paymentStatus: str(d.payment) || 'Pending',
