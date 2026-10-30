@@ -1,5 +1,5 @@
 // Outbound channel adapters: WhatsApp (Meta WhatsApp Business Cloud API),
-// SMS (MSG91 or Twilio) and email (SendGrid). Credentials come only from the
+// SMS (MSG91 or Twilio) and email (Nodemailer SMTP). Credentials come only from the
 // environment (see .env.example); nothing is hard-coded. An unconfigured
 // channel reports `not_configured` — it never pretends to have sent.
 //
@@ -21,6 +21,7 @@ export interface SendResult {
 }
 
 import { channelEnabled } from './channelPolicy';
+import { BRANDS, type BrandProfile, mailConfigured, renderEmail, sendMail } from './mailer';
 const env = (k: string) => (process.env[k] ?? '').trim();
 const disabled=(channel:Channel):SendResult=>({ok:false,channel,status:'not_configured',provider:'settings',error:`${channel} delivery is disabled in Settings.`});
 
@@ -138,40 +139,31 @@ export async function sendSms(toE164: string, m: SmsMessage): Promise<SendResult
   }
 }
 
-// ── Email ─────────────────────────────────────────────────────────────────
+// ── Email (Nodemailer over SMTP — see mailer.ts) ─────────────────────────
 
 export interface EmailMessage {
   subject: string;
   text: string;
+  /** A ready HTML body. When absent, the text is laid out in the brand's email template. */
   html?: string;
+  /** The customer brand the message belongs to (colours, name, sender name). Defaults to NESAM. */
+  brand?: BrandProfile;
+  replyTo?: string;
 }
 
 export function emailConfigured(): boolean {
-  return !!(env('SENDGRID_API_KEY') && env('EMAIL_FROM'));
+  return mailConfigured();
 }
 
 export async function sendEmail(to: string, m: EmailMessage): Promise<SendResult> {
-  if(!await channelEnabled('email'))return disabled('email');
-  if (!emailConfigured()) return notConfigured('email', 'sendgrid', 'The email provider');
-  try {
-    const res = await fetch('https://api.sendgrid.com/v3/mail/send', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${env('SENDGRID_API_KEY')}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        personalizations: [{ to: [{ email: to }] }],
-        from: { email: env('EMAIL_FROM'), name: env('EMAIL_FROM_NAME') || 'NESAM Tours & Travels' },
-        subject: m.subject,
-        content: [{ type: 'text/plain', value: m.text }, ...(m.html ? [{ type: 'text/html', value: m.html }] : [])],
-      }),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (res.status === 202) return { ok: true, channel: 'email', status: 'sent', provider: 'sendgrid', providerMessageId: res.headers.get('x-message-id') ?? '' };
-    console.warn('SendGrid send failed', res.status, await res.text().catch(() => ''));
-    return { ok: false, channel: 'email', status: 'failed', provider: 'sendgrid', error: 'The email could not be delivered. Check the address.' };
-  } catch (err) {
-    console.warn('Email send error', err);
-    return { ok: false, channel: 'email', status: 'failed', provider: 'sendgrid', error: 'The email provider is temporarily unreachable.' };
-  }
+  if (!await channelEnabled('email')) return disabled('email');
+  if (!emailConfigured()) return notConfigured('email', 'smtp', 'Email (SMTP)');
+  const brand = m.brand ?? BRANDS.nesam;
+  // Plain messages from older callers still go out as a branded HTML email, with the text as the fallback part.
+  const body = m.html ? { html: m.html, text: m.text } : renderEmail(brand, { title: m.subject, paragraphs: m.text.split(/
+{2,}/).map((x) => x.trim()).filter(Boolean) });
+  const r = await sendMail({ to, subject: m.subject, text: m.html ? m.text : body.text, html: body.html, brand, replyTo: m.replyTo });
+  return { ok: r.ok, channel: 'email', status: r.status, provider: 'smtp', providerMessageId: r.messageId ?? '', ...(r.error ? { error: r.error } : {}) };
 }
 
 export const mask = {

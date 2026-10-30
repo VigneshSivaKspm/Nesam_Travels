@@ -163,10 +163,10 @@ export function MulticityForm() {
     }
     const idx = state.stops.findIndex((s) => s.id === pickerTarget);
     return {
-      title: `Choose Intermediate Stop #${idx + 1}`,
+      title: `Choose Via City #${idx + 1}`,
       allowCurrent: false,
       popular: QUICK_CITIES,
-      popularLabel: 'Popular Stops',
+      popularLabel: 'Popular Cities',
       pinMode: 'drop',
     };
   }, [pickerTarget, state.stops]);
@@ -182,7 +182,7 @@ export function MulticityForm() {
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Please add at least one intermediate stop along your tour route.';
+      err.stops = 'Please add at least one via city along your multicity route.';
     }
 
     // Verify consecutive duplicates
@@ -348,11 +348,11 @@ export function MulticityForm() {
 
   return (
     <form className="jd-form jd-multicity-form" onSubmit={onSubmit} noValidate>
-      <fieldset disabled={submitting} style={{ display: 'contents', border: 0, padding: 0, margin: 0, minWidth: 0 }}>
+      <fieldset className="jd-fieldset" disabled={submitting}>
       {/* Route & Intermediate Stops Section */}
       <div className="jd-section" role="group" aria-labelledby="mc-route-title">
         <p className="jd-section__title" id="mc-route-title">
-          <Icon name="route" size={16} /> Tour Itinerary &amp; Stops
+          <Icon name="route" size={16} /> Multicity Route &amp; Cities
         </p>
 
         {/* 1. Pickup Point */}
@@ -379,17 +379,20 @@ export function MulticityForm() {
           {errors.pickup ? <p className="jd-error">{errors.pickup}</p> : null}
         </div>
 
-        {/* 2. Intermediate Stops List */}
+        {/* 2. Intermediate / Via Cities */}
         <div className="jd-multicity-stops">
           <div className="jd-stops-header">
-            <span className="jd-stops-header__label">Intermediate Stops / Sightseeing ({state.stops.length}/10)</span>
+            <div className="jd-field-box__head">
+              <span className="jd-box-dot is-via" aria-hidden="true" />
+              <span className="jd-stops-header__label">Via Cities / Next Stop ({state.stops.length}/10)</span>
+            </div>
             <button
               type="button"
               className="btn-add-stop"
               disabled={state.stops.length >= 10}
               onClick={addStop}
             >
-              <Icon name="plus" size={14} /> Add stop
+              <Icon name="plus" size={14} /> Add City
             </button>
           </div>
 
@@ -397,7 +400,7 @@ export function MulticityForm() {
             const stopErr = errors[`stop_${stop.id}`];
             return (
               <div key={stop.id} className={`jd-stop-row ${stopErr ? 'is-invalid' : ''}`}>
-                <div className="jd-stop-badge">Stop #{index + 1}</div>
+                <div className="jd-stop-badge">Via City #{index + 1}</div>
                 <div className="jd-stop-input-wrap">
                   <button
                     type="button"
@@ -405,7 +408,7 @@ export function MulticityForm() {
                     onClick={() => setPickerTarget(stop.id)}
                   >
                     <span className="jd-value__text">
-                      {stop.place?.name ?? `Choose stop #${index + 1} (city, temple or landmark)`}
+                      {stop.place?.name ?? `Enter via city #${index + 1} or stopover point`}
                     </span>
                     {stop.place?.address && stop.place.address !== stop.place.name ? (
                       <span className="jd-value__addr">{stop.place.address}</span>
@@ -417,8 +420,8 @@ export function MulticityForm() {
                     type="button"
                     className="btn-icon-action"
                     disabled={index === 0}
-                    title="Move stop up"
-                    aria-label={`Move stop ${index + 1} up`}
+                    title="Move city up"
+                    aria-label={`Move city ${index + 1} up`}
                     onClick={() => moveStop(index, 'up')}
                   >
                     <Icon name="arrow-up" size={14} />
@@ -427,8 +430,8 @@ export function MulticityForm() {
                     type="button"
                     className="btn-icon-action"
                     disabled={index === state.stops.length - 1}
-                    title="Move stop down"
-                    aria-label={`Move stop ${index + 1} down`}
+                    title="Move city down"
+                    aria-label={`Move city ${index + 1} down`}
                     onClick={() => moveStop(index, 'down')}
                   >
                     <Icon name="arrow-down" size={14} />
@@ -436,8 +439,8 @@ export function MulticityForm() {
                   <button
                     type="button"
                     className="btn-icon-action is-delete"
-                    title="Remove stop"
-                    aria-label={`Remove stop ${index + 1}`}
+                    title="Remove city"
+                    aria-label={`Remove city ${index + 1}`}
                     onClick={() => removeStop(stop.id)}
                   >
                     <Icon name="trash" size={14} />

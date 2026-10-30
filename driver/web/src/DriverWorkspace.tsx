@@ -437,8 +437,11 @@ export const DriverWorkspace: React.FC<DriverWorkspaceProps> = ({ account, onSig
           markNotificationRead(n.id).catch(() => undefined);
           if (n.category === 'penalties') go('notifications');
           else if (n.ctaPage === 'dashboard') go('home');
-          else if (n.ctaPage === 'trip') {
-            if (nextTrip) openTrip(nextTrip);
+          else if (['trip', 'trips', 'booking-detail'].includes(n.ctaPage)) {
+            // The trip the notification is about; the next trip only when it names none.
+            const named = n.bookingId ? bookings.find((t) => t.id === n.bookingId) : undefined;
+            if (named) openTrip(named);
+            else if (nextTrip) openTrip(nextTrip);
             else go('trips');
           } else go(['earnings', 'wallet', 'notifications', 'profile'].includes(n.ctaPage) ? (n.ctaPage as ShellPage) : 'notifications');
         }}

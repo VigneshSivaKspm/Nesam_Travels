@@ -2,7 +2,7 @@ import { fareBoardingState, recipientAddressState, recipientGstState } from './f
 import { fareServiceKey } from './fareScope';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { assertCashAllowed } from './channelPolicy';
-import { assertOnlineCatalog } from './onlineCatalog';
+import { assertCatalogAvailable, matchAuthoritativeService, ServiceMasterDoc } from './onlineCatalog';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { randomInt } from 'crypto';
 import { db } from './admin';
@@ -22,6 +22,8 @@ import { loadTariffConfig, priceBooking, rentalHoursOf, tariffClassOf } from './
 import { assertLegalAccepted } from './legal';
 import { nextBookingCode } from './bookingSequence';
 import { splitPricing } from './domain/pricingPrivacy';
+import { sendCustomerMessage } from './customerComms';
+import { mailOfficeNewBooking } from './officeMail';
 import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeFor, text } from './shared';
@@ -80,7 +82,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const serviceRules = await loadServiceRules();
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0; // the callback can retry; only the committed attempt may push
-    const [previous, customer, categories, coupons, history, policy, adjustmentDoc, tariff] = await Promise.all([
+    const [previous, customer, categories, coupons, history, policy, adjustmentDoc, tariff, servicesSnap] = await Promise.all([
       tx.get(ref), tx.get(db.doc(`customers/${uid}`)),
       tx.get(db.collection('vehicle_categories').where('status', '==', 'Active')),
       tx.get(db.collection('coupons')),
@@ -88,6 +90,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       loadCommissionPolicy(tx),
       loadFareAdjustment(tx),
       loadTariffConfig(tx),
+      tx.get(db.collection('services')),
     ]);
     if (!customer.exists || !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
     if (previous.exists) {
@@ -136,7 +139,17 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       c.id.replace('cat-', '') === catReq.replace('cat-', '')
     ) ?? configured[0];
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is no longer available.');
-    await assertOnlineCatalog(tripType,category.id);
+    const serviceDocs: ServiceMasterDoc[] = servicesSnap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+    assertCatalogAvailable(serviceDocs, tripType, category.id);
+    const matchedService = matchAuthoritativeService(serviceDocs, {
+      tripType,
+      categoryId: category.id,
+      distanceKm: route.distanceKm,
+      pickupType: pickup.type,
+      dropType: drop.type,
+      context: 'customer',
+    });
+    const serviceId = matchedService?.id || '';
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, fareServiceKey(tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
@@ -146,11 +159,13 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).
-    const resolvedComm = beforeDiscount.usesCommissionPolicy ? resolveCommission(policy, { categoryId: category.id }) : null;
     const commission = beforeDiscount.usesCommissionPolicy
-      ? (resolvedComm ?? { rate: 10, base: 'taxable' as const, source: 'default', policyVersion: 1 })
+      ? resolveCommission(policy, { serviceId: serviceId || undefined, categoryId: category.id })
       : null;
-    const service = beforeDiscount.service;
+    if (beforeDiscount.usesCommissionPolicy && !commission) {
+      throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
+    }
+    const service = matchedService?.name || beforeDiscount.service;
     const couponCode = normalizeCode(text(input.couponCode, 50));
     let discount = 0, usedCoupon;
     if (couponCode) {
@@ -189,7 +204,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       id: requestId, bookingId: bookingCode, customerId: uid, customer: text(c.name), phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng, pickupType: pickup.type,
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type,
-      service, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
+      service, serviceId, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
       passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
       fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: storedPricing, fareVerified: true, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
       ...(tripEndAt ? { tripEndAt: Timestamp.fromDate(tripEndAt), endDate: priced.pricing.endDate, billableDays: priced.pricing.days } : {}),
@@ -226,8 +241,24 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       bookingId: requestId, bookingCode, cta: { label: 'Review booking', page: 'booking-detail', bookingId: requestId }, push: true, sentBy: uid,
     };
     pushes.push({ id: notifyInTx(tx, n), input: n });
-    return { id: requestId, fare: fare.total };
+    return { id: requestId, fare: fare.total, created: true as const };
   });
   await pushAfterCommit(pushes);
-  return result;
+  if ('created' in result) await mailNewBooking(result.id);
+  return { id: result.id, fare: result.fare };
 });
+
+/** "Booking received" to the customer (email only) and a new-booking alert to the office. Never fails the booking. */
+export async function mailNewBooking(bookingId: string, alertOffice = true): Promise<void> {
+  try {
+    const snap = await db.doc(`bookings/${bookingId}`).get();
+    if (!snap.exists) return;
+    const b = snap.data()!;
+    await Promise.all([
+      sendCustomerMessage(bookingId, b, 'booking_received', {}, ['email']).catch((err) => console.warn('booking received email failed', err)),
+      alertOffice ? mailOfficeNewBooking(b).catch((err) => console.warn('office booking email failed', err)) : Promise.resolve(),
+    ]);
+  } catch (err) {
+    console.warn('new booking emails failed', err);
+  }
+}

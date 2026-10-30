@@ -98,8 +98,8 @@
   --shadow-4: 0 24px 60px rgb(15 23 19 / 0.28);
 
   /* Layout */
-  --gutter: clamp(16px, 4vw, 40px);
-  --w-site: 1240px; /* header, footer and every page container (forms and reading text limit their own inner width) */
+  --gutter: clamp(14px, 2.8vw, 64px);
+  --w-site: 100%; /* header, footer and every page container span the full viewport (forms and reading text limit their own inner width) */
   --w-form: 720px; /* single-column forms */
   --nav-h: 72px; /* top bar; 56px below 1000px (the tab bar takes over) */
   --tabbar-h: 68px; /* fixed phone tab bar, safe-area inset added separately */

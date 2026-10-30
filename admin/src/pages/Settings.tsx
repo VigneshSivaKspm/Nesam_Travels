@@ -66,12 +66,6 @@ export default function Settings() {
       setError("Enter a valid company email address.");
       return;
     }
-    const rate = String(formData.gstRate ?? "").trim();
-    if (rate && (!Number.isFinite(Number(rate)) || Number(rate) < 0 || Number(rate) > 28)) {
-      setActiveTab("General");
-      setError("GST rate must be a number between 0 and 28.");
-      return;
-    }
     setSaving(true);
     // Gateway secrets are never stored in Firestore.
     const { rzpKey: _k, rzpSecret: _s, updatedAt: _u, ...safeData } = formData;
@@ -167,7 +161,7 @@ export default function Settings() {
 
         {activeTab === "Booking" && (
           <div className="space-y-5 max-w-xl">
-            <p className="ds-note">Booking horizon and minimum notice update the server booking rules. Cash availability applies to new bookings. Customer cancellation follows the current published policy; the old percentage controls below are read-only.</p>
+            <p className="ds-note">Booking horizon and minimum notice update the server booking rules. Cash availability applies to new bookings. Customer cancellation charges follow the published cancellation policy (Terms &amp; Privacy); partner cancellation charges are set under Partner Requests.</p>
             <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
@@ -184,8 +178,6 @@ export default function Settings() {
                 label: "Minimum Booking Notice (hours)",
                 key: "minBookingNotice",
               },
-              { label: "Cancellation Window (hours)", key: "cancelWindow" },
-              { label: "Cancellation Charge (%)", key: "cancelCharge" },
             ].map((f) => (
               <div key={f.label}>
                 <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
@@ -193,7 +185,6 @@ export default function Settings() {
                 </label>
                 <input
                   type="number"
-                  disabled={['cancelWindow','cancelCharge'].includes(f.key)}
                   value={formData[f.key] || ""}
                   onChange={(e) =>
                     setFormData({ ...formData, [f.key]: e.target.value })
@@ -288,7 +279,7 @@ export default function Settings() {
 
         {activeTab === "General" && (
           <div className="space-y-5 max-w-xl">
-            <p className="ds-note">These are office display preferences. Saving a GST rate here does not change quote taxes; booking fares use the server tariff configuration.</p>
+            <p className="ds-note">Fixed for the NESAM platform. GST on fares is set in Service &amp; Fare Settings; invoice tax rules are under Invoices → Tax automation.</p>
             <h3 className="text-[15px] font-bold text-ink flex items-center gap-2">
               <span
                 className="w-1 h-4 rounded-full"
@@ -301,7 +292,6 @@ export default function Settings() {
                 { label: "Currency", key: "currency" },
                 { label: "Time Zone", key: "timezone" },
                 { label: "Language", key: "language" },
-                { label: "GST Rate (%)", key: "gstRate" },
               ].map((f) => (
                 <div key={f.label}>
                   <label className="text-[11px] font-semibold text-faint uppercase tracking-wide block mb-1.5">
@@ -309,7 +299,7 @@ export default function Settings() {
                   </label>
                   <input
                     value={formData[f.key] || ""}
-                    readOnly={['currency','timezone','language','gstRate'].includes(f.key)}
+                    readOnly
                     onChange={(e) =>
                       setFormData({ ...formData, [f.key]: e.target.value })
                     }

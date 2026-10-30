@@ -66,7 +66,8 @@ function RideBanner() {
 function Home() {
   const { draft, update } = useBooking();
   const [params, setParams] = useSearchParams();
-  const fromUrl = parseService(params.get('service'));
+  const rawService = params.get('service');
+  const fromUrl = parseService(rawService);
   const tripParam = params.get('trip');
   const service: ServiceId = fromUrl ?? serviceOfTrip(draft.tripType);
   const outstationTrip: 'One Way' | 'Round Trip' = draft.tripType === 'Round Trip' ? 'Round Trip' : draft.tripType === 'One Way' ? 'One Way' : readOutstation();
@@ -114,7 +115,23 @@ function Home() {
     setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
   };
 
-  const scrollToConsole = () => document.getElementById('book-console')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  const scrollToConsole = useCallback(() => {
+    const el = document.getElementById('book-console');
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, []);
+
+  useEffect(() => {
+    if (rawService || tripParam) {
+      const timer = window.setTimeout(() => {
+        scrollToConsole();
+      }, 60);
+      return () => window.clearTimeout(timer);
+    }
+  }, [rawService, tripParam, scrollToConsole]);
 
   // Popular routes and the "across the south" journeys fill both ends; the date and time stay the rider's choice.
   const onRoute = (r: Pick<PopularRoute | Corridor, 'pickup' | 'drop'>) => {
@@ -159,8 +176,8 @@ function Home() {
           <AssuranceSection />
           <Banners />
         </div>
-        <ReviewsSection />
-        <CatalogSection />
+        <ReviewsSection brand="NESAM" />
+        <CatalogSection brand="NESAM" />
         <FaqSection />
         <AppSection />
       </div>

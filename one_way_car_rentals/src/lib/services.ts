@@ -25,7 +25,9 @@ export function serviceOfTrip(t: TripType): ServiceId {
 }
 
 export function parseService(v: string | null): ServiceId | null {
-  return v === 'airport' || v === 'multicity' || v === 'outstation' || v === 'rental' ? v : null;
+  if (v === 'airport' || v === 'multicity' || v === 'outstation' || v === 'rental') return v;
+  if (v === 'one-way' || v === 'round-trip') return 'outstation';
+  return null;
 }
 
 export function tripTypeLabel(t: TripType | string): string {
@@ -41,4 +43,8 @@ export function tripTypeLabel(t: TripType | string): string {
   }
 }
 
-export const serviceHref = (s: ServiceId, trip?: 'one-way' | 'round-trip') => `/book?service=${s}${trip ? `&trip=${trip}` : ''}`;
+export const serviceHref = (s: ServiceId | 'one-way' | 'round-trip', trip?: 'one-way' | 'round-trip') => {
+  if (s === 'one-way') return '/book?service=one-way';
+  if (s === 'round-trip') return '/book?service=round-trip';
+  return `/book?service=${s}${trip ? `&trip=${trip}` : ''}`;
+};

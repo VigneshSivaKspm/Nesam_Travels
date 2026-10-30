@@ -4,6 +4,7 @@
 // repeated tap; this screen only presents them. The reference's slide-to-confirm controls trigger the same calls.
 import React, { useEffect, useRef, useState } from 'react';
 import { CancellationStatus, HelpCancellationDialog } from '../components/nx/Cancellation';
+import { ExtraUsageCard } from '../components/nx/ExtraUsageCard';
 import { acknowledgeAssignment } from '../services/partnerRequests';
 import { Image, Linking, Pressable, StyleSheet, View } from 'react-native';
 import { Text, TextInput } from '../components/nx/Text';
@@ -632,6 +633,8 @@ function TripFlow({ trip }: { trip: TripDetails }) {
         </>
       )}
       {error && closing === 'trip' && !(sub === 'Reached Pickup' || (sub === 'Not Started' && trip.verificationSubmitted)) ? <NxInfo tone="red" style={{ marginTop: 0 }}>{error}</NxInfo> : null}
+      {/* Waiting / hill / roof carrier: once the trip is under way, until the office has approved it. */}
+      {!cancelled && (trip.status === 'Ongoing' || trip.status === 'Completed') ? <ExtraUsageCard trip={trip} onDone={(m) => notify('ok', m)} /> : null}
       {finished ? (
         <NxButton title="Back to My Trips" trailingIcon="arrow" onPress={() => navigation.navigate('Tabs', { screen: 'Trip' })} />
       ) : null}

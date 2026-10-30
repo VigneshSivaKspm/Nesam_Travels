@@ -82,6 +82,7 @@ function openPage(page: string, tripId?: string) {
     case 'marketplace':
       return navigationRef.navigate('Tabs', { screen: 'Marketplace' });
     case 'trip':
+    case 'trips':
     case 'booking-detail':
       return tripId ? navigationRef.navigate('TripFlow', { bookingId: tripId }) : navigationRef.navigate('Tabs', { screen: 'Trip' });
     case 'earnings':
@@ -106,12 +107,13 @@ function WorkspaceOverlays() {
   useEffect(() => {
     tripRef.current = nextTripId;
   }, [nextTripId]);
-  useEffect(() => onPushOpened((d) => openPage(d.page, tripRef.current)), []);
+  // The trip the notification is about; the next trip only when it names none.
+  useEffect(() => onPushOpened((d) => openPage(d.page, d.bookingId || tripRef.current)), []);
   return (
     <>
       <NotificationPopups
         notifications={notifications}
-        onOpen={(n: DriverNotification) => openPage(n.ctaPage, nextTrip?.id)}
+        onOpen={(n: DriverNotification) => openPage(n.ctaPage, n.bookingId || nextTrip?.id)}
         onRead={(n) => {
           if (!n.read) markNotificationRead(n.id).catch(() => undefined);
         }}

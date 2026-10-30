@@ -13,6 +13,7 @@ import { AppHeader } from '../components/brand';
 import { Icon } from '../components/Icon';
 import { CancelRideSheet } from '../components/CancelRideSheet';
 import type { TripRecord } from '../types';
+import { cancellationQuote } from '../services/rideService';
 import { formatINR, formatTime } from '../utils/format';
 import { BOOKING_TABS, bookingTabOf, customerStatus, paymentLabel, tripStatusChip, type BookingTab } from '../utils/tripView';
 import { colors, fonts, space } from '../theme';
@@ -93,7 +94,8 @@ function TripCard({ trip: t, onOpen, onCancel }: { trip: TripRecord; onOpen: () 
   const status = customerStatus(t);
   const pay = paymentLabel(t);
   const when = t.scheduledAt ?? t.createdAt;
-  const cancellable = ['Pending', 'Approved', 'Confirmed'].includes(t.status);
+  // Same rule as the trip page and the websites (and firestore.rules): cancellable until the trip starts, including after a driver is assigned.
+  const cancellable = cancellationQuote(t).allowed;
   const total = t.status === 'Completed' ? t.fare + t.tollCharges + (t.extraCharges ?? 0) : t.fare;
   const tab = bookingTabOf(t);
   const destination = t.tripType === 'Local Rental' ? 'Local Rental' : t.drop.name;

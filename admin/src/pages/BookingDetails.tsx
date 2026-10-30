@@ -74,7 +74,7 @@ function Card({ title, sub, right, children, className = "" }: { title: string; 
   );
 }
 
-export default function BookingDetails({ bookingId, onBack }: { bookingId: string; onBack: () => void }) {
+export default function BookingDetails({ bookingId, onBack, onNavigate }: { bookingId: string; onBack: () => void; onNavigate?: (page: string, tab?: string) => void }) {
   const [booking, setBooking] = useState<Booking | null | undefined>(undefined);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [payments, setPayments] = useState<PaymentRow[] | null>(null);
@@ -365,8 +365,8 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
               {canOps && open && booking.assignedVendorId && <Button variant="primary" icon="user-round-check" onClick={() => setSheet("behalf")}>{booking.assignedDriverId ? "Change on behalf" : "Assign on behalf"}</Button>}
               {canOps && open && (booking.assignedDriverId || booking.assignedVendorId) && <Button icon="user-round-x" onClick={() => setSheet("assign-driver")}>Remove allocation</Button>}
               {canOps && open && !booking.assignedVendorId && booking.assignedDriverId && <Button icon="user-round-cog" onClick={() => setSheet("assign-driver")}>Change driver</Button>}
-              <Button variant="ghost" icon="user-round" disabled={!booking.assignedDriverId}>Driver profile</Button>
-              <Button variant="ghost" icon="car-front" disabled={!booking.assignedVehicleId}>Vehicle profile</Button>
+              <Button variant="ghost" icon="user-round" disabled={!booking.assignedDriverId || !onNavigate} onClick={() => onNavigate?.("drivers", `profile:${booking.assignedDriverId}`)}>Driver profile</Button>
+              <Button variant="ghost" icon="car-front" disabled={!booking.assignedVehicleId || !onNavigate} onClick={() => onNavigate?.("vehicles", `profile:${booking.assignedVehicleId}`)}>Vehicle profile</Button>
               <Button variant="ghost" icon="route" onClick={() => setTab("Trip timeline")}>Trip timeline</Button>
             </div>
           </Card>

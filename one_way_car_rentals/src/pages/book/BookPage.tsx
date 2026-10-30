@@ -1,6 +1,6 @@
 import { ReviewsSection, CatalogSection } from '../../../../user/web/src/components/PublicContentSections';
 import { useCallback, useEffect, useRef } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
@@ -32,6 +32,13 @@ const readOutstation = (): 'One Way' | 'Round Trip' => {
     return sessionStorage.getItem(OUTSTATION_KEY) === 'Round Trip' ? 'Round Trip' : 'One Way';
   } catch {
     return 'One Way';
+  }
+};
+const writeOutstation = (t: 'One Way' | 'Round Trip') => {
+  try {
+    sessionStorage.setItem(OUTSTATION_KEY, t);
+  } catch {
+    /* private mode */
   }
 };
 
@@ -74,29 +81,13 @@ function HeroCopy() {
         Outstation rides, <em>priced before you book.</em>
       </h1>
       <p className="hero-copy__sub">
-        Verified chauffeurs, clean air-conditioned cars, and upfront transparent fares with no hidden costs across Tamil Nadu, Bangalore and Pondicherry.
+        Verified chauffeurs, clean air-conditioned cars, and upfront transparent fares with no hidden costs across South India.
       </p>
-      <ul className="hero-points">
-        <li>
-          <Icon name="check" size={18} /> Exact upfront fares before booking
-        </li>
-        <li>
-          <Icon name="check" size={18} /> Professional, verified chauffeurs
-        </li>
-        <li>
-          <Icon name="check" size={18} /> Pay your driver directly via Cash or UPI
-        </li>
-      </ul>
-      <div className="hero-trust-badges">
-        <div className="badge-pill">
-          <Icon name="shield-check" size={16} /> 24/7 Helpline
-        </div>
-        <div className="badge-pill">
-          <Icon name="snowflake" size={16} /> 100% AC Fleet
-        </div>
-        <div className="badge-pill">
-          <Icon name="circle-check" size={16} /> Zero Surge Pricing
-        </div>
+      <div className="hero-trust-simple">
+        <span><Icon name="check" size={15} /> Upfront Fares</span>
+        <span><Icon name="shield-check" size={15} /> Verified Drivers</span>
+        <span><Icon name="snowflake" size={15} /> 100% AC</span>
+        <span><Icon name="phone" size={15} /> 24/7 Helpline</span>
       </div>
     </div>
   );
@@ -105,41 +96,49 @@ function HeroCopy() {
 function Home() {
   const { draft, update } = useBooking();
   const [params, setParams] = useSearchParams();
-  const fromUrl = parseService(params.get('service'));
+  const rawService = params.get('service');
+  const fromUrl = parseService(rawService);
   const tripParam = params.get('trip');
   const service: ServiceId = fromUrl ?? serviceOfTrip(draft.tripType);
   const outstationTrip: 'One Way' | 'Round Trip' =
-    draft.tripType === 'Round Trip' ? 'Round Trip' : draft.tripType === 'One Way' ? 'One Way' : readOutstation();
+    tripParam === 'round-trip' || rawService === 'round-trip'
+      ? 'Round Trip'
+      : tripParam === 'one-way' || rawService === 'one-way'
+        ? 'One Way'
+        : draft.tripType === 'Round Trip'
+          ? 'Round Trip'
+          : draft.tripType === 'One Way'
+            ? 'One Way'
+            : readOutstation();
   const lastOutstation = useRef(outstationTrip);
 
   useEffect(() => {
+    if (service === 'multicity') return;
     const wanted =
       service === 'airport'
         ? 'Airport Taxi'
         : service === 'rental'
           ? 'Local Rental'
-          : service === 'outstation'
-            ? tripParam === 'round-trip'
-              ? 'Round Trip'
-              : tripParam === 'one-way'
-                ? 'One Way'
-                : draft.tripType === 'One Way' || draft.tripType === 'Round Trip'
-                  ? draft.tripType
-                  : lastOutstation.current
-            : null;
+          : outstationTrip === 'Round Trip'
+            ? 'Round Trip'
+            : 'One Way';
     if (!wanted || wanted === draft.tripType) return;
     update((d) => ({
       tripType: wanted,
       drop: d.drop?.id === 'place-local-disposal' && wanted !== 'Local Rental' ? null : d.drop,
       tripEndAt: wanted === 'Round Trip' ? d.tripEndAt : null,
     }));
-  }, [service, tripParam]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [service, outstationTrip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onService = useCallback(
     (s: ServiceId) => {
-      setParams({ service: s }, { replace: true });
+      if (s === 'outstation') {
+        setParams({ service: 'outstation', trip: outstationTrip === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
+      } else {
+        setParams({ service: s }, { replace: true });
+      }
     },
-    [setParams],
+    [setParams, outstationTrip],
   );
 
   const onOutstationTrip = (t: 'One Way' | 'Round Trip') => {
@@ -153,10 +152,33 @@ function Home() {
     setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
   };
 
-  const scrollToConsole = () => {
+  const location = useLocation();
+  const scrollToConsole = useCallback(() => {
     const el = document.getElementById('book-console');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+    window.scrollTo({ top, behavior: 'smooth' });
+    setTimeout(() => {
+      const el2 = document.getElementById('book-console');
+      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+      window.scrollTo({ top: top2, behavior: 'smooth' });
+    }, 120);
+  }, []);
+
+  // When a service query param is present or changes, sync outstation preference and scroll to console
+  useEffect(() => {
+    if (tripParam === 'round-trip' || rawService === 'round-trip') {
+      writeOutstation('Round Trip');
+    } else if (tripParam === 'one-way' || rawService === 'one-way') {
+      writeOutstation('One Way');
+    }
+    if (rawService || tripParam) {
+      scrollToConsole();
+      const timer = window.setTimeout(() => {
+        scrollToConsole();
+      }, 120);
+      return () => window.clearTimeout(timer);
+    }
+  }, [location.search, rawService, tripParam, scrollToConsole]);
 
   const onRoute = (c: Corridor) => {
     update({ pickup: c.pickup, drop: c.drop, tripType: outstationTrip });
@@ -203,8 +225,8 @@ function Home() {
         <HowSection />
         <AssuranceSection />
         <Banners />
-        <ReviewsSection />
-        <CatalogSection />
+        <ReviewsSection brand="One Way Car Rentals" />
+        <CatalogSection brand="One Way Car Rentals" />
         <FaqSection />
       </div>
     </div>

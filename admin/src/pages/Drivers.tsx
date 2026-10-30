@@ -4,7 +4,7 @@ import { Button } from "../components/ui";
 import DriverKycDesk from "./DriverKycDesk";
 
 /** Driver Partners: the Master Admin registry; the previous KYC review desk stays one click away. */
-export default function Drivers({ onOpenBooking, onNavigate }: { onOpenBooking: (id: string) => void; onNavigate?: (page: string, tab?: string) => void }) {
+export default function Drivers({ onOpenBooking, onNavigate, initialProfile }: { onOpenBooking: (id: string) => void; onNavigate?: (page: string, tab?: string) => void; initialProfile?: string }) {
   const [desk, setDesk] = useState(false);
   if (desk) {
     return (
@@ -14,5 +14,5 @@ export default function Drivers({ onOpenBooking, onNavigate }: { onOpenBooking: 
       </div>
     );
   }
-  return <PartnerRegistry kind="driver" onOpenBooking={onOpenBooking} onNavigate={onNavigate} aside={<Button variant="ghost" icon="scan-text" onClick={() => setDesk(true)}>KYC review desk</Button>} />;
+  return <PartnerRegistry kind="driver" initialProfile={initialProfile} onOpenBooking={onOpenBooking} onNavigate={onNavigate} aside={<Button variant="ghost" icon="scan-text" onClick={() => setDesk(true)}>KYC review desk</Button>} />;
 }

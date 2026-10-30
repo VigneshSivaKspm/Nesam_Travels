@@ -60,8 +60,7 @@ import { canAccessPage, canExportFrom, landingPage, needsRedactedBookings } from
 import { setRedactedBookingReads } from "./services/adminFirestoreService";
 import { setExportGuard } from "./utils/exportData";
 import { useNavBadges } from "./hooks/useNavBadges";
-import LiveStrip from "./components/shell/LiveStrip";
-import { NAV_GROUPS } from "./components/shell/navConfig";
+import { NAV_GROUPS, groupOfPage } from "./components/shell/navConfig";
 import { resolveAdminDestination } from "./config/adminNavigation";
 import { canLeaveFareWorkspace } from "./services/fareWorkspaceGuard";
 import { PermissionDenied } from "./components/ui";
@@ -113,6 +112,9 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
 /** Every page in sidebar order — the landing page is the first one the signed-in admin may open. */
 const NAV_ORDER = NAV_GROUPS.flatMap((g) => g.items.map((i) => i.id));
 
+/** A "profile:<id>" tab opens that record's profile on the Driver Partners / Vehicles registry. */
+const profileOf = (tab?: string) => (tab?.startsWith("profile:") ? tab.slice("profile:".length) : undefined);
+
 function AdminShell({ session }: { session: AdminSession }) {
   const home = landingPage(session.access, NAV_ORDER) ?? "dashboard";
   const [activePage, setActivePage] = useState(home);
@@ -138,7 +140,9 @@ function AdminShell({ session }: { session: AdminSession }) {
   const baseMeta = pageMeta[currentPage] || pageMeta["dashboard"];
   // The top bar names the page the way the sidebar does; detail screens keep their own title.
   const navLabel = NAV_GROUPS.flatMap((g) => g.items).find((i) => i.id === currentPage)?.label;
-  const meta = { ...baseMeta, title: navLabel ?? baseMeta.title };
+  // The breadcrumb names the same group the sidebar shows the page in.
+  const group = groupOfPage(currentPage);
+  const meta = { ...baseMeta, title: navLabel ?? baseMeta.title, breadcrumb: group ? [group, ...baseMeta.breadcrumb.slice(1)] : baseMeta.breadcrumb };
 
   // Access reduced while signed in (the Master changed this Staff ID): leave a page that is no
   // longer allowed. Direct opens of a forbidden page still show the no-access screen below.
@@ -186,7 +190,9 @@ function AdminShell({ session }: { session: AdminSession }) {
       setMobileNavOpen(false);
       return;
     }
-    navigate(pageMeta[page] ? page : home);
+    // Aliases (older or server-side names) resolve before the existence check, so they never fall back to the home page.
+    const dest = resolveAdminDestination(page);
+    navigate(pageMeta[dest.page] ? dest.page : home, dest.tab);
   };
 
   const dashboard = (
@@ -209,6 +215,7 @@ function AdminShell({ session }: { session: AdminSession }) {
         <BookingDetails
           bookingId={selectedBookingId}
           onBack={() => setSelectedBookingId(null)}
+          onNavigate={navigate}
         />
       );
     }
@@ -263,7 +270,7 @@ function AdminShell({ session }: { session: AdminSession }) {
       case "vendors":
         return <Vendors onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "drivers":
-        return <Drivers onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
+        return <Drivers key={bookingsTab ?? "drivers"} initialProfile={profileOf(bookingsTab)} onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "partner-links":
         return <PartnerLinks />;
       case "partner-requests":
@@ -271,7 +278,7 @@ function AdminShell({ session }: { session: AdminSession }) {
 
       // Fleet
       case "vehicles":
-        return <Vehicles onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
+        return <Vehicles key={bookingsTab ?? "vehicles"} initialProfile={profileOf(bookingsTab)} onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "categories":
         // Vehicle Categories now lives under Service & Fare Settings → Cab types; this keeps older links and the sidebar shortcut working
         // (same pricing access). Re-keyed so arriving from the Pricing page itself still opens the right section.
@@ -388,15 +395,10 @@ function AdminShell({ session }: { session: AdminSession }) {
           userEmail={session.user.email}
           userRole={session.access.roleName}
           onSignOut={endStaffSession}
+          badges={badges}
         />
 
         <main id="main" tabIndex={-1} className="ds-main">
-          <LiveStrip
-            badges={badges}
-            canOpenBookings={canAccessPage(session.access, "bookings")}
-            onNavigate={navigate}
-            onOpenBooking={(id) => openTarget("booking-detail", id)}
-          />
           <div className="ds-page">{renderPage()}</div>
         </main>
         <footer className="ds-footer">

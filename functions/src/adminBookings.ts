@@ -29,10 +29,11 @@ import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { nextBookingCode } from './bookingSequence';
 import { businessContract, availableBusinessCredit } from './domain/business';
 import { assertCashAllowed } from './channelPolicy';
-import { supportsTrip, serviceAllowsCategory } from './onlineCatalog';
+import { supportsTrip, serviceAllowsCategory, matchAuthoritativeService, ServiceMasterDoc } from './onlineCatalog';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text, requireAction, requireStaffFlag } from './shared';
 import { canSeePayouts } from './staffReads';
 import { storePricingInTx } from './pricingPrivate';
+import { mailNewBooking } from './commerce';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 const MAX_FARE = 1000000;
@@ -172,7 +173,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       couponCode ? tx.get(db.collection('coupons')) : Promise.resolve(null),
       couponCode && customerId ? tx.get(db.collection('bookings').where('customerId', '==', customerId)) : Promise.resolve(null),
     ]);
-    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff, fixedRoutes] = await Promise.all([
+    const [previous, categories, serviceSnap, customer, policy, adjustmentDoc, tariff, fixedRoutes, servicesSnap] = await Promise.all([
       tx.get(ref),
       tx.get(db.collection('vehicle_categories').where('status', '==', 'Active')),
       typeof input.serviceId === 'string' && input.serviceId ? tx.get(db.doc(`services/${input.serviceId}`)) : Promise.resolve(null),
@@ -182,6 +183,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       loadTariffConfig(tx),
       // Fixed route fares are matched on canonical master-location ids, so a map-pin trip never needs them.
       tripType === 'One Way' && pickupR.source === 'master' && dropR.source === 'master' ? loadFixedRoutes(tx) : Promise.resolve([]),
+      tx.get(db.collection('services')),
     ]);
     if (previous.exists) {
       if (previous.data()!.createdBy !== admin.uid) throw new HttpsError('permission-denied', 'Request already used.');
@@ -201,12 +203,26 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     const category = configured.find((c) => c.id === input.categoryId);
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is not bookable (inactive or no per-km rate).');
     let service = serviceName(pickup, drop, route.distanceKm, tripType), serviceId = '';
+    const allServices: ServiceMasterDoc[] = servicesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
     if (serviceSnap) {
       if (!serviceSnap.exists || serviceSnap.data()!.status !== 'Active') throw new HttpsError('failed-precondition', 'The selected service is not active.');
       if (serviceSnap.data()!.adminBookingEnabled === false) throw new HttpsError('failed-precondition', 'The selected service is not enabled for admin bookings.');
       if(!supportsTrip(serviceSnap.data()!,tripType)||!serviceAllowsCategory(serviceSnap.data()!,category.id))throw new HttpsError('failed-precondition','The selected service does not allow this trip type or vehicle category.');
       service = text(serviceSnap.data()!.name, 120) || service;
       serviceId = serviceSnap.id;
+    } else {
+      const matched = matchAuthoritativeService(allServices, {
+        tripType,
+        categoryId: category.id,
+        distanceKm: route.distanceKm,
+        pickupType: pickup.type,
+        dropType: drop.type,
+        context: 'admin',
+      });
+      if (matched) {
+        service = matched.name || service;
+        serviceId = matched.id;
+      }
     }
 
     const rawChan = text(input.bookingSource || input.source || input.brand || input.channel || '');
@@ -253,14 +269,14 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });
     const calculated = priced.fare;
     const breakup = priced.breakup;
-    const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId, categoryId: category.id }) : null;
+    const commission = priced.usesCommissionPolicy ? resolveCommission(policy, { serviceId: serviceId || undefined, categoryId: category.id }) : null;
+    if (priced.usesCommissionPolicy && !commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
     // The admin form asks for this quote first and books against it; nothing is written.
     if (input.quoteOnly === true) {
       // The partner rate block is payout data: only for staff holding the payout right.
       const quotePricing = canSeePayouts(admin) ? priced.pricing : { ...priced.pricing, partner: null, ...(priced.pricing.extraCharges ? { extraCharges: { ...priced.pricing.extraCharges, partner: {} } } : {}) };
-      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !priced.usesCommissionPolicy || !!commission, adjustmentApplied: calculated.globalAdjustment, pricing: quotePricing, ...(couponCode ? { couponCode, couponDiscount } : {}) };
+      return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: true, adjustmentApplied: calculated.globalAdjustment, pricing: quotePricing, ...(couponCode ? { couponCode, couponDiscount } : {}) };
     }
-    if (priced.usesCommissionPolicy && !commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
     if (!Number.isFinite(input.expectedFare) || input.expectedFare !== calculated.total) {
       throw new HttpsError('failed-precondition', `The calculated fare is ₹${calculated.total}. Review it and submit again.`, { fare: calculated });
     }
@@ -350,6 +366,8 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     return { id: requestId, bookingId: bookingCode, fare: fare.total, calculatedFare: calculated.total, otp };
   });
   await pushAfterCommit(pushes);
+  // An office booking that was actually written (not a quote preview or a repeated request): confirm it to the customer by email.
+  if (result && typeof result === 'object' && 'id' in result && 'otp' in result) await mailNewBooking(String(result.id), false);
   return result;
 });
 

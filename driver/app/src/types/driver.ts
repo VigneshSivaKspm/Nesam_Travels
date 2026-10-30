@@ -248,6 +248,8 @@ export interface TripDetails {
   acceptedAt?: Date | null;
   /** Owner-driver cancellation request on this duty (server-written; the duty stays assigned until approved). */
   cancellationRequest?: { requestId: string; status: string; quotedPenalty: number } | null;
+  /** Waiting / hill / roof carrier recorded for this trip and where it stands in office review. */
+  extraUsage?: { revision: number; status: 'submitted' | 'approved' | 'rejected'; reviewNote: string; usage: { stops: { stopId: string; waitedMinutes: number }[] | null; hill: boolean | null; carrier: boolean | null } } | null;
   /** This driver's response to the dispatched duty, shown to the vendor. */
   driverResponse?: { viewedAt: Date | null; acknowledgedAt: Date | null } | null;
   /** Booked pickup time (pickupAt / scheduledAt); null when the booking does not say. */

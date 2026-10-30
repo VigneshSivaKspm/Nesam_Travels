@@ -135,8 +135,8 @@
   --shadow-pop: 0 24px 70px rgb(20 28 40 / 0.22);
 
   /* Layout: desktop content is intentionally centred at 1216px including padding. */
-  --max: 1216px;
-  --gutter: 32px;
+  --max: 100%;
+  --gutter: clamp(14px, 2.8vw, 64px);
   --header-h: 72px;
   --nav-h: 68px; /* phone bottom navigation */
   --tap: 44px;

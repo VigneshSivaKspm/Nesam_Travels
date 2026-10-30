@@ -111,7 +111,7 @@ export function PolicySections() {
   }, [hash, key]);
 
   return (
-    <section className="stack" aria-label="Customer policies">
+    <section className="stack policies" aria-label="Customer policies">
       <div className="card">
         <h2>{BRAND} customer policies</h2>
         <p>Updated 27 October 2026. Read alongside your booking confirmation and any versioned agreements below.</p>

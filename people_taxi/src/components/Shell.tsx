@@ -135,22 +135,37 @@ function ProfileMenu() {
 }
 
 function Footer() {
+  const scrollToConsole = () => {
+    const el = document.getElementById('book-console');
+    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+    window.scrollTo({ top, behavior: 'smooth' });
+    setTimeout(() => {
+      const el2 = document.getElementById('book-console');
+      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+      window.scrollTo({ top: top2, behavior: 'smooth' });
+    }, 120);
+  };
+
   return (
     <footer className="footer">
       <div className="footer__inner">
         <div className="footer__cta">
-          <div>
-            <p className="eyebrow eyebrow--sun">PEOPLE TAXI 24/7 HELPLINE</p>
+          <div className="footer__cta-copy">
+            <span className="eyebrow eyebrow--sun">
+              <Icon name="phone" size={13} /> PEOPLE TAXI 24/7 HELPLINE
+            </span>
             <h3>Ready to travel? Book your cab online in seconds.</h3>
-            <p className="muted">Verified drivers, upfront transparent fares, and air-conditioned cars across South India.</p>
+            <p className="footer__cta-sub">
+              Verified drivers, upfront transparent fares, and air-conditioned cars across South India.
+            </p>
           </div>
           <div className="footer__cta-actions">
-            <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--secondary btn--lg">
+            <Link to="/book" className="btn btn--sun btn--lg" onClick={scrollToConsole}>
+              Book a Ride Now <Icon name="arrow-right" size={18} />
+            </Link>
+            <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--ghost-light btn--lg">
               <Icon name="phone" size={18} /> {SUPPORT_PHONE_DISPLAY}
             </a>
-            <Link to="/book" className="btn btn--primary btn--lg">
-              Book a Ride Now
-            </Link>
           </div>
         </div>
         <div className="footer__grid">
@@ -164,16 +179,19 @@ function Footer() {
             <h2>Services</h2>
             <ul>
               <li>
-                <Link to="/book?service=one-way">One Way Drop Taxi</Link>
+                <Link to="/book?service=one-way" onClick={scrollToConsole}>One Way Drop Taxi</Link>
               </li>
               <li>
-                <Link to="/book?service=round-trip">Round Trips</Link>
+                <Link to="/book?service=round-trip" onClick={scrollToConsole}>Round Trips</Link>
               </li>
               <li>
-                <Link to="/book?service=airport">Airport Transfers</Link>
+                <Link to="/book?service=airport" onClick={scrollToConsole}>Airport Transfers</Link>
               </li>
               <li>
-                <Link to="/book?service=rental">Hourly City Rental</Link>
+                <Link to="/book?service=rental" onClick={scrollToConsole}>Hourly City Rental</Link>
+              </li>
+              <li>
+                <Link to="/book?service=multicity" onClick={scrollToConsole}>Multicity Itineraries</Link>
               </li>
             </ul>
           </nav>

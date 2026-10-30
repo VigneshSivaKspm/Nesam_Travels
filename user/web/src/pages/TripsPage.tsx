@@ -35,7 +35,7 @@ function TripCard({ trip, onCancel }: { trip: TripRecord; onCancel: (t: TripReco
   const status = customerStatus(trip);
   const when = trip.scheduledAt ?? trip.completedAt ?? trip.cancelledAt ?? trip.createdAt;
   const canCancel = trip.status !== 'Ongoing' && ['Pending', 'Approved', 'Confirmed', 'Assigned'].includes(trip.status) && cancellationQuote(trip).allowed;
-  const total = trip.status === 'Completed' ? (trip.fareBreakdown?.total ?? trip.fare) + trip.tollCharges : trip.status === 'Cancelled' || trip.status === 'Rejected' ? trip.cancellationFee : trip.fare;
+  const total = trip.status === 'Completed' ? (trip.fareBreakdown?.total ?? trip.fare) + trip.tollCharges + (trip.extraCharges ?? 0) : trip.status === 'Cancelled' || trip.status === 'Rejected' ? trip.cancellationFee : trip.fare;
   const unrated = trip.status === 'Completed' && trip.rating == null;
   const dropName = trip.drop.id === 'place-local-disposal' ? 'Within the city' : trip.drop.name;
 

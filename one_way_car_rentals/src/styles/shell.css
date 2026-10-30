@@ -394,6 +394,103 @@
   padding-top: clamp(28px, 3vw, 44px);
   padding-bottom: clamp(20px, 2vw, 28px);
 }
+
+/* ── Footer CTA Banner ─────────────────────────────────────────────────── */
+.footer__cta {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px 36px;
+  margin-bottom: clamp(28px, 3.5vw, 48px);
+  padding: clamp(24px, 3vw, 40px) clamp(24px, 3.5vw, 48px);
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, var(--brand-soft) 0%, rgb(255 255 255) 100%);
+  border: 1px solid var(--brand-line);
+  box-shadow: 0 12px 32px -8px rgb(13 138 69 / 0.12), inset 0 1px 0 rgb(255 255 255 / 0.8);
+}
+.footer__cta-copy {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+.footer__cta .eyebrow,
+.footer__cta .eyebrow--brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin: 0 0 4px;
+  padding: 5px 14px;
+  border-radius: var(--r-pill);
+  background: var(--brand);
+  color: #fff;
+  font-family: var(--font);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  border: none;
+  box-shadow: 0 2px 8px rgb(13 138 69 / 0.25);
+}
+.footer__cta .eyebrow::before,
+.footer__cta .eyebrow--brand::before {
+  display: none;
+}
+.footer__cta h2,
+.footer__cta h3 {
+  color: var(--ink);
+  font-size: clamp(1.4rem, 1.15rem + 1vw, 1.875rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
+}
+.footer__cta-sub {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: var(--fs-md);
+  max-width: 54ch;
+  line-height: 1.5;
+}
+.footer__cta-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.footer__cta .btn--primary {
+  box-shadow: 0 8px 20px rgb(13 138 69 / 0.28);
+  font-weight: 800;
+}
+.footer__cta .btn--primary:hover:not(:disabled) {
+  box-shadow: 0 12px 26px rgb(13 138 69 / 0.36);
+  transform: translateY(-2px);
+}
+.footer__cta .btn--secondary {
+  background: var(--surface);
+  border-color: var(--line-strong);
+  color: var(--ink);
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.04);
+}
+.footer__cta .btn--secondary:hover:not(:disabled) {
+  background: var(--brand-soft);
+  border-color: var(--brand-line);
+  color: var(--brand-ink);
+  transform: translateY(-2px);
+}
+@media (max-width: 640px) {
+  .footer__cta-actions {
+    width: 100%;
+  }
+  .footer__cta-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
 .footer__grid {
   display: grid;
   grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));

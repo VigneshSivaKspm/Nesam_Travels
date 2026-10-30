@@ -72,7 +72,7 @@ export function PaymentsPage() {
           {rows.map((t) => {
             const when = t.completedAt ?? t.cancelledAt ?? t.createdAt;
             const done = t.status === 'Completed';
-            const total = done ? (t.fareBreakdown?.total ?? t.fare) + t.tollCharges : t.cancellationFee;
+            const total = done ? (t.fareBreakdown?.total ?? t.fare) + t.tollCharges + (t.extraCharges ?? 0) : t.cancellationFee;
             return (
               <li key={t.id}>
                 <Link className="pay-row" to={`/trips/${t.id}`}>

@@ -119,6 +119,26 @@ export const requestBankChange = (accountHolder: string, accountLast4: string, i
 
 export const requestDepositRefund = () => callFunction('requestDepositRefund', {});
 
+/** When (and where) a fleet vehicle is free for new duties. */
+export const setVehicleAvailability = (vehicleId: string, availableFrom: Date, location: string) =>
+  callFunction('setVehicleAvailability', { vehicleId, availableFrom: availableFrom.toISOString(), location: location.trim() });
+
+/** The storage path inside a Firebase download URL (…/o/<encoded path>?alt=media…). */
+function storagePathOf(url: string): string {
+  const m = /\/o\/([^?]+)/.exec(url);
+  return m ? decodeURIComponent(m[1]!) : '';
+}
+
+/**
+ * Sends a renewed vehicle document for office approval. The file is already uploaded to the vendor's own folder; the vehicle
+ * stays in service with its current document until the office approves the new expiry.
+ */
+export const submitVehicleRenewal = (vehicleId: string, document: 'rc' | 'insurance' | 'fitness' | 'permit' | 'puc', expiry: string, fileUrl: string) =>
+  callFunction('submitPartnerRequest', {
+    type: 'document_renewal', entityType: 'vehicle', entityId: vehicleId, document, expiry,
+    filePath: storagePathOf(fileUrl), fileUrl, fileName: storagePathOf(fileUrl).split('/').pop() ?? '',
+  });
+
 /** Outstanding dues: the amount and what it covers are decided by the server from confirmed ledger debits. */
 export interface DuesItem { label: string; amount: number }
 export interface DuesSummary { payable: number; items: DuesItem[] }

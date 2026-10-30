@@ -14,6 +14,7 @@ export function receiptHtml(trip: TripRecord, customerName: string): string {
   const rows = [
     ...lines.filter((l) => l.treatment === 'included' && l.amount !== null).map((l) => [l.label, l.amount ?? 0] as [string, number]),
     ...(trip.tollCharges ? [['Tolls & parking', trip.tollCharges] as [string, number]] : []),
+    ...(trip.extraCharges ? [['Waiting / hill / roof carrier (approved)', trip.extraCharges] as [string, number]] : []),
   ]
     .map(([label, amount]) => `<tr><td>${escapeHtml(label)}</td><td class="r">${escapeHtml(money(amount))}</td></tr>`)
     .join('');

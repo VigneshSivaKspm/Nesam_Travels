@@ -57,7 +57,7 @@ export default function FareGstSettings({ scope, onDirtyChange, onBusyChange }: 
   const stateSelect = (value: string, change: (value: string) => void, placeholder: string) => <select className="ds-select" value={value} onChange={event => change(event.target.value)}><option value="">{placeholder}</option>{GST_STATES.map(([code, name]) => <option key={code} value={code}>{name} ({code})</option>)}</select>;
   const pct = Math.round(rule.rate * 10000) / 100;
   const taxable = rule.mode === 'included' ? 1000 / (1 + rule.rate) : 1000;
-  return <section id="fare-gst-settings" className="ds-panel ds-panel-pad mt-5" aria-label="GST settings">
+  return <section id="fare-gst-settings" className="ds-panel ds-panel-pad" aria-label="GST settings">
     <h2 className="text-[17px] font-bold">GST calculation</h2>
     <p className="text-[12px] text-muted mb-3">{scope.brand === 'common' ? 'Common — all brands' : BRAND_LABELS[scope.brand]} → {scope.service} · All vehicle categories. Brand settings override Common; within a brand, pickup-state settings override its default.</p>
     <fieldset disabled={busy || !canEdit || tariff === undefined || !!loadError}>

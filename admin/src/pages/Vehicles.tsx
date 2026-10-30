@@ -4,7 +4,7 @@ import { Button } from "../components/ui";
 import VehicleDesk from "./VehicleDesk";
 
 /** Vehicles: the Master Admin registry; the previous Fleet desk stays one click away. */
-export default function Vehicles({ onOpenBooking, onNavigate }: { onOpenBooking: (id: string) => void; onNavigate?: (page: string, tab?: string) => void }) {
+export default function Vehicles({ onOpenBooking, onNavigate, initialProfile }: { onOpenBooking: (id: string) => void; onNavigate?: (page: string, tab?: string) => void; initialProfile?: string }) {
   const [desk, setDesk] = useState(false);
   if (desk) {
     return (
@@ -14,5 +14,5 @@ export default function Vehicles({ onOpenBooking, onNavigate }: { onOpenBooking:
       </div>
     );
   }
-  return <PartnerRegistry kind="vehicle" onOpenBooking={onOpenBooking} onNavigate={onNavigate} aside={<Button variant="ghost" icon="car-front" onClick={() => setDesk(true)}>Fleet desk</Button>} />;
+  return <PartnerRegistry kind="vehicle" initialProfile={initialProfile} onOpenBooking={onOpenBooking} onNavigate={onNavigate} aside={<Button variant="ghost" icon="car-front" onClick={() => setDesk(true)}>Fleet desk</Button>} />;
 }

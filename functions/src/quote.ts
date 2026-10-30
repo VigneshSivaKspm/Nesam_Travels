@@ -21,7 +21,9 @@ import {
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
 import { requirePermission, text, requireAction } from './shared';
-import { assertCatalogAvailable } from './onlineCatalog';
+import { assertCatalogAvailable, matchAuthoritativeService, ServiceMasterDoc } from './onlineCatalog';
+import { loadCommissionPolicy } from './commission';
+import { COMMISSION_NOT_CONFIGURED, resolveCommission } from './domain/finance';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 export const TARIFF_DOC = 'business_config/tariff_v2';
@@ -405,13 +407,15 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   if (customer?.exists && !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
   // A coupon is only checked for an existing customer account.
   const customerId = customer?.exists ? uid : null;
-  const [categories, tariff, adjustmentDoc, coupons, history, serviceRules] = await Promise.all([
+  const [categories, tariff, adjustmentDoc, coupons, history, serviceRules, policy, servicesSnap] = await Promise.all([
     db.collection('vehicle_categories').where('status', '==', 'Active').get(),
     loadTariffConfig(),
     loadFareAdjustment(),
     input.couponCode && customerId ? db.collection('coupons').get() : Promise.resolve(null),
     input.couponCode && customerId ? db.collection('bookings').where('customerId', '==', customerId).get() : Promise.resolve(null),
     loadServiceRules(),
+    loadCommissionPolicy(),
+    db.collection('services').get(),
   ]);
   const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
   const recipientState = recipientGstState(customer?.data());
@@ -419,7 +423,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
-  const onlineMasters=(await db.collection('services').get()).docs.map(d=>d.data());
+  const onlineMasters: ServiceMasterDoc[] = servicesSnap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
   const quotes = categories.docs
     .map((d) => ({ d, c: mapCategory(d.id, d.data()) }))
     .filter((x): x is { d: FirebaseFirestore.QueryDocumentSnapshot; c: NonNullable<ReturnType<typeof mapCategory>> } => x.c !== null)
@@ -431,6 +435,18 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
         assertCatalogAvailable(onlineMasters,tripType,category.id);
         assertBookable(rules, category.name);
         const before = priceBooking(base);
+        if (before.usesCommissionPolicy) {
+          const matched = matchAuthoritativeService(onlineMasters, {
+            tripType,
+            categoryId: c.id,
+            distanceKm: route.distanceKm,
+            pickupType: pickup.type,
+            dropType: drop.type,
+            context: 'customer',
+          });
+          const commission = resolveCommission(policy, { serviceId: matched?.id, categoryId: c.id });
+          if (!commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
+        }
         let couponMessage = '', discount = 0;
         if (code && coupons) {
           const r = validateCoupon(coupons.docs.map((x) => mapCoupon(x.id, x.data())), code, {

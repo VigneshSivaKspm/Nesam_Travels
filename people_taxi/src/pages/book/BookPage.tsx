@@ -81,29 +81,13 @@ function HeroCopy() {
         Any journey, <em>priced with a friendly smile.</em>
       </h1>
       <p className="hero-copy__sub">
-        Verified chauffeurs, clean air-conditioned cars, and 100% upfront transparent fares with no hidden costs across Tamil Nadu, Bangalore and Pondicherry.
+        Verified chauffeurs, clean air-conditioned cars, and 100% upfront transparent fares with no hidden costs across South India.
       </p>
-      <ul className="hero-points">
-        <li>
-          <Icon name="check" size={18} /> Exact upfront fares before you book
-        </li>
-        <li>
-          <Icon name="check" size={18} /> Professional, verified chauffeurs
-        </li>
-        <li>
-          <Icon name="check" size={18} /> Pay your driver directly via Cash or UPI
-        </li>
-      </ul>
-      <div className="hero-trust-badges">
-        <div className="badge-pill">
-          <Icon name="shield-check" size={16} /> 24/7 Helpline
-        </div>
-        <div className="badge-pill">
-          <Icon name="snowflake" size={16} /> 100% AC Fleet
-        </div>
-        <div className="badge-pill">
-          <Icon name="circle-check" size={16} /> Zero Surge Pricing
-        </div>
+      <div className="hero-trust-simple">
+        <span><Icon name="check" size={15} /> Upfront Fares</span>
+        <span><Icon name="shield-check" size={15} /> Verified Drivers</span>
+        <span><Icon name="snowflake" size={15} /> 100% AC</span>
+        <span><Icon name="phone" size={15} /> 24/7 Helpline</span>
       </div>
     </div>
   );
@@ -169,10 +153,32 @@ function Home() {
     [setParams, update],
   );
 
-  const scrollToConsole = () => {
+  const scrollToConsole = useCallback(() => {
     const el = document.getElementById('book-console');
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+    window.scrollTo({ top, behavior: 'smooth' });
+    setTimeout(() => {
+      const el2 = document.getElementById('book-console');
+      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+      window.scrollTo({ top: top2, behavior: 'smooth' });
+    }, 120);
+  }, []);
+
+  // When a service or outstation trip type is selected via URL query params, sync preference and scroll up to the console
+  useEffect(() => {
+    if (tripParam === 'round-trip' || rawService === 'round-trip') {
+      writeOutstation('Round Trip');
+    } else if (tripParam === 'one-way' || rawService === 'one-way') {
+      writeOutstation('One Way');
+    }
+    if (rawService || tripParam) {
+      scrollToConsole();
+      const timer = window.setTimeout(() => {
+        scrollToConsole();
+      }, 120);
+      return () => window.clearTimeout(timer);
+    }
+  }, [rawService, tripParam, scrollToConsole]);
 
   const onRoute = (c: Corridor) => {
     update({ pickup: c.pickup, drop: c.drop, tripType: 'One Way' });
@@ -222,8 +228,8 @@ function Home() {
         <HowSection />
         <AssuranceSection />
         <Banners />
-        <ReviewsSection />
-        <CatalogSection />
+        <ReviewsSection brand="People Taxi" />
+        <CatalogSection brand="People Taxi" />
         <FaqSection />
       </div>
     </div>

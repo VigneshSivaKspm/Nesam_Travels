@@ -975,6 +975,10 @@ a.setting:hover {
 .gate {
   max-width: 820px;
 }
+/* Policy cards span the page; their paragraphs keep a readable line length. */
+.policies p {
+  max-width: 80ch;
+}
 
 /* ── Phones ──────────────────────────────────────────────────────────────── */
 @media (max-width: 999.98px) {

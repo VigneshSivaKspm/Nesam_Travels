@@ -91,6 +91,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
   const [sendMessage, setSendMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [sendSuccessMessage, setSendSuccessMessage] = useState("");
+  const [sendError, setSendError] = useState("");
 
   useEffect(() => {
     // 1. Subscribe to Admin notifications & real-time operational alerts
@@ -199,8 +200,9 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
   };
 
   const handleSend = async () => {
+    setSendError("");
     if (!sendTitle.trim() || !sendMessage.trim()) {
-      alert("Please enter both a title and message body.");
+      setSendError("Enter both a title and a message.");
       return;
     }
 
@@ -233,7 +235,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
       setSendMessage("");
       setTimeout(() => setSendSuccessMessage(""), 4000);
     } else {
-      alert(res.error || "Failed to dispatch the notification. Please check your connection and permissions.");
+      setSendError(res.error || "The notification was not sent. Check your connection and permissions, then try again.");
     }
   };
 
@@ -754,11 +756,12 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand resize-none"
               />
               <div className="flex justify-between items-center text-[11px] text-faint mt-1">
-                <span>Supports markdown and standard emojis</span>
+                <span>Plain text — sent as written to each channel</span>
                 <span>{sendMessage.length} chars</span>
               </div>
             </div>
 
+            {sendError && <div role="alert" className="ds-error mb-3">{sendError}</div>}
             {/* Submit Action */}
             <div className="pt-2 flex items-center gap-3">
               <button

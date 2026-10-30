@@ -571,6 +571,9 @@ export function mapBooking(id: string, data: DocumentData): TripDetails {
     cancellationRequest: data.cancellationRequest && typeof data.cancellationRequest === 'object' && data.cancellationRequest.partyType === 'driver'
       ? { requestId: str(data.cancellationRequest.requestId), status: str(data.cancellationRequest.status), quotedPenalty: parseAmount(data.cancellationRequest.quotedPenalty) }
       : null,
+    extraUsage: data.extraUsage && typeof data.extraUsage === 'object' && typeof data.extraUsage.revision === 'number'
+      ? { revision: data.extraUsage.revision, status: data.extraUsage.status, reviewNote: str(data.extraUsage.reviewNote), usage: data.extraUsage.usage ?? { stops: null, hill: null, carrier: null } }
+      : null,
     driverResponse: data.driverResponse && typeof data.driverResponse === 'object' && data.driverResponse.driverId === data.assignedDriverId
       ? { viewedAt: toDateTime(data.driverResponse.viewedAt), acknowledgedAt: toDateTime(data.driverResponse.acknowledgedAt) }
       : null,

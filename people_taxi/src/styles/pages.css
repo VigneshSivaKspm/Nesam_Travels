@@ -785,6 +785,10 @@ a.setting:hover {
 .gate {
   max-width: 980px;
 }
+/* Policy cards span the page; their paragraphs keep a readable line length. */
+.policies p {
+  max-width: 80ch;
+}
 
 /* ── Sign in: two rounded cards on the sky page ──────────────────────────── */
 .auth {

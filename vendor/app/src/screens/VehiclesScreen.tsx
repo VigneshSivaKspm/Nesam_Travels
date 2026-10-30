@@ -2,7 +2,8 @@
 // separate request that the driver who drove it last confirms with a code
 // (see components/links). Pairing a driver and changing a vehicle's service status stay direct, rules-checked writes.
 import React, { useState } from 'react';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useVendorData } from '../context/VendorData';
@@ -13,7 +14,8 @@ import { assignVehicle, deleteVehicle, setVehicleStatus, VendorActionError } fro
 import { findVehicle, requestVehicleLink, type LinkRequestResult, type VehicleLookup } from '../services/partnerLinks';
 import type { FleetVehicle, VehicleStatus } from '../types/operations';
 import type { TabParamList } from '../navigation/types';
-import { displayDate } from '../components/fields';
+import { DateField, SingleDocField, displayDate } from '../components/fields';
+import { setVehicleAvailability, submitVehicleRenewal } from '../services/partnerOps';
 import { daysUntil } from '../utils/wallet';
 import { isPlate, normalizePlate as plateKey } from '../utils/fleet';
 import { describeDataError } from '../utils/retry';
@@ -34,6 +36,8 @@ export function VehiclesScreen() {
   const [editing, setEditing] = useState<FleetVehicle | null>(null);
   const [register, setRegister] = useState<string | null>(null);
   const [pairFor, setPairFor] = useState<FleetVehicle | null>(null);
+  const [availabilityFor, setAvailabilityFor] = useState<FleetVehicle | null>(null);
+  const [renewFor, setRenewFor] = useState<FleetVehicle | null>(null);
   const [message, setMessage] = useState<{
     tone: 'success' | 'error';
     text: string;
@@ -122,6 +126,8 @@ export function VehiclesScreen() {
           }}
         />
       ) : null}
+      {availabilityFor ? <AvailabilitySheet vehicle={availabilityFor} onClose={() => setAvailabilityFor(null)} onDone={(text) => { setAvailabilityFor(null); setMessage({ tone: 'success', text }); }} /> : null}
+      {renewFor ? <RenewSheet vehicle={renewFor} onClose={() => setRenewFor(null)} onDone={(text) => { setRenewFor(null); setMessage({ tone: 'success', text }); }} /> : null}
       <Screen edges={[]}>
         <View style={styles.titleRow}>
           <View style={{ flex: 1 }}>
@@ -175,6 +181,108 @@ export function VehiclesScreen() {
                 <Button small variant="secondary" title="Pair driver" onPress={() => setPairFor(v)} style={{ flex: 1 }} disabled={drivers.length === 0} />
                 <Button small variant="secondary" title="Documents" onPress={() => setEditing(v)} style={{ flex: 1 }} />
                 <Button small variant="ghost" title="Remove" onPress={() => remove(v)} />
+              </View>
+              <View style={styles.actions}>
+                
+/** When (and where) the vehicle is free for new duties — the same record the vendor website and the office read. */
+function AvailabilitySheet({ vehicle, onClose, onDone }: { vehicle: FleetVehicle; onClose: () => void; onDone: (text: string) => void }) {
+  const [at, setAt] = useState(() => new Date());
+  const [location, setLocation] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pick = (mode: 'date' | 'time') =>
+    DateTimePickerAndroid.open({
+      value: at, mode, is24Hour: false, minimumDate: mode === 'date' ? new Date() : undefined,
+      onChange: (event, d) => {
+        if (event.type !== 'set' || !d) return;
+        const next = new Date(at);
+        if (mode === 'date') next.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
+        else next.setHours(d.getHours(), d.getMinutes(), 0, 0);
+        setAt(next);
+      },
+    });
+  const save = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      await setVehicleAvailability(vehicle.id, at, location);
+      onDone(`${vehicle.vehicleNumber} is available from ${at.toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Availability was not saved.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Sheet visible onClose={onClose} title={`Availability · ${vehicle.vehicleNumber}`} dismissible={!busy}>
+      <Text style={[type.small, { marginBottom: space.md }]}>Tell the office when this vehicle is free for new duties, and where it will be.</Text>
+      <View style={styles.actions}>
+        <Pressable onPress={() => pick('date')} style={styles.pickBox} accessibilityRole="button" accessibilityLabel="Available from date">
+          <Ionicons name="calendar-outline" size={18} color={colors.muted} />
+          <Text style={type.body}>{at.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+        </Pressable>
+        <Pressable onPress={() => pick('time')} style={styles.pickBox} accessibilityRole="button" accessibilityLabel="Available from time">
+          <Ionicons name="time-outline" size={18} color={colors.muted} />
+          <Text style={type.body}>{at.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit' })}</Text>
+        </Pressable>
+      </View>
+      <TextField label="Vehicle location (optional)" value={location} onChangeText={setLocation} placeholder="e.g. Theni bus stand" maxLength={120} />
+      {error ? <Notice message={error} /> : null}
+      <Button title="Update availability" loading={busy} onPress={() => void save()} />
+    </Sheet>
+  );
+}
+
+const RENEWABLE: { key: 'rc' | 'insurance' | 'fitness' | 'permit' | 'puc'; label: string }[] = [
+  { key: 'insurance', label: 'Insurance' }, { key: 'permit', label: 'Permit' }, { key: 'fitness', label: 'Fitness (FC)' }, { key: 'rc', label: 'RC' }, { key: 'puc', label: 'PUC' },
+];
+
+/**
+ * A renewed document for office approval. Unlike "Documents" (which sends the whole vehicle back to review), the vehicle stays in
+ * service on its current documents until the office approves the new expiry.
+ */
+function RenewSheet({ vehicle, onClose, onDone }: { vehicle: FleetVehicle; onClose: () => void; onDone: (text: string) => void }) {
+  const { requests } = useVendorData();
+  const [docKey, setDocKey] = useState<(typeof RENEWABLE)[number]['key']>('insurance');
+  const [fileUrl, setFileUrl] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const pending = requests.filter((r) => r.type === 'document_renewal' && r.status === 'Pending' && r.entityName === vehicle.vehicleNumber);
+  const tomorrow = new Date(Date.now() + 86400000);
+  const save = async () => {
+    if (!fileUrl) return setError('Upload the renewed document first.');
+    if (!expiry) return setError('Choose the new expiry date.');
+    setBusy(true);
+    setError('');
+    try {
+      await submitVehicleRenewal(vehicle.id, docKey, expiry, fileUrl);
+      onDone(`${RENEWABLE.find((d) => d.key === docKey)?.label} renewal sent for ${vehicle.vehicleNumber}. The office reviews it.`);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'The renewal was not sent.');
+    } finally {
+      setBusy(false);
+    }
+    return undefined;
+  };
+  return (
+    <Sheet visible onClose={onClose} title={`Renew a document · ${vehicle.vehicleNumber}`} dismissible={!busy && !uploading}>
+      {pending.map((r) => <Notice key={r.id} tone="info" message={`${r.documentLabel} renewal under review · new expiry ${displayDate(r.expiry)}`} />)}
+      <Text style={[type.label, { marginBottom: 6 }]}>Document</Text>
+      <View style={styles.chips}>
+        {RENEWABLE.map((d) => <Chip key={d.key} label={d.label} active={docKey === d.key} onPress={() => { setDocKey(d.key); setFileUrl(''); }} />)}
+      </View>
+      <SingleDocField label="Renewed document" vehicleId={vehicle.id} kind={`renewal-${docKey}`} value={fileUrl} onChange={setFileUrl} required onBusyChange={setUploading} />
+      <DateField label="New expiry date" value={expiry} onChange={setExpiry} minimumDate={tomorrow} required />
+      {error ? <Notice message={error} /> : null}
+      <Button title={uploading ? 'Uploading…' : 'Send for approval'} loading={busy} disabled={uploading} onPress={() => void save()} />
+    </Sheet>
+  );
+}
+
+<Button small variant="secondary" title="Availability" onPress={() => setAvailabilityFor(v)} style={{ flex: 1 }} />
+                <Button small variant="secondary" title="Renew a document" onPress={() => setRenewFor(v)} style={{ flex: 1 }} disabled={v.docStatus !== 'Approved'} />
               </View>
             </Card>
           ))
@@ -407,4 +515,5 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: 'row', gap: space.sm, marginTop: space.md },
   chips: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: space.sm },
+  pickBox: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.sm, minHeight: 46, paddingHorizontal: space.md, borderWidth: 1, borderColor: colors.border, borderRadius: 10, backgroundColor: colors.card, marginBottom: space.md },
 });

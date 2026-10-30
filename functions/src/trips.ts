@@ -19,6 +19,7 @@ import { formatDateTime12, pickupInstant } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { assertDeviceTrusted, logSecurityEvent, requestIp } from './security';
 import { loadPrivatePricing, withPrivatePricing } from './pricingPrivate';
+import { sendCustomerMessage } from './customerComms';
 import { approved, inIndia, requirePermission, text, requireAction } from './shared';
 
 // Operational limits. All are staff-configurable in settings/operations; these defaults are the
@@ -259,6 +260,15 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
     throw err;
   });
   await pushAfterCommit(pushes);
+  // The trip just ended (not a repeated tap): send the customer their trip summary — every channel, as before.
+  if (to === 'Trip Ended' && result && (result as { duplicate?: boolean }).duplicate === false) {
+    try {
+      const snap = await db.doc(`bookings/${bookingId}`).get();
+      if (snap.exists) await sendCustomerMessage(bookingId, snap.data()!, 'trip_completed');
+    } catch (err) {
+      console.warn('trip completed message failed', err);
+    }
+  }
   return result;
 });
 

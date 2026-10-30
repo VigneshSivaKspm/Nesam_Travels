@@ -3,7 +3,7 @@ import { COMPANY_NAME, COMPANY_UPI_ID } from '@core/config/constants';
 
 /** What the trip costs in total: the stored fare plus tolls the driver paid on the way. */
 export function payableAmount(trip: TripRecord): number {
-  return Math.round((trip.fareBreakdown?.total ?? trip.fare) + trip.tollCharges);
+  return Math.round((trip.fareBreakdown?.total ?? trip.fare) + trip.tollCharges + (trip.extraCharges ?? 0));
 }
 
 /** What is still owed: the server's balance once payments are recorded, else the full amount. */

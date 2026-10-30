@@ -37,14 +37,14 @@
 .topbar__inner {
   display: flex;
   align-items: center;
-  /* Every group below is sized to fit the pill (1200px at most) at its breakpoint; min-width:0 lets the nav give way
+  /* Every group below is sized to fit the pill at its breakpoint; min-width:0 lets the nav give way
      instead of overflowing leftwards over the logo. */
   min-width: 0;
   gap: clamp(12px, 1.6vw, 24px);
   height: 64px;
-  /* Wider than the 1200px page column on purpose: the complete row (logo ≈200px, four labelled links ≈530–555px, Help, phone number
-     and account ≈425–470px, plus padding and gaps) needs roughly 1240–1305px. */
-  max-width: 1360px;
+  /* Spans the same full-width grid as the page (the topbar's own padding is the gutter). The complete row (logo ≈200px,
+     four labelled links ≈530–555px, Help, phone number and account ≈425–470px, plus padding and gaps) needs roughly 1240–1305px. */
+  max-width: var(--max);
   margin-inline: auto;
   padding: 0 10px 0 22px;
   border: 1px solid var(--line);
@@ -421,48 +421,101 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 20px 32px;
+  gap: 24px 36px;
   margin-bottom: clamp(28px, 3vw, 48px);
-  padding: clamp(20px, 2.4vw, 32px) clamp(22px, 2.6vw, 40px);
-  border-radius: var(--r-lg);
-  background: rgb(255 255 255 / 0.12);
-  border: 1px solid rgb(255 255 255 / 0.2);
-  backdrop-filter: blur(6px);
+  padding: clamp(24px, 2.8vw, 36px) clamp(24px, 3.2vw, 44px);
+  border-radius: var(--r-xl);
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.18) 0%, rgb(255 255 255 / 0.08) 100%);
+  border: 1px solid rgb(255 255 255 / 0.28);
+  box-shadow: 0 20px 48px -12px rgb(8 28 84 / 0.35), inset 0 1px 0 rgb(255 255 255 / 0.3);
+  backdrop-filter: blur(12px);
+}
+.footer__cta-copy {
+  display: grid;
+  gap: 6px;
+  flex: 1 1 24rem;
+  min-width: 0;
+}
+.footer__cta .eyebrow,
+.footer__cta .eyebrow--sun,
+.eyebrow--sun {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  margin: 0 0 4px;
+  padding: 5px 14px;
+  border-radius: var(--r-pill);
+  background: var(--sun);
+  color: var(--ink);
+  font-size: var(--fs-xs);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border: none;
+  box-shadow: 0 3px 10px rgb(0 0 0 / 0.15);
 }
 .footer__cta h2,
 .footer__cta h3 {
   color: #fff;
-  font-size: var(--fs-h2);
+  font-size: clamp(1.4rem, 1.15rem + 1vw, 1.875rem);
   font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  margin: 0;
 }
-.footer__cta p {
-  margin-top: 4px;
-  color: var(--on-dark-muted);
+.footer__cta p:not(.eyebrow),
+.footer__cta-sub {
+  margin: 4px 0 0;
+  color: rgb(255 255 255 / 0.92);
   font-size: var(--fs-md);
+  max-width: 54ch;
+  line-height: 1.5;
 }
 .footer__cta-actions {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: 14px;
 }
-.btn--sun {
+.btn--sun,
+.footer__cta .btn--primary {
   --btn-bg: var(--sun);
   --btn-fg: var(--ink);
   --btn-line: var(--sun);
-  box-shadow: 0 10px 22px rgb(255 197 61 / 0.4);
+  box-shadow: 0 10px 24px rgb(0 0 0 / 0.22);
+  font-weight: 900;
 }
-.btn--sun:hover:not(:disabled) {
+.btn--sun:hover:not(:disabled),
+.footer__cta .btn--primary:hover:not(:disabled) {
   --btn-bg: var(--sun-hover);
   --btn-line: var(--sun-hover);
+  box-shadow: 0 14px 28px rgb(0 0 0 / 0.3);
+  transform: translateY(-2px);
 }
-.btn--ghost-light {
-  --btn-bg: transparent;
+.btn--ghost-light,
+.footer__cta .btn--secondary {
+  --btn-bg: rgb(255 255 255 / 0.14);
   --btn-fg: #fff;
-  --btn-line: rgb(255 255 255 / 0.5);
+  --btn-line: rgb(255 255 255 / 0.45);
+  backdrop-filter: blur(6px);
+  font-weight: 800;
 }
-.btn--ghost-light:hover:not(:disabled) {
-  --btn-bg: rgb(255 255 255 / 0.16);
+.btn--ghost-light:hover:not(:disabled),
+.footer__cta .btn--secondary:hover:not(:disabled) {
+  --btn-bg: rgb(255 255 255 / 0.26);
   --btn-line: #fff;
+  color: #fff;
+  transform: translateY(-2px);
+}
+@media (max-width: 640px) {
+  .footer__cta-actions {
+    width: 100%;
+  }
+  .footer__cta-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
 }
 .footer__grid {
   position: relative;

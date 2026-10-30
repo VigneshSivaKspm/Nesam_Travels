@@ -77,8 +77,10 @@ const ACTIVE = ["Approved", "Confirmed", "Assigned", "Ongoing"];
 
 // ── Registry page ─────────────────────────────────────────────────────────
 
-export default function PartnerRegistry({ kind, onOpenBooking, onNavigate, aside }: {
+export default function PartnerRegistry({ kind, onOpenBooking, onNavigate, aside, initialProfile }: {
   kind: PartnerKind;
+  /** Opens this record's profile straight away (a "Driver profile" / "Vehicle profile" link from another page). */
+  initialProfile?: string;
   onOpenBooking: (id: string) => void;
   onNavigate?: (page: string, tab?: string) => void;
   /** Extra header actions (e.g. the detailed KYC review desk the app had before). */
@@ -92,7 +94,7 @@ export default function PartnerRegistry({ kind, onOpenBooking, onNavigate, aside
   const [account, setAccount] = useState<"All" | Account>("All");
   const [page, setPage] = useState(1);
   const [exporting, setExporting] = useState(false);
-  const [profile, setProfile] = useState<string | null>(null);
+  const [profile, setProfile] = useState<string | null>(initialProfile ?? null);
   const [sheet, setSheet] = useState<{ kind: "review" | "add"; id?: string } | null>(null);
   const sel = useSelection();
 

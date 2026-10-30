@@ -67,15 +67,17 @@ function Tabs() {
 }
 
 /** Where a notification's call-to-action leads. */
-function openPage(page: string) {
+function openPage(page: string, bookingId?: string) {
   if (!navigationRef.isReady()) return;
   switch (page) {
     case 'market':
     case 'marketplace':
       return navigationRef.navigate('Tabs', { screen: 'Trips' });
+    case 'trip':
     case 'trips':
     case 'booking-detail':
-      return navigationRef.navigate('Tabs', { screen: 'Bookings' });
+      // The booking the notification is about, when it names one.
+      return bookingId ? navigationRef.navigate('BookingDetail', { id: bookingId }) : navigationRef.navigate('Tabs', { screen: 'Bookings' });
     case 'wallet':
     case 'payouts':
       return navigationRef.navigate('Tabs', { screen: 'Wallet' });
@@ -88,6 +90,7 @@ function openPage(page: string) {
       return navigationRef.navigate('Tabs', { screen: 'Fleet', params: { tab: 'Vehicles' } });
     case 'requests':
       return navigationRef.navigate('Helpdesk');
+    case 'links':
     case 'partner-links':
       return navigationRef.navigate('Requests');
     case 'profile':
@@ -104,12 +107,12 @@ function WorkspaceOverlays() {
   const { notifications, unacknowledged } = useInbox();
   const [doneIds, setDoneIds] = useState<string[]>([]);
   const pending = unacknowledged.find((x) => !doneIds.includes(x.id));
-  useEffect(() => onPushOpened((d) => openPage(d.page)), []);
+  useEffect(() => onPushOpened((d) => openPage(d.page, d.bookingId || undefined)), []);
   return (
     <>
       <NotificationPopups
         notifications={notifications}
-        onOpen={(n) => openPage(n.ctaPage)}
+        onOpen={(n) => openPage(n.ctaPage, n.bookingId || undefined)}
         onRead={(n) => {
           if (!n.read) markNotificationRead(n.id).catch(() => undefined);
         }}

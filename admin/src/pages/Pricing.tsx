@@ -12,6 +12,7 @@ import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, toneForStatus }
 import { StageBar } from "../components/ui/ListKit";
 import MenuButton from "../components/ui/MenuButton";
 import FixedRouteFares from "../components/FixedRouteFares";
+import LocalFares from "../components/LocalFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import VehicleCategoriesPage from "./VehicleCategories";
 import BrandServiceFareWorkspace from "../components/BrandServiceFareWorkspace";
@@ -21,7 +22,7 @@ import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validat
 import { GST_STATES } from "../domain/gstStates";
 import { refDateTime } from "../domain/officeStage";
 
-type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings";
+type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings" | "GST calculation";
 type Sel = { state: string; city: string; area: string };
 const locationKey = (value: string) => value.trim().toLocaleLowerCase();
 const stateKey = (value: string) => {
@@ -86,7 +87,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>(restore?.filter ?? "All");
-  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "fixed" | "limits" | "all" } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "fixed" | "limits" | "all" | "local" } | null>(null);
   const pricingAccess = useCan("pricing");
   const settingsEdit = useCanDo("Settings", "edit");
   const canEdit = pricingAccess && settingsEdit;
@@ -153,6 +154,8 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
 
   const tools: [string, string, string, () => void][] = [
     ...(fareScope.service === "One Way" ? [["Fixed route fares", "Agreed customer fare and partner payout for this brand and service.", scopeLabel, () => setSheet({ kind: "fixed" })] as [string, string, string, () => void]] : []),
+    // Local Pickup & Drop is priced per City (canonical location id) for every brand; it has no brand/service override.
+    ...(fareScope.service === "One Way" ? [["Local Pickup & Drop city fares", "Fixed fare for a local trip inside one city, by vehicle class.", "City-wise · all brands", () => setSheet({ kind: "local" })] as [string, string, string, () => void]] : []),
     ["Fare limits", "Minimum and maximum amounts for this selection.", scopeLabel, () => setSheet({ kind: "limits" })],
     ["All rules & schedules", "Rules matching this brand, service and selected location.", scopeLabel, () => setSheet({ kind: "all" })],
   ];
@@ -166,28 +169,100 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       <PageHeader title="Service & Fare Settings" subtitle="Brand and service rates, booking availability, cab types and fare rules." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={!canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to preview its effective fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk enquiry flow." : undefined} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
 
       <section className="ds-panel ds-panel-pad mb-4" aria-label="Fare scope">
-        <div className="ds-filterbar">
-          <label className="ds-field"><span>Brand</span><select className="ds-select" value={fareScope.brand} onChange={e => {
-            const brand = e.target.value as FareWorkspaceScope["brand"];
-            const supported = brand === "common" ? WORKSPACE_SERVICES : BRAND_SUPPORTED_SERVICES[brand];
-            changeScope({ brand, service: supported.includes(fareScope.service) ? fareScope.service : supported[0] });
-          }}>{BRANDS.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}<option value="common">Common — all brands</option></select></label>
-          <label className="ds-field"><span>Trip / service</span><select className="ds-select" value={fareScope.service} onChange={e => changeScope({ ...fareScope, service: e.target.value as FareWorkspaceScope["service"] })}>{availableServices.map(service => <option key={service}>{service}</option>)}</select></label>
+        {/* Tier 1: Brand Selection */}
+        <div className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand text-white text-[11px] font-bold">1</span>
+              <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Select Brand</span>
+            </div>
+            <Button size="sm" variant={tab === 'GST calculation' ? 'primary' : 'secondary'} onClick={() => setTab('GST calculation')}>
+              GST calculation
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {BRANDS.map((b) => {
+              const active = fareScope.brand === b.id;
+              return (
+                <Button
+                  key={b.id}
+                  size="sm"
+                  variant={active ? "primary" : "secondary"}
+                  onClick={() => {
+                    const brand = b.id as FareWorkspaceScope["brand"];
+                    const supported = BRAND_SUPPORTED_SERVICES[brand];
+                    changeScope({ brand, service: supported.includes(fareScope.service) ? fareScope.service : supported[0] });
+                  }}
+                >
+                  {b.name}
+                </Button>
+              );
+            })}
+            <Button
+              size="sm"
+              variant={fareScope.brand === "common" ? "primary" : "secondary"}
+              onClick={() => {
+                const brand = "common";
+                const supported = WORKSPACE_SERVICES;
+                changeScope({ brand, service: supported.includes(fareScope.service) ? fareScope.service : supported[0] });
+              }}
+            >
+              Common — all brands
+            </Button>
+          </div>
         </div>
-        <div className="flex items-center justify-between gap-3 mt-3"><strong>{scopeLabel}</strong><Button onClick={() => { setTab('Brand & service fares'); requestAnimationFrame(() => document.getElementById('fare-gst-settings')?.scrollIntoView({ behavior: 'smooth', block: 'start' })); }}>GST calculation</Button></div>
-        <p className="text-[12px] text-muted">Fare sections below use this selection; the vehicle catalog is shared. Common records are shared defaults; brand overrides change only the selected brand. Confirmed bookings retain their agreed pricing.</p>
+
+        {/* Tier 2: Sub-categories: Trip / Service Selection */}
+        <div className="pt-3 border-t border-line">
+          <div className="flex items-center gap-2 mb-2.5">
+            <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ink text-white text-[11px] font-bold">2</span>
+            <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Select Trip / Service</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {availableServices.map((service) => {
+              const active = fareScope.service === service;
+              return (
+                <Button
+                  key={service}
+                  size="sm"
+                  variant={active ? "primary" : "secondary"}
+                  style={active ? { backgroundColor: "var(--color-ink)", borderColor: "var(--color-ink)", color: "#fff" } : undefined}
+                  onClick={() => changeScope({ ...fareScope, service })}
+                >
+                  {service}
+                </Button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Active Scope Summary */}
+        <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-line">
+          <div>
+            <strong className="text-[14px] text-ink">{scopeLabel}</strong>
+            <p className="text-[12px] text-muted mt-0.5">
+              {fareScope.brand === "common"
+                ? "Common records are shared defaults; brand overrides change only the selected brand."
+                : `${BRAND_LABELS[fareScope.brand]} brand overrides; unconfigured items inherit from Common.`}{" "}
+              Confirmed bookings retain their agreed pricing.
+            </p>
+          </div>
+        </div>
       </section>
 
       <div className="mb-5">
-        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings"] as const).map((t) => ({ id: t, label: t === "Brand & service fares" ? "Rates & extra charges" : t === "More settings" ? "Route fares & limits" : t }))} value={tab} onChange={(next) => { if (!workspaceBusy.current) setTab(next); }} />
+        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings", "GST calculation"] as const).map((t) => ({ id: t, label: t === "Brand & service fares" ? "Rates & extra charges" : t === "More settings" ? "Route fares & limits" : t }))} value={tab} onChange={(next) => { if (!workspaceBusy.current) setTab(next); }} />
       </div>
 
       <div hidden={tab !== "Brand & service fares"}>
         <BrandServiceFareWorkspace scope={fareScope} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
+      </div>
+
+      <div hidden={tab !== "GST calculation"}>
         <FareGstSettings key={`${fareScope.brand}:${fareScope.service}`} scope={fareScope} onDirtyChange={value => { gstDirty.current = value; }} onBusyChange={value => { gstBusy.current = value; }} />
       </div>
 
-      {tab !== "Brand & service fares" && (
+      {tab !== "Brand & service fares" && tab !== "GST calculation" && (
         <section className="ds-panel ds-panel-pad mb-5">
           <span className="ds-eyebrow">LOCATION</span>
           <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
@@ -279,6 +354,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       {sheet?.kind === "history" && <HistorySheet rules={rules.filter(inFareScope)} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet fareScope={fareScope} onClose={() => setSheet(null)} />}
       {sheet?.kind === "fixed" && <FixedRouteFares scope={fareScope} onClose={() => setSheet(null)} onToast={show} />}
+      {sheet?.kind === "local" && <Modal title="Local Pickup & Drop city fares" onClose={() => setSheet(null)} wide><LocalFares only="Pickup & Drop" initialTab="Pickup & Drop" onToast={show} /></Modal>}
       {sheet?.kind === "limits" && <LimitsSheet rules={scoped.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} canEditRule={canEditRule} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(scoped.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
     </div>

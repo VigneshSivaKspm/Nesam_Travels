@@ -92,6 +92,7 @@ export default function CommissionPolicy() {
   };
 
   const activeCategories = categories.filter((c) => c.status === "Active");
+  const hasServiceRules = Object.values(form.services).some((r) => r.trim());
   const uncovered = activeCategories.filter((c) => draftPreview({ categoryId: c.id }) === null);
   // Rules kept for records that are no longer listed (deleted category/service).
   const orphanRules = [
@@ -141,15 +142,32 @@ export default function CommissionPolicy() {
       <div>
         <h1 className="text-[20px] font-bold text-ink">Commission Policy</h1>
         <p className="text-[13px] text-muted">
-          The platform commission decides the payout offered to vendors and independent drivers. Each booking stores the rate it was created with, so a change here
+          The platform commission determines partner payout for commission-dependent duties. Tariffs with explicit partner payouts remain independent. Each booking stores the rate it was created with, so a change here
           never alters existing bookings or completed trips.
         </p>
       </div>
 
-      {!loading && !configured && (
+      {loading && (
+        <div className="p-4 rounded-xl border border-line bg-surface-2 text-[13px] text-muted">
+          Loading commission policy…
+        </div>
+      )}
+
+      {!loading && !loadError && !docExists && (
+        <div role="alert" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-[13px] text-amber-900">
+          <strong>No policy saved.</strong> Commission-dependent bookings (legacy category pricing) will be unavailable until a rate applies to them. Tariff bookings with fixed partner payouts remain unaffected.
+        </div>
+      )}
+
+      {!loading && !loadError && docExists && policy === null && (
         <div role="alert" className="p-4 rounded-xl border border-red-200 bg-red-50 text-[13px] text-red-800">
-          <strong>Not configured.</strong> {docExists ? "The stored policy is incomplete or invalid." : "No commission policy has been saved yet."} New bookings are refused until
-          a rate applies to them.
+          <strong>Invalid configuration.</strong> The stored commission policy is malformed or invalid. Commission-dependent bookings will be blocked until a valid policy is saved. Tariff bookings with fixed partner payouts remain unaffected.
+        </div>
+      )}
+
+      {!loading && !loadError && policy !== null && !configured && (
+        <div role="alert" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-[13px] text-amber-900">
+          <strong>Policy has no active rates.</strong> No global, category, or service rates are configured. Commission-dependent duties will be blocked until rates are defined. Fixed partner-payout tariffs remain unaffected.
         </div>
       )}
       {staleEdit && (
@@ -210,7 +228,13 @@ export default function CommissionPolicy() {
                   <td className="px-5 py-2.5">
                     <input inputMode="decimal" aria-label={`${c.name} rate`} value={form.categories[c.id] ?? ""} onChange={(e) => setRate("categories", c.id, e.target.value)} className={inputCls(!!errors[key])} />
                   </td>
-                  <td className={`px-5 py-2.5 text-[11px] ${applied ? "text-muted" : "text-red-700 font-semibold"}`}>{applied ? `Applies: ${applied}` : "No rate — bookings refused"}</td>
+                  <td className={`px-5 py-2.5 text-[11px] ${applied ? "text-muted" : hasServiceRules ? "text-muted" : "text-amber-700 font-medium"}`}>
+                    {applied
+                      ? `Applies: ${applied}`
+                      : hasServiceRules
+                      ? "No category/global fallback · service rules or fixed tariffs apply"
+                      : "No rate configured · fixed tariffs apply, commission duties refused"}
+                  </td>
                 </tr>
               );
             })}
@@ -223,7 +247,7 @@ export default function CommissionPolicy() {
         <div className="px-5 py-4 border-b border-line bg-surface-2">
           <div className="text-[13px] font-bold text-ink">Service rules</div>
           <p className="text-[11px] text-faint">
-            Most specific rule. Applied to bookings created with a service selected (admin bookings). Customer app bookings use the vehicle category or global rule.
+            Most specific rule. Overrides category and global rules for both admin and online customer bookings when the duty matches the service. Fixed partner-payout tariffs remain independent.
           </p>
         </div>
         <table className="w-full">
@@ -273,7 +297,11 @@ export default function CommissionPolicy() {
           Discard changes
         </button>
         {dirty && !valid && <span className="text-[11px] text-red-600">Fix the highlighted fields.</span>}
-        {valid && uncovered.length > 0 && <span className="text-[11px] text-amber-700">{uncovered.length} active categor{uncovered.length === 1 ? "y has" : "ies have"} no rate and cannot be booked.</span>}
+        {valid && uncovered.length > 0 && (
+          <span className="text-[11px] text-amber-700">
+            {uncovered.length} active categor{uncovered.length === 1 ? "y has" : "ies have"} no category/global rate ({hasServiceRules ? "service rules or fixed tariffs apply; unmapped commission duties refused" : "fixed tariffs apply; commission duties refused"}).
+          </span>
+        )}
       </div>
 
       {access.isSuper && (

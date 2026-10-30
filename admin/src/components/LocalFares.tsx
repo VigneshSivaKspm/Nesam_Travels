@@ -19,10 +19,11 @@ const num = (s: string) => (s.trim() === "" ? NaN : Number(s));
 const text = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
 
 /** Local fares: fixed Rental packages by vehicle category and hours, and the Pickup & Drop fare of each city. */
-export default function LocalFares({ initialTab = "Rental packages", initialCity = "", onToast }: { initialTab?: Tab; initialCity?: string; onToast: (t: string) => void }) {
+/** `only` shows a single section without the tab bar (rental packages are now edited in Brand & service fares). */
+export default function LocalFares({ initialTab = "Rental packages", initialCity = "", onToast, only }: { initialTab?: Tab; initialCity?: string; onToast: (t: string) => void; only?: Tab }) {
   const { tariff, error } = useTariff();
   const canEdit = useCan("pricing");
-  const [tab, setTab] = useState<Tab>(initialTab);
+  const [tab, setTab] = useState<Tab>(only ?? initialTab);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
   const [cityId, setCityId] = useState("");
   const [edit, setEdit] = useState<
@@ -48,7 +49,7 @@ export default function LocalFares({ initialTab = "Rental packages", initialCity
   return (
     <div className="grid gap-4">
       <p className="text-[12px] text-muted">Fixed local fares. Rental packages and Pickup &amp; Drop are priced separately from each other and from Outstation. A new fare changes new quotes only; confirmed bookings keep their fare.</p>
-      <StageBar label="Local fares" tabs={TABS.map((t) => ({ id: t, label: t }))} value={tab} onChange={setTab} />
+      {!only && <StageBar label="Local fares" tabs={TABS.map((t) => ({ id: t, label: t }))} value={tab} onChange={setTab} />}
       {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />Saved fares could not be loaded: {error}. Check your pricing access and reload.</div>}
       {tariff === undefined && !error && <p className="text-[12px] text-muted" role="status">Loading saved fares…</p>}
       {!canEdit && ready && <p className="text-[12px] text-muted">You can view these fares. Changing them needs pricing access.</p>}

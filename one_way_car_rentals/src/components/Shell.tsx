@@ -182,9 +182,39 @@ function ProfileMenu() {
 }
 
 function Footer() {
+  const scrollToConsole = () => {
+    const el = document.getElementById('book-console');
+    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+    window.scrollTo({ top, behavior: 'smooth' });
+    setTimeout(() => {
+      const el2 = document.getElementById('book-console');
+      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
+      window.scrollTo({ top: top2, behavior: 'smooth' });
+    }, 120);
+  };
+
   return (
     <footer className="footer">
       <div className="wrap footer__inner">
+        <div className="footer__cta">
+          <div className="footer__cta-copy">
+            <span className="eyebrow eyebrow--brand">
+              <Icon name="phone" size={13} /> ONE WAY CAR RENTALS 24/7 HELPLINE
+            </span>
+            <h3>Ready to travel? Book your cab online in seconds.</h3>
+            <p className="footer__cta-sub">
+              Verified chauffeurs, upfront transparent fares, and air-conditioned cars across South India.
+            </p>
+          </div>
+          <div className="footer__cta-actions">
+            <Link to="/book" className="btn btn--primary btn--lg" onClick={scrollToConsole}>
+              Book a Ride Now <Icon name="arrow-right" size={18} />
+            </Link>
+            <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--secondary btn--lg">
+              <Icon name="phone" size={18} /> {SUPPORT_PHONE_DISPLAY}
+            </a>
+          </div>
+        </div>
         <div className="footer__grid">
           <div className="footer__brand">
             <Brand />
@@ -200,11 +230,11 @@ function Footer() {
           </div>
           <nav aria-label="Our services">
             <h2>Our services</h2>
-            <Link to={serviceHref('outstation', 'one-way')}>One-way drop taxi</Link>
-            <Link to={serviceHref('outstation', 'round-trip')}>Round trips</Link>
-            <Link to={serviceHref('airport')}>Airport transfers</Link>
-            <Link to={serviceHref('rental')}>Local hourly rental</Link>
-            <Link to={serviceHref('multicity')}>Multicity itineraries</Link>
+            <Link to="/book?service=outstation&trip=one-way" onClick={scrollToConsole}>One-way drop taxi</Link>
+            <Link to="/book?service=outstation&trip=round-trip" onClick={scrollToConsole}>Round trips</Link>
+            <Link to="/book?service=airport" onClick={scrollToConsole}>Airport transfers</Link>
+            <Link to="/book?service=rental" onClick={scrollToConsole}>Local hourly rental</Link>
+            <Link to="/book?service=multicity" onClick={scrollToConsole}>Multicity itineraries</Link>
           </nav>
           <nav aria-label="Bookings and help">
             <h2>Bookings &amp; help</h2>
