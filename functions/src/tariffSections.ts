@@ -10,6 +10,7 @@ import { auditInTx } from './audit';
 import {
   RENTAL_HOURS, RentalPackage, TARIFF_CLASSES, TariffClass, TariffConfig, parseRentalPackage, parseTariffConfig, rentalMinHours,
 } from './domain/tariff';
+import { EXTRA_CATEGORY_ID, ExtraChargeRow, ExtraChargeSide, ExtraChargesConfig, MAX_FREE_WAITING_MINUTES, MAX_WAITING_ROUNDING_MINUTES } from './domain/extraCharges';
 import { TARIFF_DOC } from './quote';
 import { requirePermission, text, requireAction } from './shared';
 
@@ -108,6 +109,70 @@ function applyLocal(base: TariffConfig, city: { id: string; name: string }, cls:
   return { ...base, localPickupDrop: { ...(base.localPickupDrop ?? {}), [city.id]: { cityName: city.name, classes: { ...(existing?.classes ?? {}), [cls]: fare } } } };
 }
 
+// ── Section: extra charges (waiting, hill, roof carrier) ────────────────────
+
+/** One rate of one side: null / missing = not configured (the value is removed); a number ≥ 0 is stored — 0 is an explicit "no charge". */
+function optionalAmount(v: unknown, label: string): number | undefined {
+  if (v === undefined || v === null) return undefined;
+  return amount(v, label, false);
+}
+
+function extraSide(v: unknown, who: 'Customer' | 'Partner', cat: string): ExtraChargeSide {
+  const s = v === undefined || v === null ? {} : obj(v, `${cat} ${who.toLowerCase()} charges`);
+  const out: ExtraChargeSide = {};
+  const waiting = optionalAmount(s.waitingPerHour, `${cat}: ${who} waiting per hour`);
+  const hill = optionalAmount(s.hill, `${cat}: ${who} hill charge per trip`);
+  const carrier = optionalAmount(s.carrier, `${cat}: ${who} carrier charge per trip`);
+  if (waiting !== undefined) out.waitingPerHour = waiting;
+  if (hill !== undefined) out.hill = hill;
+  if (carrier !== undefined) out.carrier = carrier;
+  return out;
+}
+
+function wholeMinutes(v: unknown, label: string, min: number, max: number): number {
+  if (typeof v !== 'number' || !Number.isInteger(v)) throw bad(`${label} must be a whole number of minutes.`);
+  if (v < min || v > max) throw bad(`${label} must be from ${min} to ${max} minutes.`);
+  return v;
+}
+
+/** The categories a payload refers to, checked against the real vehicle_categories (before the transaction, like cityOf). */
+async function extraCategoryNames(data: Record<string, unknown>): Promise<Map<string, string>> {
+  const rows = obj(data.categories, 'The category charges');
+  const ids = Object.keys(rows);
+  if (ids.length > 50) throw bad('Too many categories in one save.');
+  const names = new Map<string, string>();
+  for (const id of ids) {
+    if (!EXTRA_CATEGORY_ID.test(id)) throw bad('Choose a valid vehicle category.');
+    const snap = await db.doc(`vehicle_categories/${id}`).get();
+    if (!snap.exists) throw bad(`Vehicle category "${id}" does not exist.`);
+    names.set(id, text(snap.data()?.name, 80) || id);
+  }
+  return names;
+}
+
+/**
+ * Replaces the submitted categories' rows and the waiting rules; categories that are not in the payload — including inactive
+ * or renamed ones — keep their saved rows untouched. The section's own version is bumped here, never taken from the client.
+ */
+function applyExtraCharges(base: TariffConfig, d: Record<string, unknown>, names: Map<string, string>): { next: TariffConfig; changed: string[] } {
+  const freeWaitingMinutes = wholeMinutes(d.freeWaitingMinutes, 'Free waiting per stop', 0, MAX_FREE_WAITING_MINUTES);
+  const waitingRoundingMinutes = wholeMinutes(d.waitingRoundingMinutes, 'The waiting rounding interval', 1, MAX_WAITING_ROUNDING_MINUTES);
+  const rows = obj(d.categories, 'The category charges');
+  const categories: Record<string, ExtraChargeRow> = { ...(base.extraCharges?.categories ?? {}) };
+  const changed: string[] = [];
+  for (const [id, raw] of Object.entries(rows)) {
+    const name = names.get(id) ?? id;
+    const r = obj(raw, `The ${name} charges`);
+    const row: ExtraChargeRow = { customer: extraSide(r.customer, 'Customer', name), partner: extraSide(r.partner, 'Partner', name) };
+    const empty = !Object.keys(row.customer).length && !Object.keys(row.partner).length;
+    if (empty) { if (categories[id]) { delete categories[id]; changed.push(id); } continue; }
+    if (JSON.stringify(categories[id] ?? null) !== JSON.stringify(row)) changed.push(id);
+    categories[id] = row;
+  }
+  const extraCharges: ExtraChargesConfig = { version: (base.extraCharges?.version ?? 0) + 1, freeWaitingMinutes, waitingRoundingMinutes, categories };
+  return { next: { ...base, extraCharges }, changed };
+}
+
 // ── Sections: rental minimum and packages ───────────────────────────────────
 
 function applyRentalMinimum(base: TariffConfig, cls: TariffClass, hours: unknown): TariffConfig {
@@ -146,6 +211,7 @@ export const saveTariffSection = onCall(async (request) => {
   if (typeof input.expectedVersion !== 'number' || !Number.isInteger(input.expectedVersion) || input.expectedVersion < 0) throw bad('Reload the tariff before saving.');
   const section = input.section;
   const city = section === 'localPickupDrop' ? await cityOf(input.cityId) : null;
+  const extraNames = section === 'extraCharges' ? await extraCategoryNames(obj(input.data, 'The extra charges')) : null;
 
   const ref = db.doc(TARIFF_DOC);
   return db.runTransaction(async (tx) => {
@@ -165,6 +231,10 @@ export const saveTariffSection = onCall(async (request) => {
       const cls = classOf(input.class);
       next = applyLocal(base, city, cls, obj(input.data, 'The fare'));
       meta = { section, cityId: city.id, cityName: city.name, class: cls };
+    } else if (section === 'extraCharges' && extraNames) {
+      const r = applyExtraCharges(base, obj(input.data, 'The extra charges'), extraNames);
+      next = r.next;
+      meta = { section, extraChargesVersion: next.extraCharges?.version ?? 0, was: base.extraCharges?.version ?? 0, categories: r.changed };
     } else if (section === 'rentalMinimum') {
       const cls = classOf(input.class);
       next = applyRentalMinimum(base, cls, input.minHours);
@@ -182,6 +252,6 @@ export const saveTariffSection = onCall(async (request) => {
       action: 'tariff_section_saved', entity: 'tariff', entityId: 'v2', performedBy: actor.uid, performedByName: actor.name, role: 'admin',
       previous: before ? { version: before.version } : null, next: { version }, meta, reason,
     });
-    return { version };
+    return { version, ...(section === 'extraCharges' ? { extraChargesVersion: next.extraCharges?.version ?? 0 } : {}) };
   });
 });

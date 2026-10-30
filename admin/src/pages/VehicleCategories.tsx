@@ -107,7 +107,7 @@ const toForm = (f: typeof defaultFormState): CategoryForm => ({
 const actionError = (e: unknown) =>
   e instanceof CategoryActionError ? e.message : "Something went wrong. Please try again.";
 
-export default function VehicleCategories() {
+export default function VehicleCategories({ embedded = false }: { embedded?: boolean } = {}) {
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -302,14 +302,14 @@ export default function VehicleCategories() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className={embedded ? "space-y-6" : "p-6 space-y-6"}>
       <Toast toast={toast} />
       {loadError && <ErrorBanner message={loadError} onRetry={() => setRetryKey((k) => k + 1)} />}
 
       {/* Top Action Header Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-[20px] font-bold text-ink">Vehicle Categories</h1>
+          {embedded ? <h2 className="text-[16px] font-bold text-ink">Vehicle Categories</h2> : <h1 className="text-[20px] font-bold text-ink">Vehicle Categories</h1>}
           <p className="text-[13px] text-muted">
             Configure fleet vehicle types, seating capacities, and default fare calculation rules.
           </p>

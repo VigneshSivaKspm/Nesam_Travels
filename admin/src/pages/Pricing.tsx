@@ -14,6 +14,7 @@ import TariffConfigCard from "../components/TariffConfigCard";
 import LocalFares from "../components/LocalFares";
 import FixedRouteFares from "../components/FixedRouteFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
+import VehicleCategoriesPage from "./VehicleCategories";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { TaxPolicyDialog, type TaxPolicy } from "./Invoices";
 import { GST_STATES } from "../domain/gstStates";
@@ -28,18 +29,24 @@ const STATUS_FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled", "Remo
 const Ta = ({ children }: { children: ReactNode }) => <span className="block text-[12px] text-muted" lang="ta">{children}</span>;
 
 /** What the page shows, kept by the app while the Pricing & Fare Management page is open so Back can put it back. */
-export type PricingView = { tab: Tab; sel: Sel; filter: (typeof STATUS_FILTERS)[number]; scrollY: number };
+/** Inside Cab types: the customer-visibility rules, or the master Vehicle Categories management. */
+export type CabSection = "Customer cab rules" | "Vehicle categories";
+export type PricingView = { tab: Tab; sel: Sel; filter: (typeof STATUS_FILTERS)[number]; scrollY: number; cabSection?: CabSection };
+/** Where the older Vehicle Categories entry points land: Service & Fare Settings → Cab types → Vehicle categories. */
+export const CATEGORIES_VIEW: PricingView = { tab: "Cab types", sel: { state: "", city: "", area: "" }, filter: "All", scrollY: 0, cabSection: "Vehicle categories" };
 /** Where Back lands when there is no earlier context: More settings with no location chosen. */
 export const MORE_SETTINGS_VIEW: PricingView = { tab: "More settings", sel: { state: "", city: "", area: "" }, filter: "All", scrollY: 0 };
 
 /** Master Admin "Service & Fare Settings": location-scoped availability, cab types and pricing. */
-export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRules }: {
+export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRules, onOpenExtraCharges }: {
   onNavigate: (page: string, tab?: string) => void;
   restore: PricingView | null;
   onRestored: () => void;
   onOpenFareRules: (view: PricingView) => void;
+  onOpenExtraCharges: (view: PricingView) => void;
 }) {
   const [tab, setTab] = useState<Tab>(restore?.tab ?? "Booking availability");
+  const [cabSection, setCabSection] = useState<CabSection>(restore?.cabSection ?? "Customer cab rules");
   const [sel, setSel] = useState<Sel>(restore?.sel ?? { state: "", city: "", area: "" });
   const [rules, setRules] = useState<ServiceRule[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -109,9 +116,9 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
 
   const tools: [string, string, string, () => void][] = [
     ["Base rates", "Regular ₹/km, driver bata and partner payout.", "Company-wide", () => setSheet({ kind: "base" })],
-    ["Pricing & Fare Management", "Manage base rates, partner payouts, extra charges and fare rules.", "Company-wide", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY })],
+    ["Pricing & Fare Management", "Manage base rates, partner payouts, extra charges and fare rules.", "Company-wide", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY, cabSection })],
     ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => setSheet({ kind: "local" })],
-    ["Extra charges", "Waiting, hills, carrier and other add-ons.", "Configured scope", () => onNavigate("categories")],
+    ["Extra charges", "Waiting, hills and roof carrier, by vehicle category.", "Company-wide", () => onOpenExtraCharges({ tab, sel, filter, scrollY: window.scrollY, cabSection })],
     ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => setSheet({ kind: "fixed" })],
     ["Business contracts", "Company rates, credit terms and contracts.", "Business account", () => onNavigate("business")],
     ["Service boundaries", "Define verified cities, areas and service zones.", "Service areas", () => onNavigate("locations")],
@@ -159,6 +166,16 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
         </section>
       )}
       {tab === "Cab types" && (
+        <div className="mb-4">
+          <StageBar label="Cab types" tabs={(["Customer cab rules", "Vehicle categories"] as const).map((t) => ({ id: t, label: t }))} value={cabSection} onChange={setCabSection} />
+        </div>
+      )}
+      {tab === "Cab types" && cabSection === "Vehicle categories" && (
+        <section className="ds-panel ds-panel-pad">
+          <VehicleCategoriesPage embedded />
+        </section>
+      )}
+      {tab === "Cab types" && cabSection === "Customer cab rules" && (
         <section className="ds-panel ds-panel-pad">
           <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
             <div><h2 className="text-[16px] font-bold text-ink">Which cab types should customers see?</h2><Ta>Customer-க்கு எந்த car வகைகளைக் காட்ட வேண்டும்?</Ta></div>

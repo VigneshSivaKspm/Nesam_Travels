@@ -17,6 +17,12 @@ export interface LocalFare { minKm: number; customerRate: number; partnerRate: n
 export interface RentalPackage { customerFare: number; partnerPayout: number; includedKm: number; extraKmRate: number; extraHourRate: number; gstMode: "included" | "excluded"; enabled: boolean }
 export interface Zone { id: string; name: string; lat: number; lng: number; radiusKm: number }
 
+/** Waiting / hill / roof-carrier rates of one side, in rupees. Absent = not configured; 0 = explicit "no charge". */
+export interface ExtraChargeSide { waitingPerHour?: number; hill?: number; carrier?: number }
+export interface ExtraChargeRow { customer?: ExtraChargeSide; partner?: ExtraChargeSide }
+/** tariff_v2.extraCharges: keyed by the real vehicle category id; `version` counts saves of this section only. */
+export interface ExtraCharges { version?: number; freeWaitingMinutes?: number; waitingRoundingMinutes?: number; categories?: Record<string, ExtraChargeRow> }
+
 /** business_config/tariff_v2 as stored. Anything absent is "not configured" — never zero. */
 export interface Tariff {
   version?: number;
@@ -29,6 +35,7 @@ export interface Tariff {
   airport?: { customerBase?: number; partnerBase?: number };
   localPickupDrop?: Record<string, { cityName?: string; classes?: Partial<Record<TariffClass, Partial<LocalFare>>> }>;
   rentalPackages?: Partial<Record<TariffClass, { minHours?: number; packages?: Partial<Record<string, Partial<RentalPackage>>> }>>;
+  extraCharges?: ExtraCharges;
 }
 
 /** Live tariff document: undefined = loading, null = nothing saved yet. */

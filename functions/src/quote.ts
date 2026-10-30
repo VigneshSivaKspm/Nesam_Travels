@@ -9,7 +9,8 @@ import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
 import { DutyClass, dutyClassOf } from './domain/eligibility';
-import { buildFareBreakup, buildTariffFareBreakup, FareBreakup } from './domain/fareBreakup';
+import { buildFareBreakup, buildTariffFareBreakup, FareBreakup, withExtraChargeLines } from './domain/fareBreakup';
+import { extraChargesSnapshot } from './domain/extraCharges';
 import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
 import {
   CONFIRMED_TARIFF_V2, FixedRouteFare, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
@@ -112,8 +113,18 @@ export interface PriceResult {
   usesCommissionPolicy: boolean;
 }
 
-/** Throws HttpsError for anything the confirmed tariff cannot price (never invents a number). */
+/**
+ * Throws HttpsError for anything the confirmed tariff cannot price (never invents a number). Whatever path prices the trip, the
+ * quote also records the category's extra-charge rates (waiting, hill, roof carrier — customer and partner) in its snapshot and
+ * discloses them in the breakup. The fare itself is unchanged: these are billed only for the extras actually used.
+ */
 export function priceBooking(i: PriceInput): PriceResult {
+  const r = priceBookingCore(i);
+  const extra = extraChargesSnapshot(i.tariff?.extraCharges, i.tariff?.version ?? 0, i.category.id);
+  return extra ? { ...r, pricing: { ...r.pricing, extraCharges: extra }, breakup: withExtraChargeLines(r.breakup, extra) } : r;
+}
+
+function priceBookingCore(i: PriceInput): PriceResult {
   const outstation = isOutstation(i.route.distanceKm);
   const service = serviceName(i.pickup, i.drop, i.route.distanceKm, i.tripType);
   const klass = tariffClassOf(i.category);
@@ -284,6 +295,8 @@ export const saveTariffConfig = onCall(async (request) => {
       ...(submitted.airport ?? before?.airport ? { airport: submitted.airport ?? before?.airport } : {}),
       ...(submitted.localPickupDrop ?? before?.localPickupDrop ? { localPickupDrop: submitted.localPickupDrop ?? before?.localPickupDrop } : {}),
       ...(submitted.rentalPackages ?? before?.rentalPackages ? { rentalPackages: submitted.rentalPackages ?? before?.rentalPackages } : {}),
+      // The extra-charge rates are edited only by their own section: a full tariff save never drops them.
+      ...(before?.extraCharges ? { extraCharges: before.extraCharges } : {}),
     };
     if (parsed.enabled && !Object.keys(parsed.oneWay.classes).length && !Object.keys(parsed.roundTrip.classes).length) {
       throw new HttpsError('failed-precondition', 'Configure at least one one-way or round-trip rate card before enabling the tariff.');

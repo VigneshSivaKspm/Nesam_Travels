@@ -76,7 +76,7 @@ function ProfileMenu() {
   const first = profile.name.split(' ')[0] || 'Account';
   return (
     <div className="menu" ref={root}>
-      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+      <button type="button" className="menu__trigger" aria-haspopup="menu" aria-expanded={open} aria-label={`Account menu, ${first}`} title={profile.name} onClick={() => setOpen((o) => !o)}>
         <Avatar name={profile.name} photoUrl={profile.photoUrl} size={38} />
         <span className="menu__name">{first}</span>
         <Icon name="chevron-down" size={16} />
@@ -314,7 +314,13 @@ export function Shell() {
           <Brand />
           <nav className="topnav" aria-label="Main">
             {TOP_NAV.map((n) => (
-              <NavLink key={n.to} to={n.to} className={({ isActive }) => `topnav__link ${isActive ? 'is-active' : ''}`}>
+              <NavLink
+                key={n.to}
+                to={n.to}
+                aria-label={n.to === '/notifications' && unreadCount > 0 ? `${n.label}, ${unreadCount} unread` : n.label}
+                title={n.label}
+                className={({ isActive }) => `topnav__link ${isActive ? 'is-active' : ''}`}
+              >
                 <Icon name={n.icon} size={19} />
                 <span className="lbl-long">{n.label}</span>
                 {n.to === '/notifications' && unreadCount > 0 ? (
@@ -326,11 +332,11 @@ export function Shell() {
             ))}
           </nav>
           <div className="topbar__right">
-            <Link to="/support" className="help-link" aria-label="Help and support">
+            <Link to="/support" className="help-link" aria-label="Help and support" title="Help">
               <Icon name="help" size={18} />
               <span className="help-link__text">Help</span>
             </Link>
-            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call People Taxi support ${SUPPORT_PHONE_DISPLAY}`}>
+            <a className="help-link help-link--phone" href={`tel:${SUPPORT_PHONE}`} aria-label={`Call People Taxi support ${SUPPORT_PHONE_DISPLAY}`} title={SUPPORT_PHONE_DISPLAY}>
               <Icon name="phone" size={18} />
               <span className="num">{SUPPORT_PHONE_DISPLAY}</span>
             </a>

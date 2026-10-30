@@ -32,8 +32,8 @@ export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; keepSavedR
   callFunction<typeof i, { version: number; enabled: boolean }>("saveTariffConfig", i);
 
 /** Saves one section of the tariff (base rates, a city's local fare, a rental minimum or a rental package) against the version the editor loaded. */
-export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; data?: unknown }) =>
-  callFunction<typeof i, { version: number }>("saveTariffSection", i);
+export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage" | "extraCharges"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; data?: unknown }) =>
+  callFunction<typeof i, { version: number; extraChargesVersion?: number }>("saveTariffSection", i);
 
 export interface FixedRouteFareData {
   originLocationId: string; destinationLocationId: string; vehicleCategoryId: string; serviceId: string;

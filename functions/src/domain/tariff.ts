@@ -9,6 +9,7 @@
 //   D06 missing state rates · D07 multi-city · D08 fixed-route zones · D15 city boundaries.
 // A missing rate is `null`, never zero.
 import { FareBreakdown } from './types';
+import { ExtraChargesConfig, ExtraChargesSnapshot, parseExtraCharges } from './extraCharges';
 
 export type TariffClass = 'sedan' | 'suv' | 'innova' | 'crysta';
 export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'innova', 'crysta'];
@@ -81,6 +82,8 @@ export interface TariffConfig {
   airport?: AirportRates;
   localPickupDrop?: Record<string, LocalCityFares>;
   rentalPackages?: Partial<Record<TariffClass, RentalClassConfig>>;
+  /** Waiting, hill and roof carrier rates by vehicle category (see domain/extraCharges.ts). */
+  extraCharges?: ExtraChargesConfig;
 }
 
 /** The values the owner confirmed on 09 Oct 2026 (Crysta one-way bata ₹600 supersedes ₹500). */
@@ -189,6 +192,7 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
   const extras = rateMap<OutstationExtra>(d.outstationExtras, ['extraKmRate', 'waitingPerHour']);
   const localPickupDrop = parseLocalPickupDrop(d.localPickupDrop);
   const rentalPackages = parseRentalPackages(d.rentalPackages);
+  const extraCharges = parseExtraCharges(d.extraCharges);
   const zones: CityZone[] = Array.isArray(d.cityDrop?.zones)
     ? d.cityDrop.zones.filter((z: any) => z && typeof z.id === 'string' && isNum(z.radiusKm) && z.radiusKm > 0 && Number.isFinite(z.lat) && Number.isFinite(z.lng))
         .map((z: any) => ({ id: z.id, name: String(z.name ?? z.id), lat: z.lat, lng: z.lng, radiusKm: z.radiusKm }))
@@ -208,6 +212,7 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     ...(airportOk ? { airport: { customerBase: d.airport.customerBase, partnerBase: d.airport.partnerBase } } : {}),
     ...(localPickupDrop ? { localPickupDrop } : {}),
     ...(rentalPackages ? { rentalPackages } : {}),
+    ...(extraCharges ? { extraCharges } : {}),
   };
 }
 
@@ -271,6 +276,8 @@ export interface PricingSnapshot {
   partner: PartnerNormalRate | null;
   /** Waiting charge per hour in force when quoted (recorded for billing at actuals; not added to the quoted fare). */
   waitingPerHourPaise?: number;
+  /** The waiting / hill / roof-carrier rates (customer and partner) of this booking's category when quoted. Never changed by later edits. */
+  extraCharges?: ExtraChargesSnapshot;
   /** Rental package only: the booked hours and the rate for each hour beyond them. */
   rentalHours?: number;
   extraHourRatePaise?: number;

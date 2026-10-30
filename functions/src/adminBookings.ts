@@ -233,7 +233,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     // The admin form asks for this quote first and books against it; nothing is written.
     if (input.quoteOnly === true) {
       // The partner rate block is payout data: only for staff holding the payout right.
-      const quotePricing = canSeePayouts(admin) ? priced.pricing : { ...priced.pricing, partner: null };
+      const quotePricing = canSeePayouts(admin) ? priced.pricing : { ...priced.pricing, partner: null, ...(priced.pricing.extraCharges ? { extraCharges: { ...priced.pricing.extraCharges, partner: {} } } : {}) };
       return { quote: calculated, breakup, service, categoryName: category.name, commissionConfigured: !priced.usesCommissionPolicy || !!commission, adjustmentApplied: calculated.globalAdjustment, pricing: quotePricing, ...(couponCode ? { couponCode, couponDiscount } : {}) };
     }
     if (priced.usesCommissionPolicy && !commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);

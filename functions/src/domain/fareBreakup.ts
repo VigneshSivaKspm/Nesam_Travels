@@ -5,6 +5,7 @@
 // ("included") or payable separately ("extra").
 import { FareBreakdown, RideCategory } from './types';
 import type { PricingSnapshot } from './tariff';
+import type { ExtraChargesSnapshot } from './extraCharges';
 
 export type FareLineTreatment = 'included' | 'extra' | 'not_applicable';
 
@@ -153,4 +154,37 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
   ];
   const extras = lines.filter((l) => l.treatment === 'extra');
   return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
+}
+
+/**
+ * Discloses the category's configured waiting / hill / roof-carrier rates on a quoted breakup. They are charges outside the
+ * package that apply only to the extras actually used, so no amount is added to the total: each line states its rate and
+ * rule. A rate that was never configured adds no line and leaves the category's own wording alone.
+ */
+export function withExtraChargeLines(b: FareBreakup, s: ExtraChargesSnapshot): FareBreakup {
+  const c = s.customer;
+  let lines = [...b.lines];
+  const upsert = (line: FareLine) => {
+    const at = lines.findIndex((l) => l.key === line.key);
+    if (at >= 0) lines[at] = line; else lines.push(line);
+  };
+  if (c.waitingPerHourPaise !== undefined) {
+    const rule = s.freeWaitingMinutes !== null && s.waitingRoundingMinutes !== null
+      ? ` after ${s.freeWaitingMinutes} free minute${s.freeWaitingMinutes === 1 ? '' : 's'} per stop, counted in ${s.waitingRoundingMinutes}-minute blocks`
+      : '';
+    upsert({
+      key: 'waiting', label: 'Waiting charges', amount: null, treatment: 'extra',
+      detail: c.waitingPerHourPaise > 0 ? `${num2(c.waitingPerHourPaise)} per hour of waiting${rule}` : 'No waiting charge',
+    });
+  }
+  if (c.hillPaise !== undefined) {
+    upsert({ key: 'hill', label: 'Hill travel', amount: null, treatment: 'extra', detail: c.hillPaise > 0 ? `${num2(c.hillPaise)} per trip when hill travel applies` : 'No hill charge' });
+  }
+  if (c.carrierPaise !== undefined) {
+    // The category's older carrier line is replaced by the configured one.
+    lines = lines.filter((l) => l.key !== 'carrier');
+    upsert({ key: 'carrier', label: 'Roof carrier', amount: null, treatment: 'extra', detail: c.carrierPaise > 0 ? `${num2(c.carrierPaise)} per trip when a roof carrier is used` : 'No roof carrier charge' });
+  }
+  const extras = lines.filter((l) => l.treatment === 'extra');
+  return { ...b, lines, knownExtras: extras.reduce((sum, l) => sum + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
 }

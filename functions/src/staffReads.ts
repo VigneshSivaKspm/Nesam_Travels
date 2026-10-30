@@ -33,7 +33,12 @@ export function redactBooking(d: DocumentData, admin: AdminAccess): DocumentData
   if (!canSeePayouts(admin)) {
     for (const k of PAYOUT_FIELDS) delete out[k];
     // The pricing snapshot keeps the customer side; the partner rate block goes.
-    if (out.pricing && typeof out.pricing === 'object') out.pricing = { ...out.pricing, partner: null };
+    if (out.pricing && typeof out.pricing === 'object') {
+      out.pricing = { ...out.pricing, partner: null };
+      // The partner side of the extra-charge rates is payout data too.
+      const x = out.pricing.extraCharges;
+      if (x && typeof x === 'object') out.pricing = { ...out.pricing, extraCharges: { ...x, partner: {} } };
+    }
   }
   // A Staff ID never receives raw customer contacts (getCustomerContact reveals them one at a time).
   if (admin.kind === 'staff') for (const k of CONTACT_FIELDS) delete out[k];

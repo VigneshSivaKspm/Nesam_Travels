@@ -37,7 +37,10 @@
 .topbar__inner {
   display: flex;
   align-items: center;
-  gap: clamp(12px, 2vw, 32px);
+  /* Every group below is sized to fit the pill (1200px at most) at its breakpoint; min-width:0 lets the nav give way
+     instead of overflowing leftwards over the logo. */
+  min-width: 0;
+  gap: clamp(12px, 1.6vw, 24px);
   height: 64px;
   max-width: calc(var(--max) - var(--gutter) * 2);
   margin-inline: auto;
@@ -109,9 +112,10 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 8px;
   height: 44px;
-  padding: 0 18px;
+  padding: 0 clamp(8px, 1.1vw, 14px);
   border-radius: var(--r-pill);
   color: var(--text);
   font-weight: 800;
@@ -145,15 +149,17 @@
 .topbar__right {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: none;
 }
 .help-link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   height: 44px;
-  padding: 0 16px;
+  padding: 0 12px;
+  white-space: nowrap;
   border-radius: var(--r-pill);
   color: var(--ink);
   font-weight: 800;
@@ -255,39 +261,31 @@
   display: none;
 }
 
-@media (max-width: 1279.98px) {
-  .help-link__text {
-    display: none;
-  }
-  .help-link {
-    padding: 0 12px;
-  }
-  .topnav__link {
-    padding: 0 14px;
-  }
+/* ≥ 1240px: labelled links, Help as an icon, phone number, account avatar. */
+.help-link__text,
+.menu__name {
+  display: none;
 }
-@media (max-width: 1199.98px) {
+/* 1140–1239px: the phone number gives way to its icon. */
+@media (max-width: 1239.98px) {
   .help-link--phone .num {
     display: none;
   }
   .help-link--phone {
     width: 44px;
     padding: 0;
-    justify-content: center;
   }
 }
-@media (max-width: 1023.98px) {
+/* 900–1139px: the nav links become icons (their names stay in aria-label and the tooltip). */
+@media (max-width: 1139.98px) {
   .topnav__link .lbl-long {
     display: none;
   }
   .topnav__link {
-    padding: 0 14px;
-  }
-  .help-link__text {
-    display: none;
-  }
-  .help-link {
     padding: 0 12px;
+  }
+  .topnav {
+    gap: 2px;
   }
 }
 @media (max-width: 899.98px) {

@@ -16,13 +16,13 @@ import BookingDetails from "./pages/BookingDetails";
 import Customers from "./pages/Customers";
 import Drivers from "./pages/Drivers";
 import Vehicles from "./pages/Vehicles";
-import VehicleCategories from "./pages/VehicleCategories";
 import Payments from "./pages/Payments";
 import Invoices from "./pages/Invoices";
 import Services from "./pages/Services";
 import TourPackages from "./pages/TourPackages";
 import Locations from "./pages/Locations";
-import Pricing, { MORE_SETTINGS_VIEW, type PricingView } from "./pages/Pricing";
+import Pricing, { CATEGORIES_VIEW, MORE_SETTINGS_VIEW, type PricingView } from "./pages/Pricing";
+import ExtraCharges from "./pages/ExtraCharges";
 import FareRules from "./pages/FareRules";
 import Support from "./pages/Support";
 import Offers from "./pages/Offers";
@@ -84,12 +84,14 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   "partner-links": { title: "Partner Links", breadcrumb: ["People & Fleet", ""] },
   "partner-requests": { title: "Partner Requests", breadcrumb: ["Operations", ""] },
   vehicles: { title: "Vehicles", breadcrumb: ["People & Fleet", ""] },
-  categories: { title: "Vehicle Categories", breadcrumb: ["People & Fleet", ""] },
+  // Older entry point: opens Service & Fare Settings → Cab types → Vehicle categories.
+  categories: { title: "Vehicle Categories", breadcrumb: ["Office", "Service & Fare Settings", "Cab types"] },
   services: { title: "Services", breadcrumb: ["Office", ""] },
   packages: { title: "Tour Packages", breadcrumb: ["Office", ""] },
   locations: { title: "Locations", breadcrumb: ["Office", ""] },
   pricing: { title: "Pricing & Fare Management", breadcrumb: ["Office", "Pricing & Fare"] },
   "fare-rules": { title: "Pricing & Fare Management", breadcrumb: ["Office", "Service & Fare Settings"] },
+  "extra-charges": { title: "Waiting, hills & roof carrier", breadcrumb: ["Office", "Service & Fare Settings", "Extra charges"] },
   offers: { title: "Offers & Coupons", breadcrumb: ["Office", ""] },
   payments: { title: "Payments", breadcrumb: ["Finance", ""] },
   invoices: { title: "Invoices", breadcrumb: ["Finance", ""] },
@@ -165,7 +167,7 @@ function AdminShell({ session }: { session: AdminSession }) {
   const pricingView = useRef<PricingView | null>(null);
 
   const navigate = (page: string, tab?: string) => {
-    if (page !== "fare-rules") fareReturn.current = null;
+    if (page !== "fare-rules" && page !== "extra-charges") fareReturn.current = null;
     setBookingsTab(tab);
     setActivePage(page);
     setSelectedBookingId(null);
@@ -267,7 +269,18 @@ function AdminShell({ session }: { session: AdminSession }) {
       case "vehicles":
         return <Vehicles onOpenBooking={(id) => openTarget("booking-detail", id)} onNavigate={navigate} />;
       case "categories":
-        return <VehicleCategories />;
+        // Vehicle Categories now lives under Service & Fare Settings → Cab types; this keeps older links and the sidebar shortcut working
+        // (same pricing access). Re-keyed so arriving from the Pricing page itself still opens the right section.
+        return (
+          <Pricing
+            key="categories-alias"
+            onNavigate={navigate}
+            restore={pricingView.current ?? CATEGORIES_VIEW}
+            onRestored={() => { pricingView.current = null; }}
+            onOpenFareRules={(view) => { fareReturn.current = view; navigate("fare-rules"); }}
+            onOpenExtraCharges={(view) => { fareReturn.current = view; navigate("extra-charges"); }}
+          />
+        );
 
       // Finance
       case "payments":
@@ -307,6 +320,16 @@ function AdminShell({ session }: { session: AdminSession }) {
             restore={pricingView.current}
             onRestored={() => { pricingView.current = null; }}
             onOpenFareRules={(view) => { fareReturn.current = view; navigate("fare-rules"); }}
+            onOpenExtraCharges={(view) => { fareReturn.current = view; navigate("extra-charges"); }}
+          />
+        );
+      case "extra-charges":
+        return (
+          <ExtraCharges
+            onBack={() => {
+              pricingView.current = fareReturn.current ?? MORE_SETTINGS_VIEW;
+              navigate("pricing");
+            }}
           />
         );
       case "fare-rules":
