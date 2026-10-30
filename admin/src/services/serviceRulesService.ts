@@ -13,6 +13,8 @@ export type Side = "Pickup or drop" | "Pickup only" | "Drop only";
 export interface Adjustment { mode: "Normal" | "Increase" | "Decrease"; percent: number }
 
 export interface ServiceRule {
+  brand?: string;
+  fareService?: string;
   id: string;
   kind: RuleKind;
   name: string;
@@ -50,7 +52,7 @@ export const adjText = (a?: Adjustment) => (!a || a.mode === "Normal" ? "normal"
 
 /** The rule fields the server accepts; status, history, version and audit data are set by the server. */
 const payloadOf = (r: Omit<ServiceRule, "id" | "history" | "updatedBy" | "updatedByName" | "updatedAt">) => ({
-  kind: r.kind, name: r.name, priority: r.priority, scope: r.scope, service: r.service, schedule: r.schedule,
+  brand: r.brand ?? "", fareService: r.fareService ?? "", kind: r.kind, name: r.name, priority: r.priority, scope: r.scope, service: r.service, schedule: r.schedule,
   ...(r.availability ? { availability: r.availability } : {}), ...(r.categories ? { categories: r.categories } : {}),
   ...(r.customer ? { customer: r.customer } : {}), ...(r.partner ? { partner: r.partner } : {}), ...(r.limit ? { limit: r.limit } : {}),
 });
@@ -92,5 +94,5 @@ export const rankRules = (list: ServiceRule[]) =>
   [...list].sort((a, b) => {
     const spec = (r: ServiceRule) => (r.scope.area ? 3 : r.scope.city ? 2 : r.scope.state ? 1 : 0);
     const svc = (r: ServiceRule) => (r.service && r.service.toLowerCase() !== "all" ? 1 : 0);
-    return spec(b) - spec(a) || svc(b) - svc(a) || (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id);
+    return Number(!!b.brand) - Number(!!a.brand) || spec(b) - spec(a) || svc(b) - svc(a) || (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id);
   });

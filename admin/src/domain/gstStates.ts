@@ -14,3 +14,13 @@ export function stateOfGstin(gstin: string | undefined | null): string | null {
   const c = (gstin ?? "").trim().slice(0, 2);
   return GST_STATES.some(([code]) => code === c) ? c : null;
 }
+
+export type GstSplit = 'CGST + SGST' | 'CGST + UTGST' | 'IGST';
+export function gstSplit(supplier: string, place: string): GstSplit {
+  return supplier !== place ? 'IGST' : ['04', '26', '31', '35', '38'].includes(supplier) ? 'CGST + UTGST' : 'CGST + SGST';
+}
+export function splitGst(total: number, split: GstSplit) {
+  const paise = Math.round(total * 100), half = Math.round(paise / 2);
+  return { cgst: split === 'IGST' ? 0 : half / 100, sgst: split === 'CGST + SGST' ? (paise - half) / 100 : 0,
+    utgst: split === 'CGST + UTGST' ? (paise - half) / 100 : 0, igst: split === 'IGST' ? paise / 100 : 0 };
+}

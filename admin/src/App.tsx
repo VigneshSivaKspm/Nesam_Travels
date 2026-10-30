@@ -22,8 +22,6 @@ import Services from "./pages/Services";
 import TourPackages from "./pages/TourPackages";
 import Locations from "./pages/Locations";
 import Pricing, { CATEGORIES_VIEW, MORE_SETTINGS_VIEW, type PricingView } from "./pages/Pricing";
-import ExtraCharges from "./pages/ExtraCharges";
-import FareRules from "./pages/FareRules";
 import Support from "./pages/Support";
 import Offers from "./pages/Offers";
 import Reviews from "./pages/Reviews";
@@ -65,6 +63,7 @@ import { useNavBadges } from "./hooks/useNavBadges";
 import LiveStrip from "./components/shell/LiveStrip";
 import { NAV_GROUPS } from "./components/shell/navConfig";
 import { resolveAdminDestination } from "./config/adminNavigation";
+import { canLeaveFareWorkspace } from "./services/fareWorkspaceGuard";
 import { PermissionDenied } from "./components/ui";
 
 const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
@@ -91,8 +90,8 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   packages: { title: "Tour Packages", breadcrumb: ["Office", ""] },
   locations: { title: "Locations", breadcrumb: ["Office", ""] },
   pricing: { title: "Pricing & Fare Management", breadcrumb: ["Office", "Pricing & Fare"] },
-  "fare-rules": { title: "Legacy rate cards", breadcrumb: ["Office", "Service & Fare Settings"] },
-  "extra-charges": { title: "Waiting, hills & roof carrier", breadcrumb: ["Office", "Service & Fare Settings", "Extra charges"] },
+  "fare-rules": { title: "Service & Fare Settings", breadcrumb: ["Office", "Service & Fare Settings"] },
+  "extra-charges": { title: "Service & Fare Settings", breadcrumb: ["Office", "Service & Fare Settings", "Extra charges"] },
   offers: { title: "Offers & Coupons", breadcrumb: ["Office", ""] },
   payments: { title: "Payments", breadcrumb: ["Finance", ""] },
   invoices: { title: "Invoices", breadcrumb: ["Finance", ""] },
@@ -130,6 +129,7 @@ function AdminShell({ session }: { session: AdminSession }) {
 
   const currentPage = selectedBookingId ? "booking-detail" : activePage;
   const openNewBooking = (d: NewBookingDraft | null = null) => {
+    if (!canLeaveFareWorkspace()) return;
     setDraft(d);
     setSelectedBookingId(null);
     setActivePage("new-booking");
@@ -168,6 +168,7 @@ function AdminShell({ session }: { session: AdminSession }) {
   const pricingView = useRef<PricingView | null>(null);
 
   const navigate = (page: string, tab?: string) => {
+    if (!canLeaveFareWorkspace()) return;
     ({ page, tab } = resolveAdminDestination(page, tab));
     if (page !== "fare-rules" && page !== "extra-charges") fareReturn.current = null;
     setBookingsTab(tab);
@@ -179,6 +180,7 @@ function AdminShell({ session }: { session: AdminSession }) {
   /** Notification / shortcut targets: a booking opens its details, anything else is a page. */
   const openTarget = (page: string, bookingId?: string) => {
     if (page === "booking-detail" && bookingId) {
+      if (!canLeaveFareWorkspace()) return;
       setActivePage("bookings");
       setSelectedBookingId(bookingId);
       setMobileNavOpen(false);
@@ -315,6 +317,8 @@ function AdminShell({ session }: { session: AdminSession }) {
         return <TourPackages />;
       case "locations":
         return <Locations />;
+      case "fare-rules":
+      case "extra-charges":
       case "pricing":
         return (
           <Pricing
@@ -323,24 +327,6 @@ function AdminShell({ session }: { session: AdminSession }) {
             onRestored={() => { pricingView.current = null; }}
             onOpenFareRules={(view) => { fareReturn.current = view; navigate("fare-rules"); }}
             onOpenExtraCharges={(view) => { fareReturn.current = view; navigate("extra-charges"); }}
-          />
-        );
-      case "extra-charges":
-        return (
-          <ExtraCharges
-            onBack={() => {
-              pricingView.current = fareReturn.current ?? MORE_SETTINGS_VIEW;
-              navigate("pricing");
-            }}
-          />
-        );
-      case "fare-rules":
-        return (
-          <FareRules
-            onBack={() => {
-              pricingView.current = fareReturn.current ?? MORE_SETTINGS_VIEW;
-              navigate("pricing");
-            }}
           />
         );
       case "offers":

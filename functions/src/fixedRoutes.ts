@@ -1,3 +1,4 @@
+import { parseFareScope } from './fareScope';
 // Admin edits to fixed route fares (`fare_rules` records with pricingType FIXED_ROUTE). Every save is validated
 // here (the editor's checks are only a convenience), refuses a stale edit, bumps the record's version and writes
 // the audit entry in the same transaction. Only a fare saved here (`managed`), enabled and valid in every field is
@@ -23,6 +24,7 @@ function amount(v: unknown, label: string): number {
 }
 
 interface Values {
+  brand: string; fareService: string;
   originId: string; destinationId: string; categoryId: string; serviceId: string;
   customerFare: number; partnerPayout: number; gstMode: 'included' | 'excluded'; peakAdjustment: 'apply' | 'exclude'; reverseDirection: boolean;
   status: 'Active' | 'Inactive'; priority: number; effectiveFrom: string; effectiveUntil: string; name: string;
@@ -43,7 +45,7 @@ function valuesOf(d: Record<string, unknown>): Values {
   if ((effectiveFrom && !DATE_RE.test(effectiveFrom)) || (effectiveUntil && !DATE_RE.test(effectiveUntil))) throw bad('Enter valid dates.');
   if (effectiveFrom && effectiveUntil && effectiveUntil < effectiveFrom) throw bad('The end date is before the start date.');
   return {
-    originId, destinationId, categoryId, serviceId: str(d.serviceId), customerFare: amount(d.customerFare, 'Customer fare'), partnerPayout: amount(d.partnerPayout, 'Partner payout'),
+    ...parseFareScope(d), originId, destinationId, categoryId, serviceId: str(d.serviceId), customerFare: amount(d.customerFare, 'Customer fare'), partnerPayout: amount(d.partnerPayout, 'Partner payout'),
     gstMode: d.gstMode, peakAdjustment: d.peakAdjustment, reverseDirection: d.reverseDirection, status: d.status, priority: d.priority, effectiveFrom, effectiveUntil, name: text(d.name, 80),
   };
 }
@@ -52,7 +54,7 @@ function valuesOf(d: Record<string, unknown>): Values {
 function storedValues(d: Record<string, any>): Values | null {
   try {
     return valuesOf({
-      originLocationId: d.originLocationId, destinationLocationId: d.destinationLocationId, vehicleCategoryId: d.vehicleCategoryId, serviceId: d.serviceId,
+      brand: d.brand, fareService: d.fareService, originLocationId: d.originLocationId, destinationLocationId: d.destinationLocationId, vehicleCategoryId: d.vehicleCategoryId, serviceId: d.serviceId,
       customerFare: d.baseFare, partnerPayout: d.partnerPayout, gstMode: d.gstMode, peakAdjustment: d.peakAdjustment, reverseDirection: d.reverseDirection,
       status: d.status, priority: d.priority, effectiveFrom: d.effectiveFrom, effectiveUntil: d.effectiveUntil, name: d.name,
     });
@@ -124,7 +126,7 @@ export const saveFixedRouteFare = onCall(async (request) => {
       const mine = pairs(v.originId, v.destinationId, v.reverseDirection);
       const clash = actives?.docs.find((r) => {
         const o = r.data();
-        return r.id !== ref.id && o.vehicleCategoryId === v.categoryId && str(o.serviceId) === v.serviceId && (o.priority ?? 1) === v.priority
+        return r.id !== ref.id && (o.brand ?? '') === v.brand && (o.fareService ?? '') === v.fareService && o.vehicleCategoryId === v.categoryId && str(o.serviceId) === v.serviceId && (o.priority ?? 1) === v.priority
           && pairs(str(o.originLocationId), str(o.destinationLocationId), o.reverseDirection === true).some((p) => mine.includes(p))
           && overlap({ from: v.effectiveFrom, to: v.effectiveUntil }, { from: str(o.effectiveFrom), to: str(o.effectiveUntil) });
       });
@@ -135,7 +137,7 @@ export const saveFixedRouteFare = onCall(async (request) => {
     const sameScope = !!before && before.originLocationId === v.originId && before.destinationLocationId === v.destinationId && before.vehicleCategoryId === v.categoryId;
     const name = v.name || (sameScope && str(before!.name)) || `${originName} → ${destName} · ${categoryName}`;
     const next = {
-      name, serviceId: service ? service.id : '', serviceName: service ? text(service.data()!.name, 120) : '',
+      brand: v.brand, fareService: v.fareService, name, serviceId: service ? service.id : '', serviceName: service ? text(service.data()!.name, 120) : '',
       vehicleCategoryId: v.categoryId, vehicleCategoryName: categoryName, pricingType: 'FIXED_ROUTE',
       originLocationId: v.originId, originLocationName: originName, destinationLocationId: v.destinationId, destinationLocationName: destName,
       baseFare: v.customerFare, partnerPayout: v.partnerPayout, gstMode: v.gstMode, peakAdjustment: v.peakAdjustment, reverseDirection: v.reverseDirection,

@@ -1,3 +1,4 @@
+import { gstComponents, withFareGst, validGstRule, type FareGstPolicies, type GstSnapshot } from './gst';
 // Confirmed customer tariffs and normal partner rates (Tariff & Operations v2.0, 09 Oct 2026).
 //
 // Everything is computed in integer PAISE, so 13.50/km or 12.60/km never accumulate
@@ -71,6 +72,13 @@ export const DEFAULT_RENTAL_MIN_HOURS: Readonly<Record<TariffClass, number>> = {
 
 /** Brand-scoped fare override for a specific service and vehicle class. */
 export interface BrandFareOverride {
+  partnerWaitingPerHour?: number;
+  partnerHillCharge?: number;
+  partnerCarrierCharge?: number;
+  freeWaitingMinutes?: number;
+  waitingRoundingMinutes?: number;
+  waitingRoundingScope?: 'per_stop' | 'combined';
+  taxTreatment?: 'no_gst' | 'tariff_gst';
   customerRate?: number;
   partnerRate?: number;
   customerBase?: number;
@@ -88,7 +96,25 @@ export interface BrandFareOverride {
   enabled?: boolean;
 }
 
+function parseFareGst(value: unknown): FareGstPolicies | undefined {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  const result: FareGstPolicies = {};
+  for (const brand of ['common','nesam','people_taxi','onewaycarrentals']) {
+    const services = (value as FareGstPolicies)[brand];
+    if (!services) continue;
+    for (const service of ['One Way','Airport Taxi','Local Rental','Multicity']) {
+      const policy = services[service];
+      if (!policy) continue;
+      const states = Object.fromEntries(Object.entries(policy.states ?? {}).filter(([code, rule]) => /^[0-9]{2}$/.test(code) && validGstRule(rule)));
+      const entry = { ...(validGstRule(policy.default) ? { default: policy.default } : {}), ...(Object.keys(states).length ? { states } : {}) };
+      if (Object.keys(entry).length) (result[brand] ??= {})[service] = entry;
+    }
+  }
+  return Object.keys(result).length ? result : undefined;
+}
+
 export interface TariffConfig {
+  fareGst?: FareGstPolicies;
   /** Rupee amounts. Absent = not configured (never zero). */
   version: number;
   enabled: boolean;
@@ -220,6 +246,9 @@ function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
       for (const [cls, rates] of Object.entries(classes as Record<string, any>)) {
         if (!rates || typeof rates !== 'object') continue;
         const r: BrandFareOverride = {};
+        for (const key of ['partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge','freeWaitingMinutes','waitingRoundingMinutes'] as const) if (isNum(rates[key])) r[key] = rates[key];
+        if (rates.waitingRoundingScope === 'per_stop' || rates.waitingRoundingScope === 'combined') r.waitingRoundingScope = rates.waitingRoundingScope;
+        if (rates.taxTreatment === 'no_gst' || rates.taxTreatment === 'tariff_gst') r.taxTreatment = rates.taxTreatment;
         if (isNum(rates.customerRate)) r.customerRate = rates.customerRate;
         if (isNum(rates.partnerRate)) r.partnerRate = rates.partnerRate;
         if (isNum(rates.customerBase)) r.customerBase = rates.customerBase;
@@ -253,8 +282,11 @@ function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
 export function scopedTariffForBrand(
   base: TariffConfig,
   brand: string | undefined,
-  service: string
+  service: string,
+  selectedClass?: TariffClass | null
 ): TariffConfig {
+  // A service-specific common override never rewrites the older all-service baseline.
+  if (brand !== 'common' && base.brandOverrides?.common) base = scopedTariffForBrand(base, 'common', service, selectedClass);
   if (!brand || !base.brandOverrides || !base.brandOverrides[brand]) {
     return base;
   }
@@ -283,11 +315,11 @@ export function scopedTariffForBrand(
     outstationExtras: { ...(base.outstationExtras ?? {}) },
     oneWayExtras: { ...(base.oneWayExtras ?? {}) },
     airport: base.airport ? { ...base.airport } : undefined,
-    rentalPackages: base.rentalPackages ? { ...base.rentalPackages } : undefined,
+    rentalPackages: { ...(base.rentalPackages ?? {}) },
   };
 
   if (serviceKey === 'One Way') {
-    for (const cls of TARIFF_CLASSES) {
+    for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
       const ov = overrides[cls];
       if (!ov) continue;
       const common = base.oneWay.classes[cls];
@@ -311,7 +343,7 @@ export function scopedTariffForBrand(
       }
     }
   } else if (serviceKey === 'Airport Taxi') {
-    for (const cls of TARIFF_CLASSES) {
+    for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
       const ov = overrides[cls];
       if (!ov) continue;
       if (ov.customerBase !== undefined || ov.partnerBase !== undefined) {
@@ -330,13 +362,13 @@ export function scopedTariffForBrand(
     }
   } else if (serviceKey === 'Local Rental') {
     if (next.rentalPackages) {
-      for (const cls of TARIFF_CLASSES) {
+      for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
         const ov = overrides[cls];
         if (!ov) continue;
         const commonClass = base.rentalPackages?.[cls];
-        if (ov.rentalPackages) {
+        if (ov.rentalPackages || ov.minRentalHours !== undefined) {
           const mergedPkgs = { ...(commonClass?.packages ?? {}) };
-          for (const [hrs, pkg] of Object.entries(ov.rentalPackages)) {
+          for (const [hrs, pkg] of Object.entries(ov.rentalPackages ?? {})) {
             const basePkg = commonClass?.packages?.[hrs];
             mergedPkgs[hrs] = {
               customerFare: pkg.customerFare !== undefined ? pkg.customerFare : (basePkg?.customerFare ?? 0),
@@ -345,7 +377,7 @@ export function scopedTariffForBrand(
               extraKmRate: pkg.extraKmRate !== undefined ? pkg.extraKmRate : (basePkg?.extraKmRate ?? 0),
               extraHourRate: pkg.extraHourRate !== undefined ? pkg.extraHourRate : (basePkg?.extraHourRate ?? 0),
               gstMode: basePkg?.gstMode ?? 'excluded',
-              enabled: true,
+              enabled: basePkg?.enabled !== false,
             };
           }
           next.rentalPackages[cls] = {
@@ -394,6 +426,7 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     ...(rentalPackages ? { rentalPackages } : {}),
     ...(extraCharges ? { extraCharges } : {}),
     ...(brandOverrides ? { brandOverrides } : {}),
+    ...(parseFareGst(d.fareGst) ? { fareGst: parseFareGst(d.fareGst) } : {}),
   };
 }
 
@@ -430,6 +463,8 @@ export interface PartnerNormalRate {
 }
 
 export interface PricingSnapshot {
+  gst?: GstSnapshot;
+  gstInclusiveBase?: Pick<PricingSnapshot, "packagePaise" | "customerRatePaise" | "customerBataPaise" | "extraKmRatePaise" | "discount" | "adminAdjustment">;
   schema: 2;
   /** 'tariff_v2' (this module) or 'legacy_category' (admin category fares, kept for local / airport duties). */
   source: 'tariff_v2' | 'legacy_category';
@@ -759,6 +794,8 @@ export function quoteRentalPackage(i: QuoteInput & { hours: number }): QuoteResu
 
 /** An agreed fare for one route (and, when allowed, its reverse) saved with the Fixed route fares tool. */
 export interface FixedRouteFare {
+  brand?: string;
+  fareService?: string;
   id: string;
   name: string;
   originId: string;
@@ -793,7 +830,7 @@ export function parseFixedRouteFare(id: string, d: Record<string, any> | undefin
   if (typeof d.reverseDirection !== 'boolean') return null;
   if (typeof d.priority !== 'number' || !Number.isInteger(d.priority) || d.priority < 1 || d.priority > 99) return null;
   return {
-    id, name: s(d.name), originId, destinationId, categoryId, serviceId: s(d.serviceId), customerFare: d.baseFare, partnerPayout: d.partnerPayout,
+    id, brand: s(d.brand), fareService: s(d.fareService), name: s(d.name), originId, destinationId, categoryId, serviceId: s(d.serviceId), customerFare: d.baseFare, partnerPayout: d.partnerPayout,
     gstMode: d.gstMode, peakAdjustment: d.peakAdjustment, reverseDirection: d.reverseDirection, priority: d.priority,
     effectiveFrom: s(d.effectiveFrom), effectiveUntil: s(d.effectiveUntil), version: typeof d.version === 'number' ? d.version : 0,
   };
@@ -807,10 +844,12 @@ export function parseFixedRouteFare(id: string, d: Record<string, any> | undefin
  */
 export function matchFixedRoute(
   rules: FixedRouteFare[],
-  c: { originId: string; destinationId: string; categoryId: string; serviceId: string; date: string },
+  c: { originId: string; destinationId: string; categoryId: string; serviceId: string; date: string; brand?: string; fareService?: string },
 ): { rule: FixedRouteFare; reversed: boolean } | null {
   const hits: { rule: FixedRouteFare; reversed: boolean }[] = [];
   for (const r of rules) {
+    if (r.brand && r.brand !== c.brand) continue;
+    if (r.fareService && r.fareService !== c.fareService) continue;
     if (r.categoryId !== c.categoryId) continue;
     if (r.serviceId && r.serviceId !== c.serviceId) continue;
     if (r.effectiveFrom && c.date < r.effectiveFrom) continue;
@@ -819,7 +858,7 @@ export function matchFixedRoute(
     const reversed = r.reverseDirection && r.originId === c.destinationId && r.destinationId === c.originId;
     if (direct || reversed) hits.push({ rule: r, reversed: !direct });
   }
-  hits.sort((a, b) => a.rule.priority - b.rule.priority || Number(a.reversed) - Number(b.reversed) || Number(!a.rule.serviceId) - Number(!b.rule.serviceId) || (a.rule.id < b.rule.id ? -1 : 1));
+  hits.sort((a, b) => Number(!!b.rule.brand) - Number(!!a.rule.brand) || a.rule.priority - b.rule.priority || Number(a.reversed) - Number(b.reversed) || Number(!a.rule.serviceId) - Number(!b.rule.serviceId) || (a.rule.id < b.rule.id ? -1 : 1));
   return hits[0] ?? null;
 }
 
@@ -901,6 +940,16 @@ export interface FinalResult {
  */
 export function finalizeFare(i: FinalInput): FinalResult {
   const p = i.pricing;
+  if (p.gst && p.gstInclusiveBase) {
+    const base = p.gstInclusiveBase;
+    const rawPricing: PricingSnapshot = { ...p, ...base, gst: undefined, gstInclusiveBase: undefined, gstRate: 0,
+      // An office fare override is a net adjustment and must survive the inclusive snapshot.
+      adminAdjustment: r2(p.adminAdjustment * (1 + p.gstRate)),
+    };
+    const result = finalizeFare({ ...i, pricing: rawPricing });
+    const fare = withFareGst(result.fare, p.gst, true);
+    return { ...result, fare, customerPackagePaise: taxableFromInclusivePaise(result.customerPackagePaise, p.gstRate), extraKmPaise: taxableFromInclusivePaise(result.extraKmPaise, p.gstRate) };
+  }
   if (!(i.totalKm > 0) || !Number.isFinite(i.totalKm)) throw new TariffError('km-required', 'Enter the total kilometres driven.');
   const totalKm = Math.round(i.totalKm * 10) / 10;
   let packagePaise = p.packagePaise;
@@ -953,6 +1002,7 @@ export function finalizeFare(i: FinalInput): FinalResult {
     subtotal, discount, taxableAmount: taxable, gstRate: p.gstRate, gst, total: r2(taxable + gst),
     distanceKm: totalKm, durationMin: 0, perKmRate: rupeesOf(p.extraKmRatePaise), perMinuteRate: 0,
   };
+  if (p.gst) fare.gstDetails = { ...p.gst, ...gstComponents(fare.gst, p.gst.split) };
   return { fare, billableKm, extraKm, days, extraKmPaise, customerPackagePaise: packagePaise, partnerPaise, extraDays };
 }
 
@@ -964,8 +1014,8 @@ export function finalizeFare(i: FinalInput): FinalResult {
 export function finalizeLegacyFare(args: { total: number; taxable: number; gstRate: number; discount: number; quotedKm: number; extraKmRate: number; totalKm: number }) {
   const totalKm = Math.round(args.totalKm * 10) / 10;
   const extraKm = Math.max(0, Math.round((totalKm - args.quotedKm) * 10) / 10);
-  const extra = Math.round(extraKm * args.extraKmRate);
-  const taxable = args.taxable + extra;
-  const gst = Math.round(taxable * args.gstRate);
+  const extra = r2(extraKm * args.extraKmRate);
+  const taxable = r2(args.taxable + extra);
+  const gst = gstOn(taxable, args.gstRate);
   return { extraKm, extra, taxable, gst, total: taxable + gst, distanceKm: totalKm };
 }

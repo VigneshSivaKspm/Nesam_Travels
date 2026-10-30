@@ -59,25 +59,26 @@ export default function ReportsGst({ initialTab, onNavigate }: { initialTab?: st
   const inPeriod = (iso: string) => periodMonths.some((m) => iso.startsWith(m));
   const sales = invoices.filter((i) => i.invoiceStatus === "Issued" && inPeriod(i.invoiceDate || ""));
   const purchases = register.filter((r) => (r.kind === "expense" || r.kind === "supplier_bill") && inPeriod(r.date));
+  const utgstOf = (i: Invoice) => i.utgst || 0;
   const igstOf = (i: Invoice) => Number((i as Invoice & { igst?: number }).igst) || 0;
-  const totals = sales.reduce((s, i) => ({ taxable: s.taxable + (i.taxableAmount || 0), cgst: s.cgst + (i.cgst || 0), sgst: s.sgst + (i.sgst || 0), igst: s.igst + igstOf(i) }), { taxable: 0, cgst: 0, sgst: 0, igst: 0 });
+  const totals = sales.reduce((s, i) => ({ taxable: s.taxable + (i.taxableAmount || 0), cgst: s.cgst + (i.cgst || 0), sgst: s.sgst + (i.sgst || 0), utgst: s.utgst + utgstOf(i), igst: s.igst + igstOf(i) }), { taxable: 0, cgst: 0, sgst: 0, utgst: 0, igst: 0 });
   const itc = purchases.filter((r) => r.itcStatus === "Eligible").reduce((s, r) => s + (r.tax ?? 0), 0);
-  const outputTax = totals.cgst + totals.sgst + totals.igst;
+  const outputTax = totals.cgst + totals.sgst + totals.utgst + totals.igst;
   const gstPaid = register.filter((r) => r.kind === "tax" && r.taxType === "GST" && periodMonths.includes(r.period ?? ""));
   const discharged = gstPaid.filter((r) => r.purpose === "Liability discharged").reduce((s, r) => s + (r.liabilitySettled ?? r.amount), 0);
   const filings = register.filter((r) => r.kind === "filing" && r.period === periodLabel);
   const filed = (f: string) => filings.find((r) => r.description === f);
 
-  const salesRows: Cell[][] = sales.map((i) => [i.invoiceNumber, i.invoiceDate, i.customerSnapshot?.name ?? "", i.customerSnapshot?.gstin ?? "", i.taxableAmount, i.cgst, i.sgst, igstOf(i), i.grandTotal]);
+  const salesRows: Cell[][] = sales.map((i) => [i.invoiceNumber, i.invoiceDate, i.customerSnapshot?.name ?? "", i.customerSnapshot?.gstin ?? "", i.taxableAmount, i.cgst, i.sgst, utgstOf(i), igstOf(i), i.grandTotal]);
   const purchaseRows: Cell[][] = purchases.map((r) => [r.reference ?? "", r.date, r.payee ?? "", r.gstin ?? "", r.taxable ?? r.amount, r.tax ?? 0, r.amount, r.itcStatus ?? "Unreviewed"]);
   const workingRows: Cell[][] = [
-    ["Outward taxable supplies", totals.taxable], ["Output CGST", totals.cgst], ["Output SGST", totals.sgst], ["Output IGST", totals.igst],
+    ["Outward taxable supplies", totals.taxable], ["Output CGST", totals.cgst], ["Output SGST", totals.sgst], ["Output UTGST", totals.utgst], ["Output IGST", totals.igst],
     ["Eligible ITC (reviewed)", itc], ["Net tax payable", Math.max(0, outputTax - itc)], ["Liability discharged (recorded)", discharged],
   ];
   const exportGst = (fmt: "xlsx" | "csv" | "print") => {
     if (inner === "Purchases & ITC") return exportRows(`Purchases ITC ${periodLabel}`, ["Document", "Date", "Supplier", "GSTIN", "Taxable", "Tax", "Total", "ITC review"], purchaseRows, fmt);
     if (inner === "GSTR working") return exportRows(`${form} working ${periodLabel}`, ["Line", "Amount"], workingRows, fmt);
-    exportRows(`Sales register ${periodLabel}`, ["Document", "Date", "Customer", "GSTIN", "Taxable", "CGST", "SGST", "IGST", "Total"], salesRows, fmt);
+    exportRows(`Sales register ${periodLabel}`, ["Document", "Date", "Customer", "GSTIN", "Taxable", "CGST", "SGST", "UTGST", "IGST", "Total"], salesRows, fmt);
   };
 
   // Income Tax (financial year)
@@ -144,10 +145,10 @@ export default function ReportsGst({ initialTab, onNavigate }: { initialTab?: st
           </div>
           <div className="flex items-end gap-3 my-4"><label className="ds-field"><span>Return form</span><select className="ds-select" value={form} onChange={(e) => setForm(e.target.value as typeof form)}><option>GSTR-1</option><option>GSTR-3B</option></select></label><span className="text-[11px] text-muted pb-2">Current working copy</span></div>
           <div className="ds-kpi-grid" style={{ gridTemplateColumns: "repeat(4, minmax(0, 1fr))" }}>
-            {([["Taxable value", totals.taxable], ["CGST", totals.cgst], ["SGST", totals.sgst], ["IGST", totals.igst]] as const).map(([k, v]) => <div key={k} className="ds-kpi"><span className="ds-kpi-label">{k}</span><span className="ds-kpi-value">{rupee(v)}</span></div>)}
+            {([["Taxable value", totals.taxable], ["CGST", totals.cgst], ["SGST", totals.sgst], ["UTGST", totals.utgst], ["IGST", totals.igst]] as const).map(([k, v]) => <div key={k} className="ds-kpi"><span className="ds-kpi-label">{k}</span><span className="ds-kpi-value">{rupee(v)}</span></div>)}
           </div>
           <StageBar label="GST report" tabs={(["Sales register", "Purchases & ITC", "GSTR working", "Filing record"] as const).map((t) => ({ id: t, label: t }))} value={inner} onChange={setInner} />
-          {inner === "Sales register" && table(["Document", "Date", "Customer", "GSTIN", "Taxable", "CGST", "SGST", "IGST", "Total"], salesRows, 4)}
+          {inner === "Sales register" && table(["Document", "Date", "Customer", "GSTIN", "Taxable", "CGST", "SGST", "UTGST", "IGST", "Total"], salesRows, 4)}
           {inner === "Purchases & ITC" && table(["Document", "Date", "Supplier", "GSTIN", "Taxable", "Tax", "Total", "ITC review"], purchaseRows.map((r) => [...r.slice(0, 7), String(r[7])]), 4)}
           {inner === "GSTR working" && (
             <>

@@ -1,3 +1,5 @@
+import { gstComponents } from './gst';
+import { taxableFromInclusivePaise } from './tariff';
 // Authoritative fare policy. Client calculations are previews only.
 import { AppliedCoupon, Coupon, DiscountDetail, FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './types';
 const GST_RATE = 0.05, NIGHT_END_HOUR = 6, NIGHT_START_HOUR = 22, OUTSTATION_THRESHOLD_KM = 40;
@@ -197,10 +199,12 @@ export function splitGstInclusive(total: number): { taxableAmount: number; gst: 
  * still adds up to the charged total.
  */
 export function applyFareOverride(calculated: FareBreakdown, total: number): FareBreakdown {
-  const { taxableAmount, gst } = splitGstInclusive(total);
+  const rate = calculated.gstRate;
+  const taxableAmount = calculated.gstDetails ? taxableFromInclusivePaise(Math.round(total * 100), rate) / 100 : splitGstInclusive(total).taxableAmount;
+  const gst = Math.round((total - taxableAmount) * 100) / 100;
   const subtotal = taxableAmount + calculated.discount;
   const computedSubtotal = calculated.subtotal - (calculated.adminAdjustment ?? 0);
-  return { ...calculated, adminAdjustment: subtotal - computedSubtotal, subtotal, taxableAmount, gst, total };
+  return { ...calculated, ...(calculated.gstDetails ? { gstDetails: { ...calculated.gstDetails, ...gstComponents(gst, calculated.gstDetails.split) } } : {}), adminAdjustment: subtotal - computedSubtotal, subtotal, taxableAmount, gst, total };
 }
 
 // ── Coupons ─────────────────────────────────────────────────────────────────

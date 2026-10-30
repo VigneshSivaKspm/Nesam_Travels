@@ -6,7 +6,7 @@ import {
   type CreatedAdminBooking, type ManualBookingForm,
 } from "../services/adminBookingService";
 import { ActionError } from "../services/callables";
-import { markEnquiryConverted, type Enquiry } from "../services/enquiryService";
+import { markEnquiryConverted, multicityConversionBlocked, MULTICITY_CONVERSION_MESSAGE, type Enquiry } from "../services/enquiryService";
 import { useCan, useStaffFlag } from "../components/AccessContext";
 import { Toast, useToast } from "../components/Feedback";
 import MapLocationPicker from "../components/MapLocationPicker";
@@ -123,7 +123,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
   }, []);
   // A converted enquiry re-prices the saved route as soon as the categories load.
   useEffect(() => {
-    if (draft?.enquiry && !estimates && data.categories.length && trip.pickup && trip.drop && !validateTrip(trip)) {
+    if (draft?.enquiry && !multicityConversionBlocked(draft.enquiry) && !estimates && data.categories.length && trip.pickup && trip.drop && !validateTrip(trip)) {
       estimateAll(trip, data.categories).then((list) => {
         setEstimates(list);
         if (!list.some((x) => x.category.id === selected && x.quote)) setSelected(list.find((x) => x.quote)?.category.id ?? "");
@@ -154,6 +154,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
 
   const getEstimate = async (e?: FormEvent) => {
     e?.preventDefault();
+    if (draft?.enquiry && multicityConversionBlocked(draft.enquiry)) return setError(MULTICITY_CONVERSION_MESSAGE);
     const why = validateTrip(trip);
     if (why) return setError(why);
     setBusy(true);
@@ -237,6 +238,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
 
   const confirm = async (e: FormEvent) => {
     e.preventDefault();
+    if (draft?.enquiry && multicityConversionBlocked(draft.enquiry)) return setError(MULTICITY_CONVERSION_MESSAGE);
     if (!accepted) return setError("Confirm the customer’s acceptance before booking.");
     if (!chosen || !q) return setError("Choose a vehicle category.");
     setBusy(true);
@@ -277,6 +279,10 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
       <span data-on={on === 3 ? "true" : undefined}><b>3</b>Review</span>
     </div>
   );
+
+  if (draft?.enquiry && multicityConversionBlocked(draft.enquiry)) {
+    return <div className="ds-page-body"><PageHeader title="Multicity enquiry" subtitle={draft.enquiry.code} actions={<Button onClick={onCancel}>Back to enquiries</Button>} /><p role="alert">{MULTICITY_CONVERSION_MESSAGE}</p></div>;
+  }
 
   // ── 01 Trip ──
   if (step === "trip") {

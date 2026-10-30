@@ -92,6 +92,7 @@ export interface RideCategory {
 }
 
 export interface FareBreakdown {
+  gstDetails?: import('./gst').GstSnapshot & { cgst: number; sgst: number; utgst: number; igst: number };
   baseFare: number;
   distanceFare: number;
   timeFare: number;

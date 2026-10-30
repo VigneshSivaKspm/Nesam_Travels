@@ -1,3 +1,5 @@
+import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
+import { fareServiceKey } from './fareScope';
 // Admin (phone / walk-in) bookings. Priced by the same server fare engine as
 // customer bookings. The admin never types the base fare: it is calculated from
 // the vehicle category, route, global adjustment and an optional discount. The
@@ -95,6 +97,18 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
   // Quick fare: the office gives the estimate before collecting any customer details, so a
   // quote-only request needs no name, mobile or payment method. Nothing is written for a quote.
   const quoteOnly = input.quoteOnly === true;
+  if (input.tripType === 'Multicity' || input.serviceId === 'multicity' || (Array.isArray(input.stops) && input.stops.length)) {
+    throw new HttpsError('failed-precondition', 'Multicity itineraries cannot be priced or converted using the standard pickup/drop booking flow.');
+  }
+  const enquiryCode = text(input.enquiryId, 40);
+  if (enquiryCode) {
+    if (!/^NSM-QT-\d{6}$/.test(enquiryCode)) throw new HttpsError('invalid-argument', 'Invalid enquiry reference.');
+    const enquiry = (await db.doc(`enquiries/${enquiryCode}`).get()).data();
+    if (!enquiry) throw new HttpsError('not-found', 'The enquiry no longer exists.');
+    if (enquiry.serviceId === 'multicity' || enquiry.service === 'Multicity' || enquiry.tripType === 'Multicity' || enquiry.stops?.length) {
+      throw new HttpsError('failed-precondition', 'Keep this Multicity enquiry with the travel desk. Standard conversion would discard its itinerary and reviewed tour fare.');
+    }
+  }
   const name = text(input.customerName, 80);
   if (!quoteOnly && name.length < 2) throw new HttpsError('invalid-argument', 'Enter the customer name.');
   const phone = quoteOnly && !input.customerPhone ? '' : indianPhone(input.customerPhone);
@@ -195,17 +209,21 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       serviceId = serviceSnap.id;
     }
 
-    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType, service));
+    const rawChan = text(input.bookingSource || input.source || input.brand || input.channel || '');
+    const bookingChannel = resolveAndValidateBrand({ brand: rawChan }, request, true);
+    assertServiceSupported(bookingChannel, tripType);
+
+    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType, service), bookingChannel, fareServiceKey(tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     let contract: ReturnType<typeof businessContract> = null;
     try { contract=business?businessContract(business.data()!,{pickup,drop,service,tripType,category:category.name,km:route.distanceKm*(tripType==='Round Trip'?2:1)}):null; }
     catch(e){throw new HttpsError('failed-precondition',(e as Error).message);}
-    const rawChan = text(input.bookingSource || input.source || input.brand || input.channel || '');
-    const bookingChannel = resolveAndValidateBrand({ brand: rawChan }, request);
-    assertServiceSupported(bookingChannel, tripType);
 
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId, businessContract:contract, brand: bookingChannel };
+
+    const boardingState = await fareBoardingState(tariff, pickup);
+    const recipientState = recipientGstState(business?.data() ?? customer?.data());
+    const priceInput = { boardingState, recipientState, recipientAddressState: recipientAddressState(business?.data() ?? customer?.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId, businessContract:contract, brand: bookingChannel };
     // Coupon: the same server checks as customer checkout (validity, usage limits, minimum fare,
     // category / service, audience) against the fare before discount; then the booking is priced with it.
     let couponDiscount = 0;

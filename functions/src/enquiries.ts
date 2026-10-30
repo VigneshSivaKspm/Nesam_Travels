@@ -6,6 +6,8 @@ import { db } from './admin';
 import { approved, inIndia, text } from './shared';
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { GeoPlace } from './domain/types';
+import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
+import { createHash } from 'crypto';
 
 export interface MulticityStop {
   id: string;
@@ -53,9 +55,16 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
 
   const input = request.data ?? {};
   const submissionId = text(input.submissionId, 100);
-  if (!submissionId) {
+  if (typeof input.submissionId !== 'string' || input.submissionId !== submissionId || !/^[A-Za-z0-9_-]{1,100}$/.test(submissionId)) {
     throw new HttpsError('invalid-argument', 'Missing submission ID.');
   }
+  const brand = resolveAndValidateBrand(input, request);
+  assertServiceSupported(brand, 'Multicity');
+  const requestKey = createHash('sha256').update(JSON.stringify([uid, brand, submissionId])).digest('hex');
+  const submissionRef = db.doc(`multicity_submissions/${requestKey}`);
+  const receipt = await submissionRef.get();
+  const response = (id: string) => ({ id, code: id, status: 'New', message: 'Your itinerary quote request has been received.' });
+  if (receipt.exists) return response(receipt.data()!.enquiryId);
 
   // Idempotency check: customer retrying with the same submission ID gets the same enquiry
   const existingSnap = await db.collection('enquiries')
@@ -64,8 +73,8 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
     .limit(1)
     .get();
 
-  if (!existingSnap.empty) {
-    const existingDoc = existingSnap.docs[0];
+  const existingDoc = existingSnap.docs.find(doc => doc.data().brand === brand || (!doc.data().brand && brand === 'people_taxi'));
+  if (existingDoc) {
     const data = existingDoc.data();
     return {
       id: existingDoc.id,
@@ -88,14 +97,17 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
 
   // Validate intermediate stops (1 to 10 stops)
   const rawStops = Array.isArray(input.stops) ? input.stops : [];
-  if (rawStops.length > 10) {
-    throw new HttpsError('invalid-argument', 'A maximum of 10 intermediate stops can be added per itinerary enquiry.');
+  if (rawStops.length < 1 || rawStops.length > 10) {
+    throw new HttpsError('invalid-argument', 'Add from 1 to 10 intermediate stops.');
   }
-
+  const stopIds = new Set<string>();
   const stops: MulticityStop[] = rawStops.map((s: any, idx: number) => {
     const p = cleanPlace(s, `intermediate stop #${idx + 1}`);
+    const id = text(s.id, 80);
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id) || stopIds.has(id)) throw new HttpsError('invalid-argument', 'Each intermediate stop needs a unique stop ID.');
+    stopIds.add(id);
     return {
-      id: text(s.id, 80) || `stop-${idx + 1}`,
+      id,
       name: p.name,
       address: p.address,
       lat: p.lat,
@@ -132,20 +144,17 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
     }
   }
 
-  // Vehicle category validation
+  // Vehicle category validation: actual category name or "No preference"
   const categoryId = text(input.categoryId, 80);
-  let categoryName = 'Sedan';
-  if (categoryId) {
-    const catDoc = await db.doc(`vehicle_categories/${categoryId}`).get();
-    if (catDoc.exists) {
-      categoryName = catDoc.data()?.name || categoryName;
-    }
-  }
+  if (input.categoryId != null && (typeof input.categoryId !== 'string' || input.categoryId !== categoryId)) throw new HttpsError('invalid-argument', 'Choose a valid vehicle category or No preference.');
+  if (categoryId && !/^[A-Za-z0-9_-]{1,80}$/.test(categoryId)) throw new HttpsError('invalid-argument', 'Choose a valid vehicle category or No preference.');
+  const categoryRef = categoryId ? db.doc(`vehicle_categories/${categoryId}`) : null;
 
   const notes = text(input.notes, 500);
   const passengerName = text(input.passengerName || customerData.name, 100);
   const passengerPhone = text(input.passengerPhone || customerData.phone, 20);
-  const source = text(input.source || 'peopletaxi_web', 50);
+  const defaultSource = brand === 'onewaycarrentals' ? 'onewaycarrentals_web' : brand === 'people_taxi' ? 'peopletaxi_web' : 'nesam_web';
+  const source = defaultSource;
 
   // Generate unique NSM-QT-######
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -153,13 +162,23 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
     const code = `NSM-QT-${num}`;
     const ref = db.doc(`enquiries/${code}`);
 
-    const ok = await db.runTransaction(async (tx) => {
+    const result = await db.runTransaction(async (tx) => {
+      const prior = await tx.get(submissionRef);
+      if (prior.exists) return response(prior.data()!.enquiryId);
       const snap = await tx.get(ref);
-      if (snap.exists) return false;
+      if (snap.exists) return null;
+      const customer = await tx.get(customerDoc.ref);
+      if (!customer.exists || !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your customer account is not active.');
+      const category = categoryRef ? await tx.get(categoryRef) : null;
+      if (category && (!category.exists || category.data()?.status !== 'Active' || !text(category.data()?.name, 100))) {
+        throw new HttpsError('failed-precondition', 'That vehicle category is no longer available. Choose another category or No preference.');
+      }
+      const categoryName = category ? text(category.data()!.name, 100) : 'No preference';
 
       const record = {
         code,
         status: 'New',
+        brand,
         customerId: uid,
         customerName: passengerName,
         phone: passengerPhone,
@@ -173,7 +192,7 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
         serviceId: 'multicity',
         service: 'Multicity',
         tripType: 'Multicity',
-        categoryId: categoryId || 'cat-sedan',
+        categoryId: categoryId || null,
         vehicle: categoryName,
         pickupAt: Timestamp.fromDate(scheduled),
         tripEndAt: tripEndAt ? Timestamp.fromDate(tripEndAt) : null,
@@ -183,7 +202,7 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
         history: [
           {
             status: 'New',
-            note: `Multicity tour enquiry submitted online via ${source}. ${stops.length} intermediate stops included.`,
+            note: `Multicity tour enquiry submitted online via ${source} (${brand}). ${stops.length} intermediate stops included.`,
             at: Timestamp.now(),
             byName: passengerName || 'Customer',
           },
@@ -194,17 +213,11 @@ export const submitMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (requ
       };
 
       tx.set(ref, record);
-      return true;
+      tx.set(submissionRef, { enquiryId: code, customerId: uid, brand, createdAt: FieldValue.serverTimestamp() });
+      return { ...response(code), message: 'Your itinerary enquiry has been submitted. Our travel desk will calculate your upfront package quote and notify you shortly.' };
     });
 
-    if (ok) {
-      return {
-        id: code,
-        code,
-        status: 'New',
-        message: 'Your itinerary enquiry has been submitted. Our travel desk will calculate your upfront package quote and notify you shortly.',
-      };
-    }
+    if (result) return result;
   }
 
   throw new HttpsError('internal', 'Unable to generate enquiry reference. Please try again.');
@@ -299,6 +312,7 @@ export const getCustomerEnquiries = onCall({ timeoutSeconds: 30 }, async (reques
       id: d.id,
       code: data.code || d.id,
       status: data.status,
+      brand: data.brand || null,
       pickup: data.pickup,
       drop: data.drop,
       stops: data.stops || [],

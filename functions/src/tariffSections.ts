@@ -14,6 +14,7 @@ import { EXTRA_CATEGORY_ID, ExtraChargeRow, ExtraChargeSide, ExtraChargesConfig,
 import { TARIFF_DOC } from './quote';
 import { requirePermission, text, requireAction } from './shared';
 import { BRAND_SUPPORTED_SERVICES, BrandId, SUPPORTED_BRANDS } from './brandContext';
+import { gstState, validGstRule, type FareGstRule } from './domain/gst';
 
 const MAX_AMOUNT = 1_000_000;
 const bad = (m: string) => new HttpsError('invalid-argument', m);
@@ -226,10 +227,10 @@ function applyBrandOverride(
   data: Record<string, unknown>,
   clearOverride?: boolean
 ): { next: TariffConfig; meta: Record<string, unknown> } {
-  if (!SUPPORTED_BRANDS.includes(brand as BrandId)) {
+  if (brand !== 'common' && !SUPPORTED_BRANDS.includes(brand as BrandId)) {
     throw bad(`Unsupported brand: "${brand}".`);
   }
-  const supportedServices = BRAND_SUPPORTED_SERVICES[brand as BrandId];
+  const supportedServices = BRAND_SUPPORTED_SERVICES[brand === 'common' ? 'nesam' : brand as BrandId];
   if (!supportedServices.includes(service)) {
     throw bad(`Service "${service}" is not supported by brand "${brand}".`);
   }
@@ -334,6 +335,52 @@ function applyBrandOverride(
     override.enabled = data.enabled;
   }
 
+  for (const key of ['partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge'] as const) {
+    if (data[key] === null) delete override[key];
+    else if (data[key] !== undefined) override[key] = amount(data[key], key, false);
+  }
+  for (const key of ['freeWaitingMinutes','waitingRoundingMinutes'] as const) {
+    if (data[key] === null) delete override[key];
+    else if (data[key] !== undefined) {
+      const value = data[key];
+      if (typeof value !== 'number' || !Number.isInteger(value) || value < (key === 'freeWaitingMinutes' ? 0 : 1) || value > 1440) throw bad('Enter valid waiting minutes.');
+      override[key] = value;
+    }
+  }
+  if (data.waitingRoundingScope === null) delete override.waitingRoundingScope;
+  else if (data.waitingRoundingScope !== undefined) {
+    if (data.waitingRoundingScope !== 'per_stop' && data.waitingRoundingScope !== 'combined') throw bad('Choose per-stop or combined waiting rounding.');
+    override.waitingRoundingScope = data.waitingRoundingScope;
+  }
+  if (data.taxTreatment === null) delete override.taxTreatment;
+  else if (data.taxTreatment !== undefined) {
+    if (data.taxTreatment !== 'no_gst' && data.taxTreatment !== 'tariff_gst') throw bad('Choose an extra-charge tax treatment.');
+    override.taxTreatment = data.taxTreatment;
+  }
+
+  if (data.minRentalHours === null) delete override.minRentalHours;
+  else if (data.minRentalHours !== undefined) {
+    if (typeof data.minRentalHours !== 'number' || !Number.isInteger(data.minRentalHours) || data.minRentalHours < 1 || data.minRentalHours > 12) throw bad('Minimum rental hours must be between 1 and 12.');
+    override.minRentalHours = data.minRentalHours;
+  }
+  if (data.rentalPackages !== undefined) {
+    if (service !== 'Local Rental') throw bad('Rental packages require Local Rental scope.');
+    const packages = obj(data.rentalPackages, 'Rental package overrides');
+    const nextPackages: NonNullable<BrandFareOverride['rentalPackages']> = {};
+    for (const [key, value] of Object.entries(packages)) {
+      hoursOf(Number(key));
+      const raw = obj(value, 'Rental package');
+      const row: NonNullable<BrandFareOverride['rentalPackages']>[string] = {};
+      for (const field of ['customerFare', 'partnerPayout', 'includedKm', 'extraKmRate', 'extraHourRate'] as const) {
+        if (raw[field] !== undefined && raw[field] !== null) row[field] = amount(raw[field], field, true);
+      }
+      if (Object.keys(row).length) nextPackages[key] = row;
+    }
+    if (Object.keys(nextPackages).length) override.rentalPackages = nextPackages;
+    else delete override.rentalPackages;
+  }
+
+  if (!Object.keys(override).length) return applyBrandOverride(base, brand, service, cls, {}, true);
   serviceData[cls] = override;
   brandData[service] = serviceData;
   existingOverrides[brand] = brandData;
@@ -374,6 +421,28 @@ export const saveTariffSection = onCall(async (request) => {
       const d = obj(input.data, 'The rates');
       next = applyBaseRates(base, d);
       meta = { section, classes: Object.keys(obj(d.classes, 'The category rates')) };
+    } else if (section === 'fareGst') {
+      const brand = text(input.brand, 50), service = text(input.service, 50);
+      if (!['common', ...SUPPORTED_BRANDS].includes(brand) || !['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'].includes(service)) throw bad('Choose a GST brand and service.');
+      const d = obj(input.data, 'GST settings');
+      const state = d.state === '' ? '' : gstState(d.state);
+      if (d.state !== '' && !state) throw bad('Choose a valid pickup state for the GST override.');
+      const fareGst = { ...base.fareGst };
+      const services = { ...fareGst[brand] };
+      const policy = { ...services[service], states: { ...services[service]?.states } };
+      if (input.clearOverride === true) {
+        if (state) delete policy.states[state]; else delete policy.default;
+      } else {
+        if (!validGstRule(d.rule)) throw bad('Choose the supplier state, included/excluded mode, classification, a GST rate from 0 to 40%, and an approval reference.');
+        const raw = d.rule;
+        const rule: FareGstRule = { supplierState: gstState(raw.supplierState), rate: Math.round(raw.rate * 10000) / 10000, mode: raw.mode, classification: raw.classification, reference: text(raw.reference, 300) };
+        if (state) policy.states[state] = rule; else policy.default = rule;
+      }
+      if (!Object.keys(policy.states).length) delete (policy as { states?: unknown }).states;
+      if (!policy.default && !policy.states) delete services[service]; else services[service] = policy;
+      if (!Object.keys(services).length) delete fareGst[brand]; else fareGst[brand] = services;
+      next = { ...base, fareGst };
+      meta = { section, brand, service, state: state || 'all', clear: input.clearOverride === true };
     } else if (section === 'brandOverride') {
       const cls = classOf(input.class);
       const brand = text(input.brand, 50);

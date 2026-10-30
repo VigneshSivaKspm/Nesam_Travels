@@ -531,6 +531,9 @@ export interface Invoice {
   gstRate: number; // e.g. 0.05 for 5%
   cgst: number;
   sgst: number;
+  igst?: number;
+  utgst?: number;
+  taxSplit?: 'CGST + SGST' | 'CGST + UTGST' | 'IGST';
   totalTax: number;
   grandTotal: number;
   paidAmount: number;
@@ -678,6 +681,8 @@ export type PricingModel =
   | "PER_DAY";
 
 export interface FareRule {
+  brand?: string;
+  fareService?: string;
   id: string;
   name: string;
   code?: string;

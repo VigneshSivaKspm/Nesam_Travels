@@ -1,3 +1,4 @@
+import { gstComponents } from './domain/gst';
 // Driver trip workflow, validated on the server:
 //   Reached Pickup Location  →  Trip Started  →  Trip Ended
 // Only the next step is accepted, every step is stamped and (with permission)
@@ -194,7 +195,7 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
       let money: Record<string, unknown> = {};
       if (pricing && typeof totalKm === 'number') {
         const endMs = Date.now();
-        if (pricing.source === 'tariff_v2') {
+        if (pricing.source === 'tariff_v2' || pricing.gstInclusiveBase) {
           const f = finalizeFare({ pricing, totalKm, endMs });
           money = {
             fare: f.fare.total, fareBreakdown: f.fare,
@@ -206,12 +207,12 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
         } else {
           const fb = b.fareBreakdown ?? {};
           const f = finalizeLegacyFare({
-            total: Number(b.fare) || 0, taxable: Number(fb.taxableAmount) || 0, gstRate: Number(fb.gstRate) || 0.05, discount: Number(fb.discount) || 0,
+            total: Number(b.fare) || 0, taxable: Number(fb.taxableAmount) || 0, gstRate: typeof fb.gstRate === 'number' ? fb.gstRate : 0.05, discount: Number(fb.discount) || 0,
             quotedKm: pricing.quotedKm, extraKmRate: pricing.extraKmRatePaise / 100, totalKm,
           });
           const record = { schema: 1, totalKm, quotedKm: pricing.quotedKm, includedKm: pricing.includedKm, extraKm: f.extraKm, days: 1, extraDays: 0, quotedFare: b.fare, at: Timestamp.now() };
           if (f.extra > 0) {
-            const next = { ...fb, taxableAmount: f.taxable, gst: f.gst, total: f.total, subtotal: (Number(fb.subtotal) || 0) + f.extra, distanceFare: (Number(fb.distanceFare) || 0) + f.extra, distanceKm: f.distanceKm };
+            const next = { ...fb, ...(pricing.gst ? { gstDetails: { ...pricing.gst, ...gstComponents(f.gst, pricing.gst.split) } } : {}), taxableAmount: f.taxable, gst: f.gst, total: f.total, subtotal: (Number(fb.subtotal) || 0) + f.extra, distanceFare: (Number(fb.distanceFare) || 0) + f.extra, distanceKm: f.distanceKm };
             money = { fare: f.total, fareBreakdown: next, finalFare: { ...record, finalFare: f.total } };
           } else {
             money = { finalFare: { ...record, finalFare: b.fare } };

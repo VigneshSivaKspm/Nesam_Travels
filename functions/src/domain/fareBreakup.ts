@@ -65,7 +65,15 @@ export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, ou
       detail: d?.type === 'percentage' ? `${d.value}% discount` : d?.type === 'fixed' ? `Flat ${rupees(d.value)} discount` : 'Promo discount',
     });
   }
-  add({ key: 'gst', label: `GST (${Math.round(fare.gstRate * 100)}%)`, amount: fare.gst, treatment: 'included', detail: 'Included in the total payable' });
+  const tax = fare.gstDetails;
+  const ratePercent = Math.round(fare.gstRate * 10000) / 100;
+  if (tax && tax.split !== 'Pending verification') {
+    for (const key of ['cgst','sgst','utgst','igst'] as const) {
+      if ((key === 'igst' && tax.split === 'IGST') || (key === 'cgst' && tax.split.startsWith('CGST')) || (key === 'sgst' && tax.split === 'CGST + SGST') || (key === 'utgst' && tax.split === 'CGST + UTGST')) {
+        add({ key, label: key.toUpperCase() + ' (' + (key === 'igst' ? ratePercent : ratePercent / 2) + '%)', amount: tax[key], treatment: 'included', detail: tax.mode === 'included' ? 'Extracted from the entered fare' : 'Added to the fare; included in total payable' });
+      }
+    }
+  } else add({ key: 'gst', label: 'GST (' + ratePercent + '%)', amount: fare.gst, treatment: 'included', detail: tax ? 'State split pending verified place of supply' : 'Included in the total payable' });
 
   // Charges outside the package.
   add({

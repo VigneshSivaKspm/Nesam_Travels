@@ -187,6 +187,8 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
         ...(editing ? { uid: account!.uid, expectedVersion: baseVersion } : { accountStatus: "Active", requestId, username: d.username.trim().toLowerCase(), password: d.password }),
         name: d.name, phone: d.phone, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid`, branch: d.branch, preset: d.preset, access: d.matrix, duty: d.duty, reason: d.reason,
       });
+      // Credentials belong only to this creation form, never to the saved profile or result dialog.
+      setD((current) => ({ ...current, password: "", confirmPassword: "" }));
       onSaved(result, !editing, { name: d.name.trim(), email: d.email.trim().toLowerCase() });
     } catch (e) {
       // Entries stay as they are so the Master can correct and retry.
@@ -209,7 +211,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
     <>
       <Modal
         title={editing ? `Edit access · ${account!.name || account!.email}` : "Add staff"}
-        subtitle={editing ? `${account!.profile?.staffCode ?? ""} · ${status}` : "Create an individual Staff ID with its own access."}
+        subtitle={editing ? `${account!.profile?.staffCode ?? ""} · ${status}` : "Set a username, password and workspace access for this staff member."}
         onClose={close}
         busy={saving}
         size="xl"
@@ -219,12 +221,13 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
           <>
             <Button onClick={close} disabled={saving}>Cancel</Button>
             <Button variant="primary" onClick={() => void save()} loading={saving} disabled={saving || (touched && blocked)}>
-              {saving ? "Saving…" : editing ? "Save profile & access" : "Create staff profile"}
+              {saving ? "Saving…" : editing ? "Save profile & access" : "Create staff login"}
             </Button>
           </>
         }
       >
         <div className="space-y-5 text-xs">
+          {!editing && <p className="p-3 rounded-lg bg-surface-2 border border-line text-body">You create the login credentials here. Staff sign in with their username and password; an email invitation is not required. Usernames must be unique and passwords must be 8–128 characters.</p>}
           {error && (
             <div role="alert" className={`p-3 rounded-lg border ${error.kind === "service" ? "bg-amber-50 border-amber-200 text-amber-900" : "bg-red-50 border-red-200 text-red-700"}`}>
               <strong className="block mb-0.5">
@@ -239,7 +242,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
             {field("Mobile *", "phone", { maxLength: 10, inputMode: "numeric" })}
             {editing ? (account?.username ? <div><span className="block text-[11px] font-semibold text-muted mb-1">Username</span><input className={input} value={account.username} readOnly /></div> : field("Email (sign-in) *", "email", { type: "email", maxLength: 120 })) : (
               <>
-                <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Username *</span><input className={input} value={d.username} onChange={(e) => setD({ ...d, username: e.target.value })} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} /></label>
+                <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Username / login ID *</span><input className={input} value={d.username} onChange={(e) => setD({ ...d, username: e.target.value.toLowerCase() })} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="e.g. booking.staff01" /><span className="block mt-1 text-[11px] text-muted">3–32 characters; start with a letter. Use letters, numbers, dots, underscores or hyphens.</span></label>
                 <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Password *</span><input className={input} type="password" value={d.password} onChange={(e) => setD({ ...d, password: e.target.value })} minLength={8} maxLength={128} autoComplete="new-password" /></label>
                 <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Confirm password *</span><input className={input} type="password" value={d.confirmPassword} onChange={(e) => setD({ ...d, confirmPassword: e.target.value })} maxLength={128} autoComplete="new-password" /></label>
                 {touched && credentialError && <p role="alert" className="text-[11px] text-red-600">{credentialError}</p>}

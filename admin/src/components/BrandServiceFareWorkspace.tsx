@@ -1,8 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  BRANDS,
   BRAND_LABELS,
-  BRAND_SUPPORTED_SERVICES,
   BrandFareOverride,
   BrandId,
   CLASS_LABEL,
@@ -12,23 +10,25 @@ import {
   TARIFF_CLASSES,
   Tariff,
   TariffClass,
-  WORKSPACE_SERVICES,
   WorkspaceService,
+  FareWorkspaceScope,
   getInheritingBrands,
   inr,
   outstationExtraFor,
   resolveRate,
   useTariff,
 } from "../services/tariffService";
-import { saveTariffSection } from "../services/bookingOpsService";
+import { saveTariffConfig, saveTariffSection } from "../services/bookingOpsService";
 import { ActionError } from "../services/callables";
-import { useCan } from "./AccessContext";
+import { useCan, useCanDo } from "./AccessContext";
 import { Badge, Button, Icon, PageHeader } from "./ui";
 import { Modal, Toast, useToast } from "./Feedback";
 
 type ScopeBrand = "common" | BrandId;
 
 interface FormFields {
+  partnerWaitingPerHour: string; partnerHillCharge: string; partnerCarrierCharge: string;
+  freeWaitingMinutes: string; waitingRoundingMinutes: string; waitingRoundingScope: string; taxTreatment: string;
   customerRate: string;
   partnerRate: string;
   customerBase: string;
@@ -50,6 +50,7 @@ interface FormFields {
 }
 
 const emptyForm = (): FormFields => ({
+  partnerWaitingPerHour: '', partnerHillCharge: '', partnerCarrierCharge: '', freeWaitingMinutes: '', waitingRoundingMinutes: '', waitingRoundingScope: '', taxTreatment: '',
   customerRate: "",
   partnerRate: "",
   customerBase: "",
@@ -71,40 +72,33 @@ const emptyForm = (): FormFields => ({
 });
 
 const str = (v: unknown): string => (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
-const toNumOrNull = (s: string): number | null => (s.trim() === "" ? null : Number(s));
 
-export default function BrandServiceFareWorkspace() {
-  const canEdit = useCan("pricing");
+export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusyChange }: {
+  scope: FareWorkspaceScope; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void;
+}) {
+  const pricingAccess = useCan("pricing");
+  const settingsEdit = useCanDo("Settings", "edit");
+  const canEdit = pricingAccess && settingsEdit;
   const { tariff: t, error: loadError } = useTariff();
   const { toast, show: showToast } = useToast(6000);
 
   // Scope hierarchy selection
-  const [selectedBrand, setSelectedBrand] = useState<ScopeBrand>("common");
-  const [selectedService, setSelectedService] = useState<WorkspaceService>("One Way");
+  const selectedBrand = scope.brand;
+  const selectedService = scope.service;
   const [selectedClass, setSelectedClass] = useState<TariffClass>("sedan");
 
   // Form edit state
   const [form, setForm] = useState<FormFields>(emptyForm);
   const scopeBaseline = useRef<string>("");
+  const openedVersion = useRef(0);
+  const loadedScope = useRef("");
+  const dirtyRef = useRef(false);
   const [busy, setBusy] = useState(false);
 
   // Save Confirmation Modal
   const [confirmSaveOpen, setConfirmSaveOpen] = useState(false);
   const [saveReason, setSaveReason] = useState("");
   const [saveError, setSaveError] = useState<string | null>(null);
-
-  // Supported services for currently selected brand
-  const availableServices = useMemo<readonly WorkspaceService[]>(() => {
-    if (selectedBrand === "common") return WORKSPACE_SERVICES;
-    return BRAND_SUPPORTED_SERVICES[selectedBrand] ?? WORKSPACE_SERVICES;
-  }, [selectedBrand]);
-
-  // Adjust selected service if unsupported for brand
-  useEffect(() => {
-    if (!availableServices.includes(selectedService)) {
-      setSelectedService(availableServices[0] ?? "One Way");
-    }
-  }, [availableServices, selectedService]);
 
   // Helper to load form values from current tariff for selected scope
   const loadScopeValues = (
@@ -116,41 +110,11 @@ export default function BrandServiceFareWorkspace() {
     const f = emptyForm();
     if (!tariff) return f;
 
-    const commonOW = tariff.oneWay?.classes?.[cls];
-    const commonRT = tariff.roundTrip?.classes?.[cls];
-    const commonExtras = svc === "One Way" ? outstationExtraFor(tariff, cls, "One Way") : tariff.outstationExtras?.[cls];
-    const commonAirport = tariff.airport;
-    const commonExtraCharges = tariff.extraCharges?.categories?.[`cat-${cls}`] || tariff.extraCharges?.categories?.[cls];
-
-    if (brand === "common") {
-      f.minKm = str(tariff.oneWay?.minKm) || "130";
-      f.customerRate = str(commonOW?.customerRate);
-      f.partnerRate = str(commonOW?.partnerRate);
-      f.customerBata = str(commonOW?.customerBata);
-      f.partnerBata = str(commonOW?.partnerBata);
-      f.extraKmRate = str(commonExtras?.extraKmRate);
-      f.waitingPerHour = str(commonExtras?.waitingPerHour);
-
-      f.customerBase = str(commonAirport?.customerBase);
-      f.partnerBase = str(commonAirport?.partnerBase);
-
-      f.minKmPerDay = str(commonRT?.minKmPerDay) || "300";
-      f.hillCharge = str(commonExtraCharges?.customer?.hill);
-      f.carrierCharge = str(commonExtraCharges?.customer?.carrier);
-
-      const pkgCfg = tariff.rentalPackages?.[cls];
-      f.minRentalHours = str(pkgCfg?.minHours ?? DEFAULT_RENTAL_MIN_HOURS[cls]);
-      for (const h of RENTAL_HOURS) {
-        const p = pkgCfg?.packages?.[String(h)];
-        f.rentalCustomerFare[h] = str(p?.customerFare);
-        f.rentalPartnerPayout[h] = str(p?.partnerPayout);
-        f.rentalIncludedKm[h] = str(p?.includedKm);
-        f.rentalExtraKm[h] = str(p?.extraKmRate);
-        f.rentalExtraHour[h] = str(p?.extraHourRate);
-      }
-    } else {
       const ov = tariff.brandOverrides?.[brand]?.[svc]?.[cls];
       if (ov) {
+        for (const key of ['partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge','freeWaitingMinutes','waitingRoundingMinutes'] as const) f[key] = str(ov[key]);
+        f.waitingRoundingScope = ov.waitingRoundingScope ?? '';
+        f.taxTreatment = ov.taxTreatment ?? '';
         f.customerRate = str(ov.customerRate);
         f.partnerRate = str(ov.partnerRate);
         f.customerBase = str(ov.customerBase);
@@ -175,7 +139,6 @@ export default function BrandServiceFareWorkspace() {
           }
         }
       }
-    }
     return f;
   };
 
@@ -184,22 +147,30 @@ export default function BrandServiceFareWorkspace() {
   // Initialize or re-sync form when tariff or scope changes
   useEffect(() => {
     if (t === undefined) return;
+    const key = selectedBrand + ':' + selectedService + ':' + selectedClass;
+    if (loadedScope.current === key && (t?.version ?? 0) < openedVersion.current) return;
+    if (loadedScope.current === key && (dirtyRef.current || busy)) return;
+    loadedScope.current = key;
+    openedVersion.current = t?.version ?? 0;
     const loaded = loadScopeValues(t, selectedBrand, selectedService, selectedClass);
     setForm(loaded);
     scopeBaseline.current = serializeForm(loaded);
-  }, [t, selectedBrand, selectedService, selectedClass]);
+  }, [t, selectedBrand, selectedService, selectedClass, busy]);
 
-  const isDirty = useMemo(() => serializeForm(form) !== scopeBaseline.current, [form]);
+  const isDirty = serializeForm(form) !== scopeBaseline.current;
+
+  dirtyRef.current = isDirty;
+  useEffect(() => { onDirtyChange(isDirty); onBusyChange(busy); }, [isDirty, busy, onDirtyChange, onBusyChange]);
+  useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, []);
 
   // Safe scope navigation guard: prevents discarding unsaved edits
   const handleScopeChange = (nextBrand: ScopeBrand, nextService: WorkspaceService, nextClass: TariffClass) => {
+    if (busy || nextClass === selectedClass) return;
     if (isDirty) {
       const scopeName = `${selectedBrand === "common" ? "Common" : BRAND_LABELS[selectedBrand]} → ${selectedService} → ${CLASS_LABEL[selectedClass]}`;
       const confirmed = window.confirm(`You have unsaved changes in ${scopeName}. Discard them to switch scope?`);
       if (!confirmed) return;
     }
-    setSelectedBrand(nextBrand);
-    setSelectedService(nextService);
     setSelectedClass(nextClass);
   };
 
@@ -228,9 +199,9 @@ export default function BrandServiceFareWorkspace() {
   };
 
   // Compute common baseline reference values for comparison
-  const commonOW = t?.oneWay?.classes?.[selectedClass];
-  const commonRT = t?.roundTrip?.classes?.[selectedClass];
-  const commonExtras = selectedService === "One Way" ? outstationExtraFor(t, selectedClass, "One Way") : t?.outstationExtras?.[selectedClass];
+  const commonOW = selectedService === "Multicity" ? t?.brandOverrides?.common?.Multicity?.[selectedClass] : t?.oneWay?.classes?.[selectedClass];
+  const commonRT: { customerRate?: number; partnerRate?: number; minKmPerDay?: number; customerBata?: number; partnerBata?: number } | undefined = t?.brandOverrides?.common?.Multicity?.[selectedClass];
+  const commonExtras = selectedService === "One Way" ? outstationExtraFor(t, selectedClass, "One Way") : selectedService === "Multicity" ? t?.brandOverrides?.common?.Multicity?.[selectedClass] : t?.outstationExtras?.[selectedClass];
   const commonAirport = t?.airport;
   const commonExtraCharges = t?.extraCharges?.categories?.[`cat-${selectedClass}`] || t?.extraCharges?.categories?.[selectedClass];
 
@@ -241,7 +212,7 @@ export default function BrandServiceFareWorkspace() {
 
   // Save execution
   const executeSave = async () => {
-    if (!canEdit || busy || t === undefined) return;
+    if (!canEdit || busy || !!loadError || t === undefined) return;
     if (saveReason.trim().length < 5) {
       setSaveError("Please provide a short change reason (at least 5 characters) for audit tracking.");
       return;
@@ -251,54 +222,11 @@ export default function BrandServiceFareWorkspace() {
     setSaveError(null);
 
     try {
-      if (selectedBrand === "common") {
-        // Saving Common rate updates the baseline section
-        const classesPayload: Record<string, unknown> = {};
-        for (const cls of TARIFF_CLASSES) {
-          const isTarget = cls === selectedClass;
-          const ow = t?.oneWay?.classes?.[cls];
-          const rt = t?.roundTrip?.classes?.[cls];
-          const x = selectedService === "One Way" ? outstationExtraFor(t, cls, "One Way") : t?.outstationExtras?.[cls];
-
-          const cOW = isTarget ? toNumOrNull(form.customerRate) ?? ow?.customerRate ?? 15 : ow?.customerRate ?? 15;
-          const pOW = isTarget ? toNumOrNull(form.partnerRate) ?? ow?.partnerRate ?? 13.5 : ow?.partnerRate ?? 13.5;
-          const cAllowOW = isTarget ? toNumOrNull(form.customerBata) ?? ow?.customerBata ?? 400 : ow?.customerBata ?? 400;
-          const pAllowOW = isTarget ? toNumOrNull(form.partnerBata) ?? ow?.partnerBata ?? 300 : ow?.partnerBata ?? 300;
-
-          const cRT = isTarget && selectedService === "Multicity" ? toNumOrNull(form.customerRate) ?? rt?.customerRate ?? 15 : rt?.customerRate ?? 15;
-          const pRT = isTarget && selectedService === "Multicity" ? toNumOrNull(form.partnerRate) ?? rt?.partnerRate ?? 13.5 : rt?.partnerRate ?? 13.5;
-          const cAllowRT = isTarget && selectedService === "Multicity" ? toNumOrNull(form.customerBata) ?? rt?.customerBata ?? 400 : rt?.customerBata ?? 400;
-          const pAllowRT = isTarget && selectedService === "Multicity" ? toNumOrNull(form.partnerBata) ?? rt?.partnerBata ?? 300 : rt?.partnerBata ?? 300;
-          const rtMin = isTarget && selectedService === "Multicity" ? toNumOrNull(form.minKmPerDay) ?? rt?.minKmPerDay ?? 300 : rt?.minKmPerDay ?? 300;
-
-          const extraKm = isTarget ? toNumOrNull(form.extraKmRate) ?? x?.extraKmRate ?? cOW : x?.extraKmRate ?? cOW;
-          const waiting = isTarget ? toNumOrNull(form.waitingPerHour) ?? x?.waitingPerHour ?? 0 : x?.waitingPerHour ?? 0;
-
-          classesPayload[cls] = {
-            oneWay: { customerRate: cOW, partnerRate: pOW, customerBata: cAllowOW, partnerBata: pAllowOW },
-            roundTrip: { customerRate: cRT, partnerRate: pRT, customerBata: cAllowRT, partnerBata: pAllowRT, minKmPerDay: rtMin },
-            ...(selectedService === "One Way"
-              ? { oneWayExtra: { extraKmRate: extraKm, waitingPerHour: waiting } }
-              : { outstationExtra: { extraKmRate: extraKm, waitingPerHour: waiting } }),
-          };
-        }
-
-        const airC = selectedService === "Airport Taxi" && form.customerBase.trim() ? Number(form.customerBase) : t?.airport?.customerBase;
-        const airP = selectedService === "Airport Taxi" && form.partnerBase.trim() ? Number(form.partnerBase) : t?.airport?.partnerBase;
-
-        await saveTariffSection({
-          section: "baseRates",
-          expectedVersion: t?.version ?? 0,
-          reason: saveReason.trim(),
-          data: {
-            oneWayMinKm: selectedService === "One Way" && form.minKm.trim() ? Number(form.minKm) : t?.oneWay?.minKm ?? 130,
-            ...(airC && airP ? { airport: { customerBase: airC, partnerBase: airP } } : {}),
-            classes: classesPayload,
-          },
-        });
-      } else {
         // Saving a Brand Override for the selected Brand -> Service -> Category
         const overrideData: Record<string, unknown> = {};
+        for (const key of ['partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge','freeWaitingMinutes','waitingRoundingMinutes'] as const) overrideData[key] = form[key].trim() ? Number(form[key]) : null;
+        overrideData.waitingRoundingScope = form.waitingRoundingScope || null;
+        overrideData.taxTreatment = form.taxTreatment || null;
 
         if (form.customerRate.trim()) overrideData.customerRate = Number(form.customerRate);
         if (form.partnerRate.trim()) overrideData.partnerRate = Number(form.partnerRate);
@@ -333,33 +261,50 @@ export default function BrandServiceFareWorkspace() {
               };
             }
           }
-          if (Object.keys(rentalPkgs).length) {
-            overrideData.rentalPackages = rentalPkgs;
-          }
+          overrideData.rentalPackages = rentalPkgs;
         }
 
-        const isClearingAll = Object.keys(overrideData).length === 0;
+        const isClearingAll = Object.values(overrideData).every(value => value === null);
+        // Null explicitly removes an individual override; omission would preserve the previous value.
+        for (const key of ['customerRate','partnerRate','customerBase','partnerBase','minKm','minKmPerDay','customerBata','partnerBata','extraKmRate','waitingPerHour','hillCharge','carrierCharge','minRentalHours']) {
+          if (!(key in overrideData)) overrideData[key] = null;
+        }
 
-        await saveTariffSection({
+        const saved = await saveTariffSection({
           section: "brandOverride",
           brand: selectedBrand,
           service: selectedService,
           class: selectedClass,
-          expectedVersion: t?.version ?? 0,
+          expectedVersion: openedVersion.current,
           reason: saveReason.trim(),
           clearOverride: isClearingAll,
           data: overrideData,
         });
-      }
+        openedVersion.current = saved.version;
 
+      dirtyRef.current = false;
+      scopeBaseline.current = serializeForm(form);
       setConfirmSaveOpen(false);
       setSaveReason("");
-      showToast(`Successfully saved fare settings for ${scopeSummary}. New quotes immediately use these rates.`);
+      showToast(`Successfully saved fare settings for ${scopeSummary}. Saved for this scope. Existing agreed bookings retain their pricing.`);
     } catch (err) {
       setSaveError(err instanceof ActionError ? err.message : "Failed to save settings. Please try again.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const toggleSharedEngine = async () => {
+    if (!canEdit || busy || isDirty || !t || selectedBrand !== 'common') return;
+    const reason = window.prompt('Reason for changing the shared pricing engine switch (affects every brand):');
+    if (!reason) return;
+    if (reason.trim().length < 5) return showToast('Enter a change reason of at least five characters.', 'error');
+    setBusy(true);
+    try {
+      await saveTariffConfig({ keepSavedRates: true, enabled: !t.enabled, reason: reason.trim(), expectedVersion: openedVersion.current });
+      showToast('Shared engine switch saved. All saved rates were retained.');
+    } catch (error) { showToast(error instanceof ActionError ? error.message : 'The engine switch was not saved.', 'error'); }
+    finally { setBusy(false); }
   };
 
   const scopeSummary = `${selectedBrand === "common" ? "Common (Shared Baseline)" : BRAND_LABELS[selectedBrand]} → ${selectedService} → ${CLASS_LABEL[selectedClass]}`;
@@ -369,11 +314,16 @@ export default function BrandServiceFareWorkspace() {
     <div className="ds-fare-workspace">
       <Toast toast={toast} />
 
+      {selectedService === "Multicity" && <p className="ds-note mb-4">Multicity uses the travel-desk enquiry flow. These are scoped quotation settings; automatic checkout and a new billing formula are not enabled.</p>}
+
       {loadError && (
         <div className="ds-error mb-4" role="alert">
           <Icon name="circle-alert" /> Tariff configuration could not be loaded: {loadError}
         </div>
       )}
+
+      {t && !t.enabled && <p className="ds-note mb-4">The confirmed tariff engine is switched off. These scoped rates are saved but its booking paths currently use the existing category fallback. The shared engine switch is available under Common.</p>}
+      {selectedBrand === 'common' && t && <div className="ds-panel ds-panel-pad mb-4"><strong>Shared pricing engine · all brands and services</strong><p className="text-[12px] text-muted mb-2">{t.enabled ? 'Enabled' : 'Disabled'} — changing this switch retains all rates.</p>{canEdit && <Button disabled={busy || isDirty} onClick={toggleSharedEngine}>{t.enabled ? 'Disable confirmed tariff' : 'Enable confirmed tariff'}</Button>}</div>}
 
       {/* Scope Selector Header */}
       <section className="ds-panel ds-panel-pad mb-4">
@@ -381,7 +331,7 @@ export default function BrandServiceFareWorkspace() {
           <div>
             <span className="ds-eyebrow">FARE MANAGEMENT WORKSPACE</span>
             <h2 className="text-[18px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>
-              Brand &amp; Service Fare Settings
+              Customer fare &amp; partner payout
             </h2>
             <p className="text-[12px] text-muted">
               Select Brand, Supported Service, and Vehicle Category to manage customer rates, partner payouts and allowances.
@@ -392,55 +342,6 @@ export default function BrandServiceFareWorkspace() {
               <Icon name="clock" size={14} /> Unsaved changes in current scope
             </Badge>
           )}
-        </div>
-
-        {/* 1. Brand Hierarchy */}
-        <div className="mb-3">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
-            1. Select Brand
-          </label>
-          <div className="ds-chip-row">
-            <Button
-              size="sm"
-              variant={selectedBrand === "common" ? "primary" : "secondary"}
-              onClick={() => handleScopeChange("common", selectedService, selectedClass)}
-            >
-              <Icon name="layers-2" size={14} /> Common Baseline (Shared)
-            </Button>
-            {BRANDS.map((b) => (
-              <Button
-                key={b.id}
-                size="sm"
-                variant={selectedBrand === b.id ? "primary" : "secondary"}
-                onClick={() => handleScopeChange(b.id, selectedService, selectedClass)}
-              >
-                {b.name}
-              </Button>
-            ))}
-          </div>
-        </div>
-
-        {/* 2. Service Hierarchy */}
-        <div className="mb-3">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
-            2. Select Supported Service
-          </label>
-          <div className="ds-chip-row">
-            {availableServices.map((svc) => (
-              <Button
-                key={svc}
-                size="sm"
-                variant={selectedService === svc ? "primary" : "secondary"}
-                onClick={() => handleScopeChange(selectedBrand, svc, selectedClass)}
-              >
-                {svc}
-              </Button>
-            ))}
-          </div>
-          {/* Business constraint guidance note */}
-          <p className="text-[11px] text-faint mt-1.5">
-            Multi-stop itineraries and tour packages are managed under <strong>Multicity</strong>. (Round Trip is not an offered service in this workspace).
-          </p>
         </div>
 
         {/* 3. Category Hierarchy */}
@@ -480,7 +381,7 @@ export default function BrandServiceFareWorkspace() {
           {canEdit && (
             <Button
               variant="primary"
-              disabled={!isDirty || busy}
+              disabled={!isDirty || busy || !!loadError}
               onClick={() => setConfirmSaveOpen(true)}
             >
               <Icon name="check" size={14} /> Save {selectedBrand === "common" ? "Common Rates" : "Brand Overrides"}
@@ -490,7 +391,7 @@ export default function BrandServiceFareWorkspace() {
       </div>
 
       {/* Scope Editor Controls */}
-      <section className="ds-panel ds-panel-pad">
+      <section className="ds-panel ds-panel-pad"><fieldset disabled={!canEdit || busy || !!loadError} className="min-w-0">
         <h3 className="text-[16px] font-bold text-ink mb-1">
           {selectedService} Rates for {CLASS_LABEL[selectedClass]}
         </h3>
@@ -593,8 +494,8 @@ export default function BrandServiceFareWorkspace() {
               label="Waiting Charge"
               unit="₹/hour"
               value={form.waitingPerHour}
-              commonValue={commonExtras?.waitingPerHour ?? 0}
-              resolved={evalField("waitingPerHour", commonExtras?.waitingPerHour ?? 0)}
+              commonValue={commonExtraCharges?.customer?.waitingPerHour ?? commonExtras?.waitingPerHour}
+              resolved={evalField("waitingPerHour", commonExtraCharges?.customer?.waitingPerHour ?? commonExtras?.waitingPerHour)}
               scopeBrand={selectedBrand}
               onChange={(v) => setField("waitingPerHour", v)}
               onClear={() => handleClearOverride("waitingPerHour")}
@@ -778,7 +679,7 @@ export default function BrandServiceFareWorkspace() {
                 </thead>
                 <tbody>
                   {RENTAL_HOURS.map((h) => {
-                    const commonPkg = t?.rentalPackages?.[selectedClass]?.packages?.[String(h)];
+                    const commonPkg = { ...t?.rentalPackages?.[selectedClass]?.packages?.[String(h)], ...t?.brandOverrides?.common?.[selectedService]?.[selectedClass]?.rentalPackages?.[String(h)] };
                     return (
                       <tr key={h}>
                         <td>
@@ -988,7 +889,22 @@ export default function BrandServiceFareWorkspace() {
             </div>
           </div>
         )}
-      </section>
+        <div className="mt-5 border-t border-line pt-4">
+          <h3 className="font-bold mb-3">Partner extras & waiting policy · {scopeSummary}</h3>
+          <p className="text-[12px] text-muted mb-3">Blank fields inherit the common settings. Waiting must have free minutes, a rounding interval, rounding scope and tax treatment configured before automatic approval.</p>
+          <div className="ds-form-grid">
+            {([
+              ['partnerWaitingPerHour','Partner waiting payout','₹/hour',commonExtraCharges?.partner?.waitingPerHour],
+              ['partnerHillCharge','Partner hill payout','₹/trip',commonExtraCharges?.partner?.hill],
+              ['partnerCarrierCharge','Partner carrier payout','₹/trip',commonExtraCharges?.partner?.carrier],
+              ['freeWaitingMinutes','Free waiting at each stop','minutes',t?.extraCharges?.freeWaitingMinutes],
+              ['waitingRoundingMinutes','Waiting rounding interval','minutes',t?.extraCharges?.waitingRoundingMinutes],
+            ] as const).map(([key,label,unit,baseline]) => <RateField key={key} label={label} unit={unit} value={form[key]} commonValue={baseline} resolved={evalField(key,baseline)} scopeBrand={selectedBrand} onChange={value => setField(key,value)} onClear={() => handleClearOverride(key)} tariff={t} service={selectedService} cls={selectedClass} fieldKey={key} zeroAllowed={key !== 'waitingRoundingMinutes'} />)}
+            <label className="ds-field"><span>Waiting rounding scope</span><select className="ds-select" value={form.waitingRoundingScope} onChange={e => setField('waitingRoundingScope',e.target.value)}><option value="">Inherit common ({t?.brandOverrides?.common?.[selectedService]?.[selectedClass]?.waitingRoundingScope ?? t?.extraCharges?.waitingRoundingScope ?? 'not configured'})</option><option value="per_stop">Each stop separately</option><option value="combined">Combined chargeable waiting</option></select></label>
+            <label className="ds-field"><span>Tax on extra charges</span><select className="ds-select" value={form.taxTreatment} onChange={e => setField('taxTreatment',e.target.value)}><option value="">Inherit common ({t?.brandOverrides?.common?.[selectedService]?.[selectedClass]?.taxTreatment ?? t?.extraCharges?.taxTreatment ?? 'not configured'})</option><option value="no_gst">No GST</option><option value="tariff_gst">Apply tariff GST</option></select></label>
+          </div>
+        </div>
+      </fieldset></section>
 
       {/* Save Confirmation Dialog */}
       {confirmSaveOpen && (
@@ -1054,7 +970,7 @@ export default function BrandServiceFareWorkspace() {
               <Button
                 variant="primary"
                 onClick={executeSave}
-                disabled={busy || saveReason.trim().length < 5}
+                disabled={busy || !!loadError || saveReason.trim().length < 5}
               >
                 {busy ? "Saving Tariff..." : "Confirm & Save"}
               </Button>
@@ -1110,7 +1026,7 @@ function RateField({
         <input
           type="number"
           className="ds-input flex-1 font-semibold"
-          placeholder={commonValue !== undefined ? String(commonValue) : "—"}
+          placeholder={resolved.value !== undefined ? String(resolved.value) : "Not configured"}
           value={value}
           onChange={(e) => onChange(e.target.value)}
         />
@@ -1139,7 +1055,7 @@ function RateField({
         ) : (
           <div className="flex items-center gap-1.5 text-muted">
             <Badge tone="neutral">Common rate</Badge>
-            <span>Inherited: {commonValue !== undefined ? inr(commonValue) : "—"}</span>
+            <span>Inherited: {resolved.value !== undefined ? inr(resolved.value) : "Not configured"}</span>
           </div>
         )}
       </div>

@@ -20,14 +20,19 @@ export interface EnquiryStop {
   lng: number;
 }
 
+export const multicityConversionBlocked = (enquiry: Enquiry) => enquiry.serviceId === 'multicity'
+  || enquiry.service === 'Multicity' || enquiry.tripType === 'Multicity' || !!enquiry.stops?.length;
+export const MULTICITY_CONVERSION_MESSAGE = 'This itinerary needs a reviewed tour quote and a booking flow that preserves every stop. Standard pickup/drop conversion is unavailable for this enquiry.';
+
 export interface Enquiry {
   id: string;
   code: string;
   status: EnquiryStatus;
+  brand?: string;
   pickup: string;
   drop: string;
   stops?: EnquiryStop[];
-  itinerary?: string[];
+  itinerary?: EnquiryStop[];
   tripEndAt?: Timestamp | null;
   submissionId?: string;
   customerId?: string;
@@ -38,7 +43,7 @@ export interface Enquiry {
   serviceId?: string;
   service?: string;
   tripType?: string;
-  categoryId?: string;
+  categoryId?: string | null;
   vehicle?: string;
   includedKm?: number;
   extraKmRate?: number;

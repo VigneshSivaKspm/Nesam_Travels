@@ -40,6 +40,7 @@ export const BRAND_LABELS: Record<BrandId, string> = {
 /** Supported services for workspace selection (Notice: Round Trip is explicitly excluded). */
 export const WORKSPACE_SERVICES = ["One Way", "Airport Taxi", "Local Rental", "Multicity"] as const;
 export type WorkspaceService = (typeof WORKSPACE_SERVICES)[number];
+export type FareWorkspaceScope = { brand: BrandId | "common"; service: WorkspaceService };
 
 export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly WorkspaceService[]> = {
   nesam: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
@@ -48,6 +49,13 @@ export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly WorkspaceService
 };
 
 export interface BrandFareOverride {
+  partnerWaitingPerHour?: number;
+  partnerHillCharge?: number;
+  partnerCarrierCharge?: number;
+  freeWaitingMinutes?: number;
+  waitingRoundingMinutes?: number;
+  waitingRoundingScope?: 'per_stop' | 'combined';
+  taxTreatment?: 'no_gst' | 'tariff_gst';
   customerRate?: number;
   partnerRate?: number;
   customerBase?: number;
@@ -66,7 +74,10 @@ export interface BrandFareOverride {
 }
 
 /** business_config/tariff_v2 as stored. Anything absent is "not configured" — never zero. */
+export interface FareGstRule { supplierState: string; rate: number; mode: 'included' | 'excluded'; classification: 'passenger' | 'rental'; reference: string }
+export interface FareGstPolicy { default?: FareGstRule; states?: Record<string, FareGstRule> }
 export interface Tariff {
+  fareGst?: Record<string, Record<string, FareGstPolicy>>;
   version?: number;
   enabled?: boolean;
   gstRate?: number;
@@ -130,6 +141,8 @@ export function resolveRate(
   field: keyof BrandFareOverride,
   commonValue: number | undefined
 ): RateValue {
+  const shared = tariff?.brandOverrides?.common?.[service]?.[cls]?.[field];
+  if (typeof shared === "number" && Number.isFinite(shared)) commonValue = shared;
   if (brandId === "common") {
     return {
       value: commonValue,

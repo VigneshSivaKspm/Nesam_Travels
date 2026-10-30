@@ -175,7 +175,15 @@ export type RideCategoryStatus = 'loading' | 'ready' | 'unavailable' | 'error';
  * Live list of bookable categories — falls back to standard NTT/DEV-SPEC 2.0
  * fleet so online booking is ALWAYS available without waiting for Firestore config.
  */
-export function subscribeToRideCategories(cb: (cats: RideCategory[], status: RideCategoryStatus) => void): () => void {
+export function subscribeToRideCategories(cb: (cats: RideCategory[], status: RideCategoryStatus) => void, configuredOnly = false): () => void {
+  if (configuredOnly) {
+    cb([], 'loading');
+    return onSnapshot(query(collection(db, 'vehicle_categories'), where('status', '==', 'Active')), snap => {
+      const cats = snap.docs.map(d => mapCategory(d.id, d.data())).filter((category): category is RideCategory => !!category)
+        .sort((a, b) => a.displayOrder - b.displayOrder || a.name.localeCompare(b.name));
+      cb(cats, 'ready');
+    }, () => cb([], 'error'));
+  }
   cb(SPEC_DEFAULT_CATEGORIES, 'ready');
   return onSnapshot(
     query(collection(db, 'vehicle_categories'), where('status', '==', 'Active')),

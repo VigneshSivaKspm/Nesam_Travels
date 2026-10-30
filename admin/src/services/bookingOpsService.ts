@@ -32,7 +32,7 @@ export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; keepSavedR
   callFunction<typeof i, { version: number; enabled: boolean }>("saveTariffConfig", i);
 
 /** Saves one section of the tariff (base rates, a city's local fare, a rental minimum or a rental package) against the version the editor loaded. */
-export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage" | "extraCharges" | "brandOverride"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; brand?: string; service?: string; clearOverride?: boolean; data?: unknown }) =>
+export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage" | "extraCharges" | "brandOverride" | "fareGst"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; brand?: string; service?: string; clearOverride?: boolean; data?: unknown }) =>
   callFunction<typeof i, { version: number; extraChargesVersion?: number }>("saveTariffSection", i);
 
 export interface ExtraUsageInput {
@@ -46,6 +46,7 @@ export const reviewExtraUsage = (i: { bookingId: string; revision: number; decis
   callFunction<typeof i, { status: "approved" | "rejected"; revision: number; customerTotalPaise?: number }>("reviewExtraUsage", i);
 
 export interface FixedRouteFareData {
+  brand?: string; fareService?: string;
   originLocationId: string; destinationLocationId: string; vehicleCategoryId: string; serviceId: string;
   customerFare: number; partnerPayout: number; gstMode: "included" | "excluded"; peakAdjustment: "apply" | "exclude"; reverseDirection: boolean;
   status: "Active" | "Inactive"; priority: number; effectiveFrom: string; effectiveUntil: string;

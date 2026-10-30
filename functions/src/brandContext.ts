@@ -23,7 +23,7 @@ export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly string[]> = {
  * Server-authoritatively verifies request application context (origin, referer, auth role)
  * and rejects unknown or mismatched brand scopes.
  */
-export function resolveAndValidateBrand(input: any, request?: CallableRequest<any>): BrandId {
+export function resolveAndValidateBrand(input: any, request?: CallableRequest<any>, trustedStaff = false): BrandId {
   const origin = text(request?.rawRequest?.headers?.origin || request?.rawRequest?.headers?.referer || '').toLowerCase();
   const rawBrand = text(input?.brand || input?.bookingSource || input?.source || input?.channel || '').toLowerCase().trim();
 
@@ -52,7 +52,8 @@ export function resolveAndValidateBrand(input: any, request?: CallableRequest<an
   // If origin clearly indicates a brand and the client specified an incompatible brand, reject
   if (originExpectedBrand && candidate && originExpectedBrand !== candidate) {
     // Only staff/admin role is allowed to cross-book from an admin origin (e.g. admin panel creating People Taxi booking)
-    const isStaff = request?.auth?.token?.role === 'admin' || request?.auth?.token?.role === 'staff';
+    // Internal callers may set trustedStaff only after requirePermission has verified the admin record.
+    const isStaff = trustedStaff || request?.auth?.token?.role === 'admin' || request?.auth?.token?.role === 'staff';
     if (!isStaff) {
       throw new HttpsError('permission-denied', `Origin "${origin}" cannot make requests on behalf of "${BRAND_LABELS[candidate]}".`);
     }

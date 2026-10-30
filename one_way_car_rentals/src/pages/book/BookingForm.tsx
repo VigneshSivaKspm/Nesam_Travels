@@ -21,6 +21,7 @@ import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
+import { MulticityForm } from './MulticityForm';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -235,7 +236,7 @@ export function BookingForm({
     <section className="bf" id="book-console" aria-labelledby="bf-title">
       <div className="bf-head">
         <h2 id="bf-title">{title}</h2>
-        <p>Verified chauffeurs. Upfront fares. Pay at drop.</p>
+        <p>{service === 'multicity' ? 'Plan multi-stop itineraries with transparent upfront package quotes.' : 'Verified chauffeurs. Upfront fares. Pay at drop.'}</p>
       </div>
 
       <div className="bf-services" role="group" aria-label="Services">
@@ -277,21 +278,7 @@ export function BookingForm({
       ) : null}
 
       {service === 'multicity' ? (
-        <div className="bf-offline-service" id="bf-form">
-          <span className="bf-offline-service__icon" aria-hidden="true">
-            <Icon name="travel-multicity" size={28} />
-          </span>
-          <h3>Plan multicity & custom tour itineraries</h3>
-          <p>Multi-stop road trips and pilgrim circuits are planned directly with our dedicated travel desk. We arrange clean AC cars, experienced drivers and transparent package pricing.</p>
-          <div className="bf-offline-service__actions">
-            <a className="btn btn--primary" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" size={18} /> Call {SUPPORT_PHONE_DISPLAY}
-            </a>
-          </div>
-          <p className="bf-trust">
-            <Icon name="shield-check" size={14} /> Clear upfront fares. 24/7 highway support.
-          </p>
-        </div>
+        <MulticityForm />
       ) : (
         <form
           id="bf-form"

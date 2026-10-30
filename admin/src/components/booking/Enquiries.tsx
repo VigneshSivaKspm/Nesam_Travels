@@ -6,6 +6,7 @@ import { OFFICE_STAGES, refDateTime, rupee, type OfficeStage } from "../../domai
 import {
   ENQUIRY_STATUSES, assignEnquiryHandler, currentStaff, effectiveStatus, markEnquirySent, subscribeEnquiries, updateEnquiryStatus,
   type Enquiry, type EnquiryStatus,
+  multicityConversionBlocked, MULTICITY_CONVERSION_MESSAGE,
 } from "../../services/enquiryService";
 import { subscribeStaffAccounts } from "../../services/staffService";
 
@@ -13,9 +14,10 @@ const SUPPORT_LINE = "+91 9025099990";
 
 /** Copy-ready customer quote (no message is sent automatically). */
 export function quoteText(e: Enquiry): string {
+  const brandTitle = e.brand === "onewaycarrentals" ? "ONE WAY CAR RENTALS" : e.brand === "people_taxi" ? "PEOPLE TAXI" : "NESAM TOURS & TRAVELS";
   const stopsText = e.stops && e.stops.length > 0 ? `Via: ${e.stops.map((s) => s.name).join(" → ")}` : "";
   return [
-    `NESAM TOURS & TRAVELS — Quote ${e.code}`,
+    `${brandTitle} — Quote ${e.code}`,
     `${e.pickup} → ${e.drop}`,
     stopsText,
     e.pickupAt ? refDateTime(e.pickupAt) : "",
@@ -117,7 +119,14 @@ export default function Enquiries({ stageCounts, onStage, onBack, onNewBooking, 
           <li key={e.id} className="ds-panel ds-panel-pad">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
-                <div className="text-[11px] font-semibold text-faint">{e.code}</div>
+                <div className="flex items-center gap-1.5 text-[11px] font-semibold text-faint">
+                  <span>{e.code}</span>
+                  {e.brand && (
+                    <span className="inline-block px-1.5 py-0.5 rounded text-[10px] bg-slate-100 text-slate-700 font-medium">
+                      {e.brand === "onewaycarrentals" ? "One Way Car Rentals" : e.brand === "people_taxi" ? "People Taxi" : "NESAM"}
+                    </span>
+                  )}
+                </div>
                 <strong className="block text-[15px] text-ink mt-1">{e.pickup} → {e.drop}</strong>
                 {e.stops && e.stops.length > 0 ? (
                   <p className="text-[11px] text-brand font-medium mt-0.5">Via: {e.stops.map((st) => st.name).join(" → ")}</p>
@@ -183,11 +192,13 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
               {fact("WhatsApp", e.whatsapp || (e.phone ? `+91 ${e.phone.replace(/^\+91/, "")}` : "+91"))}
               {fact("Quote valid until", e.validUntil ? refDateTime(e.validUntil) : "Not set")}
               {fact("Follow-up", e.followUpAt ? refDateTime(e.followUpAt) : "Not set")}
+              {e.brand ? fact("Brand", e.brand === "onewaycarrentals" ? "One Way Car Rentals" : e.brand === "people_taxi" ? "People Taxi" : "NESAM") : null}
               {fact("Source", e.source || "Phone")}
               {e.sentAt ? fact("Quote sent", refDateTime(e.sentAt)) : null}
             </dl>
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button variant="primary" icon="calendar-check-2" onClick={onConvert} disabledReason={status === "Converted" ? `Converted to ${e.convertedBookingId || "a booking"}.` : undefined}>Convert to booking</Button>
+              <Button variant="primary" icon="calendar-check-2" onClick={onConvert} disabledReason={status === "Converted" ? `Converted to ${e.convertedBookingId || "a booking"}.` : multicityConversionBlocked(e) ? MULTICITY_CONVERSION_MESSAGE : undefined}>Convert to booking</Button>
+              {multicityConversionBlocked(e) && status !== 'Converted' ? <p className="text-[12px] text-muted mt-2">{MULTICITY_CONVERSION_MESSAGE}</p> : null}
               <Button icon="copy" onClick={onCopy}>Copy quote</Button>
               <Button variant="ghost" icon="send" onClick={onSent}>Mark as sent</Button>
             </div>

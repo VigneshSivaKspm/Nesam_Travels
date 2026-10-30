@@ -3,8 +3,9 @@ import type { FareRule, MasterLocation, TravelService, VehicleCategory } from ".
 import { subscribeFareRules, subscribeLocations, subscribeServices, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import { saveFixedRouteFare } from "../services/bookingOpsService";
 import { ActionError } from "../services/callables";
+import { BRAND_LABELS, type FareWorkspaceScope } from "../services/tariffService";
 import { inr } from "../services/tariffService";
-import { useCan } from "./AccessContext";
+import { useCan, useCanDo } from "./AccessContext";
 import { ErrorBanner, Modal } from "./Feedback";
 import { Badge, Button, DataTable, EmptyState, Icon, toneForStatus } from "./ui";
 
@@ -21,8 +22,13 @@ const complete = (r: FareRule) => r.managed === true && (r.partnerPayout ?? 0) >
  * Fixed route fares: an agreed customer fare and partner payout for one route (and, when chosen, its reverse).
  * Records are the saved FIXED_ROUTE fare rules; every change goes through the audited, versioned server function.
  */
-export default function FixedRouteFares({ onClose, onToast }: { onClose: () => void; onToast: (t: string) => void }) {
-  const canEdit = useCan("pricing");
+export default function FixedRouteFares({ onClose, onToast, scope = { brand: "common", service: "One Way" } }: { onClose: () => void; onToast: (t: string) => void; scope?: FareWorkspaceScope }) {
+  const pricingAccess = useCan("pricing");
+  const settingsEdit = useCanDo("Settings", "edit");
+  const canEdit = pricingAccess && settingsEdit;
+  const brand = scope.brand === "common" ? "" : scope.brand;
+  const scopeLabel = (scope.brand === "common" ? "Common — all brands" : BRAND_LABELS[scope.brand]) + " → " + scope.service;
+  const owns = (r: FareRule) => (r.brand ?? "") === brand && (!r.fareService || r.fareService === scope.service);
   const [rules, setRules] = useState<FareRule[] | null>(null);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
@@ -41,7 +47,7 @@ export default function FixedRouteFares({ onClose, onToast }: { onClose: () => v
     return () => u.forEach((x) => x());
   }, [retry]);
 
-  const routes = useMemo(() => (rules ?? []).filter((r) => r.pricingType === "FIXED_ROUTE"), [rules]);
+  const routes = useMemo(() => (rules ?? []).filter((r) => r.pricingType === "FIXED_ROUTE" && (!r.brand || r.brand === brand) && (!r.fareService || r.fareService === scope.service)), [rules, brand, scope.service]);
   const place = (id?: string, saved?: string) => locations.find((l) => l.id === id)?.name || saved || "Unknown location";
   const category = (r: FareRule) => categories.find((c) => c.id === r.vehicleCategoryId)?.name || r.vehicleCategoryName || "Unknown category";
   const shown = useMemo(() => {
@@ -55,7 +61,7 @@ export default function FixedRouteFares({ onClose, onToast }: { onClose: () => v
   // A dialog on top owns Escape / backdrop while it is open, so the drawer cannot close underneath unsaved edits.
   const loading = rules === null && !error;
   return (
-    <Modal title="Fixed route fares" subtitle="Route-wise" onClose={onClose} busy={panel !== null} wide>
+    <Modal title="Fixed route fares" subtitle={scopeLabel} onClose={onClose} busy={panel !== null} wide>
       {error && <div className="mb-3"><ErrorBanner message={`Saved route fares could not be loaded: ${error}`} onRetry={() => setRetry((n) => n + 1)} /></div>}
       <div className="ds-filterbar" role="search">
         <div className="ds-search" style={{ flex: "1 1 280px" }}>
@@ -80,7 +86,7 @@ export default function FixedRouteFares({ onClose, onToast }: { onClose: () => v
                 <strong>{place(r.originLocationId, r.originLocationName)} → {place(r.destinationLocationId, r.destinationLocationName)}</strong>
                 <small>{typeof r.reverseDirection === "boolean" ? (r.reverseDirection ? "Both directions" : "This direction only") : "Direction not set"} · Priority {r.priority ?? 1}</small>
               </td>
-              <td><strong>{r.serviceName || "Any service"}</strong><small>{category(r)}</small></td>
+              <td><strong>{r.brand ? BRAND_LABELS[r.brand as keyof typeof BRAND_LABELS] : "Common — all brands"} · {r.fareService || r.serviceName || "All services"}</strong><small>{category(r)}</small></td>
               <td><strong>{inr(r.baseFare)}</strong></td>
               <td>{r.partnerPayout ? <strong>{inr(r.partnerPayout)}</strong> : <span className="text-muted">Not set</span>}</td>
               <td>
@@ -93,8 +99,8 @@ export default function FixedRouteFares({ onClose, onToast }: { onClose: () => v
               </td>
               <td className="ds-actions"><div>
                 <Button size="sm" variant="ghost" onClick={() => setPanel({ kind: "view", rule: r })}>View</Button>
-                {canEdit && <Button size="sm" onClick={() => setPanel({ kind: "edit", rule: r })}>Edit</Button>}
-                {canEdit && <Button size="sm" variant="ghost" onClick={() => setPanel({ kind: "status", rule: r })}>{r.status === "Active" ? "Disable" : "Enable"}</Button>}
+                {canEdit && owns(r) && <Button size="sm" onClick={() => setPanel({ kind: "edit", rule: r })}>Edit</Button>}
+                {canEdit && owns(r) && <Button size="sm" variant="ghost" onClick={() => setPanel({ kind: "status", rule: r })}>{r.status === "Active" ? "Disable" : "Enable"}</Button>}
               </div></td>
             </tr>
           ))}</tbody>
@@ -104,7 +110,7 @@ export default function FixedRouteFares({ onClose, onToast }: { onClose: () => v
       {panel?.kind === "view" && <ViewDialog rule={panel.rule} route={`${place(panel.rule.originLocationId, panel.rule.originLocationName)} → ${place(panel.rule.destinationLocationId, panel.rule.destinationLocationName)}`} category={category(panel.rule)} onClose={() => setPanel(null)} />}
       {(panel?.kind === "new" || panel?.kind === "edit") && (
         <RouteEditor
-          rule={panel.kind === "edit" ? panel.rule : undefined} locations={locations} categories={categories} services={services} canEdit={canEdit}
+          fareScope={scope} rule={panel.kind === "edit" ? panel.rule : undefined} locations={locations} categories={categories} services={services} canEdit={canEdit}
           onClose={() => setPanel(null)} onSaved={(t) => { setPanel(null); onToast(t); }}
         />
       )}
@@ -146,8 +152,8 @@ function LeaveDialog({ onStay, onDiscard }: { onStay: () => void; onDiscard: () 
   );
 }
 
-function RouteEditor({ rule, locations, categories, services, canEdit, onClose, onSaved }: {
-  rule?: FareRule; locations: MasterLocation[]; categories: VehicleCategory[]; services: TravelService[]; canEdit: boolean; onClose: () => void; onSaved: (t: string) => void;
+function RouteEditor({ rule, fareScope, locations, categories, services, canEdit, onClose, onSaved }: {
+  rule?: FareRule; fareScope: FareWorkspaceScope; locations: MasterLocation[]; categories: VehicleCategory[]; services: TravelService[]; canEdit: boolean; onClose: () => void; onSaved: (t: string) => void;
 }) {
   // The values and version the editor opened with: a save is made against exactly this version.
   const [opened] = useState(() => ({ version: rule?.version ?? 0 }));
@@ -196,7 +202,7 @@ function RouteEditor({ rule, locations, categories, services, canEdit, onClose, 
       const r = await saveFixedRouteFare({
         ...(rule ? { ruleId: rule.id, expectedVersion: opened.version } : {}), reason: f.reason.trim(),
         data: {
-          originLocationId: f.origin, destinationLocationId: f.dest, vehicleCategoryId: f.category, serviceId: f.service, customerFare: num(f.fare), partnerPayout: num(f.payout),
+          brand: fareScope.brand === "common" ? "" : fareScope.brand, fareService: fareScope.service, originLocationId: f.origin, destinationLocationId: f.dest, vehicleCategoryId: f.category, serviceId: f.service, customerFare: num(f.fare), partnerPayout: num(f.payout),
           gstMode: f.gst as "included" | "excluded", peakAdjustment: f.peak as "apply" | "exclude", reverseDirection: f.direction === "both",
           status: f.enabled ? "Active" : "Inactive", priority: num(f.priority), effectiveFrom: f.from, effectiveUntil: f.until,
         },
@@ -212,7 +218,7 @@ function RouteEditor({ rule, locations, categories, services, canEdit, onClose, 
 
   return (
     <>
-      <Modal title={rule ? "Edit route fare" : "Add route fare"} subtitle="Fixed route fares" onClose={close} busy={busy || leaving} size="lg"
+      <Modal title={rule ? "Edit route fare" : "Add route fare"} subtitle={(fareScope.brand === "common" ? "Common — all brands" : BRAND_LABELS[fareScope.brand]) + " → " + fareScope.service} onClose={close} busy={busy || leaving} size="lg"
         footNote="Used for office bookings whose pickup and drop are chosen from the location master. Other bookings keep normal pricing."
         footer={<><Button onClick={close} disabled={busy}>Cancel</Button><Button variant="primary" type="submit" form="route-fare-form" loading={busy} disabledReason={canEdit ? undefined : "Changing fares needs pricing access."}>Save route fare</Button></>}>
         <form id="route-fare-form" className="grid gap-4" noValidate onSubmit={submit}>

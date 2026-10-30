@@ -10,67 +10,23 @@ import { scheduleProblem } from '@core/utils/bookingRules';
 import { callFunction, newId } from '@core/services/callables';
 import { useCustomerData } from '@/state/customer';
 import { useAuth } from '@/state/Auth';
-import { useBooking } from '@/state/Booking';
+import { subscribeToRideCategories, type RideCategoryStatus } from '@core/services/pricingService';
+import { loadMulticityDraft, multicityInstant, validMulticityDate, validMulticityPlace, type MulticityDraft } from '@core/utils/multicityDraft';
 import { useOnline } from '@/lib/hooks';
-import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
+import { latestPickup, toDateInput } from '@/lib/schedule';
 import { Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
 import { QUICK_CITIES } from './content';
 
-export interface MulticityStopItem {
-  id: string;
-  place: GeoPlace | null;
-}
-
-interface StoredMulticityState {
-  submissionId: string;
-  pickup: GeoPlace | null;
-  drop: GeoPlace | null;
-  stops: MulticityStopItem[];
-  date: string;
-  time: string;
-  endDate: string;
-  categoryId: string;
-  notes: string;
-}
+type StoredMulticityState = MulticityDraft;
 
 const STORAGE_KEY = 'peopletaxi.multicity.v1';
 
 function loadStoredState(): StoredMulticityState {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === 'object') {
-        return {
-          submissionId: parsed.submissionId || newId('sub'),
-          pickup: parsed.pickup || null,
-          drop: parsed.drop || null,
-          stops: Array.isArray(parsed.stops) ? parsed.stops : [{ id: newId('stop'), place: null }],
-          date: parsed.date || '',
-          time: parsed.time || '',
-          endDate: parsed.endDate || '',
-          categoryId: parsed.categoryId || '',
-          notes: parsed.notes || '',
-        };
-      }
-    }
-  } catch {
-    // Ignore parse errors
-  }
-  return {
-    submissionId: newId('sub'),
-    pickup: null,
-    drop: null,
-    stops: [{ id: newId('stop'), place: null }],
-    date: '',
-    time: '',
-    endDate: '',
-    categoryId: '',
-    notes: '',
-  };
+  try { return loadMulticityDraft(sessionStorage.getItem(STORAGE_KEY)); }
+  catch { return loadMulticityDraft(null); }
 }
 
 function saveStoredState(state: StoredMulticityState) {
@@ -83,7 +39,9 @@ function saveStoredState(state: StoredMulticityState) {
 
 export function MulticityForm() {
   const { state: auth, openLoginModal } = useAuth();
-  const { categories } = useBooking();
+  const [categories, setCategories] = useState<RideCategory[]>([]);
+  const [categoryStatus, setCategoryStatus] = useState<RideCategoryStatus>('loading');
+  useEffect(() => subscribeToRideCategories((rows, status) => { setCategories(rows); setCategoryStatus(status); }, true), []);
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
 
@@ -92,6 +50,7 @@ export function MulticityForm() {
   const [timePickerOpen, setTimePickerOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const submittingRef = useRef(false);
   const [submittedQuote, setSubmittedQuote] = useState<{ code: string; message: string } | null>(null);
 
   // Sync to session storage on change
@@ -117,7 +76,8 @@ export function MulticityForm() {
 
   const scheduled = useMemo(() => {
     if (!state.date || !state.time) return null;
-    return combineDateTime(state.date, state.time);
+    const instant = multicityInstant(state.date, state.time);
+    return instant ? new Date(instant) : null;
   }, [state.date, state.time]);
 
   const todayStr = useMemo(() => toDateInput(new Date()), []);
@@ -213,10 +173,10 @@ export function MulticityForm() {
 
   const validate = (): boolean => {
     const err: Record<string, string> = {};
-    if (!state.pickup) {
+    if (!validMulticityPlace(state.pickup)) {
       err.pickup = 'Please select a starting pickup location.';
     }
-    if (!state.drop) {
+    if (!validMulticityPlace(state.drop)) {
       err.drop = 'Please select a final destination point.';
     }
 
@@ -234,13 +194,17 @@ export function MulticityForm() {
       }
     }
 
-    if (!state.date) err.date = 'Select departure date.';
-    if (!state.time) err.time = 'Select departure time.';
+    if (!validMulticityDate(state.date)) err.date = 'Select a valid departure date.';
+    if (!scheduled) err.time = 'Select a valid departure date and time.';
 
     if (scheduled) {
       const prob = scheduleProblem(scheduled);
       if (prob) err.time = prob;
     }
+
+    if (state.endDate && (!validMulticityDate(state.endDate) || state.endDate < state.date)) err.endDate = 'Select a valid trip end date on or after departure.';
+    if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added stop, or remove the empty stop.';
+    if (state.categoryId && (categoryStatus !== 'ready' || !categories.some(category => category.id === state.categoryId))) err.form = 'Choose an available category or No preference.';
 
     if (!online) {
       err.form = 'You are currently offline. Please check your internet connection.';
@@ -252,7 +216,7 @@ export function MulticityForm() {
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
+    if (submittingRef.current || !validate()) return;
 
     if (auth.status !== 'ready') {
       openLoginModal({
@@ -262,13 +226,16 @@ export function MulticityForm() {
       return;
     }
 
+    submittingRef.current = true;
     setSubmitting(true);
     setErrors({});
 
     try {
-      const filledStops = state.stops.filter((s) => s.place !== null).map((s) => s.place!);
+      const filledStops = state.stops.filter((s) => s.place !== null).map((s) => ({ ...s.place!, id: s.id }));
       const res = await callFunction<{
         submissionId: string;
+        brand: string;
+        source: string;
         pickup: GeoPlace;
         drop: GeoPlace;
         stops: GeoPlace[];
@@ -278,13 +245,15 @@ export function MulticityForm() {
         notes?: string;
       }, { id: string; code: string; status: string; message: string }>('submitMulticityEnquiry', {
         submissionId: state.submissionId,
+        brand: 'people_taxi',
+        source: 'peopletaxi_web',
         pickup: state.pickup!,
         drop: state.drop!,
         stops: filledStops,
         scheduledAt: scheduled!.toISOString(),
-        tripEndAt: state.endDate ? `${state.endDate}T23:59:59.000Z` : undefined,
-        categoryId: state.categoryId || undefined,
-        notes: state.notes.trim() || undefined,
+        ...(state.endDate ? { tripEndAt: multicityInstant(state.endDate, '23:59:59')! } : {}),
+        ...(state.categoryId ? { categoryId: state.categoryId } : {}),
+        ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       });
 
       setSubmittedQuote({
@@ -293,10 +262,11 @@ export function MulticityForm() {
       });
 
       // Clear stored draft upon success
-      sessionStorage.removeItem(STORAGE_KEY);
+      try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Submission succeeded even if storage is unavailable. */ }
     } catch (err: any) {
       setErrors({ form: err.message || 'Failed to submit itinerary quote. Please try again.' });
     } finally {
+      submittingRef.current = false;
       setSubmitting(false);
     }
   };
@@ -318,7 +288,7 @@ export function MulticityForm() {
           </div>
           <p className="jd-success-card__copy">
             Our travel desk is calculating exact highway route distance, state permit charges and custom tour package pricing.
-            You will receive a call and SMS with your transparent upfront quote within 15–30 minutes.
+            The travel desk will contact you after reviewing your itinerary and preparing a quote.
           </p>
 
           <div className="jd-success-card__itinerary">
@@ -339,7 +309,7 @@ export function MulticityForm() {
           <div className="jd-success-card__actions">
             <Button
               type="button"
-              variant="outline"
+              variant="secondary"
               size="md"
               onClick={() => {
                 setSubmittedQuote(null);
@@ -359,7 +329,7 @@ export function MulticityForm() {
               Plan Another Tour
             </Button>
             <Link to="/trips" className="btn btn--primary btn--md">
-              View My Trips &amp; Quotes
+              View My Trips
             </Link>
           </div>
 
@@ -378,6 +348,7 @@ export function MulticityForm() {
 
   return (
     <form className="jd-form jd-multicity-form" onSubmit={onSubmit} noValidate>
+      <fieldset disabled={submitting} style={{ display: 'contents', border: 0, padding: 0, margin: 0, minWidth: 0 }}>
       {/* Route & Intermediate Stops Section */}
       <div className="jd-section" role="group" aria-labelledby="mc-route-title">
         <p className="jd-section__title" id="mc-route-title">
@@ -574,6 +545,7 @@ export function MulticityForm() {
             value={state.endDate}
             onChange={(e) => setState((s) => ({ ...s, endDate: e.target.value }))}
           />
+          {errors.endDate ? <p className="jd-error">{errors.endDate}</p> : null}
         </div>
       </div>
 
@@ -582,16 +554,10 @@ export function MulticityForm() {
         <p className="jd-section__title" id="mc-cat-title">
           <Icon name="car" size={16} /> Preferred Vehicle Category
         </p>
+        <p role="status">{categoryStatus === 'loading' ? 'Loading configured categories…' : categoryStatus === 'error' ? 'Categories could not be loaded. You can continue with No preference.' : !categories.length ? 'No categories configured. You can continue with No preference.' : ''}</p>
         <div className="jd-category-chips" role="radiogroup" aria-label="Vehicle category">
-          {(categories.length > 0
-            ? categories
-            : [
-                { id: 'cat-sedan', name: 'Sedan (4 Seater)', seats: 4 },
-                { id: 'cat-suv', name: 'SUV (6+1 Seater)', seats: 6 },
-                { id: 'cat-crysta', name: 'Innova Crysta (7 Seater)', seats: 7 },
-                { id: 'cat-tempo', name: 'Tempo Traveller (12+)', seats: 12 },
-              ]
-          ).map((cat: any) => {
+          <button type="button" role="radio" aria-checked={!state.categoryId} className={`jd-cat-chip ${!state.categoryId ? 'is-selected' : ''}`} onClick={() => setState(s => ({ ...s, categoryId: '' }))}>No preference</button>
+          {categories.map((cat) => {
             const isSelected = state.categoryId === cat.id;
             return (
               <button
@@ -616,6 +582,7 @@ export function MulticityForm() {
           Tour notes &amp; special requirements (optional)
         </label>
         <textarea
+          maxLength={500}
           id="mc-notes"
           className="jd-textarea"
           rows={3}
@@ -677,6 +644,7 @@ export function MulticityForm() {
           onClose={() => setTimePickerOpen(false)}
         />
       ) : null}
+      </fieldset>
     </form>
   );
 }

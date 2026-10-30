@@ -13,6 +13,7 @@ import { auditInTx } from './audit';
 import { FareAdjustmentInput, serviceName } from './domain/pricing';
 import { GeoPlace, TripType } from './domain/types';
 import { requirePermission, text, requireAction } from './shared';
+import { parseFareScope } from './fareScope';
 
 type Adjustment = { mode: 'Normal' | 'Increase' | 'Decrease'; percent: number };
 type Side = 'Pickup or drop' | 'Pickup only' | 'Drop only';
@@ -20,6 +21,8 @@ type RuleKind = 'availability' | 'categories' | 'pricing' | 'limit';
 type RuleLimit = { target: 'Customer fare' | 'Partner payout'; category: string; min: number; max: number; reference: string };
 
 export interface ServiceRule {
+  brand?: string;
+  fareService?: string;
   id: string;
   kind: RuleKind;
   status: string;
@@ -115,11 +118,11 @@ export function ruleServiceText(pickup: GeoPlace, drop: GeoPlace, distanceKm: nu
 const specificity = (r: ServiceRule) => (norm(r.scope?.area) ? 3 : norm(r.scope?.city) ? 2 : norm(r.scope?.state) ? 1 : 0);
 const serviceSpecific = (r: ServiceRule) => (norm(r.service) && norm(r.service) !== 'all' ? 1 : 0);
 const top = (rules: ServiceRule[]) =>
-  [...rules].sort((a, b) => specificity(b) - specificity(a) || serviceSpecific(b) - serviceSpecific(a) || (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id))[0] ?? null;
+  [...rules].sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || specificity(b) - specificity(a) || serviceSpecific(b) - serviceSpecific(a) || (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id))[0] ?? null;
 const adj = (a: ServiceRule['customer']) => (a && a.mode !== 'Normal' && a.percent > 0 && a.percent < 100 ? { direction: (a.mode === 'Increase' ? 'increase' : 'decrease') as 'increase' | 'decrease', percent: a.percent } : null);
 
-export function evaluateRules(rules: ServiceRule[], pickup: GeoPlace, drop: GeoPlace, at: Date, service: string): RuleOutcome {
-  const hit = rules.filter((r) => r.status === 'Enabled' && applies(r, pickup, drop, at, service));
+export function evaluateRules(rules: ServiceRule[], pickup: GeoPlace, drop: GeoPlace, at: Date, service: string, brand?: string, fareService?: string): RuleOutcome {
+  const hit = rules.filter((r) => (!r.brand || r.brand === brand) && (!r.fareService || r.fareService === fareService) && r.status === 'Enabled' && applies(r, pickup, drop, at, service));
   const av = top(hit.filter((r) => r.kind === 'availability'));
   const cats = top(hit.filter((r) => r.kind === 'categories'));
   const price = top(hit.filter((r) => r.kind === 'pricing'));
@@ -239,7 +242,7 @@ function parseRule(v: any, categoryNames: Set<string>): StoredRule {
     if (from) schedule.from = from;
     if (to) schedule.to = to;
   }
-  const rule: StoredRule = { kind, name, priority, scope, service: service.toLowerCase() === 'all' ? '' : service, schedule, reason: '' };
+  const rule: StoredRule = { ...parseFareScope(v), kind, name, priority, scope, service: service.toLowerCase() === 'all' ? '' : service, schedule, reason: '' };
 
   if (kind === 'availability') {
     const a = (['Available', 'Limited', 'Paused'] as const).find((x) => x === v.availability);
@@ -278,12 +281,13 @@ const windowOf = (r: { schedule?: StoredRule['schedule'] }) => {
 };
 
 /** Two enabled settings of the same type, place, service and priority must not overlap in time. */
-async function assertNoConflict(tx: Transaction, id: string, next: Pick<StoredRule, 'kind' | 'priority' | 'scope' | 'service' | 'schedule'>): Promise<void> {
+async function assertNoConflict(tx: Transaction, id: string, next: Pick<StoredRule, 'kind' | 'priority' | 'scope' | 'service' | 'schedule' | 'brand' | 'fareService'>): Promise<void> {
   const snap = await tx.get(db.collection('service_rules').where('status', '==', 'Enabled'));
   const [f1, t1] = windowOf(next);
   const clash = snap.docs.find((d) => {
     if (d.id === id) return false;
     const r = d.data() as Partial<StoredRule>;
+    if ((r.brand ?? '') !== (next.brand ?? '') || (r.fareService ?? '') !== (next.fareService ?? '')) return false;
     if (r.kind !== next.kind || r.priority !== next.priority) return false;
     if (norm(r.scope?.state) !== norm(next.scope.state) || norm(r.scope?.city) !== norm(next.scope.city) || norm(r.scope?.area) !== norm(next.scope.area)) return false;
     if (norm(r.service) !== norm(next.service)) return false;

@@ -1,3 +1,6 @@
+import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
+import { applyFareGst, fareGstFor, gstPricingInput } from './fareGstPricing';
+import { fareServiceKey } from './fareScope';
 // One pricing path for every booking source: customer app/web, Admin manual booking, the
 // quote preview and the final invoice all go through priceBooking(). The confirmed tariff
 // (domain/tariff.ts) is used when finance has enabled it in business_config/tariff_v2;
@@ -81,6 +84,9 @@ export function rentalHoursOf(v: unknown): number | null {
 }
 
 export interface PriceInput {
+  boardingState?: string;
+  recipientState?: string;
+  recipientAddressState?: string;
   category: RideCategory & { tariffClass?: unknown; dutyClass?: unknown };
   route: RouteInfo;
   tripType: TripType;
@@ -122,29 +128,48 @@ export interface PriceResult {
  * discloses them in the breakup. The fare itself is unchanged: these are billed only for the extras actually used.
  */
 export function priceBooking(i: PriceInput): PriceResult {
-  const r = priceBookingCore(i);
-  let extra = extraChargesSnapshot(i.tariff?.extraCharges, i.tariff?.version ?? 0, i.category.id);
-  const klass = tariffClassOf(i.category);
-  if (extra && i.brand && klass && i.tariff?.brandOverrides?.[i.brand]) {
-    const brandService = i.tariff.brandOverrides[i.brand]?.[i.tripType] || i.tariff.brandOverrides[i.brand]?.['One Way'];
-    const ov = brandService?.[klass];
-    if (ov) {
-      extra = {
-        ...extra,
-        customer: {
-          ...extra.customer,
-          ...(ov.waitingPerHour !== undefined ? { waitingPerHourPaise: Math.round(ov.waitingPerHour * 100) } : {}),
-          ...(ov.hillCharge !== undefined ? { hillPaise: Math.round(ov.hillCharge * 100) } : {}),
-          ...(ov.carrierCharge !== undefined ? { carrierPaise: Math.round(ov.carrierCharge * 100) } : {}),
-        },
-      };
-    }
+  const tax = fareGstFor(i);
+  const raw = priceBookingCore(tax ? gstPricingInput(i, tax, tariffClassOf(i.category)) : i);
+  const explicitMode = i.businessContract?.rule.gstMode ?? i.fixedRoutes?.find(rule => rule.id === raw.pricing.fixedRouteId)?.gstMode;
+  const r = tax ? applyFareGst(raw, explicitMode ? { ...tax, mode: explicitMode } : tax) : raw;
+  if (tax) r.pricing.brandScoped = !!(i.brand && i.tariff?.brandOverrides?.[i.brand]);
+  if (tax) {
+    const outstation = ['rental_package', 'local_pickup_drop'].includes(r.pricing.model) ? false : r.outstation;
+    r.breakup = r.pricing.source === 'tariff_v2' ? buildTariffFareBreakup(i.category, r.fare, outstation, r.pricing) : buildFareBreakup(i.category, r.fare, outstation);
   }
+  const klass = tariffClassOf(i.category);
+  const serviceKey = fareServiceKey(i.tripType);
+  const shared = klass ? i.tariff?.brandOverrides?.common?.[serviceKey]?.[klass] : undefined;
+  const branded = klass && i.brand ? i.tariff?.brandOverrides?.[i.brand]?.[serviceKey]?.[klass] : undefined;
+  const ov = { ...shared, ...branded };
+  const cfg = i.tariff?.extraCharges;
+  const baseRow = cfg?.categories[i.category.id];
+  const hasScopedExtras = ['waitingPerHour','hillCharge','carrierCharge','partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge','freeWaitingMinutes','waitingRoundingMinutes','waitingRoundingScope','taxTreatment'].some(key => ov[key as keyof typeof ov] !== undefined);
+  const effectiveExtras = hasScopedExtras ? {
+    ...cfg, version: cfg?.version ?? 0,
+    ...(ov.freeWaitingMinutes !== undefined ? { freeWaitingMinutes: ov.freeWaitingMinutes } : {}),
+    ...(ov.waitingRoundingMinutes !== undefined ? { waitingRoundingMinutes: ov.waitingRoundingMinutes } : {}),
+    ...(ov.waitingRoundingScope !== undefined ? { waitingRoundingScope: ov.waitingRoundingScope } : {}),
+    ...(ov.taxTreatment !== undefined ? { taxTreatment: ov.taxTreatment } : {}),
+    categories: { ...cfg?.categories, [i.category.id]: {
+      customer: { ...baseRow?.customer,
+        ...(ov.waitingPerHour !== undefined ? { waitingPerHour: ov.waitingPerHour } : {}),
+        ...(ov.hillCharge !== undefined ? { hill: ov.hillCharge } : {}),
+        ...(ov.carrierCharge !== undefined ? { carrier: ov.carrierCharge } : {}),
+      }, partner: { ...baseRow?.partner,
+        ...(ov.partnerWaitingPerHour !== undefined ? { waitingPerHour: ov.partnerWaitingPerHour } : {}),
+        ...(ov.partnerHillCharge !== undefined ? { hill: ov.partnerHillCharge } : {}),
+        ...(ov.partnerCarrierCharge !== undefined ? { carrier: ov.partnerCarrierCharge } : {}),
+      },
+    } },
+  } : cfg;
+  // Unconfigured timing/tax policies stay null in the snapshot and require review; never invent them.
+  const extra = extraChargesSnapshot(effectiveExtras, i.tariff?.version ?? 0, i.category.id);
   return extra ? { ...r, pricing: { ...r.pricing, extraCharges: extra }, breakup: withExtraChargeLines(r.breakup, extra) } : r;
 }
 
 function priceBookingCore(i: PriceInput): PriceResult {
-  const effectiveTariff = i.tariff ? scopedTariffForBrand(i.tariff, i.brand, i.tripType) : null;
+  const effectiveTariff = i.tariff ? scopedTariffForBrand(i.tariff, i.brand, i.tripType, tariffClassOf(i.category)) : null;
   const outstation = isOutstation(i.route.distanceKm);
   const service = serviceName(i.pickup, i.drop, i.route.distanceKm, i.tripType);
   const klass = tariffClassOf(i.category);
@@ -169,7 +194,7 @@ function priceBookingCore(i: PriceInput): PriceResult {
   // category and dates. Anything that does not match keeps its normal pricing; a map pin never matches.
   const hasId = (id: string) => !!id && id !== 'pin';
   const fixed = i.businessContract ? { rule: i.businessContract.rule, reversed: false } : i.tripType === 'One Way' && i.fixedRoutes?.length && hasId(i.pickup.id) && hasId(i.drop.id)
-    ? matchFixedRoute(i.fixedRoutes, { originId: i.pickup.id, destinationId: i.drop.id, categoryId: i.category.id, serviceId: i.serviceId ?? '', date: istDate(i.pickupAt.getTime()) })
+    ? matchFixedRoute(i.fixedRoutes, { originId: i.pickup.id, destinationId: i.drop.id, categoryId: i.category.id, serviceId: i.serviceId ?? '', brand: i.brand, fareService: fareServiceKey(i.tripType), date: istDate(i.pickupAt.getTime()) })
     : null;
   if (fixed) {
     const tariff = effectiveTariff;
@@ -388,7 +413,9 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     input.couponCode && customerId ? db.collection('bookings').where('customerId', '==', customerId).get() : Promise.resolve(null),
     loadServiceRules(),
   ]);
-  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
+  const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
+  const recipientState = recipientGstState(customer?.data());
+  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, fareServiceKey(tripType));
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
@@ -399,7 +426,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     .sort((a, b) => a.c.displayOrder - b.c.displayOrder)
     .map(({ d, c }) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
-      const base = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand };
+      const base = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer?.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand };
       try {
         assertCatalogAvailable(onlineMasters,tripType,category.id);
         assertBookable(rules, category.name);

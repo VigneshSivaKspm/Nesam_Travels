@@ -143,11 +143,11 @@ export function validateTrip(t: QuickTrip): string | null {
 }
 
 /** One quote per bookable category, in parallel. Each category that cannot be priced carries its error. */
-export async function estimateAll(t: QuickTrip, categories: VehicleCategory[]): Promise<CategoryEstimate[]> {
+export async function estimateAll(t: QuickTrip, categories: VehicleCategory[], channel?: "nesam" | "people_taxi" | "onewaycarrentals"): Promise<CategoryEstimate[]> {
   return Promise.all(
     categories.map(async (category) => {
       try {
-        const quote = await quoteAdminBooking(tripToForm(t, category.id), newRequestId(), { businessAccountId:t.businessId });
+        const quote = await quoteAdminBooking({ ...tripToForm(t, category.id), ...(channel ? { channel } : {}) }, newRequestId(), { businessAccountId:t.businessId });
         return { category, quote, error: null };
       } catch (e) {
         return { category, quote: null, error: e instanceof ActionError ? e.message : "This category could not be priced." };
@@ -350,7 +350,7 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
   );
 }
 
-export function TripFields({ trip, set, data, compact, idPrefix, action }: { trip: QuickTrip; set: (p: Partial<QuickTrip>) => void; data: QuickData; compact?: boolean; idPrefix: string; action?: ReactNode }) {
+export function TripFields({ trip, set, data, compact, idPrefix, action, allowedTripTypes }: { trip: QuickTrip; set: (p: Partial<QuickTrip>) => void; data: QuickData; compact?: boolean; idPrefix: string; action?: ReactNode; allowedTripTypes?: QuickTrip["tripType"][] }) {
   const [pin, setPin] = useState<"pickup" | "drop" | null>(null);
   const today = isoDateIST(new Date());
   const tomorrow = isoDateIST(new Date(Date.now() + 86400000));
@@ -368,8 +368,8 @@ export function TripFields({ trip, set, data, compact, idPrefix, action }: { tri
             if (v.startsWith(TRIP_OPTION)) set({ serviceId: "", ...withTripType(trip, v.slice(TRIP_OPTION.length) as QuickTrip["tripType"]) });
             else set({ serviceId: v, ...withTripType(trip, tripTypeForService(data.services.find((x) => x.id === v))) });
           }}>
-            {TRIP_SERVICES.map((x) => <option key={x.tripType} value={`${TRIP_OPTION}${x.tripType}`}>{x.label}</option>)}
-            {data.services.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {TRIP_SERVICES.filter(x => !allowedTripTypes || allowedTripTypes.includes(x.tripType)).map((x) => <option key={x.tripType} value={`${TRIP_OPTION}${x.tripType}`}>{x.label}</option>)}
+            {data.services.filter(s => !allowedTripTypes || allowedTripTypes.includes(tripTypeForService(s))).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           {airportAt && (
             <span className="flex gap-3 text-[10px]" role="group" aria-label="Airport direction">

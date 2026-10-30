@@ -1,3 +1,5 @@
+import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
+import { fareServiceKey } from './fareScope';
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { assertCashAllowed } from './channelPolicy';
 import { assertOnlineCatalog } from './onlineCatalog';
@@ -135,10 +137,12 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     ) ?? configured[0];
     if (!category) throw new HttpsError('failed-precondition', 'This vehicle category is no longer available.');
     await assertOnlineCatalog(tripType,category.id);
-    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
+    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, fareServiceKey(tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand };
+    const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
+    const recipientState = recipientGstState(customer.data());
+    const priceInput = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).

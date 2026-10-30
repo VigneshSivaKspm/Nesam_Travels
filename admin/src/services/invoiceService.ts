@@ -1,3 +1,4 @@
+import { gstSplit, splitGst, stateOfGstin, type GstSplit } from '../domain/gstStates';
 import { doc, getDoc, runTransaction, serverTimestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { COLLECTIONS, describeDataError } from "./adminFirestoreService";
@@ -54,6 +55,8 @@ export interface InvoiceLines {
   gstRate: number;
   cgst: number;
   sgst: number;
+  igst: number;
+  utgst: number;
   totalTax: number;
   tolls: number;
   grandTotal: number;
@@ -108,9 +111,10 @@ export function buildInvoiceLines(b: Booking): InvoiceLines {
   const ec = b.extraCharges?.status === "approved" ? b.extraCharges : null;
   const extraNet = ec ? round2(ec.customer.subtotalPaise / 100) : 0;
   const extraGst = ec ? round2(ec.customer.gstPaise / 100) : 0;
+  const taxableExtra = ec?.taxTreatment === 'tariff_gst';
   if (ec && extraNet > 0) {
     const parts = [["Waiting", ec.customer.waitingPaise], ["Hill travel", ec.customer.hillPaise], ["Roof carrier", ec.customer.carrierPaise]] as const;
-    for (const [label, paise] of parts) if (paise > 0) items.push({ description: `${label} — approved extra charge${extraGst > 0 ? "" : " (not taxable)"}`, quantity: 1, rate: round2(paise / 100), amount: round2(paise / 100) });
+    for (const [label, paise] of parts) if (paise > 0) items.push({ description: `${label} — approved extra charge${taxableExtra ? "" : " (not taxable)"}`, quantity: 1, rate: round2(paise / 100), amount: round2(paise / 100) });
   }
   // Charges outside the package are never hidden: say which ones are payable separately (approved extras are billed above).
   const extras = (b.fareBreakup?.lines ?? []).filter((l) => l.treatment === "extra" && !(ec && ["waiting", "hill", "carrier", "extraGst"].includes(l.key)));
@@ -118,18 +122,18 @@ export function buildInvoiceLines(b: Booking): InvoiceLines {
     const list = extras.map((l) => l.label + (l.amount ? " ₹" + l.amount : " (at actuals)")).join(", ");
     items.push({ description: "Not included in this invoice — payable separately: " + list, quantity: 1, rate: 0, amount: 0 });
   }
-  const taxableExtras = extraGst > 0 ? extraNet : 0;
-  const nonTaxableExtras = extraGst > 0 ? 0 : extraNet;
+  const taxableExtras = taxableExtra ? extraNet : 0;
+  const nonTaxableExtras = taxableExtra ? 0 : extraNet;
   const totalGst = round2(gst + extraGst);
-  const cgst = round2(totalGst / 2);
+  const details = fb.gstDetails as { split?: GstSplit } | undefined;
+  const taxes = splitGst(totalGst, details?.split === 'IGST' || details?.split === 'CGST + UTGST' ? details.split : 'CGST + SGST');
   return {
     items,
     subtotal: round2(subtotal + taxableExtras),
     discount,
     taxableAmount: round2(taxable + taxableExtras),
     gstRate: typeof fb.gstRate === "number" ? fb.gstRate : GST_RATE,
-    cgst,
-    sgst: round2(totalGst - cgst),
+    ...taxes,
     totalTax: totalGst,
     tolls,
     grandTotal: round2(fare + tolls + taxableExtras + extraGst + nonTaxableExtras),
@@ -168,7 +172,7 @@ export async function createInvoice(params: {
   billing: BillingDetails;
   actorId: string;
   /** Document type, place of supply and tax split chosen in the Master Admin "Create invoice" sheet. */
-  extra?: { documentType?: string; recipientState?: string; boardingState?: string; placeOfSupply?: string; taxSplit?: "CGST + SGST" | "IGST"; sac?: string; classification?: string };
+  extra?: { documentType?: string; recipientState?: string; boardingState?: string; placeOfSupply?: string; taxSplit?: GstSplit; sac?: string; classification?: string; taxPolicyState?: string; taxPolicyReference?: string };
 }): Promise<{ id: string; invoiceNumber: string }> {
   const { booking, company, billing, actorId, extra } = params;
   const missing = companyProblems(company);
@@ -195,6 +199,17 @@ export async function createInvoice(params: {
       const invoiceNumber = `NES-INV-${year}-${String(seq).padStart(5, "0")}`;
       const invoiceRef = doc(db, COLLECTIONS.INVOICES, `${year}-${String(seq).padStart(5, "0")}`);
       const lines = buildInvoiceLines(b);
+      const gstDetails = (b.fareBreakdown as { gstDetails?: { supplierState?: string; placeOfSupply?: string } } | undefined)?.gstDetails;
+      if (gstDetails?.supplierState && gstDetails.supplierState !== stateOfGstin(company.gstin)) throw new InvoiceActionError('Supplier GSTIN state differs from the booked GST registration. Review the booking before invoicing.');
+      const savedPlace = gstDetails?.placeOfSupply;
+      const invoiceSplit = savedPlace ? gstSplit(stateOfGstin(company.gstin) ?? '', savedPlace) : extra?.taxSplit;
+      if (extra?.taxSplit && invoiceSplit && extra.taxSplit !== invoiceSplit) throw new InvoiceActionError('Invoice tax jurisdiction differs from the booked GST. Review the recipient and boarding state.');
+      if (gstDetails && !savedPlace && !extra?.taxSplit) throw new InvoiceActionError('Verify the place of supply in Invoices before issuing this GST invoice.');
+      if (invoiceSplit) Object.assign(lines, splitGst(lines.totalTax, invoiceSplit));
+        if (extra?.sac) {
+          if (!/^\d{6,8}$/.test(extra.sac)) throw new InvoiceActionError("Review the approved service SAC before issuing this invoice.");
+          lines.items = lines.items.map(item => item.sacCode ? { ...item, sacCode: extra.sac } : item);
+        }
       const today = new Date();
       const iso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
       const paid = isBookingPaid(b);
@@ -212,7 +227,7 @@ export async function createInvoice(params: {
         customerId: b.customerId || "",
         invoiceDate: iso,
         dueDate: iso,
-        companySnapshot: company,
+        companySnapshot: extra?.sac ? { ...company, sacCode: extra.sac } : company,
         customerSnapshot: customer,
         tripSnapshot: {
           service: b.service || "",
@@ -227,11 +242,12 @@ export async function createInvoice(params: {
           distanceKm: Number(b.distanceKm || 0),
         },
         ...lines,
+        ...(invoiceSplit ? { taxSplit: invoiceSplit } : {}),
         paidAmount: paid ? lines.grandTotal : 0,
         balanceAmount: paid ? 0 : lines.grandTotal,
         paymentStatus: paid ? "Paid" : "Pending",
         invoiceStatus: "Issued",
-        terms: "Computer-generated tax invoice. GST on passenger transport under SAC 9964.",
+        terms: extra?.sac ? `Computer-generated tax invoice. ${extra.classification || "Service"} under SAC ${extra.sac}.` : "Computer-generated tax invoice. GST on passenger transport under SAC 9964.",
         createdBy: actorId,
         createdAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
@@ -239,7 +255,7 @@ export async function createInvoice(params: {
       if (extra) {
         Object.assign(invoice, Object.fromEntries(Object.entries(extra).filter(([, v]) => v !== undefined && v !== "")));
         // Inter-state supply: the whole GST is IGST.
-        if (extra.taxSplit === "IGST") Object.assign(invoice, { igst: (invoice.cgst as number) + (invoice.sgst as number), cgst: 0, sgst: 0 });
+        if (extra.taxSplit) Object.assign(invoice, splitGst(lines.totalTax, extra.taxSplit));
       }
       tx.set(invoiceRef, { ...invoice, id: invoiceRef.id });
       tx.set(counterRef, { [String(year)]: seq, updatedAt: serverTimestamp() }, { merge: true });

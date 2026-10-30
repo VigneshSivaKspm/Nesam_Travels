@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
 import type { Booking, Invoice } from "../types";
 import { subscribeBookings, subscribeInvoices, subscribeSettings, subscribeToDocument } from "../services/adminFirestoreService";
 import {
@@ -19,7 +19,7 @@ import { ConfirmDialog, ErrorBanner, Modal, Toast, useToast } from "../component
 import { useCan } from "../components/AccessContext";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader } from "../components/ui";
 import MenuButton from "../components/ui/MenuButton";
-import { GST_STATES, stateOfGstin } from "../domain/gstStates";
+import { GST_STATES, stateOfGstin, gstSplit } from "../domain/gstStates";
 
 function formatCurrency(n: number): string {
   return "₹" + (n || 0).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -31,17 +31,22 @@ const actionError = (e: unknown) =>
 const invoiceTime = (inv: Invoice) => new Date(inv.invoiceDate || 0).getTime() || 0;
 
 const SERVICES = ["One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"] as const;
-export interface TaxPolicy {
+interface TaxPolicyEntry {
   services: Record<string, { classification: "Passenger transportation" | "Vehicle rental"; sac: string }>;
   approved: boolean;
   reference: string;
   approvedByName?: string;
+}
+export interface TaxPolicy extends TaxPolicyEntry {
+  stateOverrides?: Record<string, TaxPolicyEntry>;
 }
 const DEFAULT_POLICY: TaxPolicy = {
   services: Object.fromEntries(SERVICES.map((s) => [s, { classification: s === "Local Rental" ? "Vehicle rental" : "Passenger transportation", sac: s === "Local Rental" ? "996601" : "996412" }])),
   approved: false,
   reference: "",
 };
+const policyEntry = (entry: TaxPolicyEntry): TaxPolicyEntry => ({ services: { ...DEFAULT_POLICY.services, ...entry.services }, approved: entry.approved === true, reference: entry.reference || "", approvedByName: entry.approvedByName || "" });
+const effectiveTaxPolicy = (policy: TaxPolicy, state: string) => policyEntry(policy.stateOverrides?.[state] ?? policy);
 
 interface Draft extends BillingDetails {
   id: string;
@@ -234,17 +239,21 @@ function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, 
   const eligible = useMemo(() => bookings.filter((b) => !invoiceBlocker(b, invoices)).sort((a, b) => String(b.bookingId || b.id).localeCompare(String(a.bookingId || a.id))), [bookings, invoices]);
   const booking = eligible.find((b) => b.id === bookingId) || bookings.find((b) => b.id === bookingId) || null;
   const lines = booking ? buildInvoiceLines(booking) : null;
-  const svc = SERVICES.find((s) => booking && new RegExp(s.split(" ")[0], "i").test(booking.service || "")) ?? "One Way";
-  const rule = policy.services[svc];
+  const serviceName = (booking?.service || "").trim().toLowerCase();
+  const svc = SERVICES.find(service => service.toLowerCase() === serviceName)
+    ?? (serviceName === "airport taxi" ? "Airport" : serviceName === "one way drop" ? "One Way" : undefined);
   const supplierState = stateOfGstin(company.gstin) ?? "";
+  const effectivePolicy = effectiveTaxPolicy(policy, supplierState);
+  const rule = svc ? effectivePolicy.services[svc] : undefined;
   const registered = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(billing.gstin.trim().toUpperCase());
   const recipientCode = registered ? stateOfGstin(billing.gstin) ?? recipientState : recipientState;
   // Passenger transport (IGST Act 12(9)): registered recipient's state, else where the passenger boards.
   const placeOfSupply = rule?.classification === "Vehicle rental" ? recipientCode || supplierState : registered ? recipientCode : boardingState;
-  const taxSplit: "CGST + SGST" | "IGST" = placeOfSupply && supplierState && placeOfSupply !== supplierState ? "IGST" : "CGST + SGST";
+  const taxSplit = gstSplit(supplierState, placeOfSupply);
   const name = (code: string) => GST_STATES.find(([c]) => c === code)?.[1] ?? "Not determined";
   const problems = [
-    !policy.approved && "Approve the service classification and SAC in Tax automation.",
+    !effectivePolicy.approved && "Approve the applicable state / common service classification and SAC in Tax automation.",
+    (!rule || !/^\d{6,8}$/.test(rule.sac)) && "Review the approved service SAC in Tax automation.",
     !company.gstin && "Review the supplier GSTIN, registered state and billing address.",
     !placeOfSupply && "Select the recipient / boarding state to determine the place of supply.",
     booking && booking.status !== "Completed" && "Issue is enabled only after the final trip bill is ready.",
@@ -268,7 +277,7 @@ function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, 
     setBusy("issue");
     setError(null);
     try {
-      const { invoiceNumber } = await createInvoice({ booking, company, billing, actorId: auth.currentUser?.uid || "", extra: { documentType: docType, recipientState: name(recipientCode), boardingState: name(boardingState), placeOfSupply: name(placeOfSupply), taxSplit, sac: rule?.sac, classification: rule?.classification } });
+      const { invoiceNumber } = await createInvoice({ booking, company, billing, actorId: auth.currentUser?.uid || "", extra: { documentType: docType, recipientState: name(recipientCode), boardingState: name(boardingState), placeOfSupply: name(placeOfSupply), taxSplit, sac: rule?.sac, classification: rule?.classification, taxPolicyState: policy.stateOverrides?.[supplierState] ? supplierState : "common", taxPolicyReference: effectivePolicy.reference } });
       if (draft) await deleteDoc(doc(db, "invoice_drafts", draft.id)).catch(() => undefined);
       onDone(`${docType} ${invoiceNumber} issued.`);
     } catch (e) {
@@ -300,7 +309,8 @@ function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, 
         <section className="ds-panel ds-panel-pad" data-span="2">
           <div className="flex items-center justify-between mb-2"><strong className="text-[13px] text-ink">Automatic tax determination</strong><Badge tone={problems.length ? "amber" : "green"}>{problems.length ? "Review required" : "Ready"}</Badge></div>
           <dl className="ds-facts" data-cols={3}>
-            <div><dt>Classification / SAC</dt><dd>{rule?.classification ?? "—"} · {policy.approved ? rule?.sac : "Pending approval"}</dd></div>
+            <div><dt>Classification / SAC</dt><dd>{rule?.classification ?? "—"} · {effectivePolicy.approved ? rule?.sac : "Pending approval"}</dd></div>
+            <div><dt>Policy scope</dt><dd>{policy.stateOverrides?.[supplierState] ? name(supplierState) : "Common default"} · {effectivePolicy.reference || "No review reference"}</dd></div>
             <div><dt>Supplier state</dt><dd>{supplierState ? `${name(supplierState)} (${supplierState})` : "Not determined"}</dd></div>
             <div><dt>Recipient GST status</dt><dd>{registered ? "Registered" : "Unregistered"}</dd></div>
             <div><dt>Place of supply</dt><dd>{placeOfSupply ? `${name(placeOfSupply)} (${placeOfSupply})` : "Not determined"}</dd></div>
@@ -320,23 +330,47 @@ function CreateInvoiceModal({ bookings, invoices, draft, companyReady, company, 
 export function TaxPolicyDialog({ policy, onClose, onSaved }: { policy: TaxPolicy; onClose: () => void; onSaved: () => void }) {
   const canFinance = useCan("finance");
   const canSystem = useCan("system");
-  const [p, setP] = useState<TaxPolicy>(policy);
+  const [scope, setScope] = useState("");
+  const [p, setP] = useState<TaxPolicyEntry>(() => policyEntry(policy));
+  const [baseline, setBaseline] = useState(() => JSON.stringify(policyEntry(policy)));
+  const [savedSignature, setSavedSignature] = useState(() => JSON.stringify(policyEntry(policy)));
   const [ok, setOk] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const savedEntry = scope ? policy.stateOverrides?.[scope] : policy;
+  const dirty = JSON.stringify(p) !== baseline;
+  const changeScope = (next: string) => {
+    if (busy || (dirty && !window.confirm("Discard unsaved changes before switching tax-policy state?"))) return;
+    const entry = next ? policy.stateOverrides?.[next] : policy;
+    const draft = entry ? policyEntry(entry) : { ...policyEntry(policy), approved: false, reference: "", approvedByName: "" };
+    setScope(next); setP(draft); setBaseline(JSON.stringify(draft)); setSavedSignature(JSON.stringify(entry ? policyEntry(entry) : null)); setOk(false); setError(null);
+  };
+  const edit = (next: TaxPolicyEntry) => { setP(next); setOk(false); setError(null); };
   const save = async () => {
       if (busy || (!canFinance && !canSystem)) return;
     if (p.reference.trim().length < 3) return setError("Record the accountant / tax-policy review reference.");
     if (!ok) return setError("Confirm the accountant approved the classifications and SAC codes.");
+    if (SERVICES.some(service => !/^\d{6,8}$/.test(p.services[service]?.sac || ""))) return setError("Enter a 6–8 digit SAC code for every service.");
     setBusy(true);
+    setError(null);
     try {
-      await setDoc(doc(db, "settings", "tax_policy"), { ...p, approved: true, approvedByName: auth.currentUser?.displayName || auth.currentUser?.email || "", updatedAt: serverTimestamp() });
+      await runTransaction(db, async tx => {
+        const ref = doc(db, "settings", "tax_policy");
+        const snap = await tx.get(ref);
+        const current = snap.exists() ? snap.data() as TaxPolicy : DEFAULT_POLICY;
+        const currentEntry = scope ? current.stateOverrides?.[scope] : current;
+        if (JSON.stringify(currentEntry ? policyEntry(currentEntry) : null) !== savedSignature) throw new Error("This policy was updated by another user. Close and reopen the editor before saving.");
+        const saved = { ...p, reference: p.reference.trim(), approved: true, approvedByName: auth.currentUser?.displayName || auth.currentUser?.email || "", updatedAt: serverTimestamp() };
+        tx.set(ref, scope ? { stateOverrides: { [scope]: saved }, updatedAt: serverTimestamp() } : saved, { merge: true });
+      });
       onSaved();
-    } catch { setError("The policy was not saved."); setBusy(false); }
+    } catch (e) { setError(e instanceof Error ? e.message : "The policy was not saved."); setBusy(false); }
   };
   return (
       <Modal title="Tax automation · Approved policy" onClose={onClose} busy={busy} size="lg" footer={<Button variant="primary" loading={busy} disabledReason={canFinance || canSystem ? undefined : "Saving tax policy needs finance or system access."} onClick={save}>Save approved policy</Button>}>
       <p className="text-[12px] text-muted mb-3">Classify passenger transportation and vehicle rental separately. The engine uses the approved classification, supplier location, recipient GST status and boarding / return locations.</p>
+      <label className="ds-field mb-3"><span>Policy scope · Supplier registration state</span><select className="ds-select" value={scope} disabled={busy} onChange={e => changeScope(e.target.value)}><option value="">Common default · All states without an override</option>{GST_STATES.map(([code, name]) => <option key={code} value={code}>{name} ({code}){policy.stateOverrides?.[code] ? " · Configured" : ""}</option>)}</select></label>
+      <p className="text-[12px] text-muted mb-3">{scope ? `Editing ${GST_STATES.find(([code]) => code === scope)?.[1]}. ${savedEntry ? "This state's saved policy is loaded." : "Common classifications are copied as a starting point; this state needs its own approval before saving."}` : "Editing the shared fallback. Existing state overrides remain unchanged."} New invoices select this policy using the supplier GSTIN state. Issued invoices keep their saved details.</p>
       {error && <div className="ds-error" role="alert">{error}</div>}
       <DataTable label="Service classification" minWidth={600} hideTools>
         <thead><tr><th>SERVICE</th><th>CLASSIFICATION</th><th>APPROVED SAC</th><th>REVIEW</th></tr></thead>
@@ -345,22 +379,22 @@ export function TaxPolicyDialog({ policy, onClose, onSaved }: { policy: TaxPolic
           return (
             <tr key={s}>
               <td>{s}</td>
-              <td><select className="ds-select" value={r.classification} onChange={(e) => setP({ ...p, services: { ...p.services, [s]: { ...r, classification: e.target.value as TaxPolicy["services"][string]["classification"] } } })}><option>Passenger transportation</option><option>Vehicle rental</option></select></td>
-              <td><input className="ds-input" style={{ width: 110 }} value={r.sac} onChange={(e) => setP({ ...p, services: { ...p.services, [s]: { ...r, sac: e.target.value.replace(/\D/g, "").slice(0, 8) } } })} /></td>
-              <td><Badge tone={policy.approved ? "green" : "amber"}>{policy.approved ? "Approved" : "Pending"}</Badge></td>
+              <td><select className="ds-select" disabled={busy} value={r.classification} onChange={(e) => edit({ ...p, services: { ...p.services, [s]: { ...r, classification: e.target.value as TaxPolicy["services"][string]["classification"] } } })}><option>Passenger transportation</option><option>Vehicle rental</option></select></td>
+              <td><input className="ds-input" disabled={busy} style={{ width: 110 }} value={r.sac} onChange={(e) => edit({ ...p, services: { ...p.services, [s]: { ...r, sac: e.target.value.replace(/\D/g, "").slice(0, 8) } } })} /></td>
+              <td><Badge tone={p.approved && !dirty ? "green" : "amber"}>{p.approved && !dirty ? "Approved" : "Pending"}</Badge></td>
             </tr>
           );
         })}</tbody>
       </DataTable>
-      <label className="ds-field mt-4"><span>Accountant / tax-policy review reference</span><input className="ds-input" value={p.reference} onChange={(e) => setP({ ...p, reference: e.target.value })} /></label>
-      <label className="ds-check mt-3"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />Accountant approved the selected service classifications and SAC codes</label>
+      <label className="ds-field mt-4"><span>Accountant / tax-policy review reference</span><input className="ds-input" disabled={busy} value={p.reference} onChange={(e) => edit({ ...p, reference: e.target.value })} /></label>
+      <label className="ds-check mt-3"><input type="checkbox" disabled={busy} checked={ok} onChange={(e) => setOk(e.target.checked)} />Accountant approved the selected scope's service classifications and SAC codes</label>
       <p className="text-[11px] text-faint mt-3">Passenger transport: IGST Act 12(9). Rental: approved classification and applicable general place-of-supply rule. Return transportation is evaluated as a separate journey. GST rates continue to come from the saved trip tax configuration.</p>
     </Modal>
   );
 }
 
 function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; payment: string; onClose: () => void }) {
-  const ratePct = ((inv.gstRate > 1 ? inv.gstRate / 100 : inv.gstRate || 0.05) * 100) / 2;
+  const ratePct = ((inv.gstRate > 1 ? inv.gstRate / 100 : (Number.isFinite(inv.gstRate) ? inv.gstRate : 0.05)) * 100) / 2;
   const tolls = (inv.items || []).filter((i) => !i.sacCode).reduce((s, i) => s + (i.amount || 0), 0);
   const paid = payment === "Paid";
   return (
@@ -457,8 +491,10 @@ function InvoicePreview({ invoice: inv, payment, onClose }: { invoice: Invoice; 
               <div className="flex justify-between text-gray-600"><span>Subtotal:</span><span className="font-semibold text-gray-900">{formatCurrency(inv.subtotal)}</span></div>
               {inv.discount > 0 && <div className="flex justify-between text-gray-600"><span>Discount:</span><span className="font-semibold text-emerald-600">- {formatCurrency(inv.discount)}</span></div>}
               <div className="flex justify-between text-gray-600"><span>Taxable value:</span><span className="font-semibold text-gray-900">{formatCurrency(inv.taxableAmount)}</span></div>
-              <div className="flex justify-between text-gray-600"><span>CGST ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.cgst)}</span></div>
-              <div className="flex justify-between text-gray-600"><span>SGST ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.sgst)}</span></div>
+              {inv.taxSplit === 'IGST' || (inv.igst ?? 0) > 0 ? <div className="flex justify-between text-gray-600"><span>IGST ({Math.round(inv.gstRate * 10000) / 100}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.igst ?? 0)}</span></div> : <>
+                <div className="flex justify-between text-gray-600"><span>CGST ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.cgst)}</span></div>
+                <div className="flex justify-between text-gray-600"><span>{inv.taxSplit === 'CGST + UTGST' || (inv.utgst ?? 0) > 0 ? 'UTGST' : 'SGST'} ({ratePct}%):</span><span className="font-semibold text-gray-900">{formatCurrency(inv.taxSplit === 'CGST + UTGST' || (inv.utgst ?? 0) > 0 ? inv.utgst! : inv.sgst)}</span></div>
+              </>}
               {tolls > 0 && <div className="flex justify-between text-gray-600"><span>Tolls (non-taxable):</span><span className="font-semibold text-gray-900">{formatCurrency(tolls)}</span></div>}
               <div className="flex justify-between text-gray-900 font-bold border-t pt-2 text-sm"><span>Grand Total:</span><span className="text-brand">{formatCurrency(inv.grandTotal)}</span></div>
               <div className="flex justify-between text-gray-600 pt-1"><span>Paid:</span><span className="font-semibold">{formatCurrency(paid ? inv.grandTotal : 0)}</span></div>
