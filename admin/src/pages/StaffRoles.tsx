@@ -275,7 +275,7 @@ export default function StaffRoles() {
                   return (
                     <tr key={a.uid} className="border-b border-hover last:border-0">
                       <td className="px-4 py-3"><strong className="text-ink">{a.name || "—"}</strong><span className="block text-[11px] text-faint">{p.staffCode}</span></td>
-                      <td className="px-4 py-3">{p.phone || "—"}<span className="block text-[11px] text-muted">{a.email}</span></td>
+                      <td className="px-4 py-3">{p.phone || "—"}<span className="block text-[11px] text-muted">{a.username || a.email}</span></td>
                       <td className="px-4 py-3">{p.preset}<span className="block text-[11px] text-muted">{p.branch || "—"}</span></td>
                       <td className="px-4 py-3">{modules} module{modules === 1 ? "" : "s"}<span className="block text-[11px] text-muted">{p.duty.length} of {DUTY_ACTIONS.length} duty actions</span></td>
                       <td className="px-4 py-3"><Badge tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge></td>
@@ -641,7 +641,9 @@ export default function StaffRoles() {
         >
           <div className="space-y-3 text-xs text-body">
             {invite.result.warnings?.map((w) => <p key={w} role="alert" className="p-2 rounded-lg bg-amber-50 border border-amber-200 text-amber-900">{w}</p>)}
-            {invite.result.invite.error ? (
+            {invite.result.username ? (
+              <p>Username: <strong>{invite.result.username}</strong>. Share this username and the password you set privately with the staff member. No email invitation is required.</p>
+            ) : invite.result.invite.error ? (
               <p className="text-red-700">{invite.result.invite.error}</p>
             ) : invite.result.invite.sent ? (
               <p>The password-set email was accepted by the email provider for delivery{invite.email ? ` to ${invite.email}` : ""}.</p>
@@ -653,7 +655,7 @@ export default function StaffRoles() {
             ) : invite.created ? (
               <p>No invitation was needed: this email already has a sign-in account that has been used before.</p>
             ) : null}
-            <p className="text-muted">An Invited Staff ID can sign in but sees no workspace until you activate it from its profile.</p>
+            <p className="text-muted">{invite.result.username ? "Staff sign in using their username and password. Their assigned permissions control workspace access." : "An Invited Staff ID can sign in but sees no workspace until you activate it from its profile."}</p>
           </div>
         </Modal>
       )}

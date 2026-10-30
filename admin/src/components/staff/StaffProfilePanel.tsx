@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ACCOUNT_TYPES, DUTY_ACTIONS, MODULE_ACTIONS, STAFF_MODULES, STAFF_PRESETS, permissionsOf, PERMISSION_INFO, type StaffPreset } from "../../config/permissions";
 import {
-  StaffActionError, saveStaffProfile, setStaffStatus, subscribeStaffActivity, subscribeStaffAudit, subscribeStaffSessions,
+  StaffActionError, saveStaffProfile, resetStaffPassword, setStaffStatus, subscribeStaffActivity, subscribeStaffAudit, subscribeStaffSessions,
   type AuditEntry, type StaffAccount, type StaffActivityRecord, type StaffSaveResult, type StaffSessionRecord,
 } from "../../services/staffService";
 import { EXPIRE_MS, revokeStaffSessions } from "../../services/staffSessionService";
@@ -18,6 +18,7 @@ const AUDIT_TEXT: Record<string, string> = {
   staff_status_changed: "Status changed",
   staff_sessions_revoked: "All sessions revoked",
   staff_session_ended: "Session ended",
+  staff_password_reset: "Password reset by Master",
 };
 const FLAG_TEXT: Record<string, string> = {
   vendorPayout: "Vendor payout / margin", bankDetails: "Bank settlement details", temporaryReveal: "Temporary reveal (handled bookings)",
@@ -54,6 +55,29 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [resetOpen, setResetOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [resetReason, setResetReason] = useState("");
+  const [resetError, setResetError] = useState("");
+
+  const closeReset = () => {
+    if (busy) return;
+    setResetOpen(false); setNewPassword(""); setConfirmPassword(""); setResetReason(""); setResetError("");
+  };
+  const resetPassword = async () => {
+    if (busy) return;
+    if (newPassword.length < 8 || newPassword.length > 128) { setResetError("Use a password between 8 and 128 characters."); return; }
+    if (newPassword !== confirmPassword) { setResetError("Passwords do not match."); return; }
+    if (resetReason.trim().length < 5) { setResetError("Record a reason of at least 5 characters."); return; }
+    setBusy(true); setResetError("");
+    try {
+      const result = await resetStaffPassword(account.uid, newPassword, resetReason);
+      setResetOpen(false); setNewPassword(""); setConfirmPassword(""); setResetReason("");
+      notify(result.warnings.length ? result.warnings.join(" ") : "Password changed. Share the new password privately with the staff member.", result.warnings.length ? "error" : "success");
+    } catch (error) { setResetError(errText(error)); }
+    finally { setBusy(false); }
+  };
 
   useEffect(() => {
     if (tab !== "sessions" && tab !== "activity") return;
@@ -137,7 +161,7 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
           {tab === "overview" && (
             <div className="space-y-4">
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[["Staff ID", p.staffCode], ["Status", <Badge key="s" tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge>], ["Mobile", p.phone || "—"], ["Email (sign-in)", account.email || "—"], ["Role preset", p.preset], ["Branch", p.branch || "—"], ["Created", when(account.createdAt)], ["Last change", when(p.updatedAt)]].map(([k, v]) => (
+                {[["Staff ID", p.staffCode], ["Status", <Badge key="s" tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge>], ["Mobile", p.phone || "—"], [account.username ? "Username" : "Email (sign-in)", account.username || account.email || "—"], ["Role preset", p.preset], ["Branch", p.branch || "—"], ["Created", when(account.createdAt)], ["Last change", when(p.updatedAt)]].map(([k, v]) => (
                   <div key={String(k)}><dt className="text-[11px] text-faint">{k}</dt><dd className="font-semibold text-ink">{v}</dd></div>
                 ))}
               </dl>
@@ -145,7 +169,8 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
                 {(LIFECYCLE[p.accountStatus] ?? []).map((a) => (
                   <Button key={a.to} variant={a.danger ? "danger" : "primary"} disabled={busy} onClick={() => { setActionError(null); setReason(""); setChange(a); }}>{a.label}</Button>
                 ))}
-                {p.accountStatus === "Invited" && <Button disabled={busy} onClick={() => void resendInvite()}>Resend invitation</Button>}
+                {p.accountStatus === "Invited" && !account.username && <Button disabled={busy} onClick={() => void resendInvite()}>Resend invitation</Button>}
+                {account.username && <Button disabled={busy} onClick={() => setResetOpen(true)}>Reset password</Button>}
                 <Button icon="sliders-horizontal" disabled={busy} onClick={onEdit}>Edit access</Button>
               </div>
               <section>
@@ -253,6 +278,18 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
         </div>
       </Modal>
 
+      {resetOpen && (
+        <Modal title={`Reset password · ${account.username}`} centered busy={busy} onClose={closeReset}
+          footer={<><Button disabled={busy} onClick={closeReset}>Cancel</Button><Button variant="primary" loading={busy} onClick={() => void resetPassword()}>Set new password</Button></>}>
+          <div className="space-y-3 text-xs">
+            <p>Set a new password and share it privately. Existing staff sessions will be revoked; account status and permissions stay the same.</p>
+            <label className="ds-field"><span>New password *</span><input className="ds-input" type="password" autoComplete="new-password" value={newPassword} maxLength={128} onChange={(e) => setNewPassword(e.target.value)} /></label>
+            <label className="ds-field"><span>Confirm password *</span><input className="ds-input" type="password" autoComplete="new-password" value={confirmPassword} maxLength={128} onChange={(e) => setConfirmPassword(e.target.value)} /></label>
+            <label className="ds-field"><span>Reason *</span><input className="ds-input" value={resetReason} maxLength={300} onChange={(e) => setResetReason(e.target.value)} /></label>
+            {resetError && <p role="alert" className="text-red-600">{resetError}</p>}
+          </div>
+        </Modal>
+      )}
       {change && (
         <Modal
           title={`${change.label} ${account.name || account.email}?`}

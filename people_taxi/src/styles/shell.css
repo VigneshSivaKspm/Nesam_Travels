@@ -89,14 +89,18 @@
   white-space: nowrap;
 }
 /* On the dark photo and blue footer the blue/navy artwork sits on a small neutral card. */
+.brand--light {
+  display: inline-flex;
+}
 .brand--light img {
   box-sizing: content-box;
   width: auto;
-  height: 40px;
+  height: 42px;
   max-width: 230px;
-  padding: 8px 14px;
+  padding: 8px 16px;
   border-radius: var(--r-sm);
-  background: var(--surface);
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgb(0 0 0 / 0.16);
 }
 .brand--light.brand--compact img {
   padding: 8px;

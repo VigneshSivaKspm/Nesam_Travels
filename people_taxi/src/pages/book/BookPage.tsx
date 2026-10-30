@@ -34,6 +34,13 @@ const readOutstation = (): 'One Way' | 'Round Trip' => {
     return 'One Way';
   }
 };
+const writeOutstation = (t: 'One Way' | 'Round Trip') => {
+  try {
+    sessionStorage.setItem(OUTSTATION_KEY, t);
+  } catch {
+    // ignore
+  }
+};
 
 /** A ride in progress or one awaiting rating. */
 function RideBanner() {
@@ -105,17 +112,30 @@ function HeroCopy() {
 function Home() {
   const { draft, update } = useBooking();
   const [params, setParams] = useSearchParams();
-  const fromUrl = parseService(params.get('service'));
+  const rawService = params.get('service');
   const tripParam = params.get('trip');
-  const service: ServiceId = fromUrl ?? (tripParam === 'round-trip' ? 'round-trip' : serviceOfTrip(draft.tripType));
+
+  // Parse service, mapping legacy 'one-way' / 'round-trip' to 'outstation'
+  const service: ServiceId = parseService(rawService) ?? serviceOfTrip(draft.tripType);
+
+  // Determine outstation trip ('One Way' | 'Round Trip')
+  const outstationTrip: 'One Way' | 'Round Trip' =
+    tripParam === 'round-trip' || rawService === 'round-trip'
+      ? 'Round Trip'
+      : tripParam === 'one-way' || rawService === 'one-way'
+        ? 'One Way'
+        : draft.tripType === 'Round Trip'
+          ? 'Round Trip'
+          : readOutstation();
 
   useEffect(() => {
+    if (service === 'multicity') return;
     const wanted: TripType =
       service === 'airport'
         ? 'Airport Taxi'
         : service === 'rental'
           ? 'Local Rental'
-          : service === 'round-trip'
+          : outstationTrip === 'Round Trip'
             ? 'Round Trip'
             : 'One Way';
     if (wanted === draft.tripType) return;
@@ -124,13 +144,29 @@ function Home() {
       drop: d.drop?.id === 'place-local-disposal' && wanted !== 'Local Rental' ? null : d.drop,
       tripEndAt: wanted === 'Round Trip' ? d.tripEndAt : null,
     }));
-  }, [service]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [service, outstationTrip]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onService = useCallback(
     (s: ServiceId) => {
-      setParams({ service: s }, { replace: true });
+      if (s === 'outstation') {
+        setParams({ service: 'outstation', trip: outstationTrip === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
+      } else {
+        setParams({ service: s }, { replace: true });
+      }
     },
-    [setParams],
+    [setParams, outstationTrip],
+  );
+
+  const onOutstationTrip = useCallback(
+    (t: 'One Way' | 'Round Trip') => {
+      writeOutstation(t);
+      update((d) => ({
+        tripType: t,
+        tripEndAt: t === 'Round Trip' ? d.tripEndAt : null,
+      }));
+      setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
+    },
+    [setParams, update],
   );
 
   const scrollToConsole = () => {
@@ -140,22 +176,25 @@ function Home() {
 
   const onRoute = (c: Corridor) => {
     update({ pickup: c.pickup, drop: c.drop, tripType: 'One Way' });
-    setParams({ service: 'one-way' }, { replace: true });
+    writeOutstation('One Way');
+    setParams({ service: 'outstation', trip: 'one-way' }, { replace: true });
     scrollToConsole();
     window.setTimeout(() => document.getElementById('bf-date')?.focus({ preventScroll: true }), 400);
   };
 
   const onDestination = (d: Destination) => {
     update({ drop: d.place, tripType: 'One Way' });
-    setParams({ service: 'one-way' }, { replace: true });
+    writeOutstation('One Way');
+    setParams({ service: 'outstation', trip: 'one-way' }, { replace: true });
     scrollToConsole();
   };
 
   const onServiceCard = (s: Service) => {
     if (s.id === 'airport') onService('airport');
     else if (s.id === 'local-rental') onService('rental');
-    else if (s.id === 'round-trip') onService('round-trip');
-    else onService('one-way');
+    else if (s.id === 'round-trip') onOutstationTrip('Round Trip');
+    else if (s.id === 'multicity') onService('multicity');
+    else onOutstationTrip('One Way');
     scrollToConsole();
   };
 
@@ -168,6 +207,8 @@ function Home() {
           <BookingForm
             service={service}
             onService={onService}
+            outstationTrip={outstationTrip}
+            onOutstationTrip={onOutstationTrip}
           />
         </div>
       </div>

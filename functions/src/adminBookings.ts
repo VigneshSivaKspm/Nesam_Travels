@@ -31,6 +31,7 @@ import { supportsTrip, serviceAllowsCategory } from './onlineCatalog';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text, requireAction, requireStaffFlag } from './shared';
 import { canSeePayouts } from './staffReads';
 import { storePricingInTx } from './pricingPrivate';
+import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 const MAX_FARE = 1000000;
 
@@ -200,7 +201,11 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
     let contract: ReturnType<typeof businessContract> = null;
     try { contract=business?businessContract(business.data()!,{pickup,drop,service,tripType,category:category.name,km:route.distanceKm*(tripType==='Round Trip'?2:1)}):null; }
     catch(e){throw new HttpsError('failed-precondition',(e as Error).message);}
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId, businessContract:contract };
+    const rawChan = text(input.bookingSource || input.source || input.brand || input.channel || '');
+    const bookingChannel = resolveAndValidateBrand({ brand: rawChan }, request);
+    assertServiceSupported(bookingChannel, tripType);
+
+    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, adminDiscount: discountIn, localCityId, rentalHours, fixedRoutes, serviceId, businessContract:contract, brand: bookingChannel };
     // Coupon: the same server checks as customer checkout (validity, usage limits, minimum fare,
     // category / service, audience) against the fare before discount; then the booking is priced with it.
     let couponDiscount = 0;
@@ -266,14 +271,6 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       notes: text(advanceIn.notes, 300), enteredBy: admin.uid, enteredByRole: 'admin', enteredByName: admin.name, createdAt: stamp,
     } : null;
     const summary = summarizePayments(fare.total, advanceTxn ? [{ amount: advanceTxn.amount, method: advanceTxn.method, kind: 'advance', collectorType: 'admin', status: 'Success' }] : []);
-    const rawChan = text(input.bookingSource || input.source || input.brand || '');
-    const bookingChannel = rawChan.toLowerCase().includes('oneway')
-      ? 'onewaycarrentals'
-      : rawChan.toLowerCase().includes('people')
-      ? 'people_taxi'
-      : rawChan.toLowerCase().includes('nesam')
-      ? 'nesam'
-      : 'nesam';
     // The booking keeps the customer side of the pricing snapshot; the partner side goes to booking_pricing_private in this same transaction.
     const storedPricing = storePricingInTx(tx, requestId, customerId, pricing);
     tx.create(ref, {

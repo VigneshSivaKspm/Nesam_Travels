@@ -1,7 +1,7 @@
-// Service taxonomy for People Taxi: One Way, Round Trip, Airport Taxi, Local Rental.
+// Service taxonomy for People Taxi: Outstation, Airport Taxi, Local Rental, Multicity.
 import type { TripType } from '@core/types';
 
-export type ServiceId = 'one-way' | 'round-trip' | 'airport' | 'rental';
+export type ServiceId = 'outstation' | 'airport' | 'rental' | 'multicity';
 
 export interface ServiceMeta {
   id: ServiceId;
@@ -14,20 +14,12 @@ export interface ServiceMeta {
 
 export const SERVICES: readonly ServiceMeta[] = [
   {
-    id: 'one-way',
-    label: 'One Way',
-    tagline: 'Intercity one-way drops at flat rates',
+    id: 'outstation',
+    label: 'Outstation',
+    tagline: 'One-way drops & round trips at fixed rates',
     tripType: 'One Way',
     online: true,
-    icon: 'one-way',
-  },
-  {
-    id: 'round-trip',
-    label: 'Round Trip',
-    tagline: 'Out and back round trips with chauffeur',
-    tripType: 'Round Trip',
-    online: true,
-    icon: 'round-trip',
+    icon: 'car',
   },
   {
     id: 'airport',
@@ -45,26 +37,33 @@ export const SERVICES: readonly ServiceMeta[] = [
     online: true,
     icon: 'clock',
   },
+  {
+    id: 'multicity',
+    label: 'Multicity',
+    tagline: 'Custom multi-stop itineraries & tour packages',
+    tripType: null,
+    online: true,
+    icon: 'multicity',
+  },
 ] as const;
 
 export const SERVICE_TITLE: Record<ServiceId, string> = {
-  'one-way': 'One Way Drop Taxi',
-  'round-trip': 'Round Trip Taxi',
+  outstation: 'Outstation Cabs',
   airport: 'Airport Taxi',
   rental: 'Local City Rental',
+  multicity: 'Multicity Tour & Itinerary',
 };
 
 export const parseService = (raw: string | null): ServiceId | null => {
-  if (raw === 'one-way' || raw === 'round-trip' || raw === 'airport' || raw === 'rental') return raw;
-  if (raw === 'outstation') return 'one-way';
+  if (raw === 'outstation' || raw === 'airport' || raw === 'rental' || raw === 'multicity') return raw;
+  if (raw === 'one-way' || raw === 'round-trip') return 'outstation';
   return null;
 };
 
 export const serviceOfTrip = (t: TripType | null | undefined): ServiceId => {
   if (t === 'Airport Taxi') return 'airport';
   if (t === 'Local Rental') return 'rental';
-  if (t === 'Round Trip') return 'round-trip';
-  return 'one-way';
+  return 'outstation';
 };
 
 export function tripTypeLabel(t: TripType | string): string {

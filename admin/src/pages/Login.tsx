@@ -41,14 +41,14 @@ export default function Login({ onSignUp }: { onSignUp?: () => void }) {
           </div>
         )}
         <div className="ds-field">
-          <label htmlFor={emailId}>Email address</label>
+          <label htmlFor={emailId}>Username or email address</label>
           <input
             id={emailId}
-            type="email"
+            type="text"
             autoComplete="username"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@nesam.in"
+            placeholder="Staff username or admin email"
             className="ds-input"
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}

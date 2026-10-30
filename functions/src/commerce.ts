@@ -23,6 +23,7 @@ import { splitPricing } from './domain/pricingPrivacy';
 import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeFor, text } from './shared';
+import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 function place(v: any): GeoPlace {
   if (!v || !inIndia(v.lat, v.lng)) throw new HttpsError('invalid-argument', 'Choose valid pickup and drop locations in India.');
@@ -56,6 +57,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const when = scheduled;
   const pickup = place(input.pickup), drop = place(input.drop);
   const route = await routeFor(pickup, drop);
+  const bookingBrand = resolveAndValidateBrand(input, request);
   const tripType: TripType =
     input.tripType === 'Round Trip'
       ? 'Round Trip'
@@ -64,6 +66,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       : input.tripType === 'Airport Taxi'
       ? 'Airport Taxi'
       : 'One Way';
+  assertServiceSupported(bookingBrand, tripType);
   // A round trip is billed by Indian calendar date, so the customer states when it ends.
   let tripEndAt: Date | null = null;
   if (tripType === 'Round Trip') {
@@ -135,7 +138,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType));
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
-    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null };
+    const priceInput = { category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).
@@ -175,17 +178,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const time = formatTime12(when);
     const bookingCode = await nextBookingCode(tx, now);
     const stamp = FieldValue.serverTimestamp();
-    const rawSource = text(input.bookingSource || input.source || input.brand || '');
-    let bookingSource = 'customer';
-    if (rawSource.toLowerCase().includes('oneway') || rawSource.toLowerCase().includes('one_way')) {
-      bookingSource = 'onewaycarrentals';
-    } else if (rawSource.toLowerCase().includes('people')) {
-      bookingSource = 'people_taxi';
-    } else if (rawSource.toLowerCase().includes('nesam')) {
-      bookingSource = 'nesam';
-    } else if (rawSource) {
-      bookingSource = rawSource;
-    }
+    const bookingSource = bookingBrand;
     // The booking keeps the customer side of the pricing snapshot; the partner side goes to booking_pricing_private in this same transaction.
     const storedPricing = storePricingInTx(tx, requestId, uid, priced.pricing);
     tx.create(ref, {

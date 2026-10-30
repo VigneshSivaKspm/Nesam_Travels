@@ -69,7 +69,8 @@ export async function signInAdmin(
   email: string,
   password: string,
 ): Promise<void> {
-  await signInWithEmailAndPassword(auth, email, password);
+  const login = email.trim().toLowerCase();
+  await signInWithEmailAndPassword(auth, login.includes("@") ? login : `${login}@staff.nesam.invalid`, password);
 }
 
 export async function signUpAdmin(
@@ -106,7 +107,7 @@ export function describeAuthError(error: unknown): string {
     case "auth/user-not-found":
     case "auth/invalid-credential":
     case "auth/wrong-password":
-      return "Incorrect email or password.";
+      return "Incorrect username/email or password.";
     case "auth/email-already-in-use":
       return "An account with this email already exists. Try signing in instead.";
     case "auth/weak-password":

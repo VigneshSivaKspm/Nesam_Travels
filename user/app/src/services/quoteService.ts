@@ -37,9 +37,11 @@ export interface QuoteRequest {
   scheduledAt: string;
   tripEndAt?: string | null;
   couponCode?: string;
+  /** Brand scope requesting the quote. */
+  brand?: string;
 }
 
 export const fetchQuotes = (req: QuoteRequest): Promise<ServerQuoteResponse> => callFunction<QuoteRequest, ServerQuoteResponse>('quoteBooking', req, 30000);
 
 /** Identity of a request, so a stale answer is never used for a changed trip. */
-export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.lat, r.pickup.lng, r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '']) : '');
+export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.lat, r.pickup.lng, r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '', r.brand ?? '']) : '');

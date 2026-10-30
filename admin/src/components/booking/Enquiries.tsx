@@ -13,9 +13,11 @@ const SUPPORT_LINE = "+91 9025099990";
 
 /** Copy-ready customer quote (no message is sent automatically). */
 export function quoteText(e: Enquiry): string {
+  const stopsText = e.stops && e.stops.length > 0 ? `Via: ${e.stops.map((s) => s.name).join(" → ")}` : "";
   return [
-    e.code,
+    `NESAM TOURS & TRAVELS — Quote ${e.code}`,
     `${e.pickup} → ${e.drop}`,
+    stopsText,
     e.pickupAt ? refDateTime(e.pickupAt) : "",
     `${e.tripType || "One Way"} · ${e.vehicle || ""}`,
     `Estimated total: ${rupee(e.estimate ?? null)}`,
@@ -117,6 +119,9 @@ export default function Enquiries({ stageCounts, onStage, onBack, onNewBooking, 
               <div className="min-w-0">
                 <div className="text-[11px] font-semibold text-faint">{e.code}</div>
                 <strong className="block text-[15px] text-ink mt-1">{e.pickup} → {e.drop}</strong>
+                {e.stops && e.stops.length > 0 ? (
+                  <p className="text-[11px] text-brand font-medium mt-0.5">Via: {e.stops.map((st) => st.name).join(" → ")}</p>
+                ) : null}
                 <p className="text-[12px] text-muted mt-1">{e.pickupAt ? refDateTime(e.pickupAt) : "Pickup not set"} · {e.vehicle || "Vehicle not chosen"}</p>
                 <p className="text-[12px] text-body mt-1">{e.customerName || "Enquiry customer"} {e.phone ? `+91 ${e.phone.replace(/^\+91/, "")}` : ""}</p>
               </div>
@@ -160,6 +165,19 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
             </div>
             <h2 className="text-[18px] font-bold text-ink">{e.pickup} → {e.drop}</h2>
             <p className="text-[12px] text-muted mt-1">{e.pickupAt ? refDateTime(e.pickupAt) : "Pickup not set"} · {e.tripType || "One Way"} · {e.vehicle || "—"}</p>
+            {e.stops && e.stops.length > 0 && (
+              <div className="mt-3 p-3 bg-sunken rounded border border-line">
+                <span className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-2">Multicity Itinerary ({e.stops.length} intermediate stops)</span>
+                <ol className="list-decimal list-inside text-[13px] text-ink grid gap-1">
+                  <li><strong>Start:</strong> {e.pickup}</li>
+                  {e.stops.map((s, idx) => (
+                    <li key={s.id || idx}><strong>Stop {idx + 1}:</strong> {s.name} {s.address && s.address !== s.name ? <span className="text-[11px] text-muted">({s.address})</span> : null}</li>
+                  ))}
+                  <li><strong>Destination:</strong> {e.drop}</li>
+                </ol>
+                {e.tripEndAt && <p className="text-[11px] text-muted mt-2">Expected tour end: {refDateTime(e.tripEndAt)}</p>}
+              </div>
+            )}
             <dl className="ds-facts mt-3" data-cols={3}>
               {fact("Customer", `${e.customerName || "Enquiry customer"} · ${e.phone ? `+91 ${e.phone.replace(/^\+91/, "")}` : "+91"}`)}
               {fact("WhatsApp", e.whatsapp || (e.phone ? `+91 ${e.phone.replace(/^\+91/, "")}` : "+91"))}
@@ -239,7 +257,7 @@ export function FareBreakupCard({ vehicle, lines, total, gstRate, extraKm, payou
 }
 
 function StatusDialog({ e, onClose, onSaved }: { e: Enquiry; onClose: () => void; onSaved: () => void }) {
-  const [status, setStatus] = useState<EnquiryStatus>(["New", "Call back", "No response", "Closed"].includes(e.status) ? e.status : "New");
+  const [status, setStatus] = useState<EnquiryStatus>(["New", "Call back", "No response", "Quote sent", "Customer accepted", "Closed"].includes(e.status) ? e.status : "New");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -260,7 +278,7 @@ function StatusDialog({ e, onClose, onSaved }: { e: Enquiry; onClose: () => void
         {error && <div className="ds-error" role="alert">{error}</div>}
         <label className="ds-field"><span>Status</span>
           <select className="ds-select" value={status} onChange={(x) => setStatus(x.target.value as EnquiryStatus)}>
-            {(["New", "Call back", "No response", "Closed"] as const).map((s) => <option key={s}>{s}</option>)}
+            {(["New", "Call back", "No response", "Quote sent", "Customer accepted", "Closed"] as const).map((s) => <option key={s}>{s}</option>)}
           </select>
         </label>
         <label className="ds-field"><span>Office note</span><textarea className="ds-input" rows={3} maxLength={300} value={note} onChange={(x) => setNote(x.target.value)} /></label>

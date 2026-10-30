@@ -84,7 +84,13 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
   const input = (request.data ?? {}) as Record<string, unknown>;
   const name = text(input.name, 80);
   const phone = text(input.phone, 20).replace(/\D/g, '').slice(-10);
-  const email = text(input.email, 120).toLowerCase();
+  const username = typeof input.username === 'string' ? input.username.trim().toLowerCase() : '';
+  const password = typeof input.password === 'string' ? input.password : '';
+  const directLogin = !input.uid && !!username;
+  if (directLogin && !/^[a-z][a-z0-9._-]{2,31}$/.test(username)) throw new HttpsError('invalid-argument', 'Username must be 3–32 characters, start with a letter, and contain only letters, numbers, dots, underscores or hyphens.');
+  if (directLogin && (password.length < 8 || password.length > 128)) throw new HttpsError('invalid-argument', 'Use a password between 8 and 128 characters.');
+  if (input.uid && (input.username !== undefined || input.password !== undefined)) throw new HttpsError('invalid-argument', 'Login credentials cannot be changed through the access editor.');
+  const email = directLogin ? `${username}@staff.nesam.invalid` : text(input.email, 120).toLowerCase();
   const branch = text(input.branch, 60);
   const preset = (STAFF_PRESETS as readonly string[]).includes(String(input.preset)) ? String(input.preset) : 'Custom';
   if (name.length < 2) throw new HttpsError('invalid-argument', 'Enter the staff member’s full name.');
@@ -102,7 +108,7 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
   const editing = !!uid;
   if (editing && !UID.test(uid)) throw new HttpsError('invalid-argument', 'Invalid staff account.');
   if (editing && uid === actor.uid) throw new HttpsError('failed-precondition', 'You cannot change your own access. Ask another super admin.');
-  const createStatus: StaffStatus = input.accountStatus === 'Active' ? 'Active' : 'Invited';
+  const createStatus: StaffStatus = directLogin || input.accountStatus === 'Active' ? 'Active' : 'Invited';
   const reason = editing ? reasonOf(input.reason ?? input.statusReason, 'access change') : text(input.reason ?? input.statusReason, 300);
 
   // Create requests carry a client id kept for the life of the form: a retry after a lost response
@@ -114,16 +120,26 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
   let created = false;
   let needsPassword = false;
   let previousEmail = '';
-  const replay = (d: FirebaseFirestore.DocumentData, id: string) => ({
-    uid: id, staffCode: text(d.staffCode, 20), permissions: Array.isArray(d.permissions) ? d.permissions : [], accessVersion: versionOf(d),
-    invite: { sent: false }, warnings: ['This Staff ID was already saved by an earlier attempt. If the person has no password link, use Resend invitation.'],
-  });
+  const replay = async (d: FirebaseFirestore.DocumentData, id: string) => {
+    const warnings = [d.username ? 'This Staff ID was already saved. Use the credentials from the original creation; this retry did not change its password.' : 'This Staff ID was already saved by an earlier attempt. If the person has no password link, use Resend invitation.'];
+    // A lost response or an Auth failure after the Firestore commit must be recoverable.
+    try {
+      await auth.updateUser(id, { disabled: !['Active', 'Invited'].includes(statusOf(d)) });
+    } catch {
+      warnings.push('The profile exists, but sign-in could not be synchronised. Retry saving or contact support.');
+    }
+    return {
+      uid: id, username: text(d.username, 32), staffCode: text(d.staffCode, 20), permissions: Array.isArray(d.permissions) ? d.permissions : [], accessVersion: versionOf(d),
+      invite: { sent: false }, warnings,
+    };
+  };
   if (editing) {
     const current = (await db.doc(`admins/${uid}`).get()).data();
     if (!current || current.role !== 'admin') throw new HttpsError('not-found', 'Staff ID not found.');
     if (identityKindOf(current) === 'master') throw new HttpsError('failed-precondition', 'Super Admin access is managed under Roles & sign-up requests.');
     expectVersion(current, input.expectedVersion);
     previousEmail = text(current.email, 120).toLowerCase();
+    if (current.username && previousEmail !== email) throw new HttpsError('invalid-argument', 'The sign-in username is fixed. Update only the staff profile and access.');
     if (previousEmail !== email) {
       // Checked now, applied only after the profile is saved (see below).
       const other = await auth.getUserByEmail(email).catch((e) => (e?.code === 'auth/user-not-found' ? null : Promise.reject(e)));
@@ -133,7 +149,8 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
     const existing = await auth.getUserByEmail(email).catch((e) => (e?.code === 'auth/user-not-found' ? null : Promise.reject(e)));
     if (existing) {
       const [admin, cust, drv, ven] = await Promise.all(['admins', 'customers', 'drivers', 'vendors'].map((c) => db.doc(`${c}/${existing.uid}`).get()));
-      if (admin.exists && admin.data()!.createRequestId === requestId) return replay(admin.data()!, existing.uid);
+      if (admin.exists && admin.data()!.createRequestId === requestId && admin.data()!.createdBy === actor.uid) return replay(admin.data()!, existing.uid);
+      if (directLogin) throw new HttpsError('already-exists', 'This username is already in use. Choose another username.');
       if (admin.exists) throw new HttpsError('already-exists', 'This email already has a staff ID or sign-up request.');
       if (cust.exists || drv.exists || ven.exists) throw new HttpsError('failed-precondition', 'This email belongs to a customer, driver or vendor account. Use a separate staff email.');
       uid = existing.uid;
@@ -141,9 +158,15 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
       needsPassword = !existing.metadata.lastSignInTime;
     } else {
       // Created disabled; enabled below only once the profile is saved, deleted if the save fails.
-      uid = (await auth.createUser({ email, displayName: name, emailVerified: false, disabled: true })).uid;
+      try {
+        uid = (await auth.createUser({ email, ...(directLogin ? { password } : {}), displayName: name, emailVerified: false, disabled: true })).uid;
+      } catch (error) {
+        if ((error as { code?: string }).code === 'auth/email-already-exists') throw new HttpsError('already-exists', 'This username or email is already in use.');
+        if (['auth/invalid-password', 'auth/password-does-not-meet-requirements', 'auth/invalid-email'].includes((error as { code?: string }).code ?? '')) throw new HttpsError('invalid-argument', 'The username or password does not meet the authentication requirements. Choose a different username or stronger password.');
+        throw new HttpsError('unavailable', 'The sign-in account could not be created. Retry after checking the authentication service configuration.');
+      }
       created = true;
-      needsPassword = true;
+      needsPassword = !directLogin;
     }
   }
 
@@ -177,6 +200,7 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
         permissions, dutyPermissions: duty, staffAccess: matrix, accessVersion, name, email, phone, branch, staffCode,
         statusHistory: FieldValue.arrayUnion(entry), updatedBy: actor.uid, updatedAt: stamp,
         ...(editing ? {} : { createdAt: stamp, createdBy: actor.uid, createRequestId: requestId }),
+        ...(directLogin ? { username } : {}),
       }, { merge: true });
       const ended = endGrantsAndSessions(tx, actor, 'Staff permissions changed', found);
       auditTx(tx, actor, editing ? 'staff_profile_updated' : 'staff_profile_created', uid, {
@@ -226,7 +250,36 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
       invite = { sent: false, error: 'The password-set link could not be generated. Use Resend invitation from the profile.' };
     }
   }
-  return { uid, staffCode: result.staffCode, permissions, accessVersion: result.accessVersion, invite, warnings };
+  return { uid, ...(directLogin ? { username } : {}), staffCode: result.staffCode, permissions, accessVersion: result.accessVersion, invite, warnings };
+});
+
+/** Master-only password reset for username accounts; passwords never enter Firestore or audit data. */
+export const resetStaffPassword = onCall({ timeoutSeconds: 60 }, async (request) => {
+  const actor = await requireSuperAdmin(request.auth);
+  const uid = text(request.data?.uid, 128);
+  if (!UID.test(uid) || uid === actor.uid) throw new HttpsError('invalid-argument', 'Choose another staff account.');
+  const password = typeof request.data?.password === 'string' ? request.data.password : '';
+  if (password.length < 8 || password.length > 128) throw new HttpsError('invalid-argument', 'Use a password between 8 and 128 characters.');
+  const reason = reasonOf(request.data?.reason, 'password reset');
+  const profile = (await db.doc(`admins/${uid}`).get()).data();
+  if (!profile || profile.staffRole !== STAFF_ROLE || !profile.username) throw new HttpsError('failed-precondition', 'Choose a username-based Staff ID.');
+  try {
+    await getAuth().updateUser(uid, { password });
+  } catch {
+    throw new HttpsError('failed-precondition', 'The password was not changed. Check the authentication service and password requirements, then retry.');
+  }
+  const warnings: string[] = [];
+  try {
+    await getAuth().revokeRefreshTokens(uid);
+    await db.runTransaction(async (tx) => {
+      const found = await grantsAndSessions(tx, uid, true);
+      const ended = endGrantsAndSessions(tx, actor, 'Staff password reset', found);
+      auditTx(tx, actor, 'staff_password_reset', uid, { username: profile.username, staffCode: text(profile.staffCode, 20), reason, ...ended });
+    });
+  } catch {
+    warnings.push('Password changed, but session cleanup or audit recording could not finish. Revoke all sessions from the staff profile.');
+  }
+  return { ok: true, warnings };
 });
 
 /** Lifecycle of a Staff ID: activate an invitation, suspend, deactivate or reactivate. */

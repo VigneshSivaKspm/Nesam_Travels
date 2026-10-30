@@ -24,6 +24,8 @@ export const ICONS: Record<string, string> = {
   'chevron-left': '<path d="m15 18-6-6 6-6"/>',
   'arrow-right': '<path d="M5 12h14M12 5l7 7-7 7"/>',
   'arrow-left': '<path d="M19 12H5M12 19l-7-7 7-7"/>',
+  'arrow-up': '<path d="M12 19V5M5 12l7-7 7 7"/>',
+  'arrow-down': '<path d="M12 5v14M19 12l-7 7-7-7"/>',
   swap: '<path d="m7 15-4-4 4-4"/><path d="M3 11h14"/><path d="m17 9 4 4-4 4"/><path d="M21 13H7"/>',
   user: '<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
   phone: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>',
@@ -41,6 +43,10 @@ export const ICONS: Record<string, string> = {
   briefcase: '<rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/>',
   route: '<circle cx="6" cy="19" r="3"/><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15"/><circle cx="18" cy="5" r="3"/>',
   luggage: '<rect width="14" height="16" x="5" y="6" rx="2"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><circle cx="9" cy="22" r="1"/><circle cx="15" cy="22" r="1"/>',
+  multicity: '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M9 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3"/>',
+  'travel-multicity': '<circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M9 18h3a3 3 0 0 0 3-3V9a3 3 0 0 1 3-3"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  minus: '<path d="M5 12h14"/>',
 };
 
 // Travel pictograms for airports, railway stations, hospitals, temples, IT corridors

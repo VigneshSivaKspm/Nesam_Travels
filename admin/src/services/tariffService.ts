@@ -23,6 +23,48 @@ export interface ExtraChargeRow { customer?: ExtraChargeSide; partner?: ExtraCha
 /** tariff_v2.extraCharges: keyed by the real vehicle category id; `version` counts saves of this section only. */
 export interface ExtraCharges { version?: number; freeWaitingMinutes?: number; waitingRoundingMinutes?: number; waitingRoundingScope?: "per_stop" | "combined"; taxTreatment?: "no_gst" | "tariff_gst"; categories?: Record<string, ExtraChargeRow> }
 
+/** Brand identifier used across booking portals and admin. */
+export type BrandId = "nesam" | "people_taxi" | "onewaycarrentals";
+export const BRANDS: { id: BrandId; name: string; tag: string }[] = [
+  { id: "nesam", name: "NESAM", tag: "Company Core" },
+  { id: "people_taxi", name: "People Taxi", tag: "Blue Transit" },
+  { id: "onewaycarrentals", name: "One Way Car Rentals", tag: "Emerald Drops" },
+];
+
+export const BRAND_LABELS: Record<BrandId, string> = {
+  nesam: "NESAM",
+  people_taxi: "People Taxi",
+  onewaycarrentals: "One Way Car Rentals",
+};
+
+/** Supported services for workspace selection (Notice: Round Trip is explicitly excluded). */
+export const WORKSPACE_SERVICES = ["One Way", "Airport Taxi", "Local Rental", "Multicity"] as const;
+export type WorkspaceService = (typeof WORKSPACE_SERVICES)[number];
+
+export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly WorkspaceService[]> = {
+  nesam: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
+  people_taxi: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
+  onewaycarrentals: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
+};
+
+export interface BrandFareOverride {
+  customerRate?: number;
+  partnerRate?: number;
+  customerBase?: number;
+  partnerBase?: number;
+  minKm?: number;
+  minKmPerDay?: number;
+  customerBata?: number;
+  partnerBata?: number;
+  extraKmRate?: number;
+  waitingPerHour?: number;
+  hillCharge?: number;
+  carrierCharge?: number;
+  rentalPackages?: Record<string, { customerFare?: number; partnerPayout?: number; includedKm?: number; extraKmRate?: number; extraHourRate?: number }>;
+  minRentalHours?: number;
+  enabled?: boolean;
+}
+
 /** business_config/tariff_v2 as stored. Anything absent is "not configured" — never zero. */
 export interface Tariff {
   version?: number;
@@ -32,10 +74,20 @@ export interface Tariff {
   roundTrip?: { maxDays?: number; classes?: Partial<Record<TariffClass, Partial<RoundTripRates>>> };
   cityDrop?: { baseKm?: number; zones?: Zone[] };
   outstationExtras?: Partial<Record<TariffClass, Partial<OutstationExtra>>>;
+  oneWayExtras?: Partial<Record<TariffClass, Partial<OutstationExtra>>>;
+  roundTripExtras?: Partial<Record<TariffClass, Partial<OutstationExtra>>>;
   airport?: { customerBase?: number; partnerBase?: number };
   localPickupDrop?: Record<string, { cityName?: string; classes?: Partial<Record<TariffClass, Partial<LocalFare>>> }>;
   rentalPackages?: Partial<Record<TariffClass, { minHours?: number; packages?: Partial<Record<string, Partial<RentalPackage>>> }>>;
   extraCharges?: ExtraCharges;
+  brandOverrides?: Partial<Record<string, Partial<Record<string, Partial<Record<TariffClass, BrandFareOverride>>>>>>;
+}
+
+/** Journey-specific rates take precedence; old shared rates remain a backwards-compatible fallback. */
+export function outstationExtraFor(t: Tariff | null | undefined, cls: TariffClass, trip: "One Way" | "Round Trip") {
+  const specific = trip === "One Way" ? t?.oneWayExtras : t?.roundTripExtras;
+  return specific?.[cls] ?? t?.outstationExtras?.[cls]
+    ?? (cls === "innova" ? specific?.suv ?? t?.outstationExtras?.suv : undefined);
 }
 
 /** Live tariff document: undefined = loading, null = nothing saved yet. */
@@ -58,4 +110,73 @@ export function validLocalFare(f: Partial<LocalFare> | undefined): f is LocalFar
 
 export function validPackage(p: Partial<RentalPackage> | undefined): p is RentalPackage {
   return !!p && [p.customerFare, p.partnerPayout, p.includedKm, p.extraKmRate, p.extraHourRate].every((v) => finite(v) && v > 0) && (p.gstMode === "included" || p.gstMode === "excluded") && typeof p.enabled === "boolean";
+}
+
+export type RateSource = "common" | "override";
+
+export interface RateValue {
+  value: number | undefined;
+  source: RateSource;
+  label: string;
+  isExplicitZero: boolean;
+}
+
+/** Resolves the effective value and whether it originates from a Brand override or the Common baseline. */
+export function resolveRate(
+  tariff: Tariff | null | undefined,
+  brandId: BrandId | "common",
+  service: WorkspaceService,
+  cls: TariffClass,
+  field: keyof BrandFareOverride,
+  commonValue: number | undefined
+): RateValue {
+  if (brandId === "common") {
+    return {
+      value: commonValue,
+      source: "common",
+      label: "Common baseline",
+      isExplicitZero: commonValue === 0,
+    };
+  }
+
+  const brandOverride = tariff?.brandOverrides?.[brandId]?.[service]?.[cls];
+  const overrideVal = brandOverride ? (brandOverride[field] as number | undefined) : undefined;
+
+  if (typeof overrideVal === "number" && Number.isFinite(overrideVal)) {
+    return {
+      value: overrideVal,
+      source: "override",
+      label: `${BRAND_LABELS[brandId]} override`,
+      isExplicitZero: overrideVal === 0,
+    };
+  }
+
+  return {
+    value: commonValue,
+    source: "common",
+    label: "Common rate (inherited)",
+    isExplicitZero: commonValue === 0,
+  };
+}
+
+/** Identifies which brands still inherit the common value for a specific service, category and field. */
+export function getInheritingBrands(
+  tariff: Tariff | null | undefined,
+  service: WorkspaceService,
+  cls: TariffClass,
+  field: keyof BrandFareOverride
+): { inheriting: string[]; overridden: { brand: string; value: number }[] } {
+  const inheriting: string[] = [];
+  const overridden: { brand: string; value: number }[] = [];
+
+  for (const b of BRANDS) {
+    const val = tariff?.brandOverrides?.[b.id]?.[service]?.[cls]?.[field] as number | undefined;
+    if (typeof val === "number" && Number.isFinite(val)) {
+      overridden.push({ brand: b.name, value: val });
+    } else {
+      inheriting.push(b.name);
+    }
+  }
+
+  return { inheriting, overridden };
 }

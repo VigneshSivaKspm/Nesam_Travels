@@ -36,6 +36,9 @@ const FLAG_SECTIONS: { group: FlagGroup; title: string; note: string; items: [st
 ];
 
 interface Draft {
+  username: string;
+  password: string;
+  confirmPassword: string;
   name: string;
   phone: string;
   email: string;
@@ -56,9 +59,10 @@ function initialDraft(account: StaffAccount | null): Draft {
   const p = account?.profile;
   if (!account || !p) {
     const preset = presetAccess("Booking staff");
-    return { name: "", phone: "", email: "", branch: "", preset: "Booking staff", accountStatus: "Invited", matrix: preset.matrix, duty: preset.duty, reason: "" };
+    return { username: "", password: "", confirmPassword: "", name: "", phone: "", email: "", branch: "", preset: "Booking staff", accountStatus: "Active", matrix: preset.matrix, duty: preset.duty, reason: "" };
   }
   return {
+    username: account.username ?? "", password: "", confirmPassword: "",
     name: account.name, phone: p.phone, email: account.email, branch: p.branch, preset: isPreset(p.preset) ? p.preset : "Custom",
     accountStatus: p.accountStatus === "Active" ? "Active" : "Invited", matrix: clone(p.matrix), duty: [...p.duty], reason: "",
   };
@@ -91,11 +95,16 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
 
   const dirty = !same(d, initial);
   const status: StaffStatus = editing ? account!.profile?.accountStatus ?? "Inactive" : d.accountStatus;
-  const identityErrors = validateStaffIdentity(d);
+  const identityErrors = validateStaffIdentity({ ...d, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid` });
+  const credentialError = !editing ? (
+    !/^[a-z][a-z0-9._-]{2,31}$/.test(d.username.trim().toLowerCase()) ? "Username must be 3–32 characters, start with a letter, and use letters, numbers, dots, underscores or hyphens."
+      : d.password.length < 8 || d.password.length > 128 ? "Use a password between 8 and 128 characters."
+        : d.password !== d.confirmPassword ? "Passwords do not match." : ""
+  ) : "";
   const missing = useMemo(() => missingRequirements(d.matrix, d.duty), [d.matrix, d.duty]);
   const problems = useMemo(() => accessProblems(d.matrix, d.duty, status).filter((p) => !p.startsWith("Missing ")), [d.matrix, d.duty, status]);
   const reasonError = editing && d.reason.trim().length < 5 ? "Record why this access is changing (at least 5 characters)." : "";
-  const blocked = Object.keys(identityErrors).length > 0 || missing.length > 0 || problems.length > 0 || !!reasonError;
+  const blocked = Object.keys(identityErrors).length > 0 || !!credentialError || missing.length > 0 || problems.length > 0 || !!reasonError;
 
   // Leaving the page with unsaved edits asks first.
   useEffect(() => {
@@ -175,8 +184,8 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
     setError(null);
     try {
       const result = await saveStaffProfile({
-        ...(editing ? { uid: account!.uid, expectedVersion: baseVersion } : { accountStatus: d.accountStatus, requestId }),
-        name: d.name, phone: d.phone, email: d.email, branch: d.branch, preset: d.preset, access: d.matrix, duty: d.duty, reason: d.reason,
+        ...(editing ? { uid: account!.uid, expectedVersion: baseVersion } : { accountStatus: "Active", requestId, username: d.username.trim().toLowerCase(), password: d.password }),
+        name: d.name, phone: d.phone, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid`, branch: d.branch, preset: d.preset, access: d.matrix, duty: d.duty, reason: d.reason,
       });
       onSaved(result, !editing, { name: d.name.trim(), email: d.email.trim().toLowerCase() });
     } catch (e) {
@@ -228,7 +237,14 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {field("Full name *", "name", { maxLength: 80 })}
             {field("Mobile *", "phone", { maxLength: 10, inputMode: "numeric" })}
-            {field("Email (sign-in) *", "email", { type: "email", maxLength: 120 })}
+            {editing ? (account?.username ? <div><span className="block text-[11px] font-semibold text-muted mb-1">Username</span><input className={input} value={account.username} readOnly /></div> : field("Email (sign-in) *", "email", { type: "email", maxLength: 120 })) : (
+              <>
+                <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Username *</span><input className={input} value={d.username} onChange={(e) => setD({ ...d, username: e.target.value })} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} /></label>
+                <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Password *</span><input className={input} type="password" value={d.password} onChange={(e) => setD({ ...d, password: e.target.value })} minLength={8} maxLength={128} autoComplete="new-password" /></label>
+                <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Confirm password *</span><input className={input} type="password" value={d.confirmPassword} onChange={(e) => setD({ ...d, confirmPassword: e.target.value })} maxLength={128} autoComplete="new-password" /></label>
+                {touched && credentialError && <p role="alert" className="text-[11px] text-red-600">{credentialError}</p>}
+              </>
+            )}
             {field("Branch · optional", "branch", { maxLength: 60 })}
             <label className="block">
               <span className="block text-[11px] font-semibold text-muted mb-1">Role preset</span>
@@ -237,13 +253,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
               </select>
             </label>
             {!editing ? (
-              <label className="block">
-                <span className="block text-[11px] font-semibold text-muted mb-1">Account status</span>
-                <select value={d.accountStatus} onChange={(e) => setD({ ...d, accountStatus: e.target.value as Draft["accountStatus"] })} className={input}>
-                  <option value="Invited">Invited — activate after they set a password</option>
-                  <option value="Active">Active — access starts once they sign in</option>
-                </select>
-              </label>
+              <div className="text-[11px] text-muted self-end pb-2">Active — staff can sign in immediately with the username and password you set. Share these credentials privately.</div>
             ) : (
               <div className="text-[11px] text-muted self-end pb-2">Status changes (activate, suspend, deactivate, reactivate) are made from the profile, with a reason.</div>
             )}

@@ -7,10 +7,18 @@ import { collection, doc, onSnapshot, runTransaction, serverTimestamp, Timestamp
 import { auth, db } from "./firebase";
 import { describeDataError } from "./adminFirestoreService";
 
-export const ENQUIRY_STATUSES = ["New", "Call back", "No response", "Draft", "Converted", "Closed", "Expired"] as const;
+export const ENQUIRY_STATUSES = ["New", "Call back", "No response", "Draft", "Quote sent", "Customer accepted", "Converted", "Closed", "Expired"] as const;
 export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
 
 export interface EnquiryBreakupLine { label: string; amount: number }
+
+export interface EnquiryStop {
+  id: string;
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+}
 
 export interface Enquiry {
   id: string;
@@ -18,6 +26,12 @@ export interface Enquiry {
   status: EnquiryStatus;
   pickup: string;
   drop: string;
+  stops?: EnquiryStop[];
+  itinerary?: string[];
+  tripEndAt?: Timestamp | null;
+  submissionId?: string;
+  customerId?: string;
+  customerAcceptedEstimate?: number;
   pickupPoint?: { lat: number; lng: number; name?: string; address: string; type?: string } | null;
   dropPoint?: { lat: number; lng: number; name?: string; address: string; type?: string } | null;
   pickupAt?: Timestamp | null;
@@ -40,6 +54,7 @@ export interface Enquiry {
   source?: string;
   validUntil?: Timestamp | null;
   sentAt?: Timestamp | null;
+  acceptedAt?: Timestamp | null;
   handler?: { uid: string; name: string } | null;
   nextAction?: string;
   due?: Timestamp | null;
@@ -102,7 +117,7 @@ export async function updateEnquiryStatus(id: string, status: EnquiryStatus, not
 
 export async function markEnquirySent(id: string) {
   const who = me();
-  await updateDoc(doc(db, COL, id), { sentAt: Timestamp.now(), history: arrayUnion({ status: "Quote sent", byName: who.name, at: Timestamp.now() }) });
+  await updateDoc(doc(db, COL, id), { status: "Quote sent", sentAt: Timestamp.now(), history: arrayUnion({ status: "Quote sent", byName: who.name, at: Timestamp.now() }) });
 }
 
 export async function assignEnquiryHandler(id: string, patch: { handler: { uid: string; name: string } | null; nextAction: string; due: Date | null; handoverNote: string }) {

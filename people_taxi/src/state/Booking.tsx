@@ -129,6 +129,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
       couponCode: promoCode || '',
+      brand: 'people_taxi',
     };
   }, [draft]);
   // The booking server only quotes for a signed-in, active rider. Until the account is ready no

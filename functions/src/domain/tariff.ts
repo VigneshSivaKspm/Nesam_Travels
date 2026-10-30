@@ -69,6 +69,25 @@ export interface RentalClassConfig { minHours?: number; packages: Partial<Record
 /** Minimum rental hours of a category that has none saved yet. */
 export const DEFAULT_RENTAL_MIN_HOURS: Readonly<Record<TariffClass, number>> = { sedan: 4, suv: 4, innova: 4, crysta: 10 };
 
+/** Brand-scoped fare override for a specific service and vehicle class. */
+export interface BrandFareOverride {
+  customerRate?: number;
+  partnerRate?: number;
+  customerBase?: number;
+  partnerBase?: number;
+  minKm?: number;
+  minKmPerDay?: number;
+  customerBata?: number;
+  partnerBata?: number;
+  extraKmRate?: number;
+  waitingPerHour?: number;
+  hillCharge?: number;
+  carrierCharge?: number;
+  rentalPackages?: Record<string, { customerFare?: number; partnerPayout?: number; includedKm?: number; extraKmRate?: number; extraHourRate?: number }>;
+  minRentalHours?: number;
+  enabled?: boolean;
+}
+
 export interface TariffConfig {
   /** Rupee amounts. Absent = not configured (never zero). */
   version: number;
@@ -79,11 +98,15 @@ export interface TariffConfig {
   rental: { classes: Partial<Record<TariffClass, RentalRates>> };
   cityDrop: { baseKm: number; zones: CityZone[]; classes: Partial<Record<TariffClass, CityDropRates>> };
   outstationExtras?: Partial<Record<TariffClass, OutstationExtra>>;
+  oneWayExtras?: Partial<Record<TariffClass, OutstationExtra>>;
+  roundTripExtras?: Partial<Record<TariffClass, OutstationExtra>>;
   airport?: AirportRates;
   localPickupDrop?: Record<string, LocalCityFares>;
   rentalPackages?: Partial<Record<TariffClass, RentalClassConfig>>;
   /** Waiting, hill and roof carrier rates by vehicle category (see domain/extraCharges.ts). */
   extraCharges?: ExtraChargesConfig;
+  /** Brand-specific fare overrides organized by Brand -> Service -> Category. */
+  brandOverrides?: Partial<Record<string, Partial<Record<string, Partial<Record<TariffClass, BrandFareOverride>>>>>>;
 }
 
 /** The values the owner confirmed on 09 Oct 2026 (Crysta one-way bata ₹600 supersedes ₹500). */
@@ -185,14 +208,169 @@ function parseRentalPackages(v: unknown): Partial<Record<TariffClass, RentalClas
   return Object.keys(out).length ? out : undefined;
 }
 
+function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const out: NonNullable<TariffConfig['brandOverrides']> = {};
+  for (const [brand, services] of Object.entries(raw as Record<string, any>)) {
+    if (!services || typeof services !== 'object') continue;
+    out[brand] = {};
+    for (const [service, classes] of Object.entries(services as Record<string, any>)) {
+      if (!classes || typeof classes !== 'object') continue;
+      out[brand][service] = {};
+      for (const [cls, rates] of Object.entries(classes as Record<string, any>)) {
+        if (!rates || typeof rates !== 'object') continue;
+        const r: BrandFareOverride = {};
+        if (isNum(rates.customerRate)) r.customerRate = rates.customerRate;
+        if (isNum(rates.partnerRate)) r.partnerRate = rates.partnerRate;
+        if (isNum(rates.customerBase)) r.customerBase = rates.customerBase;
+        if (isNum(rates.partnerBase)) r.partnerBase = rates.partnerBase;
+        if (isNum(rates.minKm)) r.minKm = rates.minKm;
+        if (isNum(rates.minKmPerDay)) r.minKmPerDay = rates.minKmPerDay;
+        if (isNum(rates.customerBata)) r.customerBata = rates.customerBata;
+        if (isNum(rates.partnerBata)) r.partnerBata = rates.partnerBata;
+        if (isNum(rates.extraKmRate)) r.extraKmRate = rates.extraKmRate;
+        if (isNum(rates.waitingPerHour)) r.waitingPerHour = rates.waitingPerHour;
+        if (isNum(rates.hillCharge)) r.hillCharge = rates.hillCharge;
+        if (isNum(rates.carrierCharge)) r.carrierCharge = rates.carrierCharge;
+        if (isNum(rates.minRentalHours)) r.minRentalHours = rates.minRentalHours;
+        if (typeof rates.enabled === 'boolean') r.enabled = rates.enabled;
+        if (rates.rentalPackages && typeof rates.rentalPackages === 'object') {
+          r.rentalPackages = rates.rentalPackages;
+        }
+        out[brand][service][cls as TariffClass] = r;
+      }
+    }
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/**
+ * Resolves a brand-scoped tariff configuration.
+ * Brand-specific overrides take precedence over the shared baseline rates.
+ * Missing overrides cleanly inherit the common rate (never ₹0).
+ * Explicit zero values in overrides are preserved where business rules permit.
+ */
+export function scopedTariffForBrand(
+  base: TariffConfig,
+  brand: string | undefined,
+  service: string
+): TariffConfig {
+  if (!brand || !base.brandOverrides || !base.brandOverrides[brand]) {
+    return base;
+  }
+
+  const brandServices = base.brandOverrides[brand];
+  const serviceKey =
+    service === 'One Way' || service === 'Outstation'
+      ? 'One Way'
+      : service === 'Airport Taxi' || service === 'Airport'
+      ? 'Airport Taxi'
+      : service === 'Local Rental' || service === 'Rental'
+      ? 'Local Rental'
+      : service === 'Multicity'
+      ? 'Multicity'
+      : service;
+
+  const overrides = brandServices[serviceKey];
+  if (!overrides || !Object.keys(overrides).length) {
+    return base;
+  }
+
+  // Clone base config and apply scoped overrides
+  const next: TariffConfig = {
+    ...base,
+    oneWay: { ...base.oneWay, classes: { ...base.oneWay.classes } },
+    outstationExtras: { ...(base.outstationExtras ?? {}) },
+    oneWayExtras: { ...(base.oneWayExtras ?? {}) },
+    airport: base.airport ? { ...base.airport } : undefined,
+    rentalPackages: base.rentalPackages ? { ...base.rentalPackages } : undefined,
+  };
+
+  if (serviceKey === 'One Way') {
+    for (const cls of TARIFF_CLASSES) {
+      const ov = overrides[cls];
+      if (!ov) continue;
+      const common = base.oneWay.classes[cls];
+      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined) {
+        next.oneWay.classes[cls] = {
+          customerRate: ov.customerRate !== undefined ? ov.customerRate : (common?.customerRate ?? 0),
+          partnerRate: ov.partnerRate !== undefined ? ov.partnerRate : (common?.partnerRate ?? 0),
+          customerBata: ov.customerBata !== undefined ? ov.customerBata : (common?.customerBata ?? 0),
+          partnerBata: ov.partnerBata !== undefined ? ov.partnerBata : (common?.partnerBata ?? 0),
+        };
+      }
+      if (ov.minKm !== undefined && ov.minKm > 0) {
+        next.oneWay.minKm = ov.minKm;
+      }
+      const commonExtra = outstationExtraFor(base, cls, 'One Way');
+      if (ov.extraKmRate !== undefined || ov.waitingPerHour !== undefined) {
+        next.oneWayExtras![cls] = {
+          extraKmRate: ov.extraKmRate !== undefined ? ov.extraKmRate : (commonExtra?.extraKmRate ?? ov.customerRate ?? 15),
+          waitingPerHour: ov.waitingPerHour !== undefined ? ov.waitingPerHour : (commonExtra?.waitingPerHour ?? 0),
+        };
+      }
+    }
+  } else if (serviceKey === 'Airport Taxi') {
+    for (const cls of TARIFF_CLASSES) {
+      const ov = overrides[cls];
+      if (!ov) continue;
+      if (ov.customerBase !== undefined || ov.partnerBase !== undefined) {
+        next.airport = {
+          customerBase: ov.customerBase !== undefined ? ov.customerBase : (base.airport?.customerBase ?? 0),
+          partnerBase: ov.partnerBase !== undefined ? ov.partnerBase : (base.airport?.partnerBase ?? 0),
+        };
+      }
+      const commonExtra = base.outstationExtras?.[cls];
+      if (ov.extraKmRate !== undefined || ov.waitingPerHour !== undefined) {
+        next.outstationExtras![cls] = {
+          extraKmRate: ov.extraKmRate !== undefined ? ov.extraKmRate : (commonExtra?.extraKmRate ?? 15),
+          waitingPerHour: ov.waitingPerHour !== undefined ? ov.waitingPerHour : (commonExtra?.waitingPerHour ?? 0),
+        };
+      }
+    }
+  } else if (serviceKey === 'Local Rental') {
+    if (next.rentalPackages) {
+      for (const cls of TARIFF_CLASSES) {
+        const ov = overrides[cls];
+        if (!ov) continue;
+        const commonClass = base.rentalPackages?.[cls];
+        if (ov.rentalPackages) {
+          const mergedPkgs = { ...(commonClass?.packages ?? {}) };
+          for (const [hrs, pkg] of Object.entries(ov.rentalPackages)) {
+            const basePkg = commonClass?.packages?.[hrs];
+            mergedPkgs[hrs] = {
+              customerFare: pkg.customerFare !== undefined ? pkg.customerFare : (basePkg?.customerFare ?? 0),
+              partnerPayout: pkg.partnerPayout !== undefined ? pkg.partnerPayout : (basePkg?.partnerPayout ?? 0),
+              includedKm: pkg.includedKm !== undefined ? pkg.includedKm : (basePkg?.includedKm ?? 0),
+              extraKmRate: pkg.extraKmRate !== undefined ? pkg.extraKmRate : (basePkg?.extraKmRate ?? 0),
+              extraHourRate: pkg.extraHourRate !== undefined ? pkg.extraHourRate : (basePkg?.extraHourRate ?? 0),
+              gstMode: basePkg?.gstMode ?? 'excluded',
+              enabled: true,
+            };
+          }
+          next.rentalPackages[cls] = {
+            minHours: ov.minRentalHours ?? commonClass?.minHours,
+            packages: mergedPkgs,
+          };
+        }
+      }
+    }
+  }
+
+  return next;
+}
+
 /** Parses business_config/tariff_v2. Anything malformed is dropped (treated as not configured). */
 export function parseTariffConfig(d: Record<string, any> | undefined | null): TariffConfig | null {
   if (!d || typeof d !== 'object') return null;
   const airportOk = isNum(d.airport?.customerBase) && isNum(d.airport?.partnerBase);
   const extras = rateMap<OutstationExtra>(d.outstationExtras, ['extraKmRate', 'waitingPerHour']);
+  const oneWayExtras = rateMap<OutstationExtra>(d.oneWayExtras, ['extraKmRate', 'waitingPerHour']);
+  const roundTripExtras = rateMap<OutstationExtra>(d.roundTripExtras, ['extraKmRate', 'waitingPerHour']);
   const localPickupDrop = parseLocalPickupDrop(d.localPickupDrop);
   const rentalPackages = parseRentalPackages(d.rentalPackages);
   const extraCharges = parseExtraCharges(d.extraCharges);
+  const brandOverrides = parseBrandOverrides(d.brandOverrides);
   const zones: CityZone[] = Array.isArray(d.cityDrop?.zones)
     ? d.cityDrop.zones.filter((z: any) => z && typeof z.id === 'string' && isNum(z.radiusKm) && z.radiusKm > 0 && Number.isFinite(z.lat) && Number.isFinite(z.lng))
         .map((z: any) => ({ id: z.id, name: String(z.name ?? z.id), lat: z.lat, lng: z.lng, radiusKm: z.radiusKm }))
@@ -209,10 +387,13 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     rental: { classes: rateMap<RentalRates>(d.rental?.classes, ['firstHour', 'laterHour', 'minHours', 'minTimeFare', 'partnerPerHour']) },
     cityDrop: { baseKm: isNum(d.cityDrop?.baseKm) && d.cityDrop.baseKm > 0 ? d.cityDrop.baseKm : 20, zones, classes: rateMap<CityDropRates>(d.cityDrop?.classes, ['customerBase', 'customerExtraKm', 'partnerBase', 'partnerExtraKm']) },
     ...(Object.keys(extras).length ? { outstationExtras: extras } : {}),
+    ...(Object.keys(oneWayExtras).length ? { oneWayExtras } : {}),
+    ...(Object.keys(roundTripExtras).length ? { roundTripExtras } : {}),
     ...(airportOk ? { airport: { customerBase: d.airport.customerBase, partnerBase: d.airport.partnerBase } } : {}),
     ...(localPickupDrop ? { localPickupDrop } : {}),
     ...(rentalPackages ? { rentalPackages } : {}),
     ...(extraCharges ? { extraCharges } : {}),
+    ...(brandOverrides ? { brandOverrides } : {}),
   };
 }
 
@@ -289,6 +470,10 @@ export interface PricingSnapshot {
   fixedRouteReversed?: boolean;
   businessCustomerRatePaise?: number;
   businessGstMode?: GstMode;
+  /** Brand scope applied to price this booking. */
+  brand?: string;
+  /** True when brand-specific overrides were used instead of common baseline. */
+  brandScoped?: boolean;
   /** Dates charged, IST, for round trips. */
   pickupDate: string;
   endDate: string | null;
@@ -369,8 +554,14 @@ function toBreakdown(args: {
  * duties. The saved "outstation extra usage" values win; with none saved the customer's own per-KM rate
  * applies, exactly as before they could be edited.
  */
-function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {
-  const x = classRates(cfg.outstationExtras ?? {}, cls);
+export function outstationExtraFor(cfg: TariffConfig, cls: TariffClass, trip: 'One Way' | 'Round Trip'): OutstationExtra | undefined {
+  const specific = trip === 'One Way' ? cfg.oneWayExtras : cfg.roundTripExtras;
+  return specific?.[cls] ?? cfg.outstationExtras?.[cls]
+    ?? (cls === 'innova' ? specific?.suv ?? cfg.outstationExtras?.suv : undefined);
+}
+
+function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number, trip: 'One Way' | 'Round Trip'): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {
+  const x = outstationExtraFor(cfg, cls, trip);
   return x ? { extraKmRatePaise: paise(x.extraKmRate), waiting: { waitingPerHourPaise: paise(x.waitingPerHour) } } : { extraKmRatePaise: ratePaise, waiting: {} };
 }
 
@@ -380,7 +571,7 @@ export function quoteOneWay(i: QuoteInput): QuoteResult {
   if (!r) throw new TariffError('rate-missing', 'The one-way tariff for this vehicle class is not configured.');
   const included = Math.max(i.config.oneWay.minKm, Math.round(i.routeKm * 10) / 10);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata);
-  const extra = extraUsage(i.config, i.tariffClass, ratePaise);
+  const extra = extraUsage(i.config, i.tariffClass, ratePaise, 'One Way');
   const distancePaise = kmAmountPaise(included, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, included - i.routeKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;
@@ -415,7 +606,7 @@ export function quoteRoundTrip(i: QuoteInput): QuoteResult {
   const floorKm = r.minKmPerDay * days;
   const billable = Math.max(actualKm, floorKm);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata) * days;
-  const extra = extraUsage(i.config, i.tariffClass, ratePaise);
+  const extra = extraUsage(i.config, i.tariffClass, ratePaise, 'Round Trip');
   const distancePaise = kmAmountPaise(billable, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, billable - actualKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;

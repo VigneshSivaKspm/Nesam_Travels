@@ -136,7 +136,7 @@ export const quoteKey = (f: ManualBookingForm) =>
   JSON.stringify([
     f.serviceId, f.pickup && [round5(f.pickup.lat), round5(f.pickup.lng)], f.drop && [round5(f.drop.lat), round5(f.drop.lng)],
     f.categoryId, f.tripType, f.pickupAt, f.tripType === "Round Trip" ? f.tripEndAt : "", f.discountType, f.discountType === "none" ? "" : f.discountValue.trim(),
-    (f.couponCode ?? "").trim(),
+    (f.couponCode ?? "").trim(), f.channel || "nesam",
   ]);
 
 /** The discount as a number, or an error message. null value = no discount. */

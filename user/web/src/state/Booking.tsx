@@ -142,6 +142,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
       couponCode: promoCode || '',
+      brand: 'nesam',
     };
   }, [draft]);
   const serverQuote = useServerQuotes(quoteRequest);

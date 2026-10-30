@@ -30,6 +30,7 @@ export class StaffActionError extends Error {
 
 export interface StaffAccount {
   uid: string;
+  username?: string;
   name: string;
   email: string;
   role: string;
@@ -139,6 +140,7 @@ function mapAccount(uid: string, d: Record<string, unknown>): StaffAccount {
   const access = accessFromAdminDoc(d);
   return {
     uid,
+    username: str(d.username),
     name: str(d.name),
     email: str(d.email),
     role: str(d.role),
@@ -274,6 +276,8 @@ export async function saveStaffRole(name: string, permissions: Permission[], rol
 
 export interface StaffProfileInput {
   uid?: string;
+  username?: string;
+  password?: string;
   name: string;
   phone: string;
   email: string;
@@ -294,6 +298,7 @@ export interface StaffProfileInput {
 
 export interface StaffSaveResult {
   uid: string;
+  username?: string;
   staffCode: string;
   accessVersion: number;
   invite: { sent: boolean; link?: string; error?: string };
@@ -315,6 +320,9 @@ export const saveStaffProfile = (input: StaffProfileInput) =>
 
 export const setStaffStatus = (uid: string, status: "Active" | "Inactive" | "Suspended", reason: string, expectedVersion: number) =>
   call<{ ok: boolean; grantsRevoked: number; sessionsEnded: number }>("setStaffStatus", { uid, status, reason: reason.trim(), expectedVersion });
+
+export const resetStaffPassword = (uid: string, password: string, reason: string) =>
+  call<{ ok: boolean; warnings: string[] }>("resetStaffPassword", { uid, password, reason: reason.trim() });
 
 const SESSION_ROWS = 50;
 

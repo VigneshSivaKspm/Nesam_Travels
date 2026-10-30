@@ -115,6 +115,7 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   deleteStaffRole: fns.deleteStaffRole,
   migrateLegacyAdmins: fns.migrateLegacyAdmins,
   saveStaffProfile: fns.saveStaffProfile,
+  resetStaffPassword: fns.resetStaffPassword,
   setStaffStatus: fns.setStaffStatus,
   getStaffBookings: fns.getStaffBookings,
   revokeStaffSessions: fns.revokeStaffSessions,
@@ -127,6 +128,10 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   sendNotification: fns.sendNotification,
   sendNoticeCampaign: fns.sendNoticeCampaign,
   retryFailedDeliveries: fns.retryFailedDeliveries,
+  // enquiries & multicity quotes
+  submitMulticityEnquiry: fns.submitMulticityEnquiry,
+  acceptEnquiryQuote: fns.acceptEnquiryQuote,
+  getCustomerEnquiries: fns.getCustomerEnquiries,
 });
 
 /** Names whose result changes a booking, so the booking is reconciled right after the call. */

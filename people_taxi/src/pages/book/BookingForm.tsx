@@ -3,12 +3,12 @@
 // schedule follows the booking server's rules; fares are only ever priced by the server.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { GeoPlace } from '@core/types';
+import type { GeoPlace, TripType } from '@core/types';
 import { useCustomerData } from '@/state/customer';
 import { reverseGeocode } from '@core/services/geoService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
-import { haversineKm, isValidLatLng } from '@core/utils/geo';
+import { isValidLatLng } from '@core/utils/geo';
 import { Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
@@ -20,6 +20,7 @@ import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
+import { MulticityForm } from './MulticityForm';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -39,11 +40,28 @@ const directionOf = (pickup: GeoPlace | null, drop: GeoPlace | null): AirportDir
   isAirportPlace(pickup) && !isAirportPlace(drop) ? 'from' : 'to';
 
 /** Compact two-way switch (journey type, airport direction): a quiet radio group, not another set of tabs. */
-function Segmented({ label, value, items, onChange }: { label: string; value: string; items: { id: string; label: string }[]; onChange: (id: string) => void }) {
+function Segmented({
+  label,
+  value,
+  items,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  items: { id: string; label: string }[];
+  onChange: (id: string) => void;
+}) {
   return (
     <div className="jd-seg" role="radiogroup" aria-label={label}>
       {items.map((i) => (
-        <button key={i.id} type="button" role="radio" aria-checked={value === i.id} className={`jd-seg__btn ${value === i.id ? 'is-on' : ''}`} onClick={() => onChange(i.id)}>
+        <button
+          key={i.id}
+          type="button"
+          role="radio"
+          aria-checked={value === i.id}
+          className={`jd-seg__btn ${value === i.id ? 'is-on' : ''}`}
+          onClick={() => onChange(i.id)}
+        >
           {i.label}
         </button>
       ))}
@@ -54,7 +72,7 @@ function Segmented({ label, value, items, onChange }: { label: string; value: st
 export function BookingForm({
   service,
   onService,
-  outstationTrip,
+  outstationTrip = 'One Way',
   onOutstationTrip,
 }: {
   service: ServiceId;
@@ -119,8 +137,10 @@ export function BookingForm({
     }
   }, [scheduled]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const isRoundTrip = service === 'outstation' && outstationTrip === 'Round Trip';
+
   useEffect(() => {
-    if (service === 'round-trip' && scheduled && scheduledEnd) {
+    if (isRoundTrip && scheduled && scheduledEnd) {
       if (scheduledEnd.getTime() < scheduled.getTime()) {
         setErrors((e) => ({ ...e, endTime: 'Return time must be after departure time' }));
       } else {
@@ -128,7 +148,7 @@ export function BookingForm({
         update({ tripEndAt: scheduledEnd });
       }
     }
-  }, [service, scheduled, scheduledEnd]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isRoundTrip, scheduled, scheduledEnd]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (service === 'rental' && draft.pickup && draft.drop?.id !== 'place-local-disposal') {
@@ -174,6 +194,7 @@ export function BookingForm({
     if (service === 'airport') {
       setAirportDir((dir) => (dir === 'to' ? 'from' : 'to'));
     }
+    setErrors((e) => ({ ...e, pickup: undefined, drop: undefined }));
   };
 
   const onAirportDirChange = (next: AirportDirection) => {
@@ -182,24 +203,6 @@ export function BookingForm({
       update((d) => ({ pickup: isAirportPlace(d.drop) ? null : d.drop, drop: d.pickup }));
     } else if (next === 'from' && isAirportPlace(draft.drop)) {
       update((d) => ({ pickup: d.drop, drop: isAirportPlace(d.pickup) ? null : d.pickup }));
-    }
-  };
-
-  const onLocateDevice = async () => {
-    const coords = await device.locate();
-    if (!coords) return;
-    try {
-      const p = await reverseGeocode({ lat: coords.lat, lng: coords.lng });
-      setPickup({ ...p, type: 'current' });
-    } catch {
-      setPickup({
-        id: `device-${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`,
-        name: 'Current location',
-        address: `${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}`,
-        lat: coords.lat,
-        lng: coords.lng,
-        type: 'current',
-      });
     }
   };
 
@@ -220,7 +223,7 @@ export function BookingForm({
       if (problem) err.time = problem;
     }
 
-    if (service === 'round-trip') {
+    if (isRoundTrip) {
       if (!endDate) err.endDate = 'Select return date';
       if (!endTime) err.endTime = 'Select return time';
       if (scheduled && scheduledEnd && scheduledEnd.getTime() < scheduled.getTime()) {
@@ -239,15 +242,28 @@ export function BookingForm({
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    const wantedTripType: TripType =
+      service === 'airport'
+        ? 'Airport Taxi'
+        : service === 'rental'
+          ? 'Local Rental'
+          : isRoundTrip
+            ? 'Round Trip'
+            : 'One Way';
+
+    update({
+      tripType: wantedTripType,
+      scheduledAt: scheduled,
+      tripEndAt: isRoundTrip ? scheduledEnd : null,
+    });
+
     if (auth.status === 'ready') {
       navigate('/book/ride');
       return;
     }
-    // Fares are priced by the booking server for a signed-in account. The trip is already kept in
-    // the draft (tab storage), so a guest signs in here and is then taken on to vehicle selection.
-    // The sign-in window being open is the guard against a duplicate request.
+
     if (isLoginModalOpen) return;
-    update({ scheduledAt: scheduled, tripEndAt: service === 'round-trip' ? scheduledEnd : null });
     setPendingReturn('/book/ride');
     openLoginModal({
       title: 'Sign in to see fares',
@@ -301,16 +317,19 @@ export function BookingForm({
   const isRental = service === 'rental';
   const fromAirport = service === 'airport' && airportDir === 'from';
   const toAirport = service === 'airport' && airportDir === 'to';
-  const roundTrip = service === 'round-trip';
 
   return (
     <div className="jd" id="book-console">
       <header className="jd-head">
         <h2>{SERVICE_TITLE[service]}</h2>
-        <p>Compare fares across all vehicle categories before booking</p>
+        <p>
+          {service === 'multicity'
+            ? 'Build your custom multi-stop tour itinerary and get an exact upfront quote'
+            : 'Compare fares across all vehicle categories before booking'}
+        </p>
       </header>
 
-      {/* Service rail */}
+      {/* Service rail: Outstation · Airport · Local Rental · Multicity */}
       <nav className="jd-rail" aria-label="Booking services">
         {SERVICES.map((s) => (
           <button
@@ -326,6 +345,23 @@ export function BookingForm({
         ))}
       </nav>
 
+      {/* Outstation sub-toggle: One Way / Round Trip */}
+      {service === 'outstation' ? (
+        <Segmented
+          label="Outstation journey type"
+          value={outstationTrip}
+          onChange={(t) => {
+            if (onOutstationTrip) onOutstationTrip(t as 'One Way' | 'Round Trip');
+            setErrors({});
+          }}
+          items={[
+            { id: 'One Way', label: 'One Way Drop' },
+            { id: 'Round Trip', label: 'Round Trip' },
+          ]}
+        />
+      ) : null}
+
+      {/* Airport direction sub-toggle */}
       {service === 'airport' ? (
         <Segmented
           label="Airport direction"
@@ -338,77 +374,99 @@ export function BookingForm({
         />
       ) : null}
 
-      <form className="jd-form" onSubmit={onSubmit} noValidate>
-          {/* Connected route panel: one surface, two stops joined by a line, swap in its own column */}
-          <div className={`jd-route ${isRental ? 'jd-route--single' : ''}`}>
-            <div className="jd-route__stops">
-              <div className={`jd-stop jd-stop--from ${errors.pickup ? 'is-invalid' : ''}`}>
-                <span className="jd-stop__mark" aria-hidden="true" />
-                <div className="jd-stop__body">
-                  <label htmlFor="bf-pickup" className="jd-label">
-                    {fromAirport ? 'Airport pickup' : 'Pickup location'}
-                  </label>
-                  <button
-                    ref={pickupInputRef}
-                    id="bf-pickup"
-                    type="button"
-                    className={`jd-value ${!draft.pickup ? 'is-empty' : ''}`}
-                    aria-describedby={errors.pickup ? 'bf-pickup-error' : undefined}
-                    onClick={() => setPickerField('pickup')}
-                  >
-                    <span className="jd-value__text">
-                      {draft.pickup?.name ?? (fromAirport ? 'Select departure airport' : 'Enter pickup city, area or landmark')}
-                    </span>
-                    {draft.pickup?.address && draft.pickup.address !== draft.pickup.name ? <span className="jd-value__addr">{draft.pickup.address}</span> : null}
-                  </button>
-                  {errors.pickup ? (
-                    <p id="bf-pickup-error" className="jd-error">
-                      {errors.pickup}
-                    </p>
-                  ) : null}
-                </div>
+      {/* If Multicity, show the full interactive itinerary form */}
+      {service === 'multicity' ? (
+        <MulticityForm />
+      ) : (
+        <form className="jd-form" onSubmit={onSubmit} noValidate>
+          {/* Separate Pickup and Drop boxes with central swap button */}
+          <div className={`jd-route-separated ${isRental ? 'jd-route-separated--single' : ''}`}>
+            {/* Pickup card */}
+            <div className={`jd-route-card ${errors.pickup ? 'is-invalid' : ''}`}>
+              <div className="jd-route-card__head">
+                <span className="jd-stop__mark is-pickup" aria-hidden="true" />
+                <label htmlFor="bf-pickup" className="jd-label">
+                  {fromAirport ? 'Airport pickup' : isRental ? 'Pickup in your city' : 'Pickup location'}
+                </label>
               </div>
-
-              {!isRental ? (
-                <div className={`jd-stop jd-stop--to ${errors.drop ? 'is-invalid' : ''}`}>
-                  <span className="jd-stop__mark" aria-hidden="true" />
-                  <div className="jd-stop__body">
-                    <label htmlFor="bf-drop" className="jd-label">
-                      {toAirport ? 'Airport destination' : 'Drop location'}
-                    </label>
-                    <button
-                      ref={dropInputRef}
-                      id="bf-drop"
-                      type="button"
-                      className={`jd-value ${!draft.drop ? 'is-empty' : ''}`}
-                      aria-describedby={errors.drop ? 'bf-drop-error' : undefined}
-                      onClick={() => setPickerField('drop')}
-                    >
-                      <span className="jd-value__text">
-                        {draft.drop?.name ?? (toAirport ? 'Select destination airport' : 'Enter destination city or landmark')}
-                      </span>
-                      {draft.drop?.address && draft.drop.address !== draft.drop.name ? <span className="jd-value__addr">{draft.drop.address}</span> : null}
-                    </button>
-                    {errors.drop ? (
-                      <p id="bf-drop-error" className="jd-error">
-                        {errors.drop}
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
+              <button
+                ref={pickupInputRef}
+                id="bf-pickup"
+                type="button"
+                className={`jd-value ${!draft.pickup ? 'is-empty' : ''}`}
+                aria-describedby={errors.pickup ? 'bf-pickup-error' : undefined}
+                onClick={() => setPickerField('pickup')}
+              >
+                <span className="jd-value__text">
+                  {draft.pickup?.name ?? (fromAirport ? 'Select departure airport' : 'Enter pickup city, area or landmark')}
+                </span>
+                {draft.pickup?.address && draft.pickup.address !== draft.pickup.name ? (
+                  <span className="jd-value__addr">{draft.pickup.address}</span>
+                ) : null}
+              </button>
+              {errors.pickup ? (
+                <p id="bf-pickup-error" className="jd-error">
+                  {errors.pickup}
+                </p>
               ) : null}
             </div>
 
+            {/* Swap button between pickup and drop */}
             {!isRental ? (
-              <div className="jd-route__side">
-                <button type="button" className="jd-swap" title="Swap pickup and drop" aria-label="Swap pickup and drop" onClick={swapPlaces}>
+              <div className="jd-swap-divider">
+                <button
+                  type="button"
+                  className="jd-swap-btn"
+                  title="Swap pickup and drop"
+                  aria-label="Swap pickup and drop"
+                  disabled={!draft.pickup && !draft.drop}
+                  onClick={swapPlaces}
+                >
                   <Icon name="swap" size={18} />
                 </button>
               </div>
             ) : null}
+
+            {/* Drop card */}
+            {!isRental ? (
+              <div className={`jd-route-card ${errors.drop ? 'is-invalid' : ''}`}>
+                <div className="jd-route-card__head">
+                  <span className="jd-stop__mark is-drop" aria-hidden="true" />
+                  <label htmlFor="bf-drop" className="jd-label">
+                    {toAirport ? 'Airport destination' : 'Drop location'}
+                  </label>
+                </div>
+                <button
+                  ref={dropInputRef}
+                  id="bf-drop"
+                  type="button"
+                  className={`jd-value ${!draft.drop ? 'is-empty' : ''}`}
+                  aria-describedby={errors.drop ? 'bf-drop-error' : undefined}
+                  onClick={() => setPickerField('drop')}
+                >
+                  <span className="jd-value__text">
+                    {draft.drop?.name ?? (toAirport ? 'Select destination airport' : 'Enter destination city or landmark')}
+                  </span>
+                  {draft.drop?.address && draft.drop.address !== draft.drop.name ? (
+                    <span className="jd-value__addr">{draft.drop.address}</span>
+                  ) : null}
+                </button>
+                {errors.drop ? (
+                  <p id="bf-drop-error" className="jd-error">
+                    {errors.drop}
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
 
-          {/* Schedule */}
+          {isRental ? (
+            <p className="jd-rental-note">
+              <Icon name="info" size={14} /> Chauffeur and vehicle remain at your disposal within city limits. Hourly and km packages are shown on the next step.
+            </p>
+          ) : null}
+
+          {/* Schedule Section */}
           <div className="jd-section" role="group" aria-labelledby="jd-sched">
             <p className="jd-section__title" id="jd-sched">
               Pickup schedule
@@ -448,7 +506,8 @@ export function BookingForm({
             </div>
           </div>
 
-          {roundTrip ? (
+          {/* Return schedule for Round Trips */}
+          {isRoundTrip ? (
             <div className="jd-section" role="group" aria-labelledby="jd-return">
               <p className="jd-section__title" id="jd-return">
                 Return schedule
@@ -504,6 +563,7 @@ export function BookingForm({
             </p>
           </div>
         </form>
+      )}
 
       {pickerField ? (
         <LocationPicker

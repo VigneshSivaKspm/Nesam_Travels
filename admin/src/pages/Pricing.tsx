@@ -15,11 +15,12 @@ import LocalFares from "../components/LocalFares";
 import FixedRouteFares from "../components/FixedRouteFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import VehicleCategoriesPage from "./VehicleCategories";
+import BrandServiceFareWorkspace from "../components/BrandServiceFareWorkspace";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { GST_STATES } from "../domain/gstStates";
 import { refDateTime } from "../domain/officeStage";
 
-type Tab = "Booking availability" | "Cab types" | "Pricing rules" | "More settings";
+type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings";
 type Sel = { state: string; city: string; area: string };
 const SERVICES = ["All", "One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"];
 const STATUS_FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled", "Removed"] as const;
@@ -44,7 +45,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   onOpenFareRules: (view: PricingView) => void;
   onOpenExtraCharges: (view: PricingView) => void;
 }) {
-  const [tab, setTab] = useState<Tab>(restore?.tab ?? "Booking availability");
+  const [tab, setTab] = useState<Tab>(restore?.tab ?? "Brand & service fares");
   const [cabSection, setCabSection] = useState<CabSection>(restore?.cabSection ?? "Customer cab rules");
   const [sel, setSel] = useState<Sel>(restore?.sel ?? { state: "", city: "", area: "" });
   const [rules, setRules] = useState<ServiceRule[]>([]);
@@ -131,26 +132,35 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     <div className="ds-page-body">
       <Toast toast={toast} />
       {loadError && <div className="ds-error mb-4" role="alert"><Icon name="circle-alert" />Saved settings could not be loaded: {loadError}. Check your pricing access and reload.</div>}
-      <PageHeader title="Service & Fare Settings" subtitle="Choose a location, then manage booking availability, cab types and fares." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={canTest ? undefined : "Test fare prices a trip through the booking server, which needs operations access."} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
-      <section className="ds-panel ds-panel-pad mb-5">
-        <span className="ds-eyebrow">LOCATION</span>
-        <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
-        <Ta>எந்த இடத்திற்கான setting?</Ta>
-        <div className="ds-filterbar mt-3">
-          <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.filter(([c, n]) => !states.length || states.includes(c) || states.includes(n)).map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}</select></label>
-          <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">All cities</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
-          <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">All areas</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
-        </div>
-        <p className="text-[11px] text-faint">Existing confirmed fares and accepted partner payouts are retained.</p>
-        <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
-          <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>
-          <div className="ds-kpi"><span className="ds-kpi-label">Configured cabs</span><span className="text-[14px] font-semibold text-ink">{activeOf("categories")[0]?.categories?.join(", ") || "All active cab types"}</span><span className="ds-kpi-note">{activeOf("categories").length} active category rule{activeOf("categories").length === 1 ? "" : "s"}</span></div>
-          <div className="ds-kpi"><span className="ds-kpi-label">Pricing rules</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
-        </div>
-        <p className="text-[11px] text-muted mt-3">Rules active now · IST · {where}. Exact availability and fare depend on the route, cab type and pickup time.</p>
-      </section>
+      <PageHeader title="Service & Fare Settings" subtitle="Brand and service rates, booking availability, cab types and fare rules." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={canTest ? undefined : "Test fare prices a trip through the booking server, which needs operations access."} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
 
-      <StageBar label="Settings" tabs={(["Booking availability", "Cab types", "Pricing rules", "More settings"] as const).map((t) => ({ id: t, label: t }))} value={tab} onChange={setTab} />
+      <div className="mb-5">
+        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings"] as const).map((t) => ({ id: t, label: t }))} value={tab} onChange={setTab} />
+      </div>
+
+      {tab === "Brand & service fares" && (
+        <BrandServiceFareWorkspace />
+      )}
+
+      {tab !== "Brand & service fares" && (
+        <section className="ds-panel ds-panel-pad mb-5">
+          <span className="ds-eyebrow">LOCATION</span>
+          <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
+          <Ta>எந்த இடத்திற்கான setting?</Ta>
+          <div className="ds-filterbar mt-3">
+            <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.filter(([c, n]) => !states.length || states.includes(c) || states.includes(n)).map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}</select></label>
+            <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">All cities</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
+            <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">All areas</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
+          </div>
+          <p className="text-[11px] text-faint">Existing confirmed fares and accepted partner payouts are retained.</p>
+          <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
+            <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>
+            <div className="ds-kpi"><span className="ds-kpi-label">Configured cabs</span><span className="text-[14px] font-semibold text-ink">{activeOf("categories")[0]?.categories?.join(", ") || "All active cab types"}</span><span className="ds-kpi-note">{activeOf("categories").length} active category rule{activeOf("categories").length === 1 ? "" : "s"}</span></div>
+            <div className="ds-kpi"><span className="ds-kpi-label">Pricing rules</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
+          </div>
+          <p className="text-[11px] text-muted mt-3">Rules active now · IST · {where}. Exact availability and fare depend on the route, cab type and pickup time.</p>
+        </section>
+      )}
 
       {tab === "Booking availability" && (
         <section className="ds-panel ds-panel-pad">

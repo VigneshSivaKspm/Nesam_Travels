@@ -129,6 +129,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
       couponCode: promoCode || '',
+      brand: 'onewaycarrentals',
     };
   }, [draft]);
   // The deployed quote endpoint requires authentication. Enabling the hook after account

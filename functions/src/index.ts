@@ -32,7 +32,7 @@ export { claimMarketplaceDuty, submitMarketplaceBid, withdrawMarketplaceBid } fr
 export { requestPartnerPayout, rebuildPartnerLedger, onBookingFinanceChange, onPayoutRequestWritten } from './ledger';
 export { sendNotification } from './broadcast';
 export { sendNoticeCampaign, retryFailedDeliveries } from './noticeCampaigns';
-export { saveStaffProfile, setStaffStatus, revokeStaffSessions } from './staffProfiles';
+export { saveStaffProfile, resetStaffPassword, setStaffStatus, revokeStaffSessions } from './staffProfiles';
 export { getStaffBookings } from './staffReads';
 export { lookupVehicleByRegistration } from './vehicleLookup';
 export { requestVendorRegistration, issueVendorInvitation, revokeVendorInvitation, redeemVendorInvitation } from './vendorOnboarding';
@@ -40,3 +40,4 @@ export { updateSettlement, onBookingSettlementChange } from './settlement';
 export { periodicJobs } from './jobs';
 export { getCustomerContact, updateBookingContact, migrateBookingContacts } from './contacts';
 export { onBookingRated } from './ratings';
+export { submitMulticityEnquiry, acceptEnquiryQuote, getCustomerEnquiries } from './enquiries';

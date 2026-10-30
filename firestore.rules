@@ -956,13 +956,13 @@ service cloud.firestore {
     // Office phone enquiries & quotes (Master Admin → Bookings → Enquiries & quotes). Staff-only;
     // a quote never becomes a booking here — conversion goes through createAdminBooking.
     match /enquiries/{enquiryId} {
-      allow read: if can('operations');
+      allow read: if can('operations') || (isSignedIn() && resource.data.customerId == uid());
       allow create: if can('operations')
                      && request.resource.data.keys().hasAll(['code', 'status', 'pickup', 'drop', 'createdBy'])
                      && request.resource.data.createdBy == uid()
                      && request.resource.data.status in ['New', 'Call back', 'No response', 'Draft', 'Converted', 'Closed', 'Expired'];
       allow update: if can('operations')
-                     && request.resource.data.status in ['New', 'Call back', 'No response', 'Draft', 'Converted', 'Closed', 'Expired']
+                     && request.resource.data.status in ['New', 'Call back', 'No response', 'Draft', 'Quote sent', 'Customer accepted', 'Converted', 'Closed', 'Expired']
                      && request.resource.data.code == resource.data.code
                      && request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if false;

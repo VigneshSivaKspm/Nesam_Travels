@@ -8,11 +8,12 @@ import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
 import {
-  RENTAL_HOURS, RentalPackage, TARIFF_CLASSES, TariffClass, TariffConfig, parseRentalPackage, parseTariffConfig, rentalMinHours,
+  BrandFareOverride, RENTAL_HOURS, RentalPackage, TARIFF_CLASSES, TariffClass, TariffConfig, parseRentalPackage, parseTariffConfig, rentalMinHours,
 } from './domain/tariff';
 import { EXTRA_CATEGORY_ID, ExtraChargeRow, ExtraChargeSide, ExtraChargesConfig, MAX_FREE_WAITING_MINUTES, MAX_WAITING_ROUNDING_MINUTES, ROUNDING_SCOPES, RoundingScope, TAX_TREATMENTS, TaxTreatment } from './domain/extraCharges';
 import { TARIFF_DOC } from './quote';
 import { requirePermission, text, requireAction } from './shared';
+import { BRAND_SUPPORTED_SERVICES, BrandId, SUPPORTED_BRANDS } from './brandContext';
 
 const MAX_AMOUNT = 1_000_000;
 const bad = (m: string) => new HttpsError('invalid-argument', m);
@@ -48,6 +49,8 @@ function applyBaseRates(base: TariffConfig, d: Record<string, unknown>): TariffC
     oneWay: { ...base.oneWay, classes: { ...base.oneWay.classes } },
     roundTrip: { ...base.roundTrip, classes: { ...base.roundTrip.classes } },
     outstationExtras: { ...(base.outstationExtras ?? {}) },
+    oneWayExtras: { ...(base.oneWayExtras ?? {}) },
+    roundTripExtras: { ...(base.roundTripExtras ?? {}) },
   };
   next.oneWay.minKm = amount(d.oneWayMinKm, 'One Way minimum kilometres', true);
   if (d.airport != null) {
@@ -61,10 +64,11 @@ function applyBaseRates(base: TariffConfig, d: Record<string, unknown>): TariffC
     if (raw === null) {
       if (cls !== 'innova') throw bad('Only the Innova rates can be cleared.');
       delete next.oneWay.classes.innova; delete next.roundTrip.classes.innova; delete next.outstationExtras![cls];
+      delete next.oneWayExtras![cls]; delete next.roundTripExtras![cls];
       continue;
     }
     const c = obj(raw, `The ${cls} rates`);
-    const one = obj(c.oneWay, `The ${cls} One Way rates`), round = obj(c.roundTrip, `The ${cls} Round Trip rates`), extra = obj(c.outstationExtra, `The ${cls} outstation extra usage`);
+    const one = obj(c.oneWay, `The ${cls} One Way rates`), round = obj(c.roundTrip, `The ${cls} Round Trip rates`);
     next.oneWay.classes[cls] = {
       customerRate: amount(one.customerRate, `${cls} Customer One Way rate`, true), partnerRate: amount(one.partnerRate, `${cls} Partner One Way rate`, true),
       customerBata: amount(one.customerBata, `${cls} Customer allowance`, false), partnerBata: amount(one.partnerBata, `${cls} Partner allowance`, false),
@@ -76,10 +80,19 @@ function applyBaseRates(base: TariffConfig, d: Record<string, unknown>): TariffC
       customerBata: amount(round.customerBata, `${cls} Round Trip customer allowance`, false), partnerBata: amount(round.partnerBata, `${cls} Round Trip partner allowance`, false),
       minKmPerDay,
     };
-    next.outstationExtras![cls] = {
-      extraKmRate: amount(extra.extraKmRate, `${cls} customer extra charge per kilometre`, true),
-      waitingPerHour: amount(extra.waitingPerHour, `${cls} customer extra charge per waiting hour`, false),
-    };
+    // Old clients can still update the shared fallback, but cannot overwrite separately saved journey rates.
+    for (const [field, target, label] of [
+      ['outstationExtra', next.outstationExtras!, 'Outstation'],
+      ['oneWayExtra', next.oneWayExtras!, 'One Way'],
+      ['roundTripExtra', next.roundTripExtras!, 'Round Trip'],
+    ] as const) {
+      if (c[field] === undefined) continue;
+      const extra = obj(c[field], `The ${cls} ${label} extra usage`);
+      target[cls] = {
+        extraKmRate: amount(extra.extraKmRate, `${cls} ${label} customer extra charge per kilometre`, true),
+        waitingPerHour: amount(extra.waitingPerHour, `${cls} ${label} customer extra charge per waiting hour`, false),
+      };
+    }
   }
   return next;
 }
@@ -205,6 +218,132 @@ function applyRentalPackage(base: TariffConfig, cls: TariffClass, hours: number,
   return { ...base, rentalPackages: { ...(base.rentalPackages ?? {}), [cls]: { ...(current?.minHours ? { minHours: current.minHours } : {}), packages: { ...(current?.packages ?? {}), [String(hours)]: pkg } } } };
 }
 
+function applyBrandOverride(
+  base: TariffConfig,
+  brand: string,
+  service: string,
+  cls: TariffClass,
+  data: Record<string, unknown>,
+  clearOverride?: boolean
+): { next: TariffConfig; meta: Record<string, unknown> } {
+  if (!SUPPORTED_BRANDS.includes(brand as BrandId)) {
+    throw bad(`Unsupported brand: "${brand}".`);
+  }
+  const supportedServices = BRAND_SUPPORTED_SERVICES[brand as BrandId];
+  if (!supportedServices.includes(service)) {
+    throw bad(`Service "${service}" is not supported by brand "${brand}".`);
+  }
+
+  const existingOverrides = { ...(base.brandOverrides ?? {}) };
+  const brandData = { ...(existingOverrides[brand] ?? {}) };
+  const serviceData = { ...(brandData[service] ?? {}) };
+
+  if (clearOverride) {
+    delete serviceData[cls];
+    if (Object.keys(serviceData).length === 0) {
+      delete brandData[service];
+    } else {
+      brandData[service] = serviceData;
+    }
+    if (Object.keys(brandData).length === 0) {
+      delete existingOverrides[brand];
+    } else {
+      existingOverrides[brand] = brandData;
+    }
+    return {
+      next: { ...base, brandOverrides: existingOverrides },
+      meta: { section: 'brandOverride', brand, service, class: cls, action: 'cleared' },
+    };
+  }
+
+  const override: BrandFareOverride = { ...(serviceData[cls] ?? {}) };
+
+  if (data.customerRate !== undefined && data.customerRate !== null) {
+    override.customerRate = amount(data.customerRate, 'Customer rate', true);
+  } else if (data.customerRate === null) {
+    delete override.customerRate;
+  }
+
+  if (data.partnerRate !== undefined && data.partnerRate !== null) {
+    override.partnerRate = amount(data.partnerRate, 'Partner rate', true);
+  } else if (data.partnerRate === null) {
+    delete override.partnerRate;
+  }
+
+  if (data.customerBase !== undefined && data.customerBase !== null) {
+    override.customerBase = amount(data.customerBase, 'Customer base fare', true);
+  } else if (data.customerBase === null) {
+    delete override.customerBase;
+  }
+
+  if (data.partnerBase !== undefined && data.partnerBase !== null) {
+    override.partnerBase = amount(data.partnerBase, 'Partner base payout', true);
+  } else if (data.partnerBase === null) {
+    delete override.partnerBase;
+  }
+
+  if (data.minKm !== undefined && data.minKm !== null) {
+    override.minKm = amount(data.minKm, 'Minimum kilometres', true);
+  } else if (data.minKm === null) {
+    delete override.minKm;
+  }
+
+  if (data.minKmPerDay !== undefined && data.minKmPerDay !== null) {
+    override.minKmPerDay = amount(data.minKmPerDay, 'Daily minimum kilometres', true);
+  } else if (data.minKmPerDay === null) {
+    delete override.minKmPerDay;
+  }
+
+  if (data.customerBata !== undefined && data.customerBata !== null) {
+    override.customerBata = amount(data.customerBata, 'Customer allowance', false);
+  } else if (data.customerBata === null) {
+    delete override.customerBata;
+  }
+
+  if (data.partnerBata !== undefined && data.partnerBata !== null) {
+    override.partnerBata = amount(data.partnerBata, 'Partner allowance', false);
+  } else if (data.partnerBata === null) {
+    delete override.partnerBata;
+  }
+
+  if (data.extraKmRate !== undefined && data.extraKmRate !== null) {
+    override.extraKmRate = amount(data.extraKmRate, 'Extra kilometre rate', true);
+  } else if (data.extraKmRate === null) {
+    delete override.extraKmRate;
+  }
+
+  if (data.waitingPerHour !== undefined && data.waitingPerHour !== null) {
+    override.waitingPerHour = amount(data.waitingPerHour, 'Waiting charge per hour', false);
+  } else if (data.waitingPerHour === null) {
+    delete override.waitingPerHour;
+  }
+
+  if (data.hillCharge !== undefined && data.hillCharge !== null) {
+    override.hillCharge = amount(data.hillCharge, 'Hill charge', false);
+  } else if (data.hillCharge === null) {
+    delete override.hillCharge;
+  }
+
+  if (data.carrierCharge !== undefined && data.carrierCharge !== null) {
+    override.carrierCharge = amount(data.carrierCharge, 'Luggage carrier charge', false);
+  } else if (data.carrierCharge === null) {
+    delete override.carrierCharge;
+  }
+
+  if (typeof data.enabled === 'boolean') {
+    override.enabled = data.enabled;
+  }
+
+  serviceData[cls] = override;
+  brandData[service] = serviceData;
+  existingOverrides[brand] = brandData;
+
+  return {
+    next: { ...base, brandOverrides: existingOverrides },
+    meta: { section: 'brandOverride', brand, service, class: cls, override },
+  };
+}
+
 /**
  * Saves one section of the tariff. `expectedVersion` is required: the editor saves against the version it
  * loaded, and a newer tariff is refused rather than overwritten. A brand-new tariff starts switched off —
@@ -235,6 +374,13 @@ export const saveTariffSection = onCall(async (request) => {
       const d = obj(input.data, 'The rates');
       next = applyBaseRates(base, d);
       meta = { section, classes: Object.keys(obj(d.classes, 'The category rates')) };
+    } else if (section === 'brandOverride') {
+      const cls = classOf(input.class);
+      const brand = text(input.brand, 50);
+      const service = text(input.service, 50);
+      const r = applyBrandOverride(base, brand, service, cls, obj(input.data, 'The override data'), input.clearOverride === true);
+      next = r.next;
+      meta = r.meta;
     } else if (section === 'localPickupDrop' && city) {
       const cls = classOf(input.class);
       next = applyLocal(base, city, cls, obj(input.data, 'The fare'));

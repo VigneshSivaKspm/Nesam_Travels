@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveTariffConfig, saveTariffSection } from "../services/bookingOpsService";
 import { ActionError } from "../services/callables";
-import { CLASS_LABEL, TARIFF_CLASSES, useTariff, type Tariff, type TariffClass, type Zone } from "../services/tariffService";
+import { CLASS_LABEL, TARIFF_CLASSES, outstationExtraFor, useTariff, type Tariff, type TariffClass, type Zone } from "../services/tariffService";
 import { useCan } from "./AccessContext";
 import { Field, Notice, inputCls, primaryBtn, secondaryBtn } from "./FormKit";
 
 /** Every editable number of one vehicle category, kept as the text the admin typed. */
-const ROW_KEYS = ["rtMin", "cOW", "pOW", "cRT", "pRT", "cAllowOW", "pAllowOW", "cAllowRT", "pAllowRT", "extraKm", "waiting"] as const;
+const ROW_KEYS = ["rtMin", "cOW", "pOW", "cRT", "pRT", "cAllowOW", "pAllowOW", "cAllowRT", "pAllowRT", "extraKmOW", "waitingOW", "extraKmRT", "waitingRT"] as const;
 type RowKey = (typeof ROW_KEYS)[number];
 type Row = Record<RowKey, string>;
 interface Form { owMin: string; airC: string; airP: string; rows: Record<TariffClass, Row> }
@@ -23,11 +23,15 @@ const RATE_COLS: [RowKey, string, string, boolean][] = [
   ["cAllowRT", "Customer allowance, Round Trip", "₹/day", true],
   ["pAllowRT", "Partner allowance, Round Trip", "₹/day", true],
 ];
-const EXTRA_COLS: [RowKey, string, string, boolean][] = [
-  ["extraKm", "Customer extra charge per kilometre", "₹/km", false],
-  ["waiting", "Customer extra charge per waiting hour", "₹/hour", true],
+const EXTRA_OW_COLS: [RowKey, string, string, boolean][] = [
+  ["extraKmOW", "Customer extra charge per kilometre", "₹/km", false],
+  ["waitingOW", "Customer extra charge per waiting hour", "₹/hour", true],
 ];
-const ALL_COLS = [...RATE_COLS, ...EXTRA_COLS];
+const EXTRA_RT_COLS: [RowKey, string, string, boolean][] = [
+  ["extraKmRT", "Customer extra charge per kilometre", "₹/km", false],
+  ["waitingRT", "Customer extra charge per waiting hour", "₹/hour", true],
+];
+const ALL_COLS = [...RATE_COLS, ...EXTRA_OW_COLS, ...EXTRA_RT_COLS];
 
 const str = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
 const blankRow = (): Row => Object.fromEntries(ROW_KEYS.map((k) => [k, ""])) as Row;
@@ -35,11 +39,15 @@ const blankRow = (): Row => Object.fromEntries(ROW_KEYS.map((k) => [k, ""])) as 
 function fromTariff(t: Tariff | null): Form {
   const rows = {} as Record<TariffClass, Row>;
   for (const c of TARIFF_CLASSES) {
-    const ow = t?.oneWay?.classes?.[c], rt = t?.roundTrip?.classes?.[c], x = t?.outstationExtras?.[c];
+    const ow = t?.oneWay?.classes?.[c], rt = t?.roundTrip?.classes?.[c];
+    // Keep a wholly inherited Innova row blank so clearing it still means "use SUV".
+    const owExtra = t?.oneWayExtras?.[c] ?? t?.outstationExtras?.[c] ?? (ow || rt ? outstationExtraFor(t, c, "One Way") : undefined);
+    const rtExtra = t?.roundTripExtras?.[c] ?? t?.outstationExtras?.[c] ?? (ow || rt ? outstationExtraFor(t, c, "Round Trip") : undefined);
     rows[c] = {
       rtMin: str(rt?.minKmPerDay), cOW: str(ow?.customerRate), pOW: str(ow?.partnerRate), cRT: str(rt?.customerRate), pRT: str(rt?.partnerRate),
       cAllowOW: str(ow?.customerBata), pAllowOW: str(ow?.partnerBata), cAllowRT: str(rt?.customerBata), pAllowRT: str(rt?.partnerBata),
-      extraKm: str(x?.extraKmRate), waiting: str(x?.waitingPerHour),
+      extraKmOW: str(owExtra?.extraKmRate), waitingOW: str(owExtra?.waitingPerHour),
+      extraKmRT: str(rtExtra?.extraKmRate), waitingRT: str(rtExtra?.waitingPerHour),
     };
   }
   // 130 km is the documented One Way minimum (Tariff & Operations v2.0); it is only saved when the admin saves.
@@ -123,13 +131,14 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
     for (const c of TARIFF_CLASSES) {
       const r = form.rows[c], n = (k: RowKey) => toNum(r[k]);
       if (isBlank(r)) {
-        if (c === "innova" && (t?.oneWay?.classes?.innova || t?.roundTrip?.classes?.innova || t?.outstationExtras?.innova)) classes[c] = null;
+        if (c === "innova" && (t?.oneWay?.classes?.innova || t?.roundTrip?.classes?.innova || t?.outstationExtras?.innova || t?.oneWayExtras?.innova || t?.roundTripExtras?.innova)) classes[c] = null;
         continue;
       }
       classes[c] = {
         oneWay: { customerRate: n("cOW"), partnerRate: n("pOW"), customerBata: n("cAllowOW"), partnerBata: n("pAllowOW") },
         roundTrip: { customerRate: n("cRT"), partnerRate: n("pRT"), customerBata: n("cAllowRT"), partnerBata: n("pAllowRT"), minKmPerDay: n("rtMin") },
-        outstationExtra: { extraKmRate: n("extraKm"), waitingPerHour: n("waiting") },
+        oneWayExtra: { extraKmRate: n("extraKmOW"), waitingPerHour: n("waitingOW") },
+        roundTripExtra: { extraKmRate: n("extraKmRT"), waitingPerHour: n("waitingRT") },
       };
     }
     setBusy(true);
@@ -273,9 +282,14 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
           </div>
 
           <div className="space-y-1.5">
-            <h3 className="text-[13px] font-bold text-ink">Outstation extra usage</h3>
-            <p className="text-xs text-muted">Defaults for non-local trips (One Way and Round Trip). They are separate from the local usage rates. The extra kilometre charge applies beyond the included kilometres when the trip ends; the waiting rate is recorded on the quote and billed at actuals.</p>
-            {table("Customer extra usage charges by vehicle category", EXTRA_COLS, 520)}
+            <h3 className="text-[13px] font-bold text-ink">One Way extra usage</h3>
+            <p className="text-xs text-muted">Extra kilometre and waiting rates for One Way trips only. Existing shared rates apply until separate rates are saved. Confirmed bookings retain their saved rates.</p>
+            {table("One Way customer extra usage charges by vehicle category", EXTRA_OW_COLS, 520)}
+          </div>
+          <div className="space-y-1.5">
+            <h3 className="text-[13px] font-bold text-ink">Round Trip extra usage</h3>
+            <p className="text-xs text-muted">Extra kilometre and waiting rates for Round Trip trips only, separate from One Way and local usage rates.</p>
+            {table("Round Trip customer extra usage charges by vehicle category", EXTRA_RT_COLS, 520)}
           </div>
         </>
       )}
