@@ -110,7 +110,7 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
     setBusy(true);
     try {
       const r = await saveStaffProfile({
-        uid: account.uid, expectedVersion: p.accessVersion, name: account.name, phone: p.phone, email: account.email, branch: p.branch,
+        uid: account.uid, expectedVersion: p.accessVersion, name: account.name, phone: p.phone, email: account.email, contactEmail: account.contactEmail || p.contactEmail || "", branch: p.branch,
         preset: (STAFF_PRESETS as readonly string[]).includes(p.preset) ? (p.preset as StaffPreset) : "Custom", access: p.matrix, duty: p.duty, reason: "Invitation resent", resendInvite: true,
       });
       onInvite(r);
@@ -161,7 +161,7 @@ export default function StaffProfilePanel({ account, onClose, onEdit, onInvite, 
           {tab === "overview" && (
             <div className="space-y-4">
               <dl className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {[["Staff ID", p.staffCode], ["Status", <Badge key="s" tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge>], ["Mobile", p.phone || "—"], [account.username ? "Username" : "Email (sign-in)", account.username || account.email || "—"], ["Role preset", p.preset], ["Branch", p.branch || "—"], ["Created", when(account.createdAt)], ["Last change", when(p.updatedAt)]].map(([k, v]) => (
+                {[["Staff ID", p.staffCode], ["Status", <Badge key="s" tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge>], ["Mobile", p.phone || "—"], [account.username ? "Username" : "Email (sign-in)", account.username || account.email || "—"], ["Email ID", account.contactEmail || p.contactEmail || "—"], ["Role preset", p.preset], ["Branch", p.branch || "—"], ["Created", when(account.createdAt)], ["Last change", when(p.updatedAt)]].map(([k, v]) => (
                   <div key={String(k)}><dt className="text-[11px] text-faint">{k}</dt><dd className="font-semibold text-ink">{v}</dd></div>
                 ))}
               </dl>

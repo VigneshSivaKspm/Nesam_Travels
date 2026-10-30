@@ -96,6 +96,11 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
   if (name.length < 2) throw new HttpsError('invalid-argument', 'Enter the staff member’s full name.');
   if (!/^[6-9]\d{9}$/.test(phone)) throw new HttpsError('invalid-argument', 'Enter a valid 10-digit mobile number.');
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new HttpsError('invalid-argument', 'Enter a valid email address.');
+  const hasContactEmail = input.contactEmail !== undefined;
+  if (hasContactEmail && typeof input.contactEmail !== 'string') throw new HttpsError('invalid-argument', 'Contact email must be text.');
+  const contactEmail = typeof input.contactEmail === 'string' ? input.contactEmail.trim().toLowerCase() : '';
+  if (contactEmail.length > 120) throw new HttpsError('invalid-argument', 'Contact email must be 120 characters or fewer.');
+  if (contactEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contactEmail)) throw new HttpsError('invalid-argument', 'Enter a valid contact email address.');
 
   const rawAccess = (input.access && typeof input.access === 'object' ? input.access : input) as Record<string, unknown>;
   const rawLimit = Number(rawAccess.bankLimit ?? 0);
@@ -129,7 +134,7 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
       warnings.push('The profile exists, but sign-in could not be synchronised. Retry saving or contact support.');
     }
     return {
-      uid: id, username: text(d.username, 32), staffCode: text(d.staffCode, 20), permissions: Array.isArray(d.permissions) ? d.permissions : [], accessVersion: versionOf(d),
+      uid: id, username: text(d.username, 32), staffCode: text(d.staffCode, 20), ...(d.contactEmail ? { contactEmail: text(d.contactEmail, 120) } : {}), permissions: Array.isArray(d.permissions) ? d.permissions : [], accessVersion: versionOf(d),
       invite: { sent: false }, warnings,
     };
   };
@@ -198,13 +203,14 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
       tx.set(ref, {
         uid, role: 'admin', status: status === 'Active' ? 'active' : 'inactive', accountStatus: status, staffRole: STAFF_ROLE, roleName: preset,
         permissions, dutyPermissions: duty, staffAccess: matrix, accessVersion, name, email, phone, branch, staffCode,
+        ...(hasContactEmail || !editing ? { contactEmail: contactEmail || '' } : {}),
         statusHistory: FieldValue.arrayUnion(entry), updatedBy: actor.uid, updatedAt: stamp,
         ...(editing ? {} : { createdAt: stamp, createdBy: actor.uid, createRequestId: requestId }),
         ...(directLogin ? { username } : {}),
       }, { merge: true });
       const ended = endGrantsAndSessions(tx, actor, 'Staff permissions changed', found);
       auditTx(tx, actor, editing ? 'staff_profile_updated' : 'staff_profile_created', uid, {
-        staffCode, email, name, reason, accessVersion, ...ended,
+        staffCode, email, ...(contactEmail ? { contactEmail } : {}), name, reason, accessVersion, ...ended,
         before: accessSummary(d), after: { preset, status, permissions, duty, access: matrix, branch },
       });
       return { staffCode, status, accessVersion };
@@ -250,7 +256,7 @@ export const saveStaffProfile = onCall({ timeoutSeconds: 60 }, async (request) =
       invite = { sent: false, error: 'The password-set link could not be generated. Use Resend invitation from the profile.' };
     }
   }
-  return { uid, ...(directLogin ? { username } : {}), staffCode: result.staffCode, permissions, accessVersion: result.accessVersion, invite, warnings };
+  return { uid, ...(directLogin ? { username } : {}), staffCode: result.staffCode, ...(contactEmail ? { contactEmail } : {}), permissions, accessVersion: result.accessVersion, invite, warnings };
 });
 
 /** Master-only password reset for username accounts; passwords never enter Firestore or audit data. */

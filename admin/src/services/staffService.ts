@@ -33,6 +33,7 @@ export interface StaffAccount {
   username?: string;
   name: string;
   email: string;
+  contactEmail?: string;
   role: string;
   status: string;
   staffRole: string;
@@ -61,6 +62,7 @@ export interface StaffStatusEntry {
 export interface StaffProfile {
   staffCode: string;
   phone: string;
+  contactEmail?: string;
   branch: string;
   preset: string;
   accountStatus: StaffStatus;
@@ -123,6 +125,7 @@ function mapProfile(d: Record<string, unknown>): StaffProfile {
   return {
     staffCode: str(d.staffCode),
     phone: str(d.phone),
+    contactEmail: str(d.contactEmail),
     branch: str(d.branch),
     preset: str(d.roleName) || "Custom",
     accountStatus: (STAFF_STATUSES as readonly string[]).includes(str(d.accountStatus)) ? (d.accountStatus as StaffStatus) : d.status === "active" ? "Active" : "Inactive",
@@ -143,6 +146,7 @@ function mapAccount(uid: string, d: Record<string, unknown>): StaffAccount {
     username: str(d.username),
     name: str(d.name),
     email: str(d.email),
+    contactEmail: str(d.contactEmail),
     role: str(d.role),
     status: str(d.status),
     staffRole: access.isSuper ? SUPER_ADMIN_ROLE : access.staffRole,
@@ -281,6 +285,7 @@ export interface StaffProfileInput {
   name: string;
   phone: string;
   email: string;
+  contactEmail?: string;
   branch: string;
   preset: StaffPreset;
   /** New Staff IDs only: Invited (password link) or Active. */
@@ -300,6 +305,7 @@ export interface StaffSaveResult {
   uid: string;
   username?: string;
   staffCode: string;
+  contactEmail?: string;
   accessVersion: number;
   invite: { sent: boolean; link?: string; error?: string };
   /** Steps after the save that did not complete (the profile itself was saved). */
@@ -307,16 +313,26 @@ export interface StaffSaveResult {
 }
 
 /** Same checks the server makes on identity fields; the server stays the authority. */
-export function validateStaffIdentity(v: { name: string; phone: string; email: string }) {
-  const e: { name?: string; phone?: string; email?: string } = {};
+export function validateStaffIdentity(v: { name: string; phone: string; email: string; contactEmail?: string }) {
+  const e: { name?: string; phone?: string; email?: string; contactEmail?: string } = {};
   if (v.name.trim().length < 2) e.name = "Enter the full name.";
   if (!/^[6-9]\d{9}$/.test(v.phone.replace(/\D/g, "").slice(-10))) e.phone = "Enter a valid 10-digit mobile number.";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.email.trim())) e.email = "Enter a valid email address.";
+  const cEmail = (v.contactEmail ?? "").trim();
+  if (cEmail.length > 120) e.contactEmail = "Contact email must be 120 characters or fewer.";
+  else if (cEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cEmail)) e.contactEmail = "Enter a valid contact email address.";
   return e;
 }
 
 export const saveStaffProfile = (input: StaffProfileInput) =>
-  call<StaffSaveResult>("saveStaffProfile", { ...input, name: input.name.trim(), email: input.email.trim().toLowerCase(), branch: input.branch.trim(), reason: input.reason.trim() });
+  call<StaffSaveResult>("saveStaffProfile", {
+    ...input,
+    name: input.name.trim(),
+    email: input.email.trim().toLowerCase(),
+    ...(input.contactEmail !== undefined ? { contactEmail: input.contactEmail.trim().toLowerCase() } : {}),
+    branch: input.branch.trim(),
+    reason: input.reason.trim(),
+  });
 
 export const setStaffStatus = (uid: string, status: "Active" | "Inactive" | "Suspended", reason: string, expectedVersion: number) =>
   call<{ ok: boolean; grantsRevoked: number; sessionsEnded: number }>("setStaffStatus", { uid, status, reason: reason.trim(), expectedVersion });

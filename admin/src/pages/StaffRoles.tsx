@@ -275,7 +275,7 @@ export default function StaffRoles() {
                   return (
                     <tr key={a.uid} className="border-b border-hover last:border-0">
                       <td className="px-4 py-3"><strong className="text-ink">{a.name || "—"}</strong><span className="block text-[11px] text-faint">{p.staffCode}</span></td>
-                      <td className="px-4 py-3">{p.phone || "—"}<span className="block text-[11px] text-muted">{a.username || a.email}</span></td>
+                      <td className="px-4 py-3">{p.phone || "—"}<span className="block text-[11px] text-muted">{a.username || a.email}</span>{(a.contactEmail || p.contactEmail) && <span className="block text-[11px] text-muted">{a.contactEmail || p.contactEmail}</span>}</td>
                       <td className="px-4 py-3">{p.preset}<span className="block text-[11px] text-muted">{p.branch || "—"}</span></td>
                       <td className="px-4 py-3">{modules} module{modules === 1 ? "" : "s"}<span className="block text-[11px] text-muted">{p.duty.length} of {DUTY_ACTIONS.length} duty actions</span></td>
                       <td className="px-4 py-3"><Badge tone={statusTone(p.accountStatus)}>{p.accountStatus}</Badge></td>
@@ -345,7 +345,7 @@ export default function StaffRoles() {
                   return (
                     <tr key={s.uid} className="border-b border-hover last:border-0">
                       <td className="px-4 py-3 font-semibold text-ink">{s.name || "—"}</td>
-                      <td className="px-4 py-3 text-muted">{s.email || "—"}</td>
+                      <td className="px-4 py-3 text-muted">{s.contactEmail || s.email || "—"}</td>
                       <td className="px-4 py-3 text-muted">Staff ID · {s.profile.preset}</td>
                       <td className="px-4 py-3"><Badge tone={statusTone(s.profile.accountStatus)}>{s.profile.accountStatus}</Badge></td>
                       <td className="px-4 py-3 text-right"><button onClick={() => setProfileUid(s.uid)} className="text-[11px] font-semibold text-ink">Open profile</button></td>

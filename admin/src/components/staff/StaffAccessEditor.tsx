@@ -42,6 +42,7 @@ interface Draft {
   name: string;
   phone: string;
   email: string;
+  contactEmail: string;
   branch: string;
   preset: StaffPreset;
   accountStatus: "Invited" | "Active";
@@ -59,11 +60,11 @@ function initialDraft(account: StaffAccount | null): Draft {
   const p = account?.profile;
   if (!account || !p) {
     const preset = presetAccess("Booking staff");
-    return { username: "", password: "", confirmPassword: "", name: "", phone: "", email: "", branch: "", preset: "Booking staff", accountStatus: "Active", matrix: preset.matrix, duty: preset.duty, reason: "" };
+    return { username: "", password: "", confirmPassword: "", name: "", phone: "", email: "", contactEmail: "", branch: "", preset: "Booking staff", accountStatus: "Active", matrix: preset.matrix, duty: preset.duty, reason: "" };
   }
   return {
     username: account.username ?? "", password: "", confirmPassword: "",
-    name: account.name, phone: p.phone, email: account.email, branch: p.branch, preset: isPreset(p.preset) ? p.preset : "Custom",
+    name: account.name, phone: p.phone, email: account.email, contactEmail: account.contactEmail || p.contactEmail || "", branch: p.branch, preset: isPreset(p.preset) ? p.preset : "Custom",
     accountStatus: p.accountStatus === "Active" ? "Active" : "Invited", matrix: clone(p.matrix), duty: [...p.duty], reason: "",
   };
 }
@@ -95,7 +96,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
 
   const dirty = !same(d, initial);
   const status: StaffStatus = editing ? account!.profile?.accountStatus ?? "Inactive" : d.accountStatus;
-  const identityErrors = validateStaffIdentity({ ...d, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid` });
+  const identityErrors = validateStaffIdentity({ ...d, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid`, contactEmail: d.contactEmail });
   const credentialError = !editing ? (
     !/^[a-z][a-z0-9._-]{2,31}$/.test(d.username.trim().toLowerCase()) ? "Username must be 3–32 characters, start with a letter, and use letters, numbers, dots, underscores or hyphens."
       : d.password.length < 8 || d.password.length > 128 ? "Use a password between 8 and 128 characters."
@@ -185,7 +186,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
     try {
       const result = await saveStaffProfile({
         ...(editing ? { uid: account!.uid, expectedVersion: baseVersion } : { accountStatus: "Active", requestId, username: d.username.trim().toLowerCase(), password: d.password }),
-        name: d.name, phone: d.phone, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid`, branch: d.branch, preset: d.preset, access: d.matrix, duty: d.duty, reason: d.reason,
+        name: d.name, phone: d.phone, email: editing ? d.email : `${d.username.trim().toLowerCase()}@staff.nesam.invalid`, contactEmail: d.contactEmail, branch: d.branch, preset: d.preset, access: d.matrix, duty: d.duty, reason: d.reason,
       });
       // Credentials belong only to this creation form, never to the saved profile or result dialog.
       setD((current) => ({ ...current, password: "", confirmPassword: "" }));
@@ -199,7 +200,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
   };
 
   const input = "w-full p-2 border border-line rounded-lg text-xs";
-  const field = (label: string, key: "name" | "phone" | "email" | "branch", extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
+  const field = (label: string, key: "name" | "phone" | "email" | "contactEmail" | "branch", extra: InputHTMLAttributes<HTMLInputElement> = {}) => (
     <label className="block">
       <span className="block text-[11px] font-semibold text-muted mb-1">{label}</span>
       <input value={d[key]} onChange={(e) => setD({ ...d, [key]: e.target.value })} className={input} {...extra} />
@@ -240,6 +241,7 @@ export default function StaffAccessEditor({ account, onClose, onSaved }: {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {field("Full name *", "name", { maxLength: 80 })}
             {field("Mobile *", "phone", { maxLength: 10, inputMode: "numeric" })}
+            {field("Email ID · optional", "contactEmail", { type: "email", maxLength: 120, placeholder: "e.g. staff@nesamtravels.com" })}
             {editing ? (account?.username ? <div><span className="block text-[11px] font-semibold text-muted mb-1">Username</span><input className={input} value={account.username} readOnly /></div> : field("Email (sign-in) *", "email", { type: "email", maxLength: 120 })) : (
               <>
                 <label className="block"><span className="block text-[11px] font-semibold text-muted mb-1">Username / login ID *</span><input className={input} value={d.username} onChange={(e) => setD({ ...d, username: e.target.value.toLowerCase() })} maxLength={32} autoComplete="off" autoCapitalize="none" spellCheck={false} placeholder="e.g. booking.staff01" /><span className="block mt-1 text-[11px] text-muted">3–32 characters; start with a letter. Use letters, numbers, dots, underscores or hyphens.</span></label>
