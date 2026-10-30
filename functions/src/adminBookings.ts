@@ -30,6 +30,7 @@ import { assertCashAllowed } from './channelPolicy';
 import { supportsTrip, serviceAllowsCategory } from './onlineCatalog';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf, requirePermission, routeFor, text, requireAction, requireStaffFlag } from './shared';
 import { canSeePayouts } from './staffReads';
+import { storePricingInTx } from './pricingPrivate';
 
 const MAX_FARE = 1000000;
 
@@ -273,6 +274,8 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       : rawChan.toLowerCase().includes('nesam')
       ? 'nesam'
       : 'nesam';
+    // The booking keeps the customer side of the pricing snapshot; the partner side goes to booking_pricing_private in this same transaction.
+    const storedPricing = storePricingInTx(tx, requestId, customerId, pricing);
     tx.create(ref, {
       id: requestId, bookingId: bookingCode, customerId, customer: name, phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng,
@@ -280,7 +283,7 @@ export const createAdminBooking = onCall({ timeoutSeconds: 60 }, async (request)
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type, dropLocationId: dropR.source === 'master' ? drop.id : '', dropSource: dropR.source,
       service, serviceId, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
       passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
-      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing, fareVerified: true, fareOverride, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
+      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: storedPricing, fareVerified: true, fareOverride, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
       ...(tripEndAt ? { tripEndAt: Timestamp.fromDate(tripEndAt), endDate: pricing.endDate, billableDays: pricing.days } : {}),
       discountDetails: fare.discountDetail ? { ...fare.discountDetail, byUid: admin.uid, byName: admin.name } : null,
       globalAdjustmentApplied: fare.globalAdjustment ?? null,

@@ -91,6 +91,8 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   createWalletRecharge: fns.createWalletRecharge,
   verifyWalletRecharge: fns.verifyWalletRecharge,
   getDuesSummary: fns.getDuesSummary,
+  recordExtraUsage: fns.recordExtraUsage,
+  reviewExtraUsage: fns.reviewExtraUsage,
   createDuesPayment: fns.createDuesPayment,
   verifyDuesPayment: fns.verifyDuesPayment,
   setSecurityDeposit: fns.setSecurityDeposit,
@@ -135,7 +137,7 @@ export const RECONCILES_BOOKING = new Set([
   'createBooking', 'createAdminBooking', 'overrideBookingFare', 'approveBooking', 'rejectBooking', 'cancelBooking', 'updateRefund',
   'assignDriver', 'recordPayment', 'voidPayment', 'advanceTrip', 'overrideReachedPickup', 'verifyBoarding', 'awardMarketplaceBid', 'rejectMarketplaceBid', 'postBookingToMarketplace',
   'assignIndependentDriver', 'assignVendor', 'vendorAssignDriver', 'claimMarketplaceDuty', 'submitMarketplaceBid', 'withdrawMarketplaceBid', 'finalizeVehicleVerification',
-  'requestDutyCancellation', 'acknowledgeAssignment',
+  'requestDutyCancellation', 'acknowledgeAssignment', 'reviewExtraUsage',
 ]);
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);
 

@@ -57,7 +57,7 @@ export function mapLedgerEntry(id: string, d: Data): LedgerEntry | null {
   };
 }
 
-const EARNING_TYPES = ['trip_earning', 'toll_reimbursement'];
+const EARNING_TYPES = ['trip_earning', 'toll_reimbursement', 'extra_charge'];
 export const isEarning = (e: LedgerEntry) => EARNING_TYPES.includes(e.type) && e.direction === 'credit' && e.status !== 'cancelled';
 
 /** Earnings credited by the server, by the day they were recorded. */
@@ -71,7 +71,7 @@ export function summarizeEarnings(ledger: LedgerEntry[], now = new Date()): Driv
     const at = e.createdAt?.getTime() ?? 0;
     s.lifetimeEarnings += e.amount;
     if (e.type === 'toll_reimbursement') s.tollReimbursements += e.amount;
-    else s.totalTripsCompleted += 1;
+    else if (e.type === 'trip_earning') s.totalTripsCompleted += 1;
     if (at >= today) s.todayEarnings += e.amount;
     if (at >= weekAgo) s.thisWeekEarnings += e.amount;
     if (at >= monthStart) s.thisMonthEarnings += e.amount;

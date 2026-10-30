@@ -210,6 +210,11 @@ export function canAccessPage(access: AdminAccess, page: string): boolean {
   if (need === "super") return access.isSuper;
   if (access.isSuper) return true;
   if (access.kind === "none") return false;
+  // Preserve coupon readers from either former entry point; the workspace gates writes separately.
+  if (page === "offers") return hasFlag(access, "partnerRights", "viewCoupons") && (
+    (access.permissions.includes("pricing") && matrixAllows(access.matrix, "Settings", "view")) ||
+    (access.permissions.includes("engagement") && matrixAllows(access.matrix, "Communication", "view"))
+  );
   if (need && !access.permissions.includes(need)) return false;
   const flag = PAGE_FLAG[page];
   if (flag && !hasFlag(access, flag[0], flag[1])) return false;

@@ -17,6 +17,7 @@ import { assertDriverEligible, assertVehicleEligible, loadScheduleConfig } from 
 import { formatDateTime12, pickupInstant } from './domain/time';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { assertDeviceTrusted, logSecurityEvent, requestIp } from './security';
+import { loadPrivatePricing, withPrivatePricing } from './pricingPrivate';
 import { approved, inIndia, requirePermission, text, requireAction } from './shared';
 
 // Operational limits. All are staff-configurable in settings/operations; these defaults are the
@@ -95,11 +96,13 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
   const result = await db.runTransaction(async (tx) => {
     pushes.length = 0;
     violation = '';
-    const [snap, verification, settingsSnap, myOngoing, driverDoc] = await Promise.all([
+    const [snap, verification, settingsSnap, myOngoing, driverDoc, privatePricing] = await Promise.all([
       tx.get(ref), to === 'Reached Pickup' || to === 'Trip Started' ? tx.get(db.doc(`vehicle_verifications/${bookingId}`)) : Promise.resolve(null),
       tx.get(db.doc('settings/operations')),
       to === 'Reached Pickup' || to === 'Trip Started' ? tx.get(db.collection('bookings').where('assignedDriverId', '==', driver.uid).where('status', '==', 'Ongoing')) : Promise.resolve(null),
       to === 'Reached Pickup' ? tx.get(db.doc(`drivers/${driver.uid}`)) : Promise.resolve(null),
+      // The partner side of the pricing snapshot is private: it is read here only to work out the partner's final payout.
+      to === 'Trip Ended' ? loadPrivatePricing(tx, bookingId) : Promise.resolve(null),
     ]);
     const limits = limitsOf(settingsSnap.data());
     if (!snap.exists) throw new HttpsError('not-found', 'This trip no longer exists.');
@@ -179,7 +182,8 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
       if (!hasEnd && !(typeof totalKm === 'number' && Number.isFinite(totalKm) && totalKm > 0)) {
         throw new HttpsError('invalid-argument', 'Enter the total kilometres driven for the whole trip.', { code: 'total-km-required' });
       }
-      const pricing = b.pricing && typeof b.pricing === 'object' && b.pricing.schema === 2 ? (b.pricing as PricingSnapshot) : null;
+      const whole = withPrivatePricing(b, privatePricing);
+      const pricing = whole.pricing && typeof whole.pricing === 'object' && whole.pricing.schema === 2 ? (whole.pricing as PricingSnapshot) : null;
       // The driver states the total kilometres; the server derives the fare. A rate or amount from the driver is ignored.
       if (pricing && (typeof totalKm !== 'number' || !Number.isFinite(totalKm) || totalKm <= 0 || totalKm > MAX_TOTAL_KM)) {
         throw new HttpsError('invalid-argument', 'Enter the total kilometres driven for the whole trip.', { code: 'total-km-required' });

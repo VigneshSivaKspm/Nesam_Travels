@@ -19,6 +19,8 @@ import { createContactInTx, maskPhone } from './contacts';
 import { loadTariffConfig, priceBooking, rentalHoursOf, tariffClassOf } from './quote';
 import { assertLegalAccepted } from './legal';
 import { nextBookingCode } from './bookingSequence';
+import { splitPricing } from './domain/pricingPrivacy';
+import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeFor, text } from './shared';
 
@@ -162,7 +164,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(priced.pricing) });
     const fare = priced.fare, breakup = priced.breakup;
     if (!Number.isFinite(input.expectedFare) || fare.total !== input.expectedFare) {
-      throw new HttpsError('failed-precondition', `The current fare is ₹${fare.total}. Review the updated fare and book again.`, { fare, breakup, pricing: priced.pricing });
+      throw new HttpsError('failed-precondition', `The current fare is ₹${fare.total}. Review the updated fare and book again.`, { fare, breakup, pricing: splitPricing(priced.pricing).pub });
     }
     const c = customer.data()!;
     const phone = text(c.phone);
@@ -184,13 +186,15 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     } else if (rawSource) {
       bookingSource = rawSource;
     }
+    // The booking keeps the customer side of the pricing snapshot; the partner side goes to booking_pricing_private in this same transaction.
+    const storedPricing = storePricingInTx(tx, requestId, uid, priced.pricing);
     tx.create(ref, {
       id: requestId, bookingId: bookingCode, customerId: uid, customer: text(c.name), phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng, pickupType: pickup.type,
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type,
       service, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
       passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
-      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: priced.pricing, fareVerified: true, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
+      fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: storedPricing, fareVerified: true, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,
       ...(tripEndAt ? { tripEndAt: Timestamp.fromDate(tripEndAt), endDate: priced.pricing.endDate, billableDays: priced.pricing.days } : {}),
       discountDetails: fare.discountDetail, globalAdjustmentApplied: fare.globalAdjustment ?? null,
       routeEstimated: false, couponCode, discount, notes: text(input.notes), payment: 'Pending', paymentStatus: 'Unpaid',

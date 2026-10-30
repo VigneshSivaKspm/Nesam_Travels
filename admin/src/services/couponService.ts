@@ -38,6 +38,9 @@ export interface MasterCouponExtras {
 export type Coupon = MasterCoupon & MasterCouponExtras;
 
 export interface CouponDraft {
+  description: string;
+  termsAndConditions: string;
+  adminBookingOnly: boolean;
   code: string;
   name: string;
   type: "Amount" | "Percent";
@@ -78,7 +81,7 @@ const fromIso = (v?: string) => (v ? istInput(istAt(v)) : "");
 export function emptyCouponDraft(categories: string[]): CouponDraft {
   const now = Date.now();
   return {
-    code: "", name: "", type: "Amount", value: 100, max: 100, minFare: 2000, audience: "All",
+    code: "", name: "", description: "", termsAndConditions: "", adminBookingOnly: false, type: "Amount", value: 100, max: 100, minFare: 2000, audience: "All",
     services: [...COUPON_SERVICES], categories: [...categories], scope: "Any", city: "", dropCity: "",
     bookFrom: istInput(now), bookUntil: istInput(now + 30 * DAY), pickupFrom: istInput(now), pickupUntil: istInput(now + 60 * DAY),
     perCustomer: 1, totalLimit: 100, allowFixed: false, allowBusiness: false, allowPeak: false, active: true, reason: "",
@@ -90,6 +93,7 @@ export function draftOf(c: Coupon, categories: string[]): CouponDraft {
   const day = (d: string, end = false) => (d ? `${d}T${end ? "23:59" : "00:00"}` : "");
   return {
     ...all,
+    description: c.description ?? "", termsAndConditions: c.termsAndConditions ?? "", adminBookingOnly: !!c.adminBookingOnly,
     code: c.code, name: c.name, type: c.discountType === "PERCENTAGE" ? "Percent" : "Amount", value: c.discountValue,
     max: c.maximumDiscount || 0, minFare: c.minimumBookingAmount || 0,
     audience: c.audience ?? (c.firstBookingOnly ? "New" : "All"),
@@ -157,7 +161,7 @@ export async function saveCoupon(d: CouponDraft, editing: Coupon | null, allCate
   const allServices = d.services.length === COUPON_SERVICES.length;
   const allCats = allCategories.every((c) => d.categories.includes(c.id));
   const doc_ = {
-    code: d.code.trim().toUpperCase(), name: d.name.trim(), description: editing?.description ?? "",
+    code: d.code.trim().toUpperCase(), name: d.name.trim(), description: d.description.trim(), termsAndConditions: d.termsAndConditions.trim(),
     discountType: d.type === "Percent" ? "PERCENTAGE" : "FIXED_AMOUNT", discountValue: d.value,
     maximumDiscount: d.type === "Percent" ? d.max : 0, minimumBookingAmount: d.minFare,
     validFrom: d.bookFrom.slice(0, 10), validUntil: istInput(istAt(d.bookUntil) - 60000).slice(0, 10),
@@ -165,7 +169,7 @@ export async function saveCoupon(d: CouponDraft, editing: Coupon | null, allCate
     serviceNames: allServices ? [] : d.services,
     vehicleCategoryIds: allCats ? [] : d.categories,
     vehicleCategoryNames: allCats ? [] : allCategories.filter((c) => d.categories.includes(c.id)).map((c) => c.name),
-    adminBookingOnly: false, status: d.active ? "Active" : "Inactive",
+    adminBookingOnly: d.adminBookingOnly, status: d.active ? "Active" : "Inactive",
     audience: d.audience, couponServices: d.services, couponCategories: d.categories,
     scope: d.scope, city: d.scope === "Any" ? "" : d.city, dropCity: d.scope === "Exact route" ? d.dropCity : "",
     allowFixed: d.allowFixed, allowBusiness: d.allowBusiness, allowPeak: d.allowPeak,

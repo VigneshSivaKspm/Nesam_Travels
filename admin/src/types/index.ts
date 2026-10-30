@@ -13,6 +13,20 @@ export interface Booking {
   driverPayout?: number;
   vendorPayout?: number;
   tollCharges?: number;
+  /** Office-approved extra usage billed to the customer (waiting / hill / roof carrier). Customer amounts only, in paise. */
+  extraCharges?: {
+    revision: number; status: "approved"; taxTreatment: "no_gst" | "tariff_gst" | null; roundingScope: "per_stop" | "combined" | null; ratesVersion: number;
+    usage: { stops: { stopId: string; waitedMinutes: number }[] | null; hill: boolean | null; carrier: boolean | null };
+    waiting: { perStop: { stopId: string; waitedMinutes: number; chargeableMinutes: number }[]; chargeableMinutes: number; billedMinutes: number | null } | null;
+    customer: { waitingPaise: number; hillPaise: number; carrierPaise: number; subtotalPaise: number; gstPaise: number; totalPaise: number };
+    approvedByName?: string; approvedAt?: unknown;
+  };
+  /** The latest recorded usage and where it stands in review. */
+  extraUsage?: {
+    revision: number; status: "submitted" | "approved" | "rejected"; note?: string; reviewNote?: string;
+    usage: { stops: { stopId: string; waitedMinutes: number }[] | null; hill: boolean | null; carrier: boolean | null };
+    submittedByName?: string; submittedRole?: string; reviewedByName?: string;
+  };
   tollsApproved?: boolean;
   fareVerified?: boolean;
   /** Locked quote snapshot (server-written): which tariff priced the booking and with what. */

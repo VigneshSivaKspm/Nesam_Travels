@@ -14,7 +14,7 @@ import { colors, fonts, space, type } from '../theme';
 
 export function payableAmount(trip: TripRecord): number {
   const base = trip.fareBreakdown?.total ?? trip.fare;
-  return Math.round(base + trip.tollCharges);
+  return Math.round(base + trip.tollCharges + (trip.extraCharges ?? 0));
 }
 
 /** What is still owed: the server's balance once payments are recorded, else the full amount. */

@@ -94,6 +94,7 @@ const LEDGER_LABEL: Record<string, [string, string, string]> = {
   payout: ['Payout to bank', 'landmark', 'q-kind-payout'],
   penalty_deduction: ['Confirmed penalty', 'triangle-alert', 'q-kind-penalty'],
   wallet_recharge: ['Wallet recharge', 'plus', 'q-kind-recharge'],
+  extra_charge: ['Approved extra charges', 'receipt-text', 'q-kind-trip'],
   due_payment: ['Dues payment', 'receipt-text', 'q-kind-recharge'],
   due_payment_held: ['Dues payment · held for review', 'triangle-alert', 'q-kind-penalty'],
 };

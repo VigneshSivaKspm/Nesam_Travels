@@ -21,7 +21,7 @@ import { Button, EmptyState, PageHeader } from "../components/ui";
 const CELLS = ["cWait", "pWait", "cHill", "pHill", "cCarrier", "pCarrier"] as const;
 type Cell = (typeof CELLS)[number];
 type Row = Record<Cell, string>;
-interface Form { free: string; round: string; rows: Record<string, Row> }
+interface Form { free: string; round: string; scope: string; tax: string; rows: Record<string, Row> }
 
 const GROUPS: { title: string; unit: string; cells: [Cell, string][] }[] = [
   { title: "Waiting per hour", unit: "₹/hour", cells: [["cWait", "Customer"], ["pWait", "Partner"]] },
@@ -43,11 +43,11 @@ function rowFrom(r?: ExtraChargeRow): Row {
 }
 function formFrom(t: Tariff | null | undefined, ids: string[]): Form {
   const x = t?.extraCharges;
-  return { free: str(x?.freeWaitingMinutes), round: str(x?.waitingRoundingMinutes), rows: Object.fromEntries(ids.map((id) => [id, rowFrom(x?.categories?.[id])])) };
+  return { free: str(x?.freeWaitingMinutes), round: str(x?.waitingRoundingMinutes), scope: x?.waitingRoundingScope ?? "", tax: x?.taxTreatment ?? "", rows: Object.fromEntries(ids.map((id) => [id, rowFrom(x?.categories?.[id])])) };
 }
 /** Comparable form: numbers, so "15.50" and "15.5" are the same value. */
 const canon = (f: Form, ids: string[]) => JSON.stringify([
-  f.free.trim() === "" ? null : toNum(f.free), f.round.trim() === "" ? null : toNum(f.round),
+  f.free.trim() === "" ? null : toNum(f.free), f.round.trim() === "" ? null : toNum(f.round), f.scope, f.tax,
   ids.map((id) => CELLS.map((k) => { const v = (f.rows[id] ?? blank())[k]; return v.trim() === "" ? null : toNum(v); })),
 ]);
 
@@ -56,7 +56,7 @@ export default function ExtraCharges({ onBack }: { onBack: () => void }) {
   const { tariff: t, error: loadError } = useTariff();
   const [categories, setCategories] = useState<VehicleCategory[] | null>(null);
   const [catError, setCatError] = useState<string | null>(null);
-  const [form, setForm] = useState<Form>({ free: "", round: "", rows: {} });
+  const [form, setForm] = useState<Form>({ free: "", round: "", scope: "", tax: "", rows: {} });
   const [loadedVersion, setLoadedVersion] = useState<number | null>(null);
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
@@ -93,7 +93,7 @@ export default function ExtraCharges({ onBack }: { onBack: () => void }) {
   }, [dirty]);
 
   const setCell = (id: string, k: Cell, v: string) => { setForm((f) => ({ ...f, rows: { ...f.rows, [id]: { ...(f.rows[id] ?? blank()), [k]: v } } })); setMsg(null); };
-  const setGlobal = (patch: Partial<Pick<Form, "free" | "round">>) => { setForm((f) => ({ ...f, ...patch })); setMsg(null); };
+  const setGlobal = (patch: Partial<Pick<Form, "free" | "round" | "scope" | "tax">>) => { setForm((f) => ({ ...f, ...patch })); setMsg(null); };
 
   /** The same rules the server enforces; the server is still the authority. */
   const problem = useMemo((): string | null => {
@@ -134,7 +134,7 @@ export default function ExtraCharges({ onBack }: { onBack: () => void }) {
     try {
       const r = await saveTariffSection({
         section: "extraCharges", expectedVersion: loadedVersion ?? 0, reason: reason.trim(),
-        data: { freeWaitingMinutes: toNum(form.free), waitingRoundingMinutes: toNum(form.round), categories: categoriesData },
+        data: { freeWaitingMinutes: toNum(form.free), waitingRoundingMinutes: toNum(form.round), waitingRoundingScope: form.scope || null, taxTreatment: form.tax || null, categories: categoriesData },
       });
       setLoadedVersion(r.version);
       setReason("");
@@ -194,6 +194,20 @@ export default function ExtraCharges({ onBack }: { onBack: () => void }) {
               </Field>
               <Field label="Chargeable waiting rounding interval" required hint="Minutes. Chargeable waiting is rounded up to this interval.">
                 <input type="number" inputMode="numeric" min={1} max={1440} step={1} value={form.round} disabled={locked} onChange={(e) => setGlobal({ round: e.target.value })} placeholder="Not configured" className={`${inputCls} tabular-nums`} />
+              </Field>
+              <Field label="Rounding applies" hint="Free waiting is always applied to each stop on its own. This chooses whether the interval then rounds each stop or the combined total. Not decided = approved waiting cannot be billed.">
+                <select className={inputCls} value={form.scope} disabled={locked} onChange={(e) => setGlobal({ scope: e.target.value })}>
+                  <option value="">Not decided</option>
+                  <option value="per_stop">To each stop</option>
+                  <option value="combined">To the combined chargeable waiting</option>
+                </select>
+              </Field>
+              <Field label="Tax on extra charges" hint="Applies to what the customer is billed for approved extras. Not decided = approved extras cannot be billed.">
+                <select className={inputCls} value={form.tax} disabled={locked} onChange={(e) => setGlobal({ tax: e.target.value })}>
+                  <option value="">Not decided</option>
+                  <option value="no_gst">Separate line, no GST added</option>
+                  <option value="tariff_gst">Add the booking&rsquo;s own GST rate</option>
+                </select>
               </Field>
             </div>
 

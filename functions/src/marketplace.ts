@@ -23,6 +23,7 @@ import { releaseConfigOf } from './release';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { sendCustomerMessage } from './customerComms';
 import { AdminAccess } from './permissions';
+import { loadPrivatePricing, withPrivatePricing } from './pricingPrivate';
 import { approved, requirePermission, text, requireDuty, requireAction } from './shared';
 
 export const docId = (v: unknown, what: string): string => {
@@ -197,7 +198,7 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
   const ref = db.doc(`bookings/${bookingId}`);
   const market = db.doc(`marketplace_trips/${bookingId}`);
   const result = await db.runTransaction(async (tx) => {
-    const [snap, prior, policy] = await Promise.all([tx.get(ref), tx.get(market), loadCommissionPolicy(tx)]);
+    const [snap, prior, policy, privatePricing] = await Promise.all([tx.get(ref), tx.get(market), loadCommissionPolicy(tx), loadPrivatePricing(tx, bookingId)]);
     if (!snap.exists) throw new HttpsError('not-found', 'Booking not found.');
     const b = snap.data()!;
     if (b.status === 'Pending') throw new HttpsError('failed-precondition', 'Approve the booking before publishing it.');
@@ -209,7 +210,7 @@ export const postBookingToMarketplace = onCall({ timeoutSeconds: 120 }, async (r
     if (b.fareVerified !== true) throw new HttpsError('failed-precondition', 'Verify the fare first (Booking Details → Verify / set fare).');
     const categoryDoc = text(b.vehicleCategoryId) ? await tx.get(db.doc(`vehicle_categories/${text(b.vehicleCategoryId)}`)) : null;
     const category = categoryDoc?.exists ? mapCategory(categoryDoc.id, categoryDoc.data()!) : null;
-    const payout = resolvePayout(b, policy, manual, admin, 'offer');
+    const payout = resolvePayout(withPrivatePricing(b, privatePricing), policy, manual, admin, 'offer');
     const stamp = FieldValue.serverTimestamp();
     const pickupAt = pickupInstant(b);
     const offer = {
@@ -270,8 +271,8 @@ export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
   const pushes: { id: string; input: NotifyInput }[] = [];
   const out = await db.runTransaction(async (tx) => {
     pushes.length = 0;
-    const [snap, m, v, policy, bids] = await Promise.all([
-      tx.get(ref), tx.get(market), tx.get(db.doc(`vendors/${vendorId}`)), loadCommissionPolicy(tx), tx.get(market.collection('bids')),
+    const [snap, m, v, policy, bids, privatePricing] = await Promise.all([
+      tx.get(ref), tx.get(market), tx.get(db.doc(`vendors/${vendorId}`)), loadCommissionPolicy(tx), tx.get(market.collection('bids')), loadPrivatePricing(tx, bookingId),
     ]);
     if (!snap.exists) throw new HttpsError('not-found', 'Booking not found.');
     const b = snap.data()!;
@@ -281,7 +282,7 @@ export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
     const vendor = v.data();
     if (!v.exists || !vendor || !approved(vendor.status)) throw new HttpsError('failed-precondition', 'Choose an approved vendor.');
     const vendorName = text(vendor.companyName || vendor.name);
-    const payout = resolvePayout(b, policy, manual, admin);
+    const payout = resolvePayout(withPrivatePricing(b, privatePricing), policy, manual, admin);
     const stamp = FieldValue.serverTimestamp();
     tx.update(ref, {
       status: 'Confirmed', assignedVendorId: vendorId, assignedVendorName: vendorName, vendorPayout: payout.amount, payoutSource: payout.source,

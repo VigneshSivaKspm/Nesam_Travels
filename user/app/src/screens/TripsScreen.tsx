@@ -94,7 +94,7 @@ function TripCard({ trip: t, onOpen, onCancel }: { trip: TripRecord; onOpen: () 
   const pay = paymentLabel(t);
   const when = t.scheduledAt ?? t.createdAt;
   const cancellable = ['Pending', 'Approved', 'Confirmed'].includes(t.status);
-  const total = t.status === 'Completed' ? t.fare + t.tollCharges : t.fare;
+  const total = t.status === 'Completed' ? t.fare + t.tollCharges + (t.extraCharges ?? 0) : t.fare;
   const tab = bookingTabOf(t);
   const destination = t.tripType === 'Local Rental' ? 'Local Rental' : t.drop.name;
   return (

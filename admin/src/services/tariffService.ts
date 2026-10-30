@@ -21,7 +21,7 @@ export interface Zone { id: string; name: string; lat: number; lng: number; radi
 export interface ExtraChargeSide { waitingPerHour?: number; hill?: number; carrier?: number }
 export interface ExtraChargeRow { customer?: ExtraChargeSide; partner?: ExtraChargeSide }
 /** tariff_v2.extraCharges: keyed by the real vehicle category id; `version` counts saves of this section only. */
-export interface ExtraCharges { version?: number; freeWaitingMinutes?: number; waitingRoundingMinutes?: number; categories?: Record<string, ExtraChargeRow> }
+export interface ExtraCharges { version?: number; freeWaitingMinutes?: number; waitingRoundingMinutes?: number; waitingRoundingScope?: "per_stop" | "combined"; taxTreatment?: "no_gst" | "tariff_gst"; categories?: Record<string, ExtraChargeRow> }
 
 /** business_config/tariff_v2 as stored. Anything absent is "not configured" — never zero. */
 export interface Tariff {

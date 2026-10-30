@@ -42,7 +42,9 @@
   min-width: 0;
   gap: clamp(12px, 1.6vw, 24px);
   height: 64px;
-  max-width: calc(var(--max) - var(--gutter) * 2);
+  /* Wider than the 1200px page column on purpose: the complete row (logo ≈200px, four labelled links ≈530–555px, Help, phone number
+     and account ≈425–470px, plus padding and gaps) needs roughly 1240–1305px. */
+  max-width: 1360px;
   margin-inline: auto;
   padding: 0 10px 0 22px;
   border: 1px solid var(--line);
@@ -113,6 +115,7 @@
   display: inline-flex;
   align-items: center;
   flex: 0 1 auto;
+  min-width: 0;
   gap: 8px;
   height: 44px;
   padding: 0 clamp(8px, 1.1vw, 14px);
@@ -121,6 +124,11 @@
   font-weight: 800;
   white-space: nowrap;
   transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out);
+}
+.topnav__link .lbl-long {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .topnav__link:hover {
   background: var(--sunken);
@@ -206,7 +214,8 @@
   border-color: var(--brand);
 }
 .menu__name {
-  max-width: 120px;
+  /* A long name is cut here, never allowed to widen the header. */
+  max-width: 96px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -261,13 +270,23 @@
   display: none;
 }
 
-/* ≥ 1240px: labelled links, Help as an icon, phone number, account avatar. */
-.help-link__text,
-.menu__name {
-  display: none;
+/* Header tiers. Width available to the pill = min(1360px, viewport − 2 × gutter). Each step removes only what no longer fits;
+   every control keeps its accessible name and a tooltip.
+   ≥ 1440px            everything: labelled links, Help, phone number, account name.
+   1340 – 1439px       the account name gives way to the avatar.                                                           */
+@media (max-width: 1439.98px) {
+  .menu__name {
+    display: none;
+  }
 }
-/* 1140–1239px: the phone number gives way to its icon. */
-@media (max-width: 1239.98px) {
+/* 1300 – 1339px: Help becomes an icon. */
+@media (max-width: 1339.98px) {
+  .help-link__text {
+    display: none;
+  }
+}
+/* 1180 – 1299px: the phone number gives way to its icon. */
+@media (max-width: 1299.98px) {
   .help-link--phone .num {
     display: none;
   }
@@ -276,8 +295,8 @@
     padding: 0;
   }
 }
-/* 900–1139px: the nav links become icons (their names stay in aria-label and the tooltip). */
-@media (max-width: 1139.98px) {
+/* 900 – 1179px: the nav links become icons (their names stay in aria-label and the tooltip). */
+@media (max-width: 1179.98px) {
   .topnav__link .lbl-long {
     display: none;
   }

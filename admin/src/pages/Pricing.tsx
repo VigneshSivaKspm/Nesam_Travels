@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { MasterLocation, TravelService, VehicleCategory } from "../types";
-import { subscribeLocations, subscribeServices, subscribeToDocument, subscribeVehicleCategories } from "../services/adminFirestoreService";
+import { subscribeLocations, subscribeServices, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import {
   adjText, inScope, isoToIstInput, istInputToIso, phaseOf, rankRules, saveRule, setRuleStatus, subscribeServiceRules, summary,
   type Adjustment, type RuleKind, type ServiceRule, type Side,
@@ -16,7 +16,6 @@ import FixedRouteFares from "../components/FixedRouteFares";
 import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import VehicleCategoriesPage from "./VehicleCategories";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
-import { TaxPolicyDialog, type TaxPolicy } from "./Invoices";
 import { GST_STATES } from "../domain/gstStates";
 import { refDateTime } from "../domain/officeStage";
 
@@ -55,7 +54,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
   const [filter, setFilter] = useState<(typeof STATUS_FILTERS)[number]>(restore?.filter ?? "All");
-  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "fixed" | "limits" | "all" | "tax" | "local" } | null>(null);
+  const [sheet, setSheet] = useState<{ kind: "new"; ruleKind: RuleKind } | { kind: "edit" | "preview" | "status"; rule: ServiceRule; to?: "Enabled" | "Disabled" | "Removed" } | { kind: "history" | "test" | "base" | "fixed" | "limits" | "all" | "local" } | null>(null);
   const canEdit = useCan("pricing");
   const canTest = useCan("operations");
   const { toast, show } = useToast(6000);
@@ -116,7 +115,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
 
   const tools: [string, string, string, () => void][] = [
     ["Base rates", "Regular ₹/km, driver bata and partner payout.", "Company-wide", () => setSheet({ kind: "base" })],
-    ["Pricing & Fare Management", "Manage base rates, partner payouts, extra charges and fare rules.", "Company-wide", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY, cabSection })],
+    ["Legacy rate cards", "Review older reference rates and quotations. Booking rates are managed in Base rates, Local fares and Fixed route fares.", "Reference records", () => onOpenFareRules({ tab, sel, filter, scrollY: window.scrollY, cabSection })],
     ["Local fares", "Rental packages and Local Pickup & Drop.", "City-wise", () => setSheet({ kind: "local" })],
     ["Extra charges", "Waiting, hills and roof carrier, by vehicle category.", "Company-wide", () => onOpenExtraCharges({ tab, sel, filter, scrollY: window.scrollY, cabSection })],
     ["Fixed route fares", "Set an agreed fare for a specific route.", "Route-wise", () => setSheet({ kind: "fixed" })],
@@ -124,7 +123,6 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     ["Service boundaries", "Define verified cities, areas and service zones.", "Service areas", () => onNavigate("locations")],
     ["Fare limits", "Review approved minimum and maximum amounts.", "Configured scope", () => setSheet({ kind: "limits" })],
     ["All rules & schedules", "Find rules across locations and pickup schedules.", "All locations", () => setSheet({ kind: "all" })],
-    ["Tax settings", "Review tax classification and invoice settings.", "Company-wide", () => setSheet({ kind: "tax" })],
   ];
 
   const statusChips = <div className="ds-chip-row">{STATUS_FILTERS.map((s) => <Button key={s} size="sm" variant={filter === s ? "primary" : "secondary"} onClick={() => setFilter(s)}>{s}</Button>)}</div>;
@@ -226,18 +224,8 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       {sheet?.kind === "local" && <Modal title="Local fares" subtitle="Rental packages and Pickup & Drop" onClose={() => setSheet(null)} wide><LocalFares initialCity={sel.city} onToast={show} /></Modal>}
       {sheet?.kind === "limits" && <LimitsSheet rules={rules.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(rules.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
-      {sheet?.kind === "tax" && <TaxSheet onClose={() => setSheet(null)} onSaved={() => { setSheet(null); show("Approved tax policy saved."); }} />}
     </div>
   );
-}
-
-function TaxSheet({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
-  const [policy, setPolicy] = useState<TaxPolicy | null | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
-  useEffect(() => subscribeToDocument<TaxPolicy>("settings/tax_policy", (value) => { setPolicy(value); setError(null); }, setError), []);
-  if (error || policy === undefined) return <Modal title="Tax settings" onClose={onClose}>{error ? <div className="ds-error" role="alert">Tax policy could not be loaded: {error}. Close and reopen to retry.</div> : <p role="status">Loading saved tax policy…</p>}</Modal>;
-  const fallback: TaxPolicy = { services: Object.fromEntries(["One Way", "Round Trip", "Airport", "Multicity", "Local Rental", "Local Pickup & Drop"].map((s) => [s, { classification: s === "Local Rental" ? "Vehicle rental" : "Passenger transportation", sac: s === "Local Rental" ? "996601" : "996412" }])), approved: false, reference: "" };
-  return <TaxPolicyDialog policy={policy ? { ...fallback, ...policy, services: { ...fallback.services, ...policy.services } } : fallback} onClose={onClose} onSaved={onSaved} />;
 }
 
 function RuleSheet({ kind, rule, sel, categories, services, rules, onClose, onDone }: {

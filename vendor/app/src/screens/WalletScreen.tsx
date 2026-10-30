@@ -23,6 +23,7 @@ const ENTRY_LABEL: Record<string, string> = {
   payout: 'Payout',
   penalty_deduction: 'Confirmed penalty',
   wallet_recharge: 'Wallet recharge',
+  extra_charge: 'Approved extra charges',
   due_payment: 'Dues payment',
   due_payment_held: 'Dues payment · held for review',
 };

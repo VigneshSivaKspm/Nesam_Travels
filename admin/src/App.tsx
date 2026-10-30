@@ -64,6 +64,7 @@ import { setExportGuard } from "./utils/exportData";
 import { useNavBadges } from "./hooks/useNavBadges";
 import LiveStrip from "./components/shell/LiveStrip";
 import { NAV_GROUPS } from "./components/shell/navConfig";
+import { resolveAdminDestination } from "./config/adminNavigation";
 import { PermissionDenied } from "./components/ui";
 
 const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
@@ -90,7 +91,7 @@ const pageMeta: Record<string, { title: string; breadcrumb: string[] }> = {
   packages: { title: "Tour Packages", breadcrumb: ["Office", ""] },
   locations: { title: "Locations", breadcrumb: ["Office", ""] },
   pricing: { title: "Pricing & Fare Management", breadcrumb: ["Office", "Pricing & Fare"] },
-  "fare-rules": { title: "Pricing & Fare Management", breadcrumb: ["Office", "Service & Fare Settings"] },
+  "fare-rules": { title: "Legacy rate cards", breadcrumb: ["Office", "Service & Fare Settings"] },
   "extra-charges": { title: "Waiting, hills & roof carrier", breadcrumb: ["Office", "Service & Fare Settings", "Extra charges"] },
   offers: { title: "Offers & Coupons", breadcrumb: ["Office", ""] },
   payments: { title: "Payments", breadcrumb: ["Finance", ""] },
@@ -167,6 +168,7 @@ function AdminShell({ session }: { session: AdminSession }) {
   const pricingView = useRef<PricingView | null>(null);
 
   const navigate = (page: string, tab?: string) => {
+    ({ page, tab } = resolveAdminDestination(page, tab));
     if (page !== "fare-rules" && page !== "extra-charges") fareReturn.current = null;
     setBookingsTab(tab);
     setActivePage(page);

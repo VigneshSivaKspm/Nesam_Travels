@@ -13,6 +13,7 @@ import { onDocumentUpdated, onDocumentWritten } from 'firebase-functions/v2/fire
 import { DocumentData, FieldValue } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { FinanceSnapshot, PartnerType, buildFinanceSnapshot, payoutLedgerStatus, walletTotals } from './domain/finance';
+import { approvedPartnerExtraPaise, loadPrivatePricing } from './pricingPrivate';
 import { approved, requestIdOf, requireSuperAdmin, text } from './shared';
 
 const ledgerRef = (id: string) => db.doc(`wallet_ledger/${id}`);
@@ -44,8 +45,9 @@ export async function recomputeWallet(type: PartnerType, id: string): Promise<vo
 export async function syncBookingFinance(bookingId: string): Promise<{ type: PartnerType; id: string } | null> {
   const ref = db.doc(`bookings/${bookingId}`);
   const actor = await db.runTransaction(async (tx) => {
-    const [snap, tripE, tollE, cashE] = await Promise.all([
+    const [snap, tripE, tollE, cashE, extraE, privatePricing] = await Promise.all([
       tx.get(ref), tx.get(ledgerRef(`trip_${bookingId}`)), tx.get(ledgerRef(`toll_${bookingId}`)), tx.get(ledgerRef(`cash_${bookingId}`)),
+      tx.get(ledgerRef(`extra_${bookingId}`)), loadPrivatePricing(tx, bookingId),
     ]);
     if (!snap.exists) return null;
     const b = snap.data()!;
@@ -85,6 +87,20 @@ export async function syncBookingFinance(bookingId: string): Promise<{ type: Par
         });
       } else if (tollE.data()!.status === 'pending' && paid) {
         tx.update(ledgerRef(`toll_${bookingId}`), { status: 'available', finalizedAt: stamp });
+      }
+    }
+
+    // Extra usage the office approved (waiting / hill / roof carrier): the partner's private amount is credited once, under a
+    // deterministic id, and becomes available when the customer's payment — which includes the extras — is verified.
+    const extraPaise = approvedPartnerExtraPaise(b, privatePricing);
+    if (extraPaise > 0) {
+      if (!extraE.exists) {
+        tx.set(ledgerRef(`extra_${bookingId}`), {
+          ...common, type: 'extra_charge', direction: 'credit', netAmount: extraPaise / 100, grossAmount: extraPaise / 100, commissionAmount: 0,
+          status: paid ? 'available' : 'pending', source: 'extra_usage_approval', extraRevision: b.extraCharges?.revision ?? 0, createdAt: stamp, ...(paid ? { finalizedAt: stamp } : {}),
+        });
+      } else if (extraE.data()!.status === 'pending' && paid) {
+        tx.update(ledgerRef(`extra_${bookingId}`), { status: 'available', finalizedAt: stamp });
       }
     }
 
@@ -140,7 +156,7 @@ export async function syncPayoutLedger(requestId: string): Promise<void> {
 // ── Triggers ──────────────────────────────────────────────────────────────
 
 const FINANCE_KEYS = ['status', 'payment', 'paymentStatus', 'paymentMethod', 'fareVerified', 'tollsApproved', 'tollCharges',
-  'vendorPayout', 'driverPayout', 'assignedVendorId', 'assignedDriverId', 'finance', 'paymentSummary'];
+  'vendorPayout', 'driverPayout', 'assignedVendorId', 'assignedDriverId', 'finance', 'paymentSummary', 'extraCharges'];
 
 export const onBookingFinanceChange = onDocumentUpdated('bookings/{bookingId}', async (event) => {
   const before = event.data?.before.data();

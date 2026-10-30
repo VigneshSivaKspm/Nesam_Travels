@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { isCampaignCoupon } from "../../domain/couponWorkspace";
 import type { MasterLocation, VehicleCategory } from "../../types";
 import { subscribeCoupons, subscribeLocations, subscribeVehicleCategories } from "../../services/adminFirestoreService";
 import {
@@ -14,10 +15,10 @@ import { Modal, Toast, useToast } from "../Feedback";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader } from "../ui";
 import { TripFields, emptyTrip, estimateFacts, tripPickupDate, tripToForm, useQuickData, validateTrip, type QuickTrip } from "../booking/QuickFare";
 
-const FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled"] as const;
+const FILTERS = ["All", "Active", "Scheduled", "Ended", "Disabled", "Archived"] as const;
 const stamp = (v: string) => (Number.isFinite(istAt(v)) ? `${refDate(new Date(istAt(v)))} · ${refTime(new Date(istAt(v)))}`.toUpperCase() : "—");
 
-export default function CouponsPanel({ canEdit, canSeeUsage }: { canEdit: boolean; canSeeUsage: boolean }) {
+export default function CouponsPanel({ canEdit, canSeeUsage, includeLegacy = false }: { canEdit: boolean; canSeeUsage: boolean; includeLegacy?: boolean }) {
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [locations, setLocations] = useState<MasterLocation[]>([]);
@@ -32,8 +33,9 @@ export default function CouponsPanel({ canEdit, canSeeUsage }: { canEdit: boolea
   const cats = useMemo(() => bookableCategories(categories).sort((a, b) => (a.displayOrder ?? 99) - (b.displayOrder ?? 99)), [categories]);
   const cities = useMemo(() => [...new Set(locations.filter((l) => l.status !== "Inactive" && l.city).map((l) => l.city!))].sort(), [locations]);
   const list = coupons
-    .filter((c) => !c.adminBookingOnly && c.status !== "Archived")
-    .filter((c) => (filter === "All" || couponState(c) === filter) && (!q || `${c.code} ${c.name}`.toLowerCase().includes(q.toLowerCase())))
+    .filter((c) => isCampaignCoupon(c) || includeLegacy)
+    .filter((c) => !includeLegacy || !c.adminBookingOnly)
+    .filter((c) => (filter === "Archived" ? c.status === "Archived" : c.status !== "Archived" && (filter === "All" || couponState(c) === filter)) && (!q || `${c.code} ${c.name}`.toLowerCase().includes(q.toLowerCase())))
     .sort((a, b) => String(a.code).localeCompare(String(b.code)));
   const catName = (id: string) => cats.find((c) => c.id === id)?.name ?? id;
   const done = (t: string) => { setSheet(null); show(t); };
@@ -59,7 +61,7 @@ export default function CouponsPanel({ canEdit, canSeeUsage }: { canEdit: boolea
               const area = !c.scope || c.scope === "Any" ? "All configured areas" : `${c.city}${c.scope === "Exact route" ? ` → ${c.dropCity}` : " pickups"}`;
               return (
                 <tr key={c.id}>
-                  <td><strong style={{ letterSpacing: ".04em" }}>{c.code}</strong><small>{c.name}{c.sample ? " · Sample" : ""}</small></td>
+                  <td><strong style={{ letterSpacing: ".04em" }}>{c.code}</strong><small>{c.name}{c.sample ? " · Sample" : ""}</small><small>{c.adminBookingOnly ? "Office bookings only" : "Customer & office bookings"}</small></td>
                   <td className="ds-num"><strong>{c.discountType === "PERCENTAGE" ? `${c.discountValue}% · Max ${rupee(c.maximumDiscount || 0)}` : rupee(c.discountValue)}</strong><small>Base fare ≥ {rupee(c.minimumBookingAmount || 0)}</small></td>
                   <td>{d.audience} customers<small>{services}</small><small>{c.vehicleCategoryIds?.length ? c.vehicleCategoryIds.map(catName).join(" · ") : ""}</small><small>{area}</small></td>
                   <td className="text-[11px]">
@@ -74,7 +76,7 @@ export default function CouponsPanel({ canEdit, canSeeUsage }: { canEdit: boolea
                         className="relative inline-flex h-6 w-11 items-center rounded-full transition disabled:opacity-50" style={{ background: isEnabled(c) ? "var(--color-brand)" : "#cfd6df" }}>
                         <span className="inline-block h-5 w-5 rounded-full bg-white shadow transition" style={{ transform: `translateX(${isEnabled(c) ? 22 : 2}px)` }} />
                       </button>
-                      {isEnabled(c) ? "Enabled" : "Disabled"}
+                      {c.status === "Archived" ? "Archived" : isEnabled(c) ? "Enabled" : "Disabled"}
                     </label>
                     {(state === "Scheduled" || state === "Ended") && <Badge tone={state === "Scheduled" ? "amber" : "neutral"}>{state}</Badge>}
                   </td>
@@ -87,9 +89,9 @@ export default function CouponsPanel({ canEdit, canSeeUsage }: { canEdit: boolea
       </DataTable>
       {!list.length && <EmptyState title={coupons.length ? "No matching records" : "No coupons created yet"} hint={coupons.length ? undefined : "Create a coupon to offer a NESAM-funded discount."} />}
 
-      {sheet?.kind === "new" && <CouponSheet coupons={coupons} cats={cats} cities={cities} onClose={() => setSheet(null)} onDone={done} />}
-      {sheet?.kind === "edit" && <CouponSheet editing={sheet.c} coupons={coupons} cats={cats} cities={cities} onClose={() => setSheet(null)} onDone={done} />}
-      {sheet?.kind === "state" && <StateSheet c={sheet.c} onClose={() => setSheet(null)} onDone={done} />}
+      {canEdit && sheet?.kind === "new" && <CouponSheet coupons={coupons} cats={cats} cities={cities} onClose={() => setSheet(null)} onDone={done} />}
+      {canEdit && sheet?.kind === "edit" && <CouponSheet editing={sheet.c} coupons={coupons} cats={cats} cities={cities} onClose={() => setSheet(null)} onDone={done} />}
+      {canEdit && sheet?.kind === "state" && <StateSheet c={sheet.c} onClose={() => setSheet(null)} onDone={done} />}
       {sheet?.kind === "test" && <TestSheet c={sheet.c} cats={cats} onClose={() => setSheet(null)} />}
       {sheet?.kind === "history" && <UsageSheet coupons={coupons} onClose={() => setSheet(null)} />}
     </>
@@ -149,6 +151,9 @@ function CouponSheet({ editing, coupons, cats, cities, onClose, onDone }: { edit
           <Button icon="sparkles" disabled={!!editing?.usedCount} onClick={() => { try { set({ code: generateCode(coupons) }); } catch (x) { setError((x as Error).message); } }}>Generate code</Button>
         </div>
         <label className="ds-field"><span>Offer name</span><input className="ds-input" value={d.name} onChange={(e) => set({ name: e.target.value })} /></label>
+        <label className="ds-field"><span>Description</span><textarea className="ds-input" value={d.description} onChange={(e) => set({ description: e.target.value })} /></label>
+        <label className="ds-field"><span>Terms & conditions</span><textarea className="ds-input" value={d.termsAndConditions} onChange={(e) => set({ termsAndConditions: e.target.value })} /></label>
+        <label className="ds-check"><input type="checkbox" checked={d.adminBookingOnly} onChange={(e) => set({ adminBookingOnly: e.target.checked })} />Office bookings only</label>
         <div className="ds-form-grid">
           <label className="ds-field"><span>Discount type</span><select className="ds-select" value={d.type} onChange={(e) => set({ type: e.target.value as CouponDraft["type"] })}><option value="Amount">₹ amount</option><option value="Percent">Percentage</option></select></label>
           <label className="ds-field"><span>{d.type === "Percent" ? "Discount · %" : "Discount · ₹"}</span><input type="number" className="ds-input" min={d.type === "Percent" ? 0.01 : 1} step={d.type === "Percent" ? 0.01 : 1} value={Number.isFinite(d.value) ? d.value : ""} onChange={(e) => set({ value: num(e.target.value) })} /></label>

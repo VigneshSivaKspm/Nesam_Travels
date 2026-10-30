@@ -149,7 +149,7 @@ export function subscribeToCollection<T>(
     return pollStaffBookings<T>(null, (rows) => callback((rows as T[]) ?? []), onError);
   }
   // Marketplace duties, bids, booking events and assignment history all record payouts.
-  if (redactedBookings && (collectionName.startsWith("marketplace_trips") || /^bookings\/[^/]+\/(events|assignments)$/.test(collectionName))) {
+  if (redactedBookings && (collectionName.startsWith("marketplace_trips") || collectionName === PRICING_PRIVATE || /^bookings\/[^/]+\/(events|assignments)$/.test(collectionName))) {
     callback([]);
     return () => {};
   }
@@ -173,6 +173,17 @@ export function subscribeToCollection<T>(
 /**
  * Specific Subscribers
  */
+/** The partner side of each booking's pricing snapshot (staff holding the vendor-payout right only; the rules refuse everyone else). */
+export const PRICING_PRIVATE = "booking_pricing_private";
+export interface PrivatePricing { partner?: unknown; extraPartner?: unknown; extraApproved?: unknown }
+/** Puts the private partner pricing back on a booking in memory, so payout screens see the whole snapshot. */
+export function withPrivatePricing<B extends { pricing?: unknown }>(b: B, p: PrivatePricing | undefined | null): B {
+  if (!p || !b.pricing || typeof b.pricing !== "object") return b;
+  const pricing = b.pricing as Record<string, unknown>;
+  const extra = pricing.extraCharges && typeof pricing.extraCharges === "object" ? (pricing.extraCharges as Record<string, unknown>) : null;
+  return { ...b, pricing: { ...pricing, partner: p.partner ?? pricing.partner ?? null, ...(extra && p.extraPartner ? { extraCharges: { ...extra, partner: p.extraPartner } } : {}) } };
+}
+
 /**
  * Bookings with the customer's contact details joined in. The raw phone / WhatsApp / email are not on
  * the booking document (partners can read it); staff read them from booking_contacts.
@@ -180,14 +191,18 @@ export function subscribeToCollection<T>(
 export const subscribeBookings = (cb: (data: Booking[]) => void, onError?: (message: string) => void) => {
   let bookings: Booking[] = [];
   let contacts = new Map<string, { phone?: string; email?: string; whatsapp?: string }>();
+  let priv = new Map<string, PrivatePricing>();
   const emit = () =>
-    cb(bookings.map((b) => {
+    cb(bookings.map((raw) => {
+      const b = withPrivatePricing(raw, priv.get(raw.id));
       const c = contacts.get(b.id);
       return c ? { ...b, phone: c.phone || b.phone, customerEmail: c.email || b.customerEmail, customerWhatsapp: b.customerWhatsapp ?? (c.whatsapp ? { e164: c.whatsapp, sameAsMobile: c.whatsapp === c.phone } : undefined) } : b;
     }) as Booking[]);
   const a = subscribeToCollection<Booking>(COLLECTIONS.BOOKINGS, (d) => { bookings = d; emit(); }, onError);
   const b = subscribeToCollection<{ id: string; phone?: string; email?: string; whatsapp?: string }>("booking_contacts", (d) => { contacts = new Map(d.map((x) => [x.id, x])); emit(); }, () => undefined);
-  return () => { a(); b(); };
+  // Without the payout right the rules refuse this read: the bookings simply carry no partner pricing.
+  const p = subscribeToCollection<PrivatePricing & { id: string }>(PRICING_PRIVATE, (d) => { priv = new Map(d.map((x) => [x.id, x])); emit(); }, () => undefined);
+  return () => { a(); b(); p(); };
 };
 
 export const subscribeDrivers = (cb: (data: Driver[]) => void, onError?: (message: string) => void) =>
@@ -371,7 +386,7 @@ export function subscribeToDocument<T>(path: string, cb: (data: T | null) => voi
   if (redactedBookings && parts.length === 2 && parts[0] === COLLECTIONS.BOOKINGS) {
     return pollStaffBookings<T>(parts[1], (b) => cb((b as T | null) ?? null), onError);
   }
-  if (redactedBookings && parts[0] === "marketplace_trips") {
+  if (redactedBookings && (parts[0] === "marketplace_trips" || parts[0] === PRICING_PRIVATE)) {
     cb(null);
     return () => {};
   }

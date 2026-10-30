@@ -1,6 +1,4 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import FareAdjustmentCard from "../components/FareAdjustmentCard";
-import TariffConfigCard from "../components/TariffConfigCard";
 import { FareRule, PricingModel, TravelService, VehicleCategory, MasterLocation, FareCalculationInput } from "../types";
 import { subscribeFareRules, subscribeServices, subscribeVehicleCategories, subscribeLocations } from "../services/adminFirestoreService";
 import { calculateCentralFare } from "../services/fareEngine";
@@ -73,9 +71,6 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
   // The form as it was opened, so leaving the page can tell real edits from an untouched form.
   const formBaseline = useRef("");
   const [confirmLeave, setConfirmLeave] = useState(false);
-  // The base-rates editor reports its unsaved edits and in-flight saves so Back cannot drop or interrupt them.
-  const tariffDirty = useRef(false);
-  const [tariffBusy, setTariffBusy] = useState(false);
 
   // Rate-card calculator (admin / phone quotations)
   const [calcInput, setCalcInput] = useState<FareCalculationInput>({
@@ -225,10 +220,10 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
   };
 
   // A save, status change, copy or delete in flight must finish before the page is left.
-  const busy = isSubmitting || deleteBusy || rowBusyId !== null || tariffBusy;
+  const busy = isSubmitting || deleteBusy || rowBusyId !== null;
   const handleBack = () => {
     if (busy) return;
-    if ((showModal && JSON.stringify(formData) !== formBaseline.current) || tariffDirty.current) setConfirmLeave(true);
+    if (showModal && JSON.stringify(formData) !== formBaseline.current) setConfirmLeave(true);
     else onBack();
   };
 
@@ -244,7 +239,7 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
       {/* Header Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-ink tracking-tight">Pricing & Fare Management</h1>
+          <h1 className="text-xl font-bold text-ink tracking-tight">Legacy rate cards</h1>
           <p className="text-xs text-muted mt-0.5">
             Booking fares use the enabled tariff, local packages and vehicle category rates. The older rate cards below are reference records; managed fixed route fares must be changed through Service &amp; Fare Settings → Fixed route fares.
           </p>
@@ -264,8 +259,6 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
         </div>
       </div>
 
-      <TariffConfigCard onDirtyChange={(d) => { tariffDirty.current = d; }} onBusyChange={setTariffBusy} />
-      <FareAdjustmentCard />
 
       {/* Summary Cards */}
       {fareRules.length > 0 && (

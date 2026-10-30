@@ -6,6 +6,7 @@ export { onPublicReviewWritten,onPublicServiceWritten,onPublicPackageWritten,onP
 export { createRazorpayOrder, verifyRazorpayPayment } from './payments';
 export { razorpayWebhook } from './paymentWebhook';
 export { reconcile } from './reconcile';
+export { recordExtraUsage, reviewExtraUsage } from './extraUsage';
 export { createAdminBooking, overrideBookingFare } from './adminBookings';
 export { approveBooking, rejectBooking, cancelBooking, updateRefund, assignDriver, acknowledgeUnassignedAlert, migrateMarketplaceVisibility, backfillFulfilmentRoute, onBookingCancelled } from './bookingOps';
 export { recordPayment, voidPayment, onBookingMoneyChange } from './bookingPayments';

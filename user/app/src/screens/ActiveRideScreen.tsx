@@ -126,7 +126,7 @@ export function ActiveRideScreen({ route, navigation }: Props) {
   const destination = trip.tripType === 'Local Rental' ? 'Local Rental' : trip.drop.name;
   const ref = trip.bookingId || trip.id.slice(0, 8).toUpperCase();
   const paidTotal = trip.paid?.totalPaid ?? 0;
-  const balance = trip.paid ? trip.paid.balanceDue : trip.fare + trip.tollCharges;
+  const balance = trip.paid ? trip.paid.balanceDue : trip.fare + trip.tollCharges + (trip.extraCharges ?? 0);
   const payTone: BadgeTone = trip.paid?.status === 'Paid' || trip.paymentStatus === 'Paid' ? 'success' : paidTotal > 0 ? 'warning' : 'neutral';
   const payBadge = isCancelled
     ? trip.refund ? `Refund ${trip.refund.status.toLowerCase()}` : trip.cancellationFee > 0 ? 'Fee applies' : 'No charge'

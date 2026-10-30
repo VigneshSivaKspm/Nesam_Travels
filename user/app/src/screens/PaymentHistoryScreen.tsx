@@ -47,7 +47,7 @@ export function PaymentHistoryScreen() {
         renderItem={({ item: t }) => {
           const when = t.completedAt ?? t.cancelledAt ?? t.createdAt;
           const closed = t.status === 'Cancelled' || t.status === 'Rejected';
-          const total = t.status === 'Completed' ? t.fare + t.tollCharges : closed ? t.cancellationFee : (t.paid?.totalPaid ?? 0);
+          const total = t.status === 'Completed' ? t.fare + t.tollCharges + (t.extraCharges ?? 0) : closed ? t.cancellationFee : (t.paid?.totalPaid ?? 0);
           const pay = paymentLabel(t);
           const tone: BadgeTone = t.status === 'Completed' ? (pay.tone === 'success' ? 'success' : 'warning') : 'neutral';
           return (

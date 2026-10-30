@@ -196,6 +196,7 @@ export function mapBooking(id: string, d: Record<string, unknown>): TripRecord {
         ? { status: str((d.refund as Record<string, unknown>).status), amount: num((d.refund as Record<string, unknown>).amount) }
         : null,
     tollCharges: num(d.tollCharges),
+    extraCharges: d.extraCharges && d.extraCharges.status === 'approved' ? num(d.extraCharges.customer?.totalPaise) / 100 : 0,
     couponCode: str(d.couponCode),
     paymentMethod: str(d.paymentMethod) || 'Cash',
     paymentStatus: str(d.payment) || 'Pending',

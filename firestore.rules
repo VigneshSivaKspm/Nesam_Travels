@@ -756,6 +756,14 @@ service cloud.firestore {
       allow read: if isSuperAdmin() || (isAdmin() && isLegacyStaff()) || (isSignedIn() && resource.data.get('customerId', '') == uid());
       allow write: if false;
     }
+    // ── Partner side of a booking's pricing snapshot ───────────────────────
+    // The booking is readable by its customer, and rules cannot hide single fields, so the partner rate block and
+    // the partner extra-charge rates live here instead (written with the booking by the booking functions, and by the
+    // extra-usage approval). Staff holding the vendor-payout right only: never the customer, never a partner.
+    match /booking_pricing_private/{bookingId} {
+      allow read: if staffFlag('sensitive', 'vendorPayout');
+      allow write: if false;
+    }
     match /contact_access_logs/{logId} {
       allow read: if can('operations');
       allow write: if false;

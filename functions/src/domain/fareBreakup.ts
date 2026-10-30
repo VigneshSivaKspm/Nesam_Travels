@@ -188,3 +188,35 @@ export function withExtraChargeLines(b: FareBreakup, s: ExtraChargesSnapshot): F
   const extras = lines.filter((l) => l.treatment === 'extra');
   return { ...b, lines, knownExtras: extras.reduce((sum, l) => sum + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
 }
+
+/** What the office approved for a trip (the customer side only — this goes on the customer-readable booking). */
+export interface ApprovedExtraLines {
+  usage: { stops: { stopId: string; waitedMinutes: number }[] | null; hill: boolean | null; carrier: boolean | null };
+  waiting: { chargeableMinutes: number; billedMinutes: number | null } | null;
+  customer: { waitingPaise: number; hillPaise: number; carrierPaise: number; subtotalPaise: number; gstPaise: number; totalPaise: number };
+}
+
+/**
+ * Shows the APPROVED amounts on the breakup. These lines are charges outside the package, so `packageTotal` (= fare.total) does
+ * not change; they are added to the amount due separately (see amountDueFor). Each extra that was not used shows ₹0.
+ */
+export function withApprovedExtraLines(b: FareBreakup, x: ApprovedExtraLines): FareBreakup {
+  const money = (p: number) => p / 100;
+  const stops = x.usage.stops ?? [];
+  const lines = b.lines.filter((l) => !['waiting', 'hill', 'carrier', 'extraGst'].includes(l.key));
+  const at = lines.findIndex((l) => l.key === 'toll');
+  const added: FareLine[] = [
+    {
+      key: 'waiting', label: 'Waiting charges', amount: money(x.customer.waitingPaise), treatment: 'extra',
+      detail: x.customer.waitingPaise > 0 && x.waiting
+        ? `${x.waiting.billedMinutes ?? x.waiting.chargeableMinutes} min billed across ${stops.length} stop${stops.length === 1 ? '' : 's'} (free waiting applied at each stop)`
+        : 'No chargeable waiting on this trip',
+    },
+    { key: 'hill', label: 'Hill travel', amount: money(x.customer.hillPaise), treatment: 'extra', detail: x.usage.hill ? 'Hill travel applied' : 'Not applicable to this trip' },
+    { key: 'carrier', label: 'Roof carrier', amount: money(x.customer.carrierPaise), treatment: 'extra', detail: x.usage.carrier ? 'Roof carrier used' : 'Not used on this trip' },
+    ...(x.customer.gstPaise > 0 ? [{ key: 'extraGst', label: 'GST on extra charges', amount: money(x.customer.gstPaise), treatment: 'extra' as const, detail: 'At the GST rate saved with this booking' }] : []),
+  ];
+  const next = at >= 0 ? [...lines.slice(0, at), ...added, ...lines.slice(at)] : [...lines, ...added];
+  const extras = next.filter((l) => l.treatment === 'extra');
+  return { ...b, lines: next, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
+}

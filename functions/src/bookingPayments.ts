@@ -225,7 +225,7 @@ export const voidPayment = onCall(async (request) => {
   });
 });
 
-const MONEY_KEYS = ['fare', 'tollCharges', 'status', 'refund'];
+const MONEY_KEYS = ['fare', 'tollCharges', 'extraCharges', 'status', 'refund'];
 
 /** Keeps paid / balance figures right when the fare, tolls, status or refund changes. */
 export const onBookingMoneyChange = onDocumentUpdated('bookings/{bookingId}', async (event) => {

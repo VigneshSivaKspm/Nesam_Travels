@@ -19,6 +19,7 @@ import { walletTotals } from './domain/finance';
 import { notify } from './notify';
 import { recomputeWallet, walletId } from './ledger';
 import { docId } from './marketplace';
+import { approvedPartnerExtraPaise, loadPrivatePricing } from './pricingPrivate';
 import { requirePermission, text, requireAction, requireWithinBankLimit } from './shared';
 
 export const SETTLEMENT_PAYOUT_HOURS = 4;
@@ -46,10 +47,12 @@ export function settlementPolicyOf(settings: DocumentData | undefined): Settleme
 }
 
 /** Net amount NESAM owes the partner for one completed, verified, fully-paid trip. Negative = partner owes NESAM. */
-export function netSettlement(b: DocumentData): { entitlement: number; collectedByPartner: number; net: number; ready: boolean } {
+export function netSettlement(b: DocumentData, extraPartnerPaise = 0): { entitlement: number; collectedByPartner: number; net: number; ready: boolean } {
   const f = b.finance as FinanceSnapshot | undefined;
   const ps = (b.paymentSummary ?? {}) as { partnerCashHeld?: number; balanceDue?: number; status?: string };
-  const entitlement = r2(money(f?.partnerPayout) + (f && f.paymentMethod !== 'Cash' && b.tollsApproved === true ? money(b.tollCharges) : 0));
+  // Approved extra usage is credited to the partner whatever the payment method: the customer's payment (and so any cash the
+  // partner holds) already includes it.
+  const entitlement = r2(money(f?.partnerPayout) + (f && f.paymentMethod !== 'Cash' && b.tollsApproved === true ? money(b.tollCharges) : 0) + extraPartnerPaise / 100);
   const collectedByPartner = r2(money(ps.partnerCashHeld));
   // The payout is released only against receipts NESAM has confirmed: the customer's balance must be settled.
   const ready = b.status === 'Completed' && !!f && f.schema === 1 && f.partnerPayout !== null && ps.status === 'Paid';
@@ -62,10 +65,10 @@ export async function syncSettlementDue(bookingId: string): Promise<'created' | 
   const dueRef = db.doc(`settlement_dues/${bookingId}`);
   const policy = settlementPolicyOf((await db.doc('settings/operations').get()).data());
   return db.runTransaction(async (tx) => {
-    const [snap, due] = await Promise.all([tx.get(ref), tx.get(dueRef)]);
+    const [snap, due, privatePricing] = await Promise.all([tx.get(ref), tx.get(dueRef), loadPrivatePricing(tx, bookingId)]);
     if (!snap.exists) return 'none';
     const b = snap.data()!;
-    const n = netSettlement(b);
+    const n = netSettlement(b, approvedPartnerExtraPaise(b, privatePricing));
     const f = b.finance as FinanceSnapshot | undefined;
     if (!n.ready || !f || n.net <= 0) return 'none';
     if (due.exists) {
@@ -133,12 +136,13 @@ export const updateSettlement = onCall({ timeoutSeconds: 60 }, async (request) =
       if (!['Due', 'Processing', 'Failed', 'Wallet'].includes(from)) throw new HttpsError('failed-precondition', 'Release the settlement hold before paying it.');
       if (reference.length < 6) throw new HttpsError('invalid-argument', 'Enter the bank / UPI transfer reference. A payout is not Paid without one.');
       const type = d.partnerType === 'vendor' ? 'vendor' : 'driver';
-      const [booking, entries, lock] = await Promise.all([
+      const [booking, entries, lock, privatePricing] = await Promise.all([
         tx.get(db.doc(`bookings/${bookingId}`)),
         tx.get(db.collection('wallet_ledger').where('walletId', '==', walletId(type, d.partnerId))),
         tx.get(db.doc(`payout_locks/${type}_${d.partnerId}`)),
+        loadPrivatePricing(tx, bookingId),
       ]);
-      const current = booking.exists ? netSettlement(booking.data()!) : null;
+      const current = booking.exists ? netSettlement(booking.data()!, approvedPartnerExtraPaise(booking.data()!, privatePricing)) : null;
       if (!current?.ready || current.net <= 0 || current.net !== r2(money(d.amount))) throw new HttpsError('failed-precondition', 'The booking payment or settlement amount changed. Review it before paying.');
       if (walletTotals(entries.docs.map((entry) => entry.data())).available < money(d.amount)) throw new HttpsError('failed-precondition', 'The available wallet balance is insufficient or already reserved for another payout. Review existing payout requests first.');
       void lock;
@@ -200,7 +204,7 @@ export const onBookingSettlementChange = onDocumentUpdated('bookings/{bookingId}
   const before = event.data?.before.data();
   const after = event.data?.after.data();
   if (!after || after.status !== 'Completed') return;
-  const keys = ['status', 'payment', 'paymentStatus', 'paymentSummary', 'finance', 'vendorPayout', 'driverPayout', 'tollsApproved', 'tollCharges'];
+  const keys = ['status', 'payment', 'paymentStatus', 'paymentSummary', 'finance', 'vendorPayout', 'driverPayout', 'tollsApproved', 'tollCharges', 'extraCharges'];
   if (before && keys.every((k) => JSON.stringify(before[k] ?? null) === JSON.stringify(after[k] ?? null))) return;
   await syncSettlementDue(event.params.bookingId);
 });

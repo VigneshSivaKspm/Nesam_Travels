@@ -103,24 +103,36 @@ export function buildInvoiceLines(b: Booking): InvoiceLines {
   if (tolls > 0) {
     items.push({ description: "Toll charges (reimbursement, not taxable)", quantity: 1, rate: tolls, amount: tolls });
   }
-  // Charges outside the package are never hidden: say which ones are payable separately.
-  const extras = (b.fareBreakup?.lines ?? []).filter((l) => l.treatment === "extra");
+  // Extra usage the office approved (waiting / hill / roof carrier): the amounts are the server's, from the rates saved on this booking.
+  // With GST the extras join the taxable value and the tax; without, they are a separate non-taxable line.
+  const ec = b.extraCharges?.status === "approved" ? b.extraCharges : null;
+  const extraNet = ec ? round2(ec.customer.subtotalPaise / 100) : 0;
+  const extraGst = ec ? round2(ec.customer.gstPaise / 100) : 0;
+  if (ec && extraNet > 0) {
+    const parts = [["Waiting", ec.customer.waitingPaise], ["Hill travel", ec.customer.hillPaise], ["Roof carrier", ec.customer.carrierPaise]] as const;
+    for (const [label, paise] of parts) if (paise > 0) items.push({ description: `${label} — approved extra charge${extraGst > 0 ? "" : " (not taxable)"}`, quantity: 1, rate: round2(paise / 100), amount: round2(paise / 100) });
+  }
+  // Charges outside the package are never hidden: say which ones are payable separately (approved extras are billed above).
+  const extras = (b.fareBreakup?.lines ?? []).filter((l) => l.treatment === "extra" && !(ec && ["waiting", "hill", "carrier", "extraGst"].includes(l.key)));
   if (extras.length) {
     const list = extras.map((l) => l.label + (l.amount ? " ₹" + l.amount : " (at actuals)")).join(", ");
     items.push({ description: "Not included in this invoice — payable separately: " + list, quantity: 1, rate: 0, amount: 0 });
   }
-  const cgst = round2(gst / 2);
+  const taxableExtras = extraGst > 0 ? extraNet : 0;
+  const nonTaxableExtras = extraGst > 0 ? 0 : extraNet;
+  const totalGst = round2(gst + extraGst);
+  const cgst = round2(totalGst / 2);
   return {
     items,
-    subtotal,
+    subtotal: round2(subtotal + taxableExtras),
     discount,
-    taxableAmount: taxable,
+    taxableAmount: round2(taxable + taxableExtras),
     gstRate: typeof fb.gstRate === "number" ? fb.gstRate : GST_RATE,
     cgst,
-    sgst: round2(gst - cgst),
-    totalTax: gst,
+    sgst: round2(totalGst - cgst),
+    totalTax: totalGst,
     tolls,
-    grandTotal: round2(fare + tolls),
+    grandTotal: round2(fare + tolls + taxableExtras + extraGst + nonTaxableExtras),
   };
 }
 

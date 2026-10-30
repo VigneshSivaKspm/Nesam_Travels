@@ -38,7 +38,6 @@ export const NAV_GROUPS: NavGroup[] = [
       { id: "vehicles", label: "Vehicles", icon: "car-front" },
       { id: "verification", label: "Verification", icon: "file-check-2" },
       { id: "partner-links", label: "Partner Links", icon: "link" },
-      { id: "categories", label: "Vehicle Categories", icon: "layout-grid" },
     ],
   },
   {

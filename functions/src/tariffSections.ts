@@ -10,7 +10,7 @@ import { auditInTx } from './audit';
 import {
   RENTAL_HOURS, RentalPackage, TARIFF_CLASSES, TariffClass, TariffConfig, parseRentalPackage, parseTariffConfig, rentalMinHours,
 } from './domain/tariff';
-import { EXTRA_CATEGORY_ID, ExtraChargeRow, ExtraChargeSide, ExtraChargesConfig, MAX_FREE_WAITING_MINUTES, MAX_WAITING_ROUNDING_MINUTES } from './domain/extraCharges';
+import { EXTRA_CATEGORY_ID, ExtraChargeRow, ExtraChargeSide, ExtraChargesConfig, MAX_FREE_WAITING_MINUTES, MAX_WAITING_ROUNDING_MINUTES, ROUNDING_SCOPES, RoundingScope, TAX_TREATMENTS, TaxTreatment } from './domain/extraCharges';
 import { TARIFF_DOC } from './quote';
 import { requirePermission, text, requireAction } from './shared';
 
@@ -169,7 +169,15 @@ function applyExtraCharges(base: TariffConfig, d: Record<string, unknown>, names
     if (JSON.stringify(categories[id] ?? null) !== JSON.stringify(row)) changed.push(id);
     categories[id] = row;
   }
-  const extraCharges: ExtraChargesConfig = { version: (base.extraCharges?.version ?? 0) + 1, freeWaitingMinutes, waitingRoundingMinutes, categories };
+  // Two business decisions are explicit settings, never assumed: how rounding is scoped and how the customer's extra charges are taxed.
+  // "Not decided" (null) is allowed and keeps monetary posting of approved usage blocked.
+  const scope = d.waitingRoundingScope ?? null, tax = d.taxTreatment ?? null;
+  if (scope !== null && !(ROUNDING_SCOPES as readonly unknown[]).includes(scope)) throw bad('Choose how waiting is rounded: per stop or combined.');
+  if (tax !== null && !(TAX_TREATMENTS as readonly unknown[]).includes(tax)) throw bad('Choose how extra charges are taxed.');
+  const extraCharges: ExtraChargesConfig = {
+    version: (base.extraCharges?.version ?? 0) + 1, freeWaitingMinutes, waitingRoundingMinutes, categories,
+    ...(scope ? { waitingRoundingScope: scope as RoundingScope } : {}), ...(tax ? { taxTreatment: tax as TaxTreatment } : {}),
+  };
   return { next: { ...base, extraCharges }, changed };
 }
 

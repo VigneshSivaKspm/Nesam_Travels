@@ -17,6 +17,7 @@ import { REFUND_STATUSES, RefundStatus, maxRefund, refundBlocker, summarizePayme
 import { formatDateTime12, pickupInstant } from './domain/time';
 import { notify, notifyInTx, pushAfterCommit, NotifyInput } from './notify';
 import { txnsRef } from './bookingPayments';
+import { loadPrivatePricing, withPrivatePricing } from './pricingPrivate';
 import { approved, requireAdmin, requirePermission, requireSuperAdmin, text, requireDuty, requireAction, requireStaffFlag } from './shared';
 
 const code = (b: DocumentData, id: string) => text(b.bookingId) || id;
@@ -310,8 +311,8 @@ export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
 
   const out = await db.runTransaction(async (tx) => {
     pushes.length = 0;
-    const [snap, m, verification, policy] = await Promise.all([
-      tx.get(ref), tx.get(market), tx.get(db.doc(`vehicle_verifications/${bookingId}`)), loadCommissionPolicy(tx),
+    const [snap, m, verification, policy, privatePricing] = await Promise.all([
+      tx.get(ref), tx.get(market), tx.get(db.doc(`vehicle_verifications/${bookingId}`)), loadCommissionPolicy(tx), loadPrivatePricing(tx, bookingId),
     ]);
     if (!snap.exists) throw new HttpsError('not-found', 'Booking not found.');
     const b = snap.data()!;
@@ -390,7 +391,7 @@ export const assignDriver = onCall({ timeoutSeconds: 60 }, async (request) => {
     let payoutSource: string = text(b.payoutSource) || 'offered';
     let commission: DocumentData | null = null;
     if (!(agreed > 0)) {
-      const p = resolvePayout(b, policy, null, admin);
+      const p = resolvePayout(withPrivatePricing(b, privatePricing), policy, null, admin);
       agreed = p.amount;
       payoutSource = p.source;
       commission = p.commission;

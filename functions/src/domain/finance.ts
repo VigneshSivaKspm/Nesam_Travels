@@ -193,7 +193,7 @@ export function buildFinanceSnapshot(b: Record<string, any>): FinanceSnapshot | 
 
 // ── Ledger and wallet ─────────────────────────────────────────────────────
 
-export type LedgerType = 'trip_earning' | 'toll_reimbursement' | 'cash_collected' | 'payout' | 'penalty_deduction' | 'wallet_recharge' | 'due_payment' | 'due_payment_held';
+export type LedgerType = 'trip_earning' | 'toll_reimbursement' | 'cash_collected' | 'payout' | 'penalty_deduction' | 'wallet_recharge' | 'due_payment' | 'due_payment_held' | 'extra_charge';
 /** `held`: money received and kept for finance review — counted in no balance (see due_payment_held). */
 export type LedgerStatus = 'pending' | 'available' | 'reserved' | 'completed' | 'cancelled' | 'held';
 

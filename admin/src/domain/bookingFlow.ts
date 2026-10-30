@@ -68,8 +68,14 @@ export interface PaymentSummary {
 const r2 = (n: number) => Math.round(n * 100) / 100;
 const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : Number(String(v ?? "").replace(/[^\d.-]/g, "")) || 0);
 
-export function amountDueFor(b: { fare?: unknown; tollCharges?: unknown; status?: unknown }): number {
-  return r2(Math.max(0, num(b.fare)) + (b.status === "Completed" ? Math.max(0, num(b.tollCharges)) : 0));
+export function amountDueFor(b: { fare?: unknown; tollCharges?: unknown; status?: unknown; extraCharges?: unknown }): number {
+  return r2(Math.max(0, num(b.fare)) + (b.status === "Completed" ? Math.max(0, num(b.tollCharges)) + approvedExtraCharges(b.extraCharges) : 0));
+}
+
+/** The customer's approved extra charges (waiting / hill / roof carrier, incl. any GST), in rupees; 0 until the office approves them. */
+export function approvedExtraCharges(x: unknown): number {
+  const e = x as { status?: unknown; customer?: { totalPaise?: unknown } } | null | undefined;
+  return e && e.status === "approved" && typeof e.customer?.totalPaise === "number" && Number.isFinite(e.customer.totalPaise) && e.customer.totalPaise > 0 ? e.customer.totalPaise / 100 : 0;
 }
 
 export function summarizePayments(amountDue: number, txns: PaymentTxn[], refund?: { status?: string; amount?: number } | null): PaymentSummary {

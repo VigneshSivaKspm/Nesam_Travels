@@ -9,6 +9,7 @@ import { useCan } from "../components/AccessContext";
 import { ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, toneForStatus } from "../components/ui";
 import { StageBar } from "../components/ui/ListKit";
+import { resolveAdminDestination } from "../config/adminNavigation";
 import { RefundModal } from "../components/booking/BookingActions";
 import Statement from "../components/accounts/Statement";
 import { BankEntryForm, ExpenseForm, RefundRequestForm, SupplierBillForm, TaxPaymentForm, type AccountRef } from "../components/accounts/RegisterForms";
@@ -17,7 +18,7 @@ import { refDateTime, rupee } from "../domain/officeStage";
 import { exportRows } from "../utils/exportData";
 import { bookingPickupDate, isoDateIST, toDate } from "../utils/time";
 
-const TABS = ["Overview", "Collections", "Partner payouts", "Wallet & deposit", "Expenses & bills", "Bank & cash", "Tax payments", "Statements", "Reconciliation", "Refunds", "Daily closing", "Partner statements"] as const;
+const TABS = ["Overview", "Collections", "Partner payouts", "Wallet & deposit", "Expenses & bills", "Bank & cash", "Tax payments", "Statements", "Reconciliation", "Refunds", "Daily closing"] as const;
 type Tab = (typeof TABS)[number];
 type Sheet = "expense" | "bill" | "bank" | "recon" | "tax" | "refund" | "closing" | null;
 
@@ -26,7 +27,7 @@ const inRange = (day: string, from: string, to: string) => !!day && (!from || da
 
 /** Master Admin Accounts: collections, payouts, wallets, expenses and verified payment records. */
 export default function Accounts({ onNavigate, initialTab }: { onNavigate: (p: string, tab?: string) => void; initialTab?: string }) {
-  const [first, ...rest] = (initialTab ?? "").split(":");
+  const [first, ...rest] = (resolveAdminDestination("accounts", initialTab).tab ?? "").split(":");
   const [tab, setTab] = useState<Tab>((TABS as readonly string[]).includes(first) ? (first as Tab) : "Overview");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -212,7 +213,6 @@ export default function Accounts({ onNavigate, initialTab }: { onNavigate: (p: s
 
       {tab === "Daily closing" && <DailyClosing bookings={bookings} payments={payments} closings={register.filter((r) => r.kind === "closing")} canFinance={canFinance} onToast={show} />}
 
-      {tab === "Partner statements" && <PartnerStatements vendors={data.vendors.map((v) => ({ type: "vendor" as const, id: v.id, name: v.companyName || v.name, code: `NSM-VN-${v.id.slice(0, 6).toUpperCase()}` }))} drivers={data.drivers.filter((d) => !d.vendorId).map((d) => ({ type: "driver" as const, id: d.id, name: d.name, code: d.licenseNumber || d.id.slice(0, 10) }))} />}
 
       {sheet === "expense" && <ExpenseForm onClose={() => setSheet(null)} onDone={done} />}
       {sheet === "bill" && <SupplierBillForm onClose={() => setSheet(null)} onDone={done} />}
@@ -257,23 +257,6 @@ function StatementPicker({ initial, customers, business, vendors, drivers }: { i
         </select>
       </label>
       {acc ? <Statement key={key} account={acc} code={acc.code} /> : <EmptyState />}
-    </section>
-  );
-}
-
-function PartnerStatements({ vendors, drivers }: { vendors: Acc[]; drivers: Acc[] }) {
-  const [kind, setKind] = useState<"Vendors" | "Driver Partners">("Vendors");
-  const list = kind === "Vendors" ? vendors : drivers;
-  const [id, setId] = useState("");
-  const acc = list.find((a) => a.id === id) ?? list[0];
-  return (
-    <section className="ds-panel ds-panel-pad">
-      <p className="text-[12px] text-muted mb-3">Separate monthly statements for each Vendor and Driver Partner.</p>
-      <div className="flex flex-wrap items-end gap-3 mb-4">
-        <div className="ds-seg" style={{ minWidth: 300 }}>{(["Vendors", "Driver Partners"] as const).map((k) => <button key={k} type="button" aria-pressed={kind === k} onClick={() => { setKind(k); setId(""); }}>{k}</button>)}</div>
-        <label className="ds-field" style={{ minWidth: 300 }}><span>Partner</span><select className="ds-select" value={acc?.id ?? ""} onChange={(e) => setId(e.target.value)}>{list.map((a) => <option key={a.id} value={a.id}>{a.name} · {a.code}</option>)}</select></label>
-      </div>
-      {acc ? <Statement key={`${acc.type}:${acc.id}`} account={acc} code={acc.code} /> : <EmptyState />}
     </section>
   );
 }

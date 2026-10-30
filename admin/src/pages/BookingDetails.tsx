@@ -13,6 +13,7 @@ import { AssignDriverModal, AssignVendorModal, CancelBookingModal, RecordPayment
 import { AssignmentHistory, PaymentsPanel, VehicleVerificationPanel, VerifyCustomerModal, type AssignmentRow, type PaymentRow, type VerificationDoc } from "../components/booking/BookingPanels";
 import { AssignOnBehalfDrawer, PublishDutyDrawer, PublishedDutyDrawer } from "../components/booking/DutyDrawers";
 import { PricingPanel, ReachedOverrideDialog, SettlementPanel } from "../components/booking/TripMoneyPanels";
+import ExtraUsagePanel from "../components/booking/ExtraUsagePanel";
 import { useAccess, useCan } from "../components/AccessContext";
 import ContactReveal from "../components/booking/ContactReveal";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, Tabs } from "../components/ui";
@@ -409,6 +410,7 @@ export default function BookingDetails({ bookingId, onBack }: { bookingId: strin
           <Card title="Fare breakup"><FareBreakupView breakup={booking.fareBreakup} total={fare} /></Card>
           <div className="grid gap-5 content-start">
             <PricingPanel booking={booking} />
+            <ExtraUsagePanel booking={booking} />
             <SettlementPanel booking={booking} canFinance={canFinance} />
           </div>
           <div className="lg:col-span-2">

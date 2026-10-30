@@ -204,6 +204,8 @@ export interface TripRecord {
   /** Refund recorded on a cancelled booking (status Pending / Processing / Completed …). */
   refund: { status: string; amount: number } | null;
   tollCharges: number;
+  /** Extra charges (waiting / hill / roof carrier) the office approved for this trip, incl. any GST, in rupees; 0 until then. */
+  extraCharges?: number;
   couponCode: string;
   paymentMethod: PaymentMethod | string;
   paymentStatus: string;

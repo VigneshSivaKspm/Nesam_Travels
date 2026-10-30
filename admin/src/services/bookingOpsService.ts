@@ -35,6 +35,16 @@ export const saveTariffConfig = (i: { useConfirmedDefaults?: boolean; keepSavedR
 export const saveTariffSection = (i: { section: "baseRates" | "localPickupDrop" | "rentalMinimum" | "rentalPackage" | "extraCharges"; expectedVersion: number; reason: string; class?: string; cityId?: string; hours?: number; minHours?: number; data?: unknown }) =>
   callFunction<typeof i, { version: number; extraChargesVersion?: number }>("saveTariffSection", i);
 
+export interface ExtraUsageInput {
+  stops: { stopId: string; waitedMinutes: number }[] | null; hill: boolean | null; carrier: boolean | null;
+}
+/** Records what happened on a trip (per stop; null = not recorded). No amount is sent: the server prices it on approval. */
+export const recordExtraUsage = (i: { bookingId: string; expectedRevision: number; usage: ExtraUsageInput; note?: string }) =>
+  callFunction<typeof i, { revision: number }>("recordExtraUsage", i);
+/** Finance approves or rejects one specific revision; approval posts the server-computed customer charge and partner credit. */
+export const reviewExtraUsage = (i: { bookingId: string; revision: number; decision: "approve" | "reject"; note?: string }) =>
+  callFunction<typeof i, { status: "approved" | "rejected"; revision: number; customerTotalPaise?: number }>("reviewExtraUsage", i);
+
 export interface FixedRouteFareData {
   originLocationId: string; destinationLocationId: string; vehicleCategoryId: string; serviceId: string;
   customerFare: number; partnerPayout: number; gstMode: "included" | "excluded"; peakAdjustment: "apply" | "exclude"; reverseDirection: boolean;

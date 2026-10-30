@@ -18,6 +18,7 @@ import { nx } from '../theme/nx';
 const ENTRY_LABEL: Record<string, string> = {
   trip_earning: 'Trip earning',
   toll_reimbursement: 'Toll reimbursement',
+  extra_charge: 'Approved extra charges',
   cash_collected: 'Cash fare you collected',
   payout: 'Payout',
 };
