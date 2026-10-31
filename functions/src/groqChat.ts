@@ -156,7 +156,6 @@ export const chatWithBot = onCall(
   {
     timeoutSeconds: 45,
     cors: PUBLIC_CALLABLE_ORIGINS,
-    allowInvalidAppCheckToken: true, // public endpoint — no App Check required for chat
   },
   async (request) => {
   const input = (request.data ?? {}) as ChatRequestInput;

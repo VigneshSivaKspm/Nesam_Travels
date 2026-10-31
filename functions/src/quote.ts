@@ -413,7 +413,7 @@ export async function customerFareContext(tripType: TripType, pickup: GeoPlace, 
  * priceBooking() createBooking uses — so what the customer reviews is what is booked. Nothing is
  * written. The pickup time matters (night charge, calendar days), so it is validated like a booking.
  */
-export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_ORIGINS, allowInvalidAppCheckToken: true }, async (request) => {
+export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_ORIGINS }, async (request) => {
   // Signed-out visitors may see fares too (nothing is written or returned about any account);
   // they are rate-limited per IP and get no coupon, which depends on the customer's history.
   const uid = request.auth?.uid;

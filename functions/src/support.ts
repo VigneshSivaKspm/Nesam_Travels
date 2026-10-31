@@ -23,7 +23,7 @@ const bad = (m: string) => new HttpsError('invalid-argument', m);
 const CATEGORIES = ['Booking help', 'Change or cancel a booking', 'Fare or payment', 'Refund', 'Driver or vehicle', 'Lost item', 'Safety concern', 'Feedback', 'Corporate / business travel', 'Partner with us', 'Other'];
 const PHONE_RE = /^\+?[0-9\s-]{10,16}$/;
 
-export const submitSupportRequest = onCall({ timeoutSeconds: 30, cors: PUBLIC_CALLABLE_ORIGINS, allowInvalidAppCheckToken: true }, async (request) => {
+export const submitSupportRequest = onCall({ timeoutSeconds: 30, cors: PUBLIC_CALLABLE_ORIGINS }, async (request) => {
   const input = (request.data ?? {}) as Record<string, unknown>;
   // Honeypot: real people never see or fill this field. Pretend success so bots learn nothing.
   if (text(input.website, 200)) return { id: 'received' };
