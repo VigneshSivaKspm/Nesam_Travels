@@ -10,6 +10,7 @@ import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { Badge, Button, Notice, PageHead, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
+import { LEGAL_SEO } from '@/seo/pages';
 import { useAuth } from '@/state/Auth';
 import { PolicySections } from './PolicySections';
 
@@ -22,11 +23,7 @@ interface DocRow {
 }
 
 export function LegalPage() {
-  useSeo({
-    title: 'Terms of Service & Customer Privacy Policy',
-    description: 'Read the official terms and conditions, customer privacy policy, fare transparency rules and cancellation guidelines for One Way Car Rentals.',
-    canonical: '/legal',
-  });
+  useSeo(LEGAL_SEO);
   const [rows, setRows] = useState<DocRow[] | null>(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState('');

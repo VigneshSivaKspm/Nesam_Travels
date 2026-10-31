@@ -199,9 +199,15 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
   };
 
   // Compute common baseline reference values for comparison
-  const commonOW = selectedService === "Multicity" ? t?.brandOverrides?.common?.Multicity?.[selectedClass] : t?.oneWay?.classes?.[selectedClass];
-  const commonRT: { customerRate?: number; partnerRate?: number; minKmPerDay?: number; customerBata?: number; partnerBata?: number } | undefined = t?.brandOverrides?.common?.Multicity?.[selectedClass];
-  const commonExtras = selectedService === "One Way" ? outstationExtraFor(t, selectedClass, "One Way") : selectedService === "Multicity" ? t?.brandOverrides?.common?.Multicity?.[selectedClass] : t?.outstationExtras?.[selectedClass];
+  // Baselines exactly as the server inherits them (Innova uses the SUV card until it has its own). resolveRate then layers
+  // the Common service setting and the brand's own on top.
+  const commonOW = t?.oneWay?.classes?.[selectedClass] ?? (selectedClass === "innova" ? t?.oneWay?.classes?.suv : undefined);
+  // Round Trip uses its own card; Multicity inherits the Round Trip card (a multi-day tour is billed the same way).
+  const commonRT: { customerRate?: number; partnerRate?: number; minKmPerDay?: number; customerBata?: number; partnerBata?: number } | undefined =
+    t?.roundTrip?.classes?.[selectedClass] ?? (selectedClass === "innova" ? t?.roundTrip?.classes?.suv : undefined);
+  const commonExtras = selectedService === "One Way" ? outstationExtraFor(t, selectedClass, "One Way")
+    : selectedService === "Round Trip" || selectedService === "Multicity" ? outstationExtraFor(t, selectedClass, "Round Trip")
+    : undefined;
   const commonAirport = t?.airport;
   const commonExtraCharges = t?.extraCharges?.categories?.[`cat-${selectedClass}`] || t?.extraCharges?.categories?.[selectedClass];
 
@@ -314,7 +320,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
     <div className="ds-fare-workspace">
       <Toast toast={toast} />
 
-      {selectedService === "Multicity" && <p className="ds-note mb-4">Multicity uses the travel-desk enquiry flow. These are scoped quotation settings; automatic checkout and a new billing formula are not enabled.</p>}
+      {selectedService === "Multicity" && <p className="ds-note mb-4">Multicity uses the travel-desk enquiry flow. These rates price each enquiry (Bookings → Enquiries &amp; quotes → Price Multicity quote). Blank fields inherit the Round Trip rates.</p>}
+      {selectedService === "Airport Taxi" && <p className="ds-note mb-4">Airport fare = base fare for the included KM + extra KM rate for every KM beyond. Customer base, partner base, included KM, extra KM rate and partner extra KM rate must all be set for a vehicle class before quotes use them; until then airport trips use the vehicle-category fare.</p>}
 
       {loadError && (
         <div className="ds-error mb-4" role="alert">
@@ -569,11 +576,25 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
               fieldKey="partnerBase"
             />
             <RateField
-              label="Extra Kilometre Rate"
+              label="Included KM in Base Fare"
+              unit="km"
+              value={form.minKm}
+              commonValue={undefined}
+              resolved={evalField("minKm", undefined)}
+              scopeBrand={selectedBrand}
+              onChange={(v) => setField("minKm", v)}
+              onClear={() => handleClearOverride("minKm")}
+              tariff={t}
+              service={selectedService}
+              cls={selectedClass}
+              fieldKey="minKm"
+            />
+            <RateField
+              label="Customer Extra KM Rate"
               unit="₹/km"
               value={form.extraKmRate}
-              commonValue={commonExtras?.extraKmRate ?? commonOW?.customerRate}
-              resolved={evalField("extraKmRate", commonExtras?.extraKmRate ?? commonOW?.customerRate)}
+              commonValue={undefined}
+              resolved={evalField("extraKmRate", undefined)}
               scopeBrand={selectedBrand}
               onChange={(v) => setField("extraKmRate", v)}
               onClear={() => handleClearOverride("extraKmRate")}
@@ -583,11 +604,26 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
               fieldKey="extraKmRate"
             />
             <RateField
+              label="Partner Extra KM Rate"
+              unit="₹/km"
+              value={form.partnerRate}
+              commonValue={undefined}
+              resolved={evalField("partnerRate", undefined)}
+              scopeBrand={selectedBrand}
+              onChange={(v) => setField("partnerRate", v)}
+              onClear={() => handleClearOverride("partnerRate")}
+              tariff={t}
+              service={selectedService}
+              cls={selectedClass}
+              fieldKey="partnerRate"
+              zeroAllowed
+            />
+            <RateField
               label="Waiting Charge"
               unit="₹/hour"
               value={form.waitingPerHour}
-              commonValue={commonExtras?.waitingPerHour ?? 0}
-              resolved={evalField("waitingPerHour", commonExtras?.waitingPerHour ?? 0)}
+              commonValue={commonExtraCharges?.customer?.waitingPerHour}
+              resolved={evalField("waitingPerHour", commonExtraCharges?.customer?.waitingPerHour)}
               scopeBrand={selectedBrand}
               onChange={(v) => setField("waitingPerHour", v)}
               onClear={() => handleClearOverride("waitingPerHour")}
@@ -740,9 +776,9 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
           </div>
         )}
 
-        {selectedService === "Multicity" && (
+        {(selectedService === "Multicity" || selectedService === "Round Trip") && (
           <div className="space-y-4">
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded text-[12px] text-amber-900 flex items-start gap-2">
+            {selectedService === "Multicity" && <div className="p-3 bg-amber-50 border border-amber-200 rounded text-[12px] text-amber-900 flex items-start gap-2">
               <Icon name="info" size={16} className="mt-0.5 text-amber-700 flex-shrink-0" />
               <div>
                 <strong>Multicity Operational Billing Policy:</strong>
@@ -752,15 +788,15 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                   operations when authoring and converting Multicity quotes.
                 </p>
               </div>
-            </div>
+            </div>}
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <RateField
                 label="Customer Distance Rate"
                 unit="₹/km"
                 value={form.customerRate}
-                commonValue={commonRT?.customerRate ?? commonOW?.customerRate}
-                resolved={evalField("customerRate", commonRT?.customerRate ?? commonOW?.customerRate)}
+                commonValue={commonRT?.customerRate}
+                resolved={evalField("customerRate", commonRT?.customerRate)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("customerRate", v)}
                 onClear={() => handleClearOverride("customerRate")}
@@ -773,8 +809,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                 label="Partner Payout Rate"
                 unit="₹/km"
                 value={form.partnerRate}
-                commonValue={commonRT?.partnerRate ?? commonOW?.partnerRate}
-                resolved={evalField("partnerRate", commonRT?.partnerRate ?? commonOW?.partnerRate)}
+                commonValue={commonRT?.partnerRate}
+                resolved={evalField("partnerRate", commonRT?.partnerRate)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("partnerRate", v)}
                 onClear={() => handleClearOverride("partnerRate")}
@@ -787,8 +823,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                 label="Minimum Daily Billable Distance"
                 unit="km/day"
                 value={form.minKmPerDay}
-                commonValue={commonRT?.minKmPerDay ?? 300}
-                resolved={evalField("minKmPerDay", commonRT?.minKmPerDay ?? 300)}
+                commonValue={commonRT?.minKmPerDay}
+                resolved={evalField("minKmPerDay", commonRT?.minKmPerDay)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("minKmPerDay", v)}
                 onClear={() => handleClearOverride("minKmPerDay")}
@@ -801,8 +837,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                 label="Customer Daily Allowance (Driver Bata)"
                 unit="₹/day"
                 value={form.customerBata}
-                commonValue={commonRT?.customerBata ?? commonOW?.customerBata}
-                resolved={evalField("customerBata", commonRT?.customerBata ?? commonOW?.customerBata)}
+                commonValue={commonRT?.customerBata}
+                resolved={evalField("customerBata", commonRT?.customerBata)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("customerBata", v)}
                 onClear={() => handleClearOverride("customerBata")}
@@ -816,8 +852,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                 label="Partner Daily Allowance (Driver Bata)"
                 unit="₹/day"
                 value={form.partnerBata}
-                commonValue={commonRT?.partnerBata ?? commonOW?.partnerBata}
-                resolved={evalField("partnerBata", commonRT?.partnerBata ?? commonOW?.partnerBata)}
+                commonValue={commonRT?.partnerBata}
+                resolved={evalField("partnerBata", commonRT?.partnerBata)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("partnerBata", v)}
                 onClear={() => handleClearOverride("partnerBata")}
@@ -845,8 +881,8 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
                 label="Waiting Charge"
                 unit="₹/hour"
                 value={form.waitingPerHour}
-                commonValue={commonExtras?.waitingPerHour ?? 0}
-                resolved={evalField("waitingPerHour", commonExtras?.waitingPerHour ?? 0)}
+                commonValue={commonExtras?.waitingPerHour}
+                resolved={evalField("waitingPerHour", commonExtras?.waitingPerHour)}
                 scopeBrand={selectedBrand}
                 onChange={(v) => setField("waitingPerHour", v)}
                 onClear={() => handleClearOverride("waitingPerHour")}

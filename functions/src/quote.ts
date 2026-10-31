@@ -16,7 +16,7 @@ import { buildFareBreakup, buildTariffFareBreakup, FareBreakup, withExtraChargeL
 import { extraChargesSnapshot } from './domain/extraCharges';
 import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
 import {
-  CONFIRMED_TARIFF_V2, FixedRouteFare, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
+  CONFIRMED_TARIFF_V2, FixedRouteFare, completeAirportRates, defaultRentalHours, quoteAirport, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
   parseFixedRouteFare, parseTariffConfig, gstOn, quoteFixedRoute, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone, scopedTariffForBrand,
 } from './domain/tariff';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
@@ -136,7 +136,7 @@ export function priceBooking(i: PriceInput): PriceResult {
   const r = tax ? applyFareGst(raw, explicitMode ? { ...tax, mode: explicitMode } : tax) : raw;
   if (tax) r.pricing.brandScoped = !!(i.brand && i.tariff?.brandOverrides?.[i.brand]);
   if (tax) {
-    const outstation = ['rental_package', 'local_pickup_drop'].includes(r.pricing.model) ? false : r.outstation;
+    const outstation = ['rental_package', 'local_pickup_drop', 'airport_transfer'].includes(r.pricing.model) ? false : r.outstation;
     r.breakup = r.pricing.source === 'tariff_v2' ? buildTariffFareBreakup(i.category, r.fare, outstation, r.pricing) : buildFareBreakup(i.category, r.fare, outstation);
   }
   const klass = tariffClassOf(i.category);
@@ -214,8 +214,10 @@ function priceBookingCore(i: PriceInput): PriceResult {
   // Fixed rental packages and per-city Local Pickup & Drop fares switch on one by one (each has its own
   // enabled flag), so they do not wait for the confirmed-tariff switch. Anything not explicitly enabled
   // and valid is never priced here: a rental with no usable package is refused, a local trip falls through.
-  if (i.tripType === 'Local Rental' && i.rentalHours != null) {
-    const tariff = effectiveTariff, hours = i.rentalHours;
+  // With no package chosen, the shortest package this vehicle may book is quoted (and shown) so the saved packages always apply.
+  const rentalHours = i.tripType === 'Local Rental' ? i.rentalHours ?? (effectiveTariff && klass ? defaultRentalHours(effectiveTariff, klass) : null) : null;
+  if (i.tripType === 'Local Rental' && rentalHours != null) {
+    const tariff = effectiveTariff, hours = rentalHours;
     if (!tariff || !klass) throw new HttpsError('failed-precondition', 'Rental packages are not configured for this vehicle.');
     try {
       const q = withDiscounts((discount) => quoteRentalPackage({ config: tariff, tariffClass: klass, tripType: 'One Way', hours, discount, ...timing, ...adjust }));
@@ -228,6 +230,14 @@ function priceBookingCore(i: PriceInput): PriceResult {
   if (effectiveTariff && klass && i.localCityId && i.tripType === 'One Way' && service === 'Local' && localFareFor(effectiveTariff, i.localCityId, klass)) {
     const tariff = effectiveTariff, cityId = i.localCityId;
     const q = withDiscounts((discount) => quoteLocalPickupDrop({ config: tariff, tariffClass: klass, tripType: 'One Way', cityId, discount, ...timing, ...adjust }));
+    return { fare: q.fare, pricing: { ...q.pricing, brand: i.brand, brandScoped: !!(i.brand && i.tariff?.brandOverrides?.[i.brand]) }, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, false, q.pricing), usesCommissionPolicy: false };
+  }
+
+  // Airport transfer: base fare for the included KM plus the extra-KM rate, once every Airport Taxi rate is saved for this
+  // class (Common or brand). Until then the trip keeps the vehicle-category fare below.
+  const airportRates = cfg && klass && i.tripType === 'Airport Taxi' ? completeAirportRates(cfg, klass) : null;
+  if (cfg && klass && airportRates) {
+    const q = withDiscounts((discount) => quoteAirport({ config: cfg, tariffClass: klass, tripType: 'One Way', rates: airportRates, discount, ...timing, ...adjust }));
     return { fare: q.fare, pricing: { ...q.pricing, brand: i.brand, brandScoped: !!(i.brand && i.tariff?.brandOverrides?.[i.brand]) }, service, outstation, breakup: buildTariffFareBreakup(i.category, q.fare, false, q.pricing), usesCommissionPolicy: false };
   }
 
@@ -375,6 +385,29 @@ function placeOf(v: any, role: string): GeoPlace {
 }
 
 /**
+ * A customer place keeps its master-location id only when that Active location sits at the same coordinates, so the
+ * customer apps price Fixed route and Local Pickup & Drop fares exactly as the office does. Anything else stays a map pin.
+ */
+export async function trustedCustomerPlace(place: GeoPlace, requestedId: unknown): Promise<GeoPlace> {
+  const id = typeof requestedId === 'string' ? requestedId : '';
+  if (!id || id === 'pin' || id.includes('/') || id.length > 150) return place;
+  const l = (await db.doc(`locations/${id}`).get()).data();
+  if (!l || l.status !== 'Active' || !Number.isFinite(l.lat) || !Number.isFinite(l.lng)) return place;
+  if (Math.abs(l.lat - place.lat) > 0.0001 || Math.abs(l.lng - place.lng) > 0.0001) return place;
+  return { ...place, id, type: l.type === 'Airport' ? 'airport' : place.type, city: text(l.city, 80), area: text(l.area, 80), state: text(l.state, 80) } as GeoPlace;
+}
+
+/** Fixed route fares and the shared City a customer trip may use (the same inputs the office booking passes). */
+export async function customerFareContext(tripType: TripType, pickup: GeoPlace, drop: GeoPlace, distanceKm: number): Promise<{ fixedRoutes: FixedRouteFare[]; localCityId: string | null }> {
+  const masters = pickup.id !== 'pin' && drop.id !== 'pin';
+  const [fixedRoutes, localCityId] = await Promise.all([
+    tripType === 'One Way' && masters ? loadFixedRoutes() : Promise.resolve([]),
+    tripType === 'One Way' && !isOutstation(distanceKm) && masters ? sharedCityId(pickup, drop) : Promise.resolve(null),
+  ]);
+  return { fixedRoutes, localCityId };
+}
+
+/**
  * The fare the customer will be charged, for each active vehicle category, computed by the same
  * priceBooking() createBooking uses — so what the customer reviews is what is booked. Nothing is
  * written. The pickup time matters (night charge, calendar days), so it is validated like a booking.
@@ -386,7 +419,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   if (!uid && rateLimited(`quote:${requestIp(request)}`, 30)) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment.');
   const input = request.data ?? {};
   const brand = resolveAndValidateBrand(input, request);
-  const pickup = placeOf(input.pickup, 'pickup'), drop = placeOf(input.drop, 'drop');
+  const [pickup, drop] = await Promise.all([trustedCustomerPlace(placeOf(input.pickup, 'pickup'), input.pickup?.id), trustedCustomerPlace(placeOf(input.drop, 'drop'), input.drop?.id)]);
   const tripType: TripType =
     input.tripType === 'Round Trip'
       ? 'Round Trip'
@@ -403,6 +436,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   if (problem || !when) throw new HttpsError('invalid-argument', problem || 'Choose the pickup date and time.');
   const tripEndAt = tripType === 'Round Trip' ? parsePickupInstant(input.tripEndAt) : null;
   const route = await routeFor(pickup, drop);
+  const { fixedRoutes, localCityId } = await customerFareContext(tripType, pickup, drop, route.distanceKm);
   const customer = uid ? await db.doc(`customers/${uid}`).get() : null;
   if (customer?.exists && !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
   // A coupon is only checked for an existing customer account.
@@ -430,20 +464,13 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     .sort((a, b) => a.c.displayOrder - b.c.displayOrder)
     .map(({ d, c }) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
-      const base = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer?.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand };
+      const matched = matchAuthoritativeService(onlineMasters, { tripType, categoryId: c.id, distanceKm: route.distanceKm, pickupType: pickup.type, dropType: drop.type, context: 'customer' });
+      const base = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer?.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand, fixedRoutes, localCityId, serviceId: matched?.id ?? '' };
       try {
         assertCatalogAvailable(onlineMasters,tripType,category.id);
         assertBookable(rules, category.name);
         const before = priceBooking(base);
         if (before.usesCommissionPolicy) {
-          const matched = matchAuthoritativeService(onlineMasters, {
-            tripType,
-            categoryId: c.id,
-            distanceKm: route.distanceKm,
-            pickupType: pickup.type,
-            dropType: drop.type,
-            context: 'customer',
-          });
           const commission = resolveCommission(policy, { serviceId: matched?.id, categoryId: c.id });
           if (!commission) throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
         }
@@ -463,7 +490,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
         assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(adjustPartner(priced.pricing, rules)) });
         return {
           categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service,
-          model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, couponMessage, couponApplied: discount > 0,
+          model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, rentalHours: priced.pricing.rentalHours ?? null, couponMessage, couponApplied: discount > 0,
         };
       } catch (e) {
         return { categoryId: c.id, ok: false as const, error: e instanceof HttpsError ? e.message : 'This category cannot be priced right now.' };

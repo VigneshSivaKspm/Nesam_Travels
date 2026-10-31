@@ -10,16 +10,13 @@ import { FAQS } from '@/pages/book/content';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/state/Auth';
 import { useSeo } from '@/lib/seo';
+import { SUPPORT_SEO } from '@/seo/pages';
 import { PolicyLinks } from '@/pages/PolicySections';
 
 type Tab = 'help' | 'ticket' | 'mine';
 
 export function SupportPage() {
-  useSeo({
-    title: 'Customer Support & 24/7 Helpline',
-    description: 'Need help with your outstation cab or drop taxi booking? Call One Way Car Rentals at +91 90250 99990 or submit a ticket. Fast 24/7 assistance across Tamil Nadu.',
-    canonical: '/support',
-  });
+  useSeo(SUPPORT_SEO);
   const [params] = useSearchParams();
   const initialBooking = params.get('booking') ?? '';
   const { profile } = useCustomerData();

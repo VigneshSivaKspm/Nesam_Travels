@@ -18,7 +18,7 @@ import { loadCommissionPolicy } from './commission';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
 import { createContactInTx, maskPhone } from './contacts';
-import { loadTariffConfig, priceBooking, rentalHoursOf, tariffClassOf } from './quote';
+import { customerFareContext, loadTariffConfig, priceBooking, rentalHoursOf, tariffClassOf, trustedCustomerPlace } from './quote';
 import { assertLegalAccepted } from './legal';
 import { nextBookingCode } from './bookingSequence';
 import { splitPricing } from './domain/pricingPrivacy';
@@ -59,7 +59,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const scheduleProblem = pickupWindowProblem(scheduled, now, window);
   if (scheduleProblem || !scheduled) throw new HttpsError('invalid-argument', scheduleProblem || 'Choose the pickup date and time.');
   const when = scheduled;
-  const pickup = place(input.pickup), drop = place(input.drop);
+  const [pickup, drop] = await Promise.all([trustedCustomerPlace(place(input.pickup), input.pickup?.id), trustedCustomerPlace(place(input.drop), input.drop?.id)]);
   const route = await routeFor(pickup, drop);
   const bookingBrand = resolveAndValidateBrand(input, request);
   const tripType: TripType =
@@ -71,6 +71,8 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       ? 'Airport Taxi'
       : 'One Way';
   assertServiceSupported(bookingBrand, tripType);
+  // Fixed route and Local Pickup & Drop fares, matched on master-location ids exactly as the quote was.
+  const { fixedRoutes, localCityId } = await customerFareContext(tripType, pickup, drop, route.distanceKm);
   // A round trip is billed by Indian calendar date, so the customer states when it ends.
   let tripEndAt: Date | null = null;
   if (tripType === 'Round Trip') {
@@ -155,7 +157,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
     const recipientState = recipientGstState(customer.data());
-    const priceInput = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand };
+    const priceInput = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).

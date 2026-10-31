@@ -210,7 +210,7 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
           </section>
         </div>
         <div className="grid gap-5 content-start">
-          <FareBreakupCard vehicle={e.vehicle} lines={e.breakup ?? []} total={e.estimate ?? 0} gstRate={e.gstRate ?? 0} extraKm={e.extraKmRate} payout={e.payout ?? null} />
+          <FareBreakupCard vehicle={e.vehicle} lines={(e.breakup ?? []).filter((l) => !/^GST /.test(l.label))} total={e.estimate ?? 0} gstRate={e.gstRate ?? 0} gstAmount={e.breakup?.find((l) => /^GST /.test(l.label))?.amount} extraKm={e.extraKmRate} payout={e.payout ?? null} priceEntered={e.gstIncluded ? "Including GST" : "Excluding GST"} />
           <section className="ds-panel ds-panel-pad">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-[14px] font-bold text-ink">Handling staff</h3>
@@ -230,16 +230,20 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
 }
 
 /** "Sedan · Fare breakup" card used by quotes and the New booking flow. */
-export function FareBreakupCard({ vehicle, lines, total, gstRate, extraKm, payout, priceEntered = "Excluding GST" }: {
+export function FareBreakupCard({ vehicle, lines, total, gstRate, gstAmount, extraKm, payout, priceEntered = "Excluding GST" }: {
   vehicle?: string;
   lines: { label: string; amount: number }[];
   total: number;
+  /** As stored on fares and quotes: a fraction (0.05 = 5%). Older records holding a percentage are read as one. */
   gstRate: number;
+  /** The GST the server calculated; when absent it is worked out from the total. */
+  gstAmount?: number;
   extraKm?: number;
   payout: number | null;
   priceEntered?: string;
 }) {
-  const gst = Math.round((total - total / (1 + gstRate / 100)) * 100) / 100;
+  const pct = gstRate > 0 && gstRate < 1 ? Math.round(gstRate * 10000) / 100 : gstRate;
+  const gst = typeof gstAmount === "number" ? gstAmount : Math.round((total - total / (1 + pct / 100)) * 100) / 100;
   const taxable = Math.round((total - gst) * 100) / 100;
   return (
     <section className="ds-panel ds-panel-pad">
@@ -252,7 +256,7 @@ export function FareBreakupCard({ vehicle, lines, total, gstRate, extraKm, payou
           <div key={i} className="flex justify-between gap-3"><dt className="text-muted">{l.label}</dt><dd className="text-ink">{rupee(l.amount)}</dd></div>
         ))}
         <div className="flex justify-between gap-3"><dt className="text-muted">Taxable amount · excluding GST</dt><dd className="text-ink">{rupee(taxable)}</dd></div>
-        <div className="flex justify-between gap-3"><dt className="text-muted">GST · {gstRate}%</dt><dd className="text-ink">{rupee(gst)}</dd></div>
+        <div className="flex justify-between gap-3"><dt className="text-muted">GST · {pct}%</dt><dd className="text-ink">{rupee(gst)}</dd></div>
         <div className="flex justify-between gap-3"><dt className="text-muted">Customer total · including GST</dt><dd className="text-ink font-semibold">{rupee(total)}</dd></div>
       </dl>
       <p className="text-[11px] text-muted mt-3">Price entered: <strong>{priceEntered}</strong>{extraKm ? ` · Extra km ${rupee(extraKm)}` : ""}</p>

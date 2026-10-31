@@ -37,15 +37,15 @@ export const BRAND_LABELS: Record<BrandId, string> = {
   onewaycarrentals: "One Way Car Rentals",
 };
 
-/** Supported services for workspace selection (Notice: Round Trip is explicitly excluded). */
-export const WORKSPACE_SERVICES = ["One Way", "Airport Taxi", "Local Rental", "Multicity"] as const;
+/** Services with their own rates in the fare workspace. */
+export const WORKSPACE_SERVICES = ["One Way", "Round Trip", "Airport Taxi", "Local Rental", "Multicity"] as const;
 export type WorkspaceService = (typeof WORKSPACE_SERVICES)[number];
 export type FareWorkspaceScope = { brand: BrandId | "common"; service: WorkspaceService };
 
 export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly WorkspaceService[]> = {
-  nesam: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
-  people_taxi: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
-  onewaycarrentals: ["One Way", "Airport Taxi", "Local Rental", "Multicity"],
+  nesam: ["One Way", "Round Trip", "Airport Taxi", "Local Rental", "Multicity"],
+  people_taxi: ["One Way", "Round Trip", "Airport Taxi", "Local Rental", "Multicity"],
+  onewaycarrentals: ["One Way", "Round Trip", "Airport Taxi", "Local Rental", "Multicity"],
 };
 
 export interface BrandFareOverride {

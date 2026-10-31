@@ -4,6 +4,20 @@
   "installCommand": "npm install",
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "onewaycarrentals.in" }],
+      "destination": "https://www.onewaycarrentals.in/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "onewaycarrental.nesamcabs.com" }],
+      "destination": "https://www.onewaycarrentals.in/:path*",
+      "permanent": true
+    }
+  ],
   "rewrites": [
     {
       "source": "/(.*)",

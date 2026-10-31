@@ -1,7 +1,7 @@
 import { HttpsError } from 'firebase-functions/v2/https';
 
 export const FARE_BRANDS = ['nesam', 'people_taxi', 'onewaycarrentals'] as const;
-export const FARE_SERVICES = ['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'] as const;
+export const FARE_SERVICES = ['One Way', 'Round Trip', 'Airport Taxi', 'Local Rental', 'Multicity'] as const;
 export const fareServiceKey = (service: string): string => service === 'Airport' ? 'Airport Taxi' : service === 'Rental' ? 'Local Rental' : service;
 
 /** Missing scope preserves historical shared records. New scoped writes require an exact service. */

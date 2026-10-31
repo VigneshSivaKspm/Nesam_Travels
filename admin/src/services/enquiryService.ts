@@ -50,6 +50,8 @@ export interface Enquiry {
   estimate?: number;
   breakup?: EnquiryBreakupLine[];
   gstRate?: number;
+  /** Multicity quotes: whether the GST policy had the fare already include GST. */
+  gstIncluded?: boolean;
   payout?: number | null;
   customerName?: string;
   phone?: string;

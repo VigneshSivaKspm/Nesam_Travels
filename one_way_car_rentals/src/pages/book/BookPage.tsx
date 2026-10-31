@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { HOME_SEO } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
@@ -75,7 +76,7 @@ function HeroCopy() {
   return (
     <div className="hero-copy">
       <p className="eyebrow eyebrow--brand">
-        <Icon name="route" size={16} /> Premium Outstation &amp; Intercity Cabs
+        <Icon name="route" size={16} /> One Way Taxi &amp; Outstation Cabs
       </p>
       <h1>
         Outstation rides, <em>priced before you book.</em>
@@ -236,12 +237,7 @@ function Home() {
 export function BookPage({ step }: { step: BookStep }) {
   useSeo(
     step === 'plan'
-      ? {
-          title: 'One Way Car Rentals — Outstation Cabs & Drop Taxi in Tamil Nadu | Upfront Fares',
-          description:
-            'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 support.',
-          canonical: '/book',
-        }
+      ? HOME_SEO
       : step === 'choose'
         ? {
             title: 'Choose Vehicle & Upfront Fares · One Way Car Rentals',

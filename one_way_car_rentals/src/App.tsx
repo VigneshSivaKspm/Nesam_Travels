@@ -1,5 +1,5 @@
 import { lazy, useEffect, useRef, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { CustomerDataProvider, useCustomerData } from '@core/context/CustomerData';
 import { Shell } from '@/components/Shell';
 import { EmptyState, LinkButton, PageLoader } from '@/components/ui';
@@ -9,6 +9,7 @@ import { InboxProvider } from '@/state/Inbox';
 import { ToastProvider } from '@/state/Toasts';
 import { isRideDismissed } from '@/state/rideFocus';
 import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { takePendingReturn } from '@/lib/pendingReturn';
 import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
@@ -30,6 +31,8 @@ const PaymentsPage = page(() => import('@/pages/PaymentsPage'), 'PaymentsPage');
 const OffersPage = page(() => import('@/pages/OffersPage'), 'OffersPage');
 const SupportPage = page(() => import('@/pages/SupportPage'), 'SupportPage');
 const LegalPage = page(() => import('@/pages/LegalPage'), 'LegalPage');
+const RouteLandingPage = page(() => import('@/pages/routes/RouteLandingPage'), 'RouteLandingPage');
+const ServiceLandingPage = page(() => import('@/pages/services/ServiceLandingPage'), 'ServiceLandingPage');
 
 /** State restoration: open the live ride (or a just-finished, unrated one) when the site opens. */
 function RideAutoFocus() {
@@ -100,6 +103,7 @@ function AppShellProvider({ children }: { children: ReactNode }) {
 }
 
 function NotFound() {
+  useSeo({ title: 'Page not found', noindex: true });
   return (
     <div className="page">
       <div className="card card--center">
@@ -124,7 +128,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Navigate to="/book" replace />} />
+        {/* The booking home lives at "/"; "/book" shows the same page and declares "/" as canonical. */}
+        <Route index element={<BookPage step="plan" />} />
         <Route path="/book" element={<BookPage step="plan" />} />
         <Route path="/book/ride" element={<BookPage step="choose" />} />
         <Route path="/book/confirm" element={<BookPage step="review" />} />
@@ -140,6 +145,8 @@ export function AppRoutes() {
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/routes/:routeId" element={<RouteLandingPage />} />
+        <Route path="/services/:serviceId" element={<ServiceLandingPage />} />
         <Route path="*" element={<NotFound />} />
       </Route>
     </Routes>

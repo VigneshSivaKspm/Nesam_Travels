@@ -1,97 +1,14 @@
-# Robots.txt for One Way Car Rentals (NESAM Cabs)
-# Configured for maximum search engine visibility and crawl efficiency
-
-User-agent: Googlebot
-Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Allow: /assets/
-Allow: /website-images/
-Allow: /vehicles/
-Allow: /art/
-Allow: /brand/
-Disallow: /account/
-Disallow: /account/*
-Disallow: /trips/
-Disallow: /trips/*
-Disallow: /ride/
-Disallow: /ride/*
-Disallow: /notifications
-Disallow: /book/ride
-Disallow: /book/confirm
-
-User-agent: Bingbot
-Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Disallow: /account/
-Disallow: /account/*
-Disallow: /trips/
-Disallow: /trips/*
-Disallow: /ride/
-Disallow: /ride/*
-Disallow: /notifications
-Disallow: /book/ride
-Disallow: /book/confirm
-
-User-agent: Applebot
-Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Disallow: /account/
-Disallow: /trips/
-Disallow: /ride/
-Disallow: /notifications
-
-User-agent: DuckDuckBot
-Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Disallow: /account/
-Disallow: /trips/
-Disallow: /ride/
-Disallow: /notifications
-
-User-agent: YandexBot
-Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Disallow: /account/
-Disallow: /trips/
-Disallow: /ride/
-Disallow: /notifications
+# One Way Car Rentals — https://www.onewaycarrentals.in
+# Account, trip and checkout screens are private; everything else may be crawled.
 
 User-agent: *
 Allow: /
-Allow: /book
-Allow: /offers
-Allow: /support
-Allow: /legal
-Allow: /assets/
-Allow: /website-images/
-Allow: /vehicles/
-Allow: /art/
-Allow: /brand/
-Disallow: /account/
-Disallow: /account/*
-Disallow: /trips/
-Disallow: /trips/*
+Disallow: /account
+Disallow: /trips
 Disallow: /ride/
-Disallow: /ride/*
 Disallow: /notifications
 Disallow: /book/ride
 Disallow: /book/confirm
+Disallow: /book/done/
 
-# Sitemap Index
-Sitemap: https://onewaycarrental.nesamcabs.com/sitemap.xml
-Host: https://onewaycarrental.nesamcabs.com
+Sitemap: https://www.onewaycarrentals.in/sitemap.xml

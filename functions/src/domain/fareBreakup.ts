@@ -30,6 +30,9 @@ export interface FareBreakup {
   hasActualsExtras: boolean;
 }
 
+export const GST_IN_FARE = 'Already included in the fare (not added on top)';
+export const GST_ON_TOP = 'Added on top of the fare; included in the total payable';
+
 const rupees = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
 
 export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, outstation: boolean): FareBreakup {
@@ -70,10 +73,10 @@ export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, ou
   if (tax && tax.split !== 'Pending verification') {
     for (const key of ['cgst','sgst','utgst','igst'] as const) {
       if ((key === 'igst' && tax.split === 'IGST') || (key === 'cgst' && tax.split.startsWith('CGST')) || (key === 'sgst' && tax.split === 'CGST + SGST') || (key === 'utgst' && tax.split === 'CGST + UTGST')) {
-        add({ key, label: key.toUpperCase() + ' (' + (key === 'igst' ? ratePercent : ratePercent / 2) + '%)', amount: tax[key], treatment: 'included', detail: tax.mode === 'included' ? 'Extracted from the entered fare' : 'Added to the fare; included in total payable' });
+        add({ key, label: key.toUpperCase() + ' (' + (key === 'igst' ? ratePercent : ratePercent / 2) + '%)', amount: tax[key], treatment: 'included', detail: tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP });
       }
     }
-  } else add({ key: 'gst', label: 'GST (' + ratePercent + '%)', amount: fare.gst, treatment: 'included', detail: tax ? 'State split pending verified place of supply' : 'Included in the total payable' });
+  } else add({ key: 'gst', label: 'GST (' + ratePercent + '%)', amount: fare.gst, treatment: 'included', detail: tax ? `${tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP}; state split pending verified place of supply` : GST_ON_TOP });
 
   // Charges outside the package.
   add({
@@ -113,7 +116,9 @@ const num2 = (p: number) => `₹${(p / 100).toLocaleString('en-IN', { maximumFra
  * The extras block is shared with the category breakup so the wording stays identical.
  */
 export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdown, outstation: boolean, pricing: PricingSnapshot): FareBreakup {
-  const base = buildFareBreakup(category, fare, outstation);
+  const built = buildFareBreakup(category, fare, outstation);
+  // A package or route fare saved "GST included" shows its GST as already inside the fare.
+  const base = pricing.gstInFare && !fare.gstDetails ? { ...built, lines: built.lines.map((l) => (l.key === 'gst' ? { ...l, detail: GST_IN_FARE } : l)) } : built;
   const rate = num2(pricing.customerRatePaise);
   const roundTrip = pricing.model === 'round_trip_calendar';
   // A waiting rate saved with the tariff replaces the category wording; without one the category line is unchanged.
@@ -127,6 +132,17 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
     }];
     const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum'].includes(l.key));
     const lines = [...head, ...extrasBlock(rest).map((l) => (l.key === 'extraKm' ? { ...l, detail: `${num2(pricing.extraKmRatePaise)} per KM beyond the ${pricing.includedKm} KM included` } : l))];
+    const extras = lines.filter((l) => l.treatment === 'extra');
+    return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
+  }
+  if (pricing.model === 'airport_transfer') {
+    const beyond = Math.max(0, Math.round((pricing.quotedKm - pricing.minKmPerDay) * 10) / 10);
+    const head: FareLine[] = [
+      { key: 'package', label: 'Airport transfer base fare', amount: fare.baseFare, treatment: 'included', detail: `Covers the first ${pricing.minKmPerDay} KM` },
+      ...(fare.distanceFare > 0 ? [{ key: 'distance', label: 'Distance beyond included KM', amount: fare.distanceFare, treatment: 'included' as const, detail: `${beyond} KM at ${num2(pricing.extraKmRatePaise)}/KM` }] : []),
+    ];
+    const rest = base.lines.filter((l) => !['base', 'distance', 'time', 'night', 'driverAllowance', 'minimum'].includes(l.key));
+    const lines = [...head, ...extrasBlock(rest).map((l) => (l.key === 'extraKm' ? { ...l, detail: `${num2(pricing.extraKmRatePaise)} per KM beyond the ${pricing.includedKm} KM quoted` } : l))];
     const extras = lines.filter((l) => l.treatment === 'extra');
     return { schema: 1, lines, packageTotal: fare.total, knownExtras: extras.reduce((s, l) => s + (l.amount ?? 0), 0), hasActualsExtras: extras.some((l) => l.amount === null) };
   }
@@ -148,7 +164,7 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
         ? `${pricing.includedKm} KM billable (minimum ${pricing.minKmPerDay} KM/day × ${pricing.days} day${pricing.days === 1 ? '' : 's'}) at ${rate}/KM`
         : pricing.model === 'local_pickup_drop'
         ? `${pricing.includedKm} KM billable (local minimum ${pricing.minKmPerDay} KM) at ${rate}/KM`
-        : `${pricing.includedKm} KM included (minimum 130 KM) at ${rate}/KM`,
+        : `${pricing.includedKm} KM included (minimum ${pricing.minKmPerDay} KM) at ${rate}/KM`,
     },
     {
       key: 'driverAllowance', label: roundTrip ? 'Driver bata (per day)' : 'Driver bata', amount: fare.driverAllowance, treatment: 'included',

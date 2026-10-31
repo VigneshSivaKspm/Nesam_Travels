@@ -3,7 +3,9 @@
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from './admin';
-import { approved, inIndia, text } from './shared';
+import { approved, inIndia, requireAction, requirePermission, routeFor, text } from './shared';
+import { loadTariffConfig, tariffClassOf } from './quote';
+import { calendarDays, multicityRatesFor, quoteMulticity } from './domain/tariff';
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { GeoPlace } from './domain/types';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
@@ -327,4 +329,73 @@ export const getCustomerEnquiries = onCall({ timeoutSeconds: 30 }, async (reques
       convertedBookingId: data.convertedBookingId || null,
     };
   });
+});
+
+/**
+ * The travel desk prices a Multicity enquiry from the saved Multicity rates of its brand and the chosen vehicle class:
+ * the road distance of every leg (pickup → stops → final destination), the trip's Indian calendar days and the brand's
+ * Multicity GST policy (included or excluded), else the tariff GST added on top. The quote is written to the enquiry
+ * (estimate, breakup, validity) so the customer can review and accept it; nothing else changes.
+ */
+export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (request) => {
+  const actor = await requirePermission(request.auth, 'operations');
+  requireAction(actor, 'Bookings', 'edit');
+  const input = request.data ?? {};
+  const enquiryId = text(input.enquiryId, 40);
+  if (!/^NSM-QT-\d{6}$/.test(enquiryId)) throw new HttpsError('invalid-argument', 'Invalid enquiry reference.');
+  const categoryId = text(input.categoryId, 80);
+  if (!/^[A-Za-z0-9_-]{1,80}$/.test(categoryId)) throw new HttpsError('invalid-argument', 'Choose the vehicle category to quote.');
+  const validDays = Number.isInteger(input.validDays) && input.validDays >= 1 && input.validDays <= 30 ? input.validDays : 7;
+  const save = input.save === true;
+  const ref = db.doc(`enquiries/${enquiryId}`);
+  const [snap, categorySnap, tariff] = await Promise.all([ref.get(), db.doc(`vehicle_categories/${categoryId}`).get(), loadTariffConfig()]);
+  const e = snap.data();
+  if (!e) throw new HttpsError('not-found', 'The enquiry no longer exists.');
+  if (e.serviceId !== 'multicity' && e.tripType !== 'Multicity') throw new HttpsError('failed-precondition', 'Only Multicity enquiries are priced here.');
+  if (['Converted', 'Closed'].includes(e.status)) throw new HttpsError('failed-precondition', 'This enquiry is closed.');
+  const cat = categorySnap.data();
+  if (!cat || cat.status !== 'Active') throw new HttpsError('failed-precondition', 'That vehicle category is not active.');
+  const cls = tariffClassOf({ tariffClass: cat.tariffClass, dutyClass: cat.dutyClass, name: cat.name, seats: cat.seats });
+  if (!cls) throw new HttpsError('failed-precondition', `${text(cat.name)} is not mapped to a tariff class yet.`);
+  if (!tariff) throw new HttpsError('failed-precondition', 'No tariff is saved yet.');
+  const brand = typeof e.brand === 'string' && e.brand ? e.brand : 'nesam';
+  const rates = multicityRatesFor(tariff, brand, cls);
+  if (!rates) throw new HttpsError('failed-precondition', `Multicity rates for ${text(cat.name)} are not complete. Set them in Service & Fare Settings → Multicity (or the Round Trip rates they inherit).`);
+
+  const points: GeoPlace[] = (Array.isArray(e.itinerary) && e.itinerary.length >= 2 ? e.itinerary : [e.pickupPoint, ...(e.stops ?? []), e.dropPoint])
+    .filter((p: any) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng))
+    .map((p: any) => ({ id: 'pin', name: text(p.name, 120), address: text(p.address), lat: p.lat, lng: p.lng, type: 'other' as const }));
+  if (points.length < 2) throw new HttpsError('failed-precondition', 'The itinerary has no map positions to measure.');
+  const legs = await Promise.all(points.slice(1).map((p, n) => routeFor(points[n], p)));
+  const totalKm = legs.reduce((s, l) => s + l.distanceKm, 0);
+  const pickupMs = e.pickupAt?.toMillis?.() ?? Date.now();
+  const endMs = e.tripEndAt?.toMillis?.() ?? pickupMs;
+  const days = calendarDays(pickupMs, endMs) ?? 1;
+
+  // GST: the brand's Multicity policy (pickup-state rules need a verified state, so only the default applies here).
+  const rule = tariff.fareGst?.[brand]?.Multicity?.default ?? tariff.fareGst?.common?.Multicity?.default;
+  const q = quoteMulticity({ rates, totalKm, days, gstRate: rule ? rule.rate : tariff.gstRate, gstIncluded: rule?.mode === 'included' });
+  const rs = (p: number) => Math.round(p) / 100;
+  const pct = Math.round(q.gstRate * 10000) / 100;
+  const breakup = [
+    { label: `Distance: ${q.billableKm} KM billable (itinerary ${q.totalKm} KM, minimum ${rates.minKmPerDay} KM/day × ${days} day${days === 1 ? '' : 's'}) at ₹${rates.customerRate}/KM`, amount: rs(q.distancePaise) },
+    { label: `Driver bata: ₹${rates.customerBata} × ${days} day${days === 1 ? '' : 's'}`, amount: rs(q.bataPaise) },
+    { label: q.gstIncluded ? `GST (${pct}%), already included in the fare above` : `GST (${pct}%), added on top`, amount: rs(q.gstPaise) },
+  ];
+  const result = {
+    estimate: rs(q.totalPaise), breakup, gstRate: q.gstRate, gstIncluded: q.gstIncluded, includedKm: q.billableKm, extraKmRate: rates.extraKmRate,
+    days, totalKm: q.totalKm, categoryId, vehicle: text(cat.name, 100), payout: rs(q.partnerPaise),
+  };
+  if (!save) return result;
+  const validUntil = Timestamp.fromMillis(Date.now() + validDays * 86400000);
+  await db.runTransaction(async (tx) => {
+    const now = await tx.get(ref);
+    if (!now.exists || ['Converted', 'Closed'].includes(now.data()!.status)) throw new HttpsError('failed-precondition', 'This enquiry is closed.');
+    tx.update(ref, {
+      ...result, status: 'Quote sent', validUntil, quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
+      multicityPricing: { tariffVersion: tariff.version, tariffClass: cls, brand, rates, legsKm: legs.map((l) => Math.round(l.distanceKm * 10) / 10) },
+      history: FieldValue.arrayUnion({ status: 'Quote sent', note: `Multicity quote ₹${result.estimate.toLocaleString('en-IN')} for ${result.vehicle} (${q.billableKm} KM, ${days} day${days === 1 ? '' : 's'}), valid ${validDays} days.`, at: Timestamp.now(), byName: actor.name }),
+    });
+  });
+  return { ...result, saved: true, validUntil: validUntil.toDate().toISOString() };
 });

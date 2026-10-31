@@ -55,8 +55,13 @@ export interface CityZone { id: string; name: string; lat: number; lng: number; 
 
 /** Outstation / round-trip usage beyond the package. Independent of the local-fare rates. */
 export interface OutstationExtra { extraKmRate: number; waitingPerHour: number }
-/** Airport base fare and partner base payout (saved; not yet applied to quotes — the airport formula is an open decision). */
+/** Airport base fare and partner base payout shared by every class (the older single setting). */
 export interface AirportRates { customerBase: number; partnerBase: number }
+/**
+ * Airport transfer rates of one class, resolved Common → brand. The base fare covers the first `includedKm`; every KM beyond
+ * is charged at `extraKmRate` (customer) and paid at `partnerExtraKmRate` (partner). Any rate missing = not configured.
+ */
+export interface AirportClassRates { customerBase?: number; partnerBase?: number; includedKm?: number; extraKmRate?: number; partnerExtraKmRate?: number; waitingPerHour?: number }
 /** Local Pickup & Drop fare of one vehicle class in one city: max(road km, minKm) × rate. */
 export interface LocalFareEntry { minKm: number; customerRate: number; partnerRate: number; extraKmRate: number; waitingPerHour: number; enabled: boolean }
 /** Keyed by the canonical City record id in `locations`; `cityName` is a display copy only. */
@@ -102,7 +107,7 @@ function parseFareGst(value: unknown): FareGstPolicies | undefined {
   for (const brand of ['common','nesam','people_taxi','onewaycarrentals']) {
     const services = (value as FareGstPolicies)[brand];
     if (!services) continue;
-    for (const service of ['One Way','Airport Taxi','Local Rental','Multicity']) {
+    for (const service of ['One Way','Round Trip','Airport Taxi','Local Rental','Multicity']) {
       const policy = services[service];
       if (!policy) continue;
       const states = Object.fromEntries(Object.entries(policy.states ?? {}).filter(([code, rule]) => /^[0-9]{2}$/.test(code) && validGstRule(rule)));
@@ -127,6 +132,8 @@ export interface TariffConfig {
   oneWayExtras?: Partial<Record<TariffClass, OutstationExtra>>;
   roundTripExtras?: Partial<Record<TariffClass, OutstationExtra>>;
   airport?: AirportRates;
+  /** Derived by scopedTariffForBrand from the Common / brand Airport Taxi settings; never stored. */
+  airportClasses?: Partial<Record<TariffClass, AirportClassRates>>;
   localPickupDrop?: Record<string, LocalCityFares>;
   rentalPackages?: Partial<Record<TariffClass, RentalClassConfig>>;
   /** Waiting, hill and roof carrier rates by vehicle category (see domain/extraCharges.ts). */
@@ -264,7 +271,15 @@ function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
         if (isNum(rates.minRentalHours)) r.minRentalHours = rates.minRentalHours;
         if (typeof rates.enabled === 'boolean') r.enabled = rates.enabled;
         if (rates.rentalPackages && typeof rates.rentalPackages === 'object') {
-          r.rentalPackages = rates.rentalPackages;
+          const pkgs: NonNullable<BrandFareOverride['rentalPackages']> = {};
+          for (const h of RENTAL_HOURS) {
+            const p = rates.rentalPackages[String(h)];
+            if (!p || typeof p !== 'object') continue;
+            const row: NonNullable<BrandFareOverride['rentalPackages']>[string] = {};
+            for (const f of ['customerFare', 'partnerPayout', 'includedKm', 'extraKmRate', 'extraHourRate'] as const) if (isPos(p[f])) row[f] = p[f];
+            if (Object.keys(row).length) pkgs[String(h)] = row;
+          }
+          if (Object.keys(pkgs).length) r.rentalPackages = pkgs;
         }
         out[brand][service][cls as TariffClass] = r;
       }
@@ -301,6 +316,8 @@ export function scopedTariffForBrand(
       ? 'Local Rental'
       : service === 'Multicity'
       ? 'Multicity'
+      : service === 'Round Trip'
+      ? 'Round Trip'
       : service;
 
   const overrides = brandServices[serviceKey];
@@ -308,88 +325,95 @@ export function scopedTariffForBrand(
     return base;
   }
 
-  // Clone base config and apply scoped overrides
+  // Clone base config and apply scoped overrides. A field the scope does not set inherits the baseline; a rate card
+  // that is still incomplete after inheriting is left unconfigured (the quote is refused), never priced at ₹0.
   const next: TariffConfig = {
     ...base,
     oneWay: { ...base.oneWay, classes: { ...base.oneWay.classes } },
+    roundTrip: { ...base.roundTrip, classes: { ...base.roundTrip.classes } },
     outstationExtras: { ...(base.outstationExtras ?? {}) },
     oneWayExtras: { ...(base.oneWayExtras ?? {}) },
-    airport: base.airport ? { ...base.airport } : undefined,
+    roundTripExtras: { ...(base.roundTripExtras ?? {}) },
+    airportClasses: { ...(base.airportClasses ?? {}) },
     rentalPackages: { ...(base.rentalPackages ?? {}) },
   };
+  const pick = <K extends keyof BrandFareOverride>(ov: BrandFareOverride, key: K, inherited: BrandFareOverride[K] | undefined) => (ov[key] !== undefined ? ov[key] : inherited);
 
-  if (serviceKey === 'One Way') {
-    for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
-      const ov = overrides[cls];
-      if (!ov) continue;
-      const common = base.oneWay.classes[cls];
-      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined) {
-        next.oneWay.classes[cls] = {
-          customerRate: ov.customerRate !== undefined ? ov.customerRate : (common?.customerRate ?? 0),
-          partnerRate: ov.partnerRate !== undefined ? ov.partnerRate : (common?.partnerRate ?? 0),
-          customerBata: ov.customerBata !== undefined ? ov.customerBata : (common?.customerBata ?? 0),
-          partnerBata: ov.partnerBata !== undefined ? ov.partnerBata : (common?.partnerBata ?? 0),
+  for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
+    const ov = overrides[cls];
+    if (!ov) continue;
+    if (serviceKey === 'One Way' || serviceKey === 'Round Trip') {
+      const trip = serviceKey;
+      const common = trip === 'One Way' ? classRates(base.oneWay.classes, cls) : classRates(base.roundTrip.classes, cls);
+      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined || (trip === 'Round Trip' && ov.minKmPerDay !== undefined)) {
+        const merged = {
+          customerRate: pick(ov, 'customerRate', common?.customerRate),
+          partnerRate: pick(ov, 'partnerRate', common?.partnerRate),
+          customerBata: pick(ov, 'customerBata', common?.customerBata),
+          partnerBata: pick(ov, 'partnerBata', common?.partnerBata),
         };
-      }
-      if (ov.minKm !== undefined && ov.minKm > 0) {
-        next.oneWay.minKm = ov.minKm;
-      }
-      const commonExtra = outstationExtraFor(base, cls, 'One Way');
-      if (ov.extraKmRate !== undefined || ov.waitingPerHour !== undefined) {
-        next.oneWayExtras![cls] = {
-          extraKmRate: ov.extraKmRate !== undefined ? ov.extraKmRate : (commonExtra?.extraKmRate ?? ov.customerRate ?? 15),
-          waitingPerHour: ov.waitingPerHour !== undefined ? ov.waitingPerHour : (commonExtra?.waitingPerHour ?? 0),
-        };
-      }
-    }
-  } else if (serviceKey === 'Airport Taxi') {
-    for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
-      const ov = overrides[cls];
-      if (!ov) continue;
-      if (ov.customerBase !== undefined || ov.partnerBase !== undefined) {
-        next.airport = {
-          customerBase: ov.customerBase !== undefined ? ov.customerBase : (base.airport?.customerBase ?? 0),
-          partnerBase: ov.partnerBase !== undefined ? ov.partnerBase : (base.airport?.partnerBase ?? 0),
-        };
-      }
-      const commonExtra = base.outstationExtras?.[cls];
-      if (ov.extraKmRate !== undefined || ov.waitingPerHour !== undefined) {
-        next.outstationExtras![cls] = {
-          extraKmRate: ov.extraKmRate !== undefined ? ov.extraKmRate : (commonExtra?.extraKmRate ?? 15),
-          waitingPerHour: ov.waitingPerHour !== undefined ? ov.waitingPerHour : (commonExtra?.waitingPerHour ?? 0),
-        };
-      }
-    }
-  } else if (serviceKey === 'Local Rental') {
-    if (next.rentalPackages) {
-      for (const cls of (selectedClass ? [selectedClass] : TARIFF_CLASSES)) {
-        const ov = overrides[cls];
-        if (!ov) continue;
-        const commonClass = base.rentalPackages?.[cls];
-        if (ov.rentalPackages || ov.minRentalHours !== undefined) {
-          const mergedPkgs = { ...(commonClass?.packages ?? {}) };
-          for (const [hrs, pkg] of Object.entries(ov.rentalPackages ?? {})) {
-            const basePkg = commonClass?.packages?.[hrs];
-            mergedPkgs[hrs] = {
-              customerFare: pkg.customerFare !== undefined ? pkg.customerFare : (basePkg?.customerFare ?? 0),
-              partnerPayout: pkg.partnerPayout !== undefined ? pkg.partnerPayout : (basePkg?.partnerPayout ?? 0),
-              includedKm: pkg.includedKm !== undefined ? pkg.includedKm : (basePkg?.includedKm ?? 0),
-              extraKmRate: pkg.extraKmRate !== undefined ? pkg.extraKmRate : (basePkg?.extraKmRate ?? 0),
-              extraHourRate: pkg.extraHourRate !== undefined ? pkg.extraHourRate : (basePkg?.extraHourRate ?? 0),
-              gstMode: basePkg?.gstMode ?? 'excluded',
-              enabled: basePkg?.enabled !== false,
-            };
-          }
-          next.rentalPackages[cls] = {
-            minHours: ov.minRentalHours ?? commonClass?.minHours,
-            packages: mergedPkgs,
-          };
+        if (trip === 'One Way') {
+          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata)) next.oneWay.classes[cls] = merged as OneWayRates;
+        } else {
+          const minKmPerDay = pick(ov, 'minKmPerDay', (common as RoundTripRates | undefined)?.minKmPerDay);
+          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata) && isPos(minKmPerDay)) next.roundTrip.classes[cls] = { ...(merged as OneWayRates), minKmPerDay };
         }
+      }
+      if (trip === 'One Way' && ov.minKm !== undefined && ov.minKm > 0) next.oneWay.minKm = ov.minKm;
+      if (ov.extraKmRate !== undefined || ov.waitingPerHour !== undefined) {
+        const commonExtra = outstationExtraFor(base, cls, trip);
+        const ownRate = trip === 'One Way' ? next.oneWay.classes[cls]?.customerRate : next.roundTrip.classes[cls]?.customerRate;
+        const extraKmRate = pick(ov, 'extraKmRate', commonExtra?.extraKmRate ?? ownRate);
+        const waitingPerHour = pick(ov, 'waitingPerHour', commonExtra?.waitingPerHour);
+        // With no waiting rate saved anywhere the quote shows no waiting rate (the extra-charges section may still add one).
+        if (isNum(extraKmRate)) (trip === 'One Way' ? next.oneWayExtras! : next.roundTripExtras!)[cls] = { extraKmRate, waitingPerHour: isNum(waitingPerHour) ? waitingPerHour : NaN };
+      }
+    } else if (serviceKey === 'Airport Taxi') {
+      const inherited = airportRatesFor(base, cls);
+      next.airportClasses![cls] = {
+        customerBase: pick(ov, 'customerBase', inherited.customerBase),
+        partnerBase: pick(ov, 'partnerBase', inherited.partnerBase),
+        includedKm: pick(ov, 'minKm', inherited.includedKm),
+        extraKmRate: pick(ov, 'extraKmRate', inherited.extraKmRate),
+        partnerExtraKmRate: pick(ov, 'partnerRate', inherited.partnerExtraKmRate),
+        waitingPerHour: pick(ov, 'waitingPerHour', inherited.waitingPerHour),
+      };
+    } else if (serviceKey === 'Local Rental') {
+      const commonClass = base.rentalPackages?.[cls];
+      if (ov.rentalPackages || ov.minRentalHours !== undefined) {
+        const mergedPkgs = { ...(commonClass?.packages ?? {}) };
+        for (const [hrs, pkg] of Object.entries(ov.rentalPackages ?? {})) {
+          const basePkg = commonClass?.packages?.[hrs];
+          // A package the baseline never configured is offered once the scope supplies every rate; GST mode follows the baseline (else excluded).
+          const merged = parseRentalPackage({
+            customerFare: pkg.customerFare ?? basePkg?.customerFare,
+            partnerPayout: pkg.partnerPayout ?? basePkg?.partnerPayout,
+            includedKm: pkg.includedKm ?? basePkg?.includedKm,
+            extraKmRate: pkg.extraKmRate ?? basePkg?.extraKmRate,
+            extraHourRate: pkg.extraHourRate ?? basePkg?.extraHourRate,
+            gstMode: basePkg?.gstMode ?? 'excluded',
+            enabled: basePkg ? basePkg.enabled : true,
+          });
+          if (merged) mergedPkgs[hrs] = merged;
+        }
+        next.rentalPackages![cls] = { minHours: ov.minRentalHours ?? commonClass?.minHours, packages: mergedPkgs };
       }
     }
   }
 
   return next;
+}
+
+/** Airport transfer rates of a class in an (already scoped) tariff: the per-class settings, else the older shared base fares. */
+export function airportRatesFor(cfg: TariffConfig, cls: TariffClass): AirportClassRates {
+  return cfg.airportClasses?.[cls] ?? (cls === 'innova' ? cfg.airportClasses?.suv : undefined) ?? { customerBase: cfg.airport?.customerBase, partnerBase: cfg.airport?.partnerBase };
+}
+
+/** The airport rates of a class when every one needed to quote is configured; null otherwise. */
+export function completeAirportRates(cfg: TariffConfig, cls: TariffClass): Required<Omit<AirportClassRates, 'waitingPerHour'>> & { waitingPerHour?: number } | null {
+  const r = airportRatesFor(cfg, cls);
+  if (!isPos(r.customerBase) || !isPos(r.partnerBase) || !isPos(r.includedKm) || !isPos(r.extraKmRate) || !isNum(r.partnerExtraKmRate)) return null;
+  return { customerBase: r.customerBase, partnerBase: r.partnerBase, includedKm: r.includedKm, extraKmRate: r.extraKmRate, partnerExtraKmRate: r.partnerExtraKmRate, ...(isNum(r.waitingPerHour) ? { waitingPerHour: r.waitingPerHour } : {}) };
 }
 
 /** Parses business_config/tariff_v2. Anything malformed is dropped (treated as not configured). */
@@ -464,11 +488,13 @@ export interface PartnerNormalRate {
 
 export interface PricingSnapshot {
   gst?: GstSnapshot;
+  /** True when the configured fare already contained GST (GST was extracted from it, not added on top). */
+  gstInFare?: boolean;
   gstInclusiveBase?: Pick<PricingSnapshot, "packagePaise" | "customerRatePaise" | "customerBataPaise" | "extraKmRatePaise" | "discount" | "adminAdjustment">;
   schema: 2;
   /** 'tariff_v2' (this module) or 'legacy_category' (admin category fares, kept for local / airport duties). */
   source: 'tariff_v2' | 'legacy_category';
-  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package' | 'fixed_route' | 'business_contract_per_km';
+  model: 'one_way_standard' | 'round_trip_calendar' | 'city_drop_package' | 'rental_time' | 'legacy_category' | 'local_pickup_drop' | 'rental_package' | 'fixed_route' | 'business_contract_per_km' | 'airport_transfer';
   tariffVersion: number;
   tariffClass: TariffClass | null;
   gstRate: number;
@@ -597,7 +623,8 @@ export function outstationExtraFor(cfg: TariffConfig, cls: TariffClass, trip: 'O
 
 function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number, trip: 'One Way' | 'Round Trip'): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {
   const x = outstationExtraFor(cfg, cls, trip);
-  return x ? { extraKmRatePaise: paise(x.extraKmRate), waiting: { waitingPerHourPaise: paise(x.waitingPerHour) } } : { extraKmRatePaise: ratePaise, waiting: {} };
+  if (!x) return { extraKmRatePaise: ratePaise, waiting: {} };
+  return { extraKmRatePaise: paise(x.extraKmRate), waiting: Number.isFinite(x.waitingPerHour) ? { waitingPerHourPaise: paise(x.waitingPerHour) } : {} };
 }
 
 /** Standard one-way: included KM = max(floor, quoted route KM); base = included × rate + bata. */
@@ -729,6 +756,39 @@ export function quoteLocalPickupDrop(i: QuoteInput & { cityId: string }): QuoteR
   };
 }
 
+/**
+ * Airport transfer: the base fare covers the first included KM; each KM of the quoted route beyond it is charged at the
+ * extra-KM rate. The partner is paid the base payout plus the partner rate for the same extra KM. Kilometres driven beyond
+ * the quoted route are billed at trip end at the same rates; waiting is billed at actuals.
+ */
+export function quoteAirport(i: QuoteInput & { rates: NonNullable<ReturnType<typeof completeAirportRates>> }): QuoteResult {
+  const r = i.rates;
+  const km = Math.round(i.routeKm * 10) / 10;
+  const extraKm = Math.max(0, Math.round((km - r.includedKm) * 10) / 10);
+  const basePaise = paise(r.customerBase), extraRatePaise = paise(r.extraKmRate), partnerExtraPaise = paise(r.partnerExtraKmRate);
+  const extraPaise = kmAmountPaise(extraKm, extraRatePaise);
+  const packagePaise = basePaise + extraPaise;
+  const base = toBreakdown({
+    packagePaise, distancePaise: extraPaise, bataPaise: 0, floorPaise: 0, discount: i.discount ?? 0, adminAdjustment: 0,
+    adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase', gstRate: i.config.gstRate,
+    km, durationMin: i.durationMin, ratePaise: extraRatePaise,
+  });
+  const fare: FareBreakdown = { ...base, baseFare: r2(basePaise / 100), distanceFare: r2(base.distanceFare - basePaise / 100) };
+  return {
+    fare,
+    pricing: {
+      schema: 2, source: 'tariff_v2', model: 'airport_transfer', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
+      // Extra KM at trip end are counted beyond the larger of the quoted route and the included KM.
+      quotedKm: km, includedKm: Math.max(km, r.includedKm), extraKmRatePaise: extraRatePaise, customerRatePaise: 0, customerBataPaise: 0,
+      ...(r.waitingPerHour !== undefined ? { waitingPerHourPaise: paise(r.waitingPerHour) } : {}),
+      days: 1, minKmPerDay: r.includedKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
+      partner: { mode: 'NORMAL_RATE', ratePaise: partnerExtraPaise, bataPaise: 0, minKm: r.includedKm, days: 1, basePaise: paise(r.partnerBase) + kmAmountPaise(extraKm, partnerExtraPaise) },
+      pickupDate: istDate(i.pickupMs), endDate: null, gates: [...GATES_LOCAL],
+    },
+  };
+}
+
 /** Minimum rental hours of a class: the saved value, else the initial minimum (Sedan / SUV / Innova 4, Crysta 10). */
 export function rentalMinHours(cfg: TariffConfig, cls: TariffClass): number {
   return cfg.rentalPackages?.[cls]?.minHours ?? DEFAULT_RENTAL_MIN_HOURS[cls];
@@ -754,6 +814,12 @@ export function rentalPackageFor(cfg: TariffConfig, cls: TariffClass, hours: num
   const pkg = cfg.rentalPackages?.[cls]?.packages[String(hours)];
   if (!pkg || !pkg.enabled) return { error: `The ${hours}-hour rental package is not configured for this vehicle.` };
   return { pkg };
+}
+
+/** The package quoted when the customer has not picked one: the shortest enabled package the class may book; null = none. */
+export function defaultRentalHours(cfg: TariffConfig, cls: TariffClass): number | null {
+  for (const h of RENTAL_HOURS) if (!('error' in rentalPackageFor(cfg, cls, h))) return h;
+  return null;
 }
 
 /**
@@ -784,6 +850,7 @@ export function quoteRentalPackage(i: QuoteInput & { hours: number }): QuoteResu
       customerRatePaise: 0, customerBataPaise: 0, rentalHours: i.hours, extraHourRatePaise: paise(p.extraHourRate), days: 1, minKmPerDay: 0,
       packagePaise, discount: fare.discount, adminAdjustment: 0, adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
       partner: { mode: 'NORMAL_RATE', ratePaise: 0, bataPaise: 0, minKm: p.includedKm, days: 1, basePaise: paise(p.partnerPayout) },
+      gstInFare: p.gstMode === 'included',
       pickupDate: istDate(i.pickupMs), endDate: null,
       gates: [...GATES_LOCAL, 'Extra hours are recorded on the quote and billed at actuals; they are not added to the final fare automatically'],
     },
@@ -889,7 +956,7 @@ export function quoteFixedRoute(i: {
       schema: 2, source: 'tariff_v2', model: 'fixed_route', tariffVersion: i.tariffVersion, tariffClass: i.tariffClass, gstRate: i.gstRate,
       // The road distance is kept; no per-KM charge is added to an agreed fare, so a longer trip does not raise it.
       quotedKm: km, includedKm: km, extraKmRatePaise: 0, customerRatePaise: 0, customerBataPaise: 0, days: 1, minKmPerDay: 0,
-      fixedRouteId: r.id, fixedRouteVersion: r.version, fixedRouteReversed: i.reversed,
+      fixedRouteId: r.id, fixedRouteVersion: r.version, fixedRouteReversed: i.reversed, gstInFare: r.gstMode === 'included',
       packagePaise, discount: fare.discount, adminAdjustment: 0, adjustmentPercent, adjustmentDirection: direction,
       partner: { mode: 'NORMAL_RATE', ratePaise: 0, bataPaise: 0, minKm: 0, days: 1, basePaise: paise(r.partnerPayout) },
       pickupDate: istDate(i.pickupMs), endDate: null,
@@ -981,7 +1048,10 @@ export function finalizeFare(i: FinalInput): FinalResult {
   const gst = gstOn(taxable, p.gstRate);
   const billableKm = Math.max(totalKm, includedKm);
   let partnerPaise: number | null = null;
-  if (p.partner && (p.model === 'rental_package' || p.model === 'fixed_route')) {
+  if (p.partner && p.model === 'airport_transfer') {
+    // The quoted payout plus the partner rate for every KM driven beyond the quoted route.
+    partnerPaise = p.partner.basePaise + kmAmountPaise(Math.max(0, Math.round((totalKm - includedKm) * 10) / 10), p.partner.ratePaise);
+  } else if (p.partner && (p.model === 'rental_package' || p.model === 'fixed_route')) {
     // A rental package or fixed route fare pays the partner its agreed payout.
     partnerPaise = p.partner.basePaise;
   } else if (p.partner) {
@@ -1018,4 +1088,55 @@ export function finalizeLegacyFare(args: { total: number; taxable: number; gstRa
   const taxable = r2(args.taxable + extra);
   const gst = gstOn(taxable, args.gstRate);
   return { extraKm, extra, taxable, gst, total: taxable + gst, distanceKm: totalKm };
+}
+
+// ── Multicity itineraries ───────────────────────────────────────────────────
+
+/** Per-KM touring rates of a Multicity itinerary for one class. */
+export interface MulticityRates { customerRate: number; partnerRate: number; customerBata: number; partnerBata: number; minKmPerDay: number; extraKmRate: number; waitingPerHour?: number }
+
+/**
+ * Multicity rates of a class: the Round Trip rate card (a multi-day tour is billed the same way), then the Common Multicity
+ * settings, then the brand's own. null when any rate is still missing after inheriting.
+ */
+export function multicityRatesFor(cfg: TariffConfig, brand: string | undefined, cls: TariffClass): MulticityRates | null {
+  const rt = classRates(cfg.roundTrip.classes, cls);
+  const rtx = outstationExtraFor(cfg, cls, 'Round Trip');
+  const r: Partial<MulticityRates> = { ...rt, extraKmRate: rtx?.extraKmRate, waitingPerHour: Number.isFinite(rtx?.waitingPerHour) ? rtx?.waitingPerHour : undefined };
+  const layers = [cfg.brandOverrides?.common?.Multicity?.[cls], brand && brand !== 'common' ? cfg.brandOverrides?.[brand]?.Multicity?.[cls] : undefined];
+  for (const ov of layers) {
+    if (!ov) continue;
+    for (const key of ['customerRate', 'partnerRate', 'customerBata', 'partnerBata', 'minKmPerDay', 'extraKmRate', 'waitingPerHour'] as const) if (isNum(ov[key])) r[key] = ov[key];
+  }
+  const extraKmRate = r.extraKmRate ?? r.customerRate;
+  if (!isPos(r.customerRate) || !isNum(r.partnerRate) || !isNum(r.customerBata) || !isNum(r.partnerBata) || !isPos(r.minKmPerDay) || !isPos(extraKmRate)) return null;
+  return { customerRate: r.customerRate, partnerRate: r.partnerRate, customerBata: r.customerBata, partnerBata: r.partnerBata, minKmPerDay: r.minKmPerDay, extraKmRate, ...(isNum(r.waitingPerHour) ? { waitingPerHour: r.waitingPerHour } : {}) };
+}
+
+export interface MulticityQuote {
+  totalKm: number; billableKm: number; days: number;
+  distancePaise: number; bataPaise: number; packagePaise: number;
+  taxablePaise: number; gstPaise: number; totalPaise: number; gstRate: number; gstIncluded: boolean;
+  partnerPaise: number; rates: MulticityRates;
+}
+
+/**
+ * Multicity tour = max(itinerary KM, daily minimum × calendar days) × rate + daily bata × days. GST is added on top, or
+ * extracted from the fare when the GST policy says the fare already includes it. The partner is paid the same way at the
+ * partner rates.
+ */
+export function quoteMulticity(i: { rates: MulticityRates; totalKm: number; days: number; gstRate: number; gstIncluded: boolean }): MulticityQuote {
+  const r = i.rates;
+  const totalKm = Math.round(i.totalKm * 10) / 10;
+  const billableKm = Math.max(totalKm, r.minKmPerDay * i.days);
+  const distancePaise = kmAmountPaise(billableKm, paise(r.customerRate));
+  const bataPaise = paise(r.customerBata) * i.days;
+  const packagePaise = distancePaise + bataPaise;
+  const taxablePaise = i.gstIncluded ? taxableFromInclusivePaise(packagePaise, i.gstRate) : packagePaise;
+  const gstPaise = i.gstIncluded ? packagePaise - taxablePaise : Math.round(gstOn(taxablePaise / 100, i.gstRate) * 100);
+  return {
+    totalKm, billableKm, days: i.days, distancePaise, bataPaise, packagePaise, taxablePaise, gstPaise, totalPaise: taxablePaise + gstPaise,
+    gstRate: i.gstRate, gstIncluded: i.gstIncluded, rates: r,
+    partnerPaise: kmAmountPaise(billableKm, paise(r.partnerRate)) + paise(r.partnerBata) * i.days,
+  };
 }

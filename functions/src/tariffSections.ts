@@ -423,7 +423,7 @@ export const saveTariffSection = onCall(async (request) => {
       meta = { section, classes: Object.keys(obj(d.classes, 'The category rates')) };
     } else if (section === 'fareGst') {
       const brand = text(input.brand, 50), service = text(input.service, 50);
-      if (!['common', ...SUPPORTED_BRANDS].includes(brand) || !['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'].includes(service)) throw bad('Choose a GST brand and service.');
+      if (!['common', ...SUPPORTED_BRANDS].includes(brand) || !['One Way', 'Round Trip', 'Airport Taxi', 'Local Rental', 'Multicity'].includes(service)) throw bad('Choose a GST brand and service.');
       const d = obj(input.data, 'GST settings');
       const state = d.state === '' ? '' : gstState(d.state);
       if (d.state !== '' && !state) throw bad('Choose a valid pickup state for the GST override.');

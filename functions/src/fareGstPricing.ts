@@ -50,7 +50,7 @@ export function applyFareGst(r: PriceResult, tax: GstSnapshot): PriceResult {
   const explicit = ['fixed_route','business_contract_per_km'].includes(r.pricing.model);
   const included = tax.mode === 'included' && !explicit;
   const fare = withFareGst(r.fare, tax, included);
-  const pricing: PriceResult['pricing'] = { ...r.pricing, gstRate: tax.rate, gst: tax };
+  const pricing: PriceResult['pricing'] = { ...r.pricing, gstRate: tax.rate, gst: tax, gstInFare: tax.mode === 'included' };
   if (included) {
     pricing.gstInclusiveBase = { packagePaise: r.pricing.packagePaise, customerRatePaise: r.pricing.customerRatePaise, customerBataPaise: r.pricing.customerBataPaise, extraKmRatePaise: r.pricing.extraKmRatePaise, discount: r.pricing.discount, adminAdjustment: r.pricing.adminAdjustment };
     for (const key of ['packagePaise','customerRatePaise','customerBataPaise','extraKmRatePaise','extraHourRatePaise','waitingPerHourPaise'] as const) {

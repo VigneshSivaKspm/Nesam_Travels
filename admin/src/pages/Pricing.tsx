@@ -578,7 +578,7 @@ function TestFareSheet({ onClose, fareScope }: { onClose: () => void; fareScope:
       <form id="test-fare" onSubmit={run} noValidate>
         {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
         <p className="text-[12px] text-muted mb-3">Prices the trip with the same availability, cab type, schedule, fare rule and fare limit checks that customer and office bookings use. No booking or payment is created.</p>
-        <TripFields allowedTripTypes={[fareScope.service === "Multicity" ? "One Way" : fareScope.service]} trip={trip} set={(p) => setTrip((t) => ({ ...t, ...p }))} data={{ ...data, services: data.services.filter(service => !/multi|round/i.test(service.name + " " + service.serviceType)) }} idPrefix="test-fare" />
+        <TripFields allowedTripTypes={[fareScope.service === "Multicity" ? "One Way" : fareScope.service]} trip={trip} set={(p) => setTrip((t) => ({ ...t, ...p }))} data={{ ...data, services: data.services.filter(service => !/multi/i.test(service.name + " " + service.serviceType)) }} idPrefix="test-fare" />
       </form>
       {res && (
         <div className="mt-4">

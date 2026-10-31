@@ -6,15 +6,12 @@ import { Button, EmptyState, LinkButton, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { copyToClipboard } from '@/lib/share';
 import { useSeo } from '@/lib/seo';
+import { OFFERS_SEO } from '@/seo/pages';
 import { useBooking } from '@/state/Booking';
 import { useNavigate } from 'react-router-dom';
 
 export function OffersPage() {
-  useSeo({
-    title: 'Offers, Coupons & Promo Codes',
-    description: 'Save on your next outstation cab or drop taxi booking with One Way Car Rentals promo codes, festive discounts and new user coupons.',
-    canonical: '/offers',
-  });
+  useSeo(OFFERS_SEO);
   const navigate = useNavigate();
   const { update } = useBooking();
   const [coupons, setCoupons] = useState<Coupon[] | null>(null);

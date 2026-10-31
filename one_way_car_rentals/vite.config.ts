@@ -2,6 +2,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { defineConfig, loadEnv, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { seoPrerender } from './scripts/seo-prerender';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const slashes = (p: string) => p.split(path.sep).join('/');
@@ -40,7 +41,7 @@ export default defineConfig(({ mode }) => {
     // Files from ../app would otherwise resolve ../app/tsconfig.json, which extends
     // `expo/tsconfig.base` (not installed in the web build). Use this project's config for all files.
     tsconfig: path.resolve(here, 'tsconfig.json'),
-    plugins: [sharedAppSource(), react()],
+    plugins: [sharedAppSource(), react(), seoPrerender()],
     envPrefix: ['VITE_', 'EXPO_PUBLIC_'],
     resolve: {
       alias: {

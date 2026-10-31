@@ -13,9 +13,9 @@ export const BRAND_LABELS: Record<BrandId, string> = {
 
 /** Services supported by each brand as documented and implemented in the repository. */
 export const BRAND_SUPPORTED_SERVICES: Record<BrandId, readonly string[]> = {
-  nesam: ['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'],
-  people_taxi: ['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'],
-  onewaycarrentals: ['One Way', 'Airport Taxi', 'Local Rental', 'Multicity'],
+  nesam: ['One Way', 'Round Trip', 'Airport Taxi', 'Local Rental', 'Multicity'],
+  people_taxi: ['One Way', 'Round Trip', 'Airport Taxi', 'Local Rental', 'Multicity'],
+  onewaycarrentals: ['One Way', 'Round Trip', 'Airport Taxi', 'Local Rental', 'Multicity'],
 };
 
 /**
@@ -79,11 +79,6 @@ export function assertServiceSupported(brand: BrandId, serviceName: string): voi
     throw new HttpsError('invalid-argument', `Unsupported brand scope: "${brand}".`);
   }
 
-  // Preserve legacy Round Trip reading for historical bookings, but block for new scope validation
-  if (normalized === 'Round Trip') {
-    throw new HttpsError('invalid-argument', `Round Trip is not an offered service. Multicity itinerary tours are available.`);
-  }
-
   // Map common service aliases
   const standardService =
     normalized === 'Outstation' || normalized === 'One Way'
@@ -94,6 +89,8 @@ export function assertServiceSupported(brand: BrandId, serviceName: string): voi
       ? 'Local Rental'
       : normalized === 'Multicity'
       ? 'Multicity'
+      : normalized === 'Round Trip'
+      ? 'Round Trip'
       : normalized;
 
   if (!supported.includes(standardService)) {

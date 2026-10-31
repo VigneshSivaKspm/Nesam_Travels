@@ -477,7 +477,10 @@ export const extrasNote = (t: QuickTrip) =>
 
 // ── Estimate list ─────────────────────────────────────────────────────────
 
-export function EstimateList({ estimates, selected, onSelect, priceEntered }: { estimates: CategoryEstimate[]; selected: string; onSelect: (id: string) => void; priceEntered: string }) {
+/** How the quoted fare treated GST: inside the configured fare, or added on top. */
+export const gstEntryOf = (q: FareQuote | null): QuickTrip["priceEntered"] => ((q as { pricing?: { gstInFare?: boolean } } | null)?.pricing?.gstInFare ? "Including GST" : "Excluding GST");
+
+export function EstimateList({ estimates, selected, onSelect }: { estimates: CategoryEstimate[]; selected: string; onSelect: (id: string) => void; priceEntered?: string }) {
   return (
     <div className="ds-estimates">
       {estimates.map(({ category, quote, error }) => {
@@ -505,9 +508,10 @@ export function EstimateList({ estimates, selected, onSelect, priceEntered }: { 
                   lines={breakupLines(quote)}
                   total={quote.quote.total}
                   gstRate={quote.quote.gstRate ?? 0}
+                  gstAmount={quote.quote.gst}
                   extraKm={estimateFacts.extraKmRateOf(quote)}
                   payout={estimateFacts.partnerPayoutOf(quote)}
-                  priceEntered={priceEntered}
+                  priceEntered={gstEntryOf(quote)}
                 />
               </div>
             )}

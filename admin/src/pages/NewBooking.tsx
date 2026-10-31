@@ -13,7 +13,7 @@ import MapLocationPicker from "../components/MapLocationPicker";
 import { Badge, Button, Icon, PageHeader } from "../components/ui";
 import { FareBreakupCard } from "../components/booking/Enquiries";
 import {
-  EstimateList, ExtrasFields, SaveEnquiryDialog, TripFields, breakupLines, emptyTrip, estimateAll, estimateFacts, extrasNote, refPickupLabel,
+  EstimateList, ExtrasFields, SaveEnquiryDialog, TripFields, breakupLines, emptyTrip, estimateAll, estimateFacts, extrasNote, gstEntryOf, refPickupLabel,
   tripServiceLabel, tripToForm, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip,
 } from "../components/booking/QuickFare";
 import { rupee } from "../domain/officeStage";
@@ -269,7 +269,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
 
   const err = (k: keyof CustomerForm) => errors[k] ? <span role="alert" className="text-[11px] font-semibold text-bad">{errors[k]}</span> : null;
   const breakupCard = chosen && q && (
-    <FareBreakupCard vehicle={chosen.category.name} lines={breakupLines(q)} total={q.quote.total} gstRate={q.quote.gstRate ?? 0} extraKm={estimateFacts.extraKmRateOf(q)} payout={canSeePayout ? estimateFacts.partnerPayoutOf(q) : null} priceEntered={trip.priceEntered} />
+    <FareBreakupCard vehicle={chosen.category.name} lines={breakupLines(q)} total={q.quote.total} gstRate={q.quote.gstRate ?? 0} gstAmount={q.quote.gst} extraKm={estimateFacts.extraKmRateOf(q)} payout={canSeePayout ? estimateFacts.partnerPayoutOf(q) : null} priceEntered={gstEntryOf(q)} />
   );
   const errorLine = error && <div className="ds-error" role="alert" style={{ marginBottom: 14 }}><Icon name="circle-alert" />{error}</div>;
   const wizard = (on: 2 | 3) => (
@@ -327,10 +327,8 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
         {errorLine}
         <h2 className="ds-step-title"><span className="ds-step-num">02</span>Choose vehicle category</h2>
         <div className="flex flex-wrap items-center gap-3 mb-3 text-[12px] text-muted">
-          <label className="flex items-center gap-2">Price entered
-            <select className="ds-select" value={trip.priceEntered} onChange={(e) => set({ priceEntered: e.target.value as QuickTrip["priceEntered"] })}><option>Excluding GST</option><option>Including GST</option></select>
-          </label>
-          <span>GST {q?.quote.gstRate ?? 0}% · All totals below include GST.</span>
+          {/* GST included / excluded comes from the brand GST policy or the package / route fare saved in Service & Fare Settings. */}
+          <span>GST {Math.round((q?.quote.gstRate ?? 0) * 10000) / 100}% · {q ? (gstEntryOf(q) === "Including GST" ? "Configured fare already includes GST" : "GST added on top of the configured fare") + " · " : ""}All totals below include GST.</span>
         </div>
         <EstimateList estimates={estimates} selected={selected} onSelect={setSelected} priceEntered={trip.priceEntered} />
         <section className="ds-panel ds-panel-pad mt-5">
