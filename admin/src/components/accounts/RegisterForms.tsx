@@ -1,6 +1,6 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import type { Booking } from "../../types";
-import { EXPENSE_CATEGORIES, addRegisterEntry, today, type RegisterEntry } from "../../services/accountsService";
+import { EXPENSE_CATEGORIES, addRegisterEntry, today, verifyOpeningBalance, type RegisterEntry } from "../../services/accountsService";
 import { Modal } from "../Feedback";
 import { Button, Icon } from "../ui";
 import { rupee } from "../../domain/officeStage";
@@ -20,16 +20,18 @@ function Form({ title, eyebrow, submit, note, busy, error, onClose, onSubmit, ch
   );
 }
 
-function useSubmit(onDone: (t: string) => void) {
+function useSubmit(onDone: (t: string) => void, openingToVerify?: RegisterEntry) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const run = async (check: () => string | null, entry: () => Omit<RegisterEntry, "id">, ok: string, file?: File | null) => {
+    if (busy) return;
     const why = check();
     if (why) return setError(why);
     setBusy(true);
     setError(null);
     try {
-      await addRegisterEntry(entry(), file);
+      if (openingToVerify) await verifyOpeningBalance(openingToVerify);
+      else await addRegisterEntry(entry(), file);
       onDone(ok);
     } catch (e) {
       setError(e instanceof Error && e.message ? e.message : "The entry was not saved. Check your permissions and try again.");
@@ -131,19 +133,20 @@ export function TaxPaymentForm({ onClose, onDone }: { onClose: () => void; onDon
   );
 }
 
-export function OpeningForm({ account, onClose, onDone }: { account: AccountRef; onClose: () => void; onDone: (t: string) => void }) {
-  const [f, setF] = useState({ date: today(), amount: "", reference: "" });
+export function OpeningForm({ account, existing, onClose, onDone }: { account: AccountRef; existing?: RegisterEntry; onClose: () => void; onDone: (t: string) => void }) {
+  const [f, setF] = useState({ date: existing?.date ?? today(), amount: existing ? String(existing.amount) : "", reference: existing?.reference ?? "" });
   const [ok, setOk] = useState(false);
-  const s = useSubmit(onDone);
+  const s = useSubmit(onDone, existing);
   return (
-    <Form title="Record opening balance" submit="Record opening" busy={s.busy} error={s.error} onClose={onClose} onSubmit={(e) => { e.preventDefault(); s.run(
+    <Form title={existing ? "Verify recorded opening balance" : "Record opening balance"} submit={existing ? "Verify opening" : "Record verified opening"} busy={s.busy} error={s.error} onClose={onClose} onSubmit={(e) => { e.preventDefault(); s.run(
       () => (f.amount === "" || !Number.isFinite(Number(f.amount)) ? "Enter the signed opening balance." : f.reference.trim().length < 3 ? "Enter the statement / reconciliation reference." : !ok ? "Confirm you verified the opening balance and date." : null),
-      () => ({ kind: "opening", date: f.date, amount: Number(f.amount), reference: f.reference.trim(), accountType: account.type, accountId: account.id, accountName: account.name }),
-      "Opening balance recorded."); }}>
+      () => ({ kind: "opening", status: "Verified", date: f.date, amount: Number(f.amount), reference: f.reference.trim(), accountType: account.type, accountId: account.id, accountName: account.name }),
+      existing ? "Opening balance verified. No additional balance was posted." : "Verified opening balance recorded."); }}>
       <p className="ds-note" data-span="2">{account.name} · Positive = owed to NESAM. Negative = NESAM owes the account. Record the balance before the dated entries below.</p>
-      <label className="ds-field"><span>Opening date</span><input className="ds-input" type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
-      <label className="ds-field"><span>Signed opening balance · ₹</span><input className="ds-input" type="number" value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></label>
-      <label className="ds-field" data-span="2"><span>Statement / reconciliation reference</span><input className="ds-input" value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></label>
+      {existing && <p className="ds-note" data-span="2">Review the original entry against your statement. Verification preserves its amount, date and reference; use a referenced adjustment for a balance correction.</p>}
+      <label className="ds-field"><span>Opening date</span><input className="ds-input" type="date" readOnly={!!existing} value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} /></label>
+      <label className="ds-field"><span>Signed opening balance · ₹</span><input className="ds-input" type="number" step="0.01" readOnly={!!existing} value={f.amount} onChange={(e) => setF({ ...f, amount: e.target.value })} /></label>
+      <label className="ds-field" data-span="2"><span>Statement / reconciliation reference</span><input className="ds-input" readOnly={!!existing} value={f.reference} onChange={(e) => setF({ ...f, reference: e.target.value })} /></label>
       <label className="ds-check" data-span="2"><input type="checkbox" checked={ok} onChange={(e) => setOk(e.target.checked)} />I verified the opening balance and date.</label>
     </Form>
   );

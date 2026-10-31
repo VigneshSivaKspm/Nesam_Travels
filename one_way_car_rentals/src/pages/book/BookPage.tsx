@@ -75,15 +75,18 @@ function RideBanner() {
 function HeroCopy() {
   return (
     <div className="hero-copy">
-      <p className="eyebrow eyebrow--brand">
-        <Icon name="route" size={16} /> One Way Taxi &amp; Outstation Cabs
+      <p className="hero-eyebrow">
+        <span className="hero-eyebrow__dash" aria-hidden="true" />
+        <Icon name="route" size={16} /> PREMIUM OUTSTATION &amp; INTERCITY CABS
       </p>
       <h1>
-        Outstation rides, <em>priced before you book.</em>
+        Outstation rides,<br />
+        <span className="hero-accent">priced before you book.</span>
       </h1>
       <p className="hero-copy__sub">
         Verified chauffeurs, clean air-conditioned cars, and upfront transparent fares with no hidden costs across South India.
       </p>
+      <hr className="hero-divider" />
       <div className="hero-trust-simple">
         <span><Icon name="check" size={15} /> Upfront Fares</span>
         <span><Icon name="shield-check" size={15} /> Verified Drivers</span>

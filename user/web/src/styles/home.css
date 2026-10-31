@@ -66,106 +66,117 @@
 
 /* ── Hero ───────────────────────────────────────────────── */
 .home-hero {
-  display: grid;
-  grid-template-columns: minmax(0, 491fr) minmax(0, 601fr);
-  gap: 60px;
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: clamp(20px, 3vw, 32px);
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
 }
 .hero-copy {
-  display: grid;
-  align-content: start;
-  padding-top: 9px;
-}
-.hero-copy__eyebrow {
-  font-size: var(--fs-2xs);
-  letter-spacing: 0.12em;
-}
-.hero-copy__eyebrow span {
-  width: 20px;
-  height: 2px;
-  background: var(--red);
-}
-.hero-copy h1 {
-  margin-top: 22px;
-  font-size: 3rem;
-  font-weight: 700;
-  line-height: 1.17;
-  letter-spacing: -0.03em;
-  text-wrap: initial;
-}
-.hero-copy h1 span {
-  color: var(--red);
-}
-.hero-copy__lead {
-  max-width: 400px;
-  margin-top: 18px;
-  color: var(--muted);
-  font-size: var(--fs-body);
-  line-height: 1.7;
-}
-.hero-copy__points {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px 22px;
-  margin-top: 18px;
-  color: var(--body);
-  font-size: var(--fs-xs);
-  font-weight: 500;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-inline: 0;
+  padding: 0;
 }
-.hero-copy__points li {
+.hero-eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 10px;
+  margin: 0 0 10px 0;
+  color: var(--brand, var(--red));
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-.hero-car {
-  position: relative;
-  display: grid;
-  justify-items: center;
-  margin: 12px 0 0;
-  padding: 0 5px;
+.hero-eyebrow__dash {
+  display: inline-block;
+  width: 24px;
+  height: 2px;
+  background: var(--brand, var(--red));
+  border-radius: 2px;
+  flex: none;
 }
-.hero-car__stage {
-  position: absolute;
-  left: 5px;
-  right: 9px;
-  top: 103px;
-  height: 70px;
-  border-radius: 50%;
-  background: #eceef0;
+.hero-eyebrow .icon {
+  color: var(--brand, var(--red));
+  flex: none;
 }
-.hero-car img {
-  position: relative;
-  width: 456px;
-  max-width: 96%;
-  height: auto;
+.hero-copy h1 {
+  font-size: clamp(2.2rem, 1.8rem + 2vw, 3.4rem);
+  font-weight: 850;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: var(--ink);
+  margin: 0;
 }
-.hero-car figcaption {
-  margin-top: 6px;
-  color: var(--faint);
-  font-size: var(--fs-2xs);
+.hero-copy h1 .hero-accent,
+.hero-copy h1 em,
+.hero-copy h1 span {
+  display: inline;
+  color: var(--brand, var(--red));
+  font-style: normal;
+}
+.hero-copy__sub {
+  max-width: 72ch;
+  color: var(--muted);
+  font-size: clamp(0.95rem, 0.9rem + 0.25vw, 1.1rem);
+  line-height: 1.55;
+  margin: 12px 0 0 0;
+}
+.hero-divider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 18px 0 16px;
+}
+.hero-trust-simple {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px 28px;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+}
+.hero-trust-simple span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.hero-trust-simple span .icon {
+  color: var(--brand, var(--red));
+  flex: none;
 }
 
 /* ── Booking form ───────────────────────────────────────── */
 .bf {
-  padding: 28px;
+  min-width: 0;
+  width: 100%;
+  max-width: 1180px;
+  margin-inline: auto;
+  padding: clamp(20px, 2.5vw, 36px);
   border: 1px solid var(--line);
   border-radius: var(--r-xl);
   background: var(--surface);
-  box-shadow: var(--shadow-2);
+  box-shadow: 0 12px 36px -8px rgb(217 35 45 / 0.12), 0 4px 18px rgb(0 0 0 / 0.04);
+  transition: box-shadow var(--dur) var(--ease);
+}
+.bf:focus-within {
+  box-shadow: 0 16px 48px -10px rgb(217 35 45 / 0.18), 0 4px 20px rgb(0 0 0 / 0.05);
 }
 .bf-head {
-  display: grid;
-  gap: 4px;
-  text-align: center;
-}
-.bf-head h2 {
-  font-size: var(--fs-xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
-}
-.bf-head p {
-  color: var(--muted);
-  font-size: var(--fs-sm);
+  display: none;
 }
 .bf-services {
   display: grid;
@@ -1699,11 +1710,7 @@
     padding-bottom: 40px;
   }
   .home-hero {
-    grid-template-columns: 1fr;
-    gap: 0;
-  }
-  .hero-copy {
-    display: none;
+    gap: 16px;
   }
   .bf {
     padding: 0;

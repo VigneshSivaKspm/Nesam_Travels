@@ -75,15 +75,18 @@ function RideBanner() {
 function HeroCopy() {
   return (
     <div className="hero-copy">
-      <p className="eyebrow eyebrow--brand">
-        <Icon name="route" size={16} /> Friendly City &amp; Outstation Taxi
+      <p className="hero-eyebrow">
+        <span className="hero-eyebrow__dash" aria-hidden="true" />
+        <Icon name="route" size={16} /> FRIENDLY CITY &amp; OUTSTATION TAXI
       </p>
       <h1>
-        Any journey, <em>priced with a friendly smile.</em>
+        Any journey,<br />
+        <span className="hero-accent">priced with a friendly smile.</span>
       </h1>
       <p className="hero-copy__sub">
         Verified chauffeurs, clean air-conditioned cars, and 100% upfront transparent fares with no hidden costs across South India.
       </p>
+      <hr className="hero-divider" />
       <div className="hero-trust-simple">
         <span><Icon name="check" size={15} /> Upfront Fares</span>
         <span><Icon name="shield-check" size={15} /> Verified Drivers</span>

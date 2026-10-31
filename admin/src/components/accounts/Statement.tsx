@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Booking } from "../../types";
 import { subscribeLedger, type LedgerEntry } from "../../services/earningsService";
-import { subscribeRegister, type RegisterEntry } from "../../services/accountsService";
+import { isVerifiedOpening, subscribeRegister, type RegisterEntry } from "../../services/accountsService";
 import { useBookings } from "../../hooks/useOfficeData";
 import { useCan } from "../AccessContext";
 import { Button, DataTable } from "../ui";
@@ -10,6 +10,7 @@ import { rupee } from "../../domain/officeStage";
 import { bookingPickupDate, isoDateIST } from "../../utils/time";
 import { paymentOf } from "../../domain/bookingFlow";
 import { AdjustmentForm, DepositForm, OpeningForm, SettlementForm, type AccountRef } from "./RegisterForms";
+import { ErrorBanner } from "../Feedback";
 
 export interface StatementLine { date: string; entry: string; sub?: string; ref: string; source: string; debit: number; credit: number }
 
@@ -52,13 +53,24 @@ const word = (n: number, partner: boolean) => (n > 0 ? (partner ? "Receivable fr
 export default function Statement({ account, code }: { account: AccountRef; code: string }) {
   const [ledger, setLedger] = useState<LedgerEntry[]>([]);
   const [register, setRegister] = useState<RegisterEntry[]>([]);
+  const [registerLoaded, setRegisterLoaded] = useState(false);
+  const [ledgerLoaded, setLedgerLoaded] = useState(false);
+  const [registerError, setRegisterError] = useState<string | null>(null);
+  const [ledgerError, setLedgerError] = useState<string | null>(null);
   const [month, setMonth] = useState(isoDateIST(new Date()).slice(0, 7));
   const [sheet, setSheet] = useState<"opening" | "adjustment" | "settlement" | "deposit" | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
-  const bookings = useBookings().rows ?? [];
-  const canFinance = useCan("finance");
-  useEffect(() => { const a = subscribeLedger(setLedger, () => setLedger([])); const b = subscribeRegister(setRegister, () => setRegister([])); return () => { a(); b(); }; }, []);
   const partner = account.type === "vendor" || account.type === "driver";
+  const bookingState = useBookings(!partner);
+  const bookings = bookingState.rows ?? [];
+  const canFinance = useCan("finance");
+  useEffect(() => {
+    setRegisterLoaded(false); setLedgerLoaded(false); setRegisterError(null); setLedgerError(null);
+    const a = partner ? subscribeLedger(rows => { setLedger(rows); setLedgerLoaded(true); setLedgerError(null); }, message => { setLedgerError(message); setLedgerLoaded(true); }) : () => {};
+    const b = subscribeRegister(rows => { setRegister(rows); setRegisterLoaded(true); setRegisterError(null); }, message => { setRegisterError(message); setRegisterLoaded(true); });
+    return () => { a(); b(); };
+  }, [partner]);
+  useEffect(() => { setSheet(null); setMsg(null); }, [account.type, account.id]);
   const { lines, deposit } = useMemo(() => statementLines(account, ledger, register, bookings), [account, ledger, register, bookings]);
   const before = lines.filter((l) => l.date < `${month}-01`);
   const opening = before.reduce((s, l) => s + l.debit - l.credit, 0);
@@ -66,13 +78,23 @@ export default function Statement({ account, code }: { account: AccountRef; code
   const debits = rows.reduce((s, l) => s + l.debit, 0);
   const credits = rows.reduce((s, l) => s + l.credit, 0);
   const closing = opening + debits - credits;
-  const hasOpening = register.some((r) => r.kind === "opening" && r.accountType === account.type && r.accountId === account.id);
+  const openings = register.filter(r => r.kind === 'opening' && r.accountType === account.type && r.accountId === account.id);
+  const recordedOpening = openings.length === 1 ? openings[0] : undefined;
+  const futureOpening = !!recordedOpening && recordedOpening.date.slice(0, 7) > month;
+  const hasOpening = !!recordedOpening && isVerifiedOpening(recordedOpening) && !futureOpening;
+  const openingProblem = openings.length > 1 ? 'Multiple opening entries were found. Finance must reconcile them before final settlement; recording another opening would duplicate the balance.'
+    : futureOpening ? `The recorded opening starts on ${recordedOpening!.date}, after this statement month. Select that month or a later month to review its verified opening.`
+    : recordedOpening ? 'The opening balance is recorded, but its verification is incomplete. Review the existing entry against the reconciliation reference.'
+    : 'No opening balance has been recorded for this account. Enter the reconciled opening amount and date; enter 0 only if you have verified that no opening amount is owed.';
   let run = opening;
   const shown = rows.map((l) => ({ ...l, bal: (run += l.debit - l.credit) }));
   const last = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)), 0).getDate();
   const exp = (fmt: "xlsx" | "print") => exportRows(`${account.name} statement ${month}`, ["Date", "Entry", "Reference", "Source", "Debit", "Credit", "Running balance"], [
     [`${month}-01`, "Opening balance", "", "", "", "", opening], ...shown.map((l) => [l.date, l.entry, l.ref, l.source, l.debit || "", l.credit || "", l.bal]), [`${month}-${last}`, "Closing balance", "", "", debits, credits, closing],
   ], fmt);
+  const loadError = registerError || (partner ? ledgerError : bookingState.error);
+  if (loadError) return <ErrorBanner message={`The statement could not be loaded: ${loadError}. Opening verification cannot be determined.`} onRetry={() => window.location.reload()} />;
+  if (!registerLoaded || (partner ? !ledgerLoaded : bookingState.rows === null)) return <p role="status">Loading statement and opening verification…</p>;
   return (
     <>
       {partner && <span className="ds-eyebrow">PARTNER ACCOUNT</span>}
@@ -81,7 +103,7 @@ export default function Statement({ account, code }: { account: AccountRef; code
         <div className="flex gap-2"><Button icon="printer" onClick={() => exp("print")}>Save as PDF</Button><Button icon="sheet" onClick={() => exp("xlsx")}>Export Excel</Button></div>
       </div>
       <div className="flex flex-wrap items-end gap-4 mb-3">
-        <label className="ds-field"><span>Month</span><input type="month" className="ds-input" value={month} onChange={(e) => setMonth(e.target.value)} /></label>
+        <label className="ds-field"><span>Month</span><input type="month" className="ds-input" value={month} onChange={(e) => { if (/^\d{4}-\d{2}$/.test(e.target.value)) setMonth(e.target.value); }} /></label>
         <span className="text-[11px] text-muted">{partner ? "Debit: partner owes NESAM · Credit: NESAM owes partner" : "Debit increases the amount owed to NESAM; credit reduces it. Deposit stays separate."}</span>
       </div>
       <dl className="ds-facts mb-3" data-cols={4}>
@@ -92,13 +114,14 @@ export default function Statement({ account, code }: { account: AccountRef; code
       </dl>
       {canFinance && (
         <div className="flex flex-wrap gap-2 mb-3">
-          <Button size="sm" icon="flag" onClick={() => setSheet("opening")}>{partner ? "Record opening balance" : "Record opening"}</Button>
+          {!hasOpening && <Button size="sm" icon="flag" disabledReason={openings.length > 1 ? "Reconcile the duplicate opening entries first." : futureOpening ? "Select the opening month or a later month." : undefined} onClick={() => setSheet("opening")}>{recordedOpening ? "Verify recorded opening" : "Record opening balance"}</Button>}
           <Button size="sm" icon="pencil" onClick={() => setSheet("adjustment")}>{partner ? "Account adjustment" : "Adjustment"}</Button>
           {partner && <Button size="sm" icon="landmark" onClick={() => setSheet("settlement")}>Record settlement</Button>}
         </div>
       )}
       {msg && <p className="ds-notice" role="status"><span>{msg}</span><button type="button" className="ds-link" onClick={() => setMsg(null)}>Dismiss</button></p>}
-      {!hasOpening && <p className="text-[11px] text-warn mb-2">Initial opening balance is not verified. This statement uses the recorded entries; verify the opening before final settlement.</p>}
+      {!hasOpening && <div className="ds-note mb-3" role="status"><p>{openingProblem}</p><p className="text-[11px] text-muted mt-1">This statement shows recorded entries only until opening verification is complete. {canFinance ? 'Use the opening action above to record or verify it.' : 'Ask a finance-authorized staff member to record or verify it.'}</p></div>}
+      {hasOpening && <p className="text-[11px] text-muted mb-2">Opening verified by {recordedOpening!.verifiedByName} · Reference {recordedOpening!.reference} · Effective {recordedOpening!.date}</p>}
       {partner && (
         <div className="ds-note mb-3 flex flex-wrap items-center gap-3">
           <span><strong>Security deposit</strong> {deposit ? rupee(deposit) : "Not recorded"} · {deposit ? "Active" : "Verification pending"}</span>
@@ -115,7 +138,7 @@ export default function Statement({ account, code }: { account: AccountRef; code
         </tbody>
       </DataTable>
       <p className="text-[11px] text-faint mt-3">Amounts use verified ledger entries and the selected month. Bank settlements, reversals and charges retain their original partner / trip reference. PDF opens the desktop print dialog; select Save as PDF.</p>
-      {sheet === "opening" && <OpeningForm account={account} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); setMsg(t); }} />}
+      {sheet === "opening" && <OpeningForm key={`${account.type}:${account.id}:${recordedOpening?.id ?? 'new'}`} account={account} existing={recordedOpening} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); setMsg(t); }} />}
       {sheet === "adjustment" && <AdjustmentForm account={account} existing={register} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); setMsg(t); }} />}
       {sheet === "settlement" && <SettlementForm account={account} outstanding={closing} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); setMsg(t); }} />}
       {sheet === "deposit" && <DepositForm account={account} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); setMsg(t); }} />}

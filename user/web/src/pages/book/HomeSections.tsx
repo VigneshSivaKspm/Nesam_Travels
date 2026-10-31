@@ -28,28 +28,24 @@ import {
 export function HeroCopy() {
   return (
     <div className="hero-copy">
-      <p className="eyebrow eyebrow--muted hero-copy__eyebrow">
-        <span aria-hidden="true" /> NESAM Cabs &amp; Car Rentals
+      <p className="hero-eyebrow">
+        <span className="hero-eyebrow__dash" aria-hidden="true" />
+        <Icon name="route" size={16} /> PREMIUM OUTSTATION &amp; INTERCITY CABS
       </p>
       <h1>
-        Your next journey,
-        <br />
-        <span>made simple.</span>
+        Outstation rides,<br />
+        <span className="hero-accent">priced before you book.</span>
       </h1>
-      <p className="hero-copy__lead">From city escapes to airport runs, find your ride with NESAM.</p>
-      <ul className="hero-copy__points">
-        <li>
-          <Icon name="shield-check" size={13} /> Clear fare details
-        </li>
-        <li>
-          <Icon name="support" size={13} /> Dedicated support
-        </li>
-      </ul>
-      <figure className="hero-car">
-        <span className="hero-car__stage" aria-hidden="true" />
-        <img src="/nesam/cars/carens.webp" alt="A white NESAM SUV" width={960} height={480} fetchPriority="high" />
-        <figcaption>Category image. Assigned model may vary.</figcaption>
-      </figure>
+      <p className="hero-copy__sub">
+        Verified chauffeurs, clean air-conditioned cars, and upfront transparent fares with no hidden costs across South India.
+      </p>
+      <hr className="hero-divider" />
+      <div className="hero-trust-simple">
+        <span><Icon name="check" size={15} /> Upfront Fares</span>
+        <span><Icon name="shield-check" size={15} /> Verified Drivers</span>
+        <span><Icon name="snowflake" size={15} /> 100% AC</span>
+        <span><Icon name="phone" size={15} /> 24/7 Helpline</span>
+      </div>
     </div>
   );
 }
