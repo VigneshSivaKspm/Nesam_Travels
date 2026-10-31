@@ -323,6 +323,7 @@ export interface RideRequestInput {
   email?: string;
   source?: string;
   bookingSource?: string;
+  rentalHours?: number | null;
   brand?: string;
 }
 

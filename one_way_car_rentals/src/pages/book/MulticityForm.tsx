@@ -204,10 +204,6 @@ export function MulticityForm() {
       if (prob) err.time = prob;
     }
 
-    if (state.endDate && (!validMulticityDate(state.endDate) || state.endDate < state.date)) {
-      err.endDate = 'Tour end date cannot be earlier than departure date.';
-    }
-
     if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added via city, or remove the empty city.';
     if (state.categoryId && (categoryStatus !== 'ready' || !categories.some(category => category.id === state.categoryId))) err.form = 'Choose an available category or No preference.';
 
@@ -256,7 +252,6 @@ export function MulticityForm() {
         drop: state.drop!,
         stops: filledStops,
         scheduledAt: scheduled!.toISOString(),
-        ...(state.endDate ? { tripEndAt: multicityInstant(state.endDate, '23:59:59')! } : {}),
         ...(state.categoryId ? { categoryId: state.categoryId } : {}),
         ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       });
@@ -541,25 +536,6 @@ export function MulticityForm() {
             </button>
             {errors.time ? <p className="bf-error">{errors.time}</p> : null}
           </div>
-        </div>
-
-        <div className="bf-cell mt-3">
-          <label className="bf-label bf-label--out" htmlFor="mc-end-date">
-            Expected tour return date (optional)
-          </label>
-          <input
-            id="mc-end-date"
-            type="date"
-            className="input bf-input"
-            min={state.date || todayStr}
-            max={maxDateStr}
-            value={state.endDate}
-            onChange={(e) => {
-              setState((s) => ({ ...s, endDate: e.target.value }));
-              setErrors((x) => ({ ...x, endDate: '' }));
-            }}
-          />
-          {errors.endDate ? <p className="bf-error">{errors.endDate}</p> : null}
         </div>
       </div>
 

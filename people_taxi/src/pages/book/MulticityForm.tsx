@@ -202,7 +202,6 @@ export function MulticityForm() {
       if (prob) err.time = prob;
     }
 
-    if (state.endDate && (!validMulticityDate(state.endDate) || state.endDate < state.date)) err.endDate = 'Select a valid trip end date on or after departure.';
     if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added stop, or remove the empty stop.';
     if (state.categoryId && (categoryStatus !== 'ready' || !categories.some(category => category.id === state.categoryId))) err.form = 'Choose an available category or No preference.';
 
@@ -251,7 +250,6 @@ export function MulticityForm() {
         drop: state.drop!,
         stops: filledStops,
         scheduledAt: scheduled!.toISOString(),
-        ...(state.endDate ? { tripEndAt: multicityInstant(state.endDate, '23:59:59')! } : {}),
         ...(state.categoryId ? { categoryId: state.categoryId } : {}),
         ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       });
@@ -533,22 +531,6 @@ export function MulticityForm() {
             </button>
             {errors.time ? <p className="jd-error">{errors.time}</p> : null}
           </div>
-        </div>
-
-        <div className="jd-field" style={{ marginTop: '12px' }}>
-          <label htmlFor="mc-end-date" className="jd-label">
-            Expected tour end date (optional)
-          </label>
-          <input
-            id="mc-end-date"
-            type="date"
-            className="jd-control"
-            min={state.date || todayStr}
-            max={maxDateStr}
-            value={state.endDate}
-            onChange={(e) => setState((s) => ({ ...s, endDate: e.target.value }))}
-          />
-          {errors.endDate ? <p className="jd-error">{errors.endDate}</p> : null}
         </div>
       </div>
 

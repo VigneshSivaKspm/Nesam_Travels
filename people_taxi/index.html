@@ -67,6 +67,19 @@
     <link rel="dns-prefetch" href="https://photon.komoot.io" />
 
     <style>
+      /* Available before the app bundle; React replaces this root content on its first render. */
+      #app-startup {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 12px;
+        text-align: center;
+        background: #fff;
+        color: #475569;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      #app-startup strong { color: #1e6ce3; font-size: 24px; }
       /* Plain-HTML page summary shown when JavaScript is off (filled by the build per page) */
       .seo-js-note {
         margin: 0;
@@ -100,10 +113,10 @@
   </head>
   <body>
     <!-- Readable page summary for visitors and crawlers without JavaScript (filled per page at build) -->
-    <noscript><!--seo:body--><!--/seo:body--></noscript>
+    <noscript><style>#app-startup { display: none; }</style><!--seo:body--><!--/seo:body--></noscript>
 
     <!-- React root container -->
-    <div id="root"></div>
+    <div id="root"><div id="app-startup" role="status"><strong>People Taxi</strong><span>Loading…</span></div></div>
 
     <!-- reCAPTCHA container for phone auth -->
     <div id="recaptcha-container"></div>

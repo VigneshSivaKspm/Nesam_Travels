@@ -189,7 +189,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
                   size="sm"
                   variant={active ? "primary" : "secondary"}
                   onClick={() => {
-                    const brand = b.id as FareWorkspaceScope["brand"];
+                    const brand = b.id;
                     const supported = BRAND_SUPPORTED_SERVICES[brand];
                     changeScope({ brand, service: supported.includes(fareScope.service) ? fareScope.service : supported[0] });
                   }}
