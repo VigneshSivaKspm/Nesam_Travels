@@ -23,6 +23,14 @@ import { GST_STATES } from "../domain/gstStates";
 import { refDateTime } from "../domain/officeStage";
 
 type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings" | "GST calculation";
+const TAB_LABELS: Record<Tab, string> = {
+  "Brand & service fares": "Base Rates & Payouts",
+  "Booking availability": "Service Areas",
+  "Cab types": "Vehicles by Area",
+  "Pricing rules": "Scheduled Pricing",
+  "More settings": "Route fares & limits",
+  "GST calculation": "GST calculation",
+};
 type Sel = { state: string; city: string; area: string };
 const locationKey = (value: string) => value.trim().toLocaleLowerCase();
 const stateKey = (value: string) => {
@@ -251,7 +259,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       </section>
 
       <div className="mb-5">
-        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings", "GST calculation"] as const).map((t) => ({ id: t, label: t === "Brand & service fares" ? "Rates & extra charges" : t === "More settings" ? "Route fares & limits" : t }))} value={tab} onChange={(next) => { if (!workspaceBusy.current) setTab(next); }} />
+        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings", "GST calculation"] as const).map((t) => ({ id: t, label: TAB_LABELS[t] }))} value={tab} onChange={(next) => { if (!workspaceBusy.current) setTab(next); }} />
       </div>
 
       <div hidden={tab !== "Brand & service fares"}>
@@ -277,7 +285,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
             <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>
             <div className="ds-kpi"><span className="ds-kpi-label">Configured cabs</span><span className="text-[14px] font-semibold text-ink">{activeOf("categories")[0]?.categories?.join(", ") || "All active cab types"}</span><span className="ds-kpi-note">{activeOf("categories").length} active category rule{activeOf("categories").length === 1 ? "" : "s"}</span></div>
-            <div className="ds-kpi"><span className="ds-kpi-label">Pricing rules</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
+            <div className="ds-kpi"><span className="ds-kpi-label">Scheduled Pricing</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
           </div>
           <p className="text-[11px] text-muted mt-3">Rules active now · IST · {where}. Exact availability and fare depend on the route, cab type and pickup time.</p>
         </section>
@@ -291,17 +299,17 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           </div>
           {statusChips}
           {ruleTable(byKind("availability")) ?? <EmptyState title="Booking service is available by default" hint="No additional availability setting for this selection. Wider matching settings still apply." />}
-          <p className="text-[11px] text-faint mt-3">Set pickup dates and times inside each rule. Use Rates & extra charges for this brand and service.</p>
+          <p className="text-[11px] text-faint mt-3">Set pickup dates and times inside each rule. Use Base Rates &amp; Payouts for this brand and service.</p>
         </section>
       )}
       {tab === "Cab types" && (
         <div className="mb-4">
-          <StageBar label="Cab types" tabs={(["Customer cab rules", "Vehicle categories"] as const).map((t) => ({ id: t, label: t }))} value={cabSection} onChange={setCabSection} />
+          <StageBar label="Vehicles by Area" tabs={(["Customer cab rules", "Vehicle categories"] as const).map((t) => ({ id: t, label: t }))} value={cabSection} onChange={setCabSection} />
         </div>
       )}
       {tab === "Cab types" && cabSection === "Vehicle categories" && fareScope.brand === "common" && (
         <section className="ds-panel ds-panel-pad">
-          <p className="ds-note mb-3">Shared vehicle catalog — category names and specifications apply to every brand. Brand prices are managed in Rates & extra charges.</p>
+          <p className="ds-note mb-3">Shared vehicle catalog — category names and specifications apply to every brand. Brand prices are managed in Base Rates &amp; Payouts.</p>
           <VehicleCategoriesPage embedded />
         </section>
       )}
@@ -343,7 +351,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
               </button>
             ))}
           </div>
-          <p className="text-[11px] text-faint mt-4">Customer rates, partner payouts, local rental packages and extra charges are managed in Rates & extra charges for this same selection.</p>
+          <p className="text-[11px] text-faint mt-4">Customer rates, partner payouts, local rental packages and extra charges are managed in Base Rates &amp; Payouts for this same selection.</p>
         </section>
       )}
 
@@ -382,7 +390,7 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const where = [scope.area, scope.city, scope.state && GST_STATES.find(([c]) => c === scope.state)?.[1]].filter(Boolean).join(", ") || "All locations";
-  const title = { availability: "Booking availability", categories: "Cab types", pricing: "Pricing rules", limit: "Fare limit" }[kind];
+  const title = { availability: "Service Areas", categories: "Vehicles by Area", pricing: "Scheduled Pricing", limit: "Fare limit" }[kind];
   const draft: Omit<ServiceRule, "id"> = {
     brand: rule?.brand ?? (fareScope.brand === "common" ? "" : fareScope.brand), fareService: rule ? rule.fareService ?? "" : fareScope.service,
     kind, name: name.trim() || `${scope.area || scope.city || "All locations"} ${kind === "categories" ? "cab categories" : kind === "availability" ? "availability" : kind === "pricing" ? "fare rule" : "fare limit"}`,
@@ -445,7 +453,7 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
             {kind === "categories" && (
               <>
                 <div className="flex flex-wrap gap-4">{categories.map((c) => <label key={c} className="ds-check"><input type="checkbox" checked={cats.includes(c)} onChange={(e) => setCats(e.target.checked ? [...cats, c] : cats.filter((x) => x !== c))} />{c}</label>)}</div>
-                <p className="text-[11px] text-faint">Unchecked categories stay hidden in search. Time-based cab unavailability is managed under Booking availability.</p>
+                <p className="text-[11px] text-faint">Unchecked categories stay hidden in search. Time-based cab unavailability is managed under Service Areas.</p>
               </>
             )}
             {kind === "pricing" && (

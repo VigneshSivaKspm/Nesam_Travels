@@ -14,12 +14,14 @@ import {
   type LedgerRebuildReport,
 } from "../services/commissionService";
 import { ConfirmDialog, ErrorBanner, Toast, useToast } from "../components/Feedback";
-import { useAccess } from "../components/AccessContext";
+import { useAccess, useCanDo } from "../components/AccessContext";
 
 const errText = (e: unknown) => (e instanceof CommissionActionError ? e.message : "Something went wrong. Please try again.");
 const inputCls = (bad: boolean) =>
   `w-24 px-2 py-1.5 text-[12px] border rounded-lg text-right ${bad ? "border-red-400 bg-red-50" : "border-line"}`;
 const BASE_LABEL = { taxable: "fare excluding GST", total: "fare including GST" } as const;
+// A suggested basis for a new setup, never an automatically saved commission rate.
+const setupForm = (policy: Policy | null): CommissionForm => ({ ...formFromPolicy(policy), base: policy?.base ?? 'taxable' });
 
 function sameForm(a: CommissionForm, b: CommissionForm) {
   const norm = (m: Record<string, string>) =>
@@ -29,14 +31,20 @@ function sameForm(a: CommissionForm, b: CommissionForm) {
 
 export default function CommissionPolicy() {
   const access = useAccess();
+  const canEditSettings = useCanDo('Settings', 'edit');
+  const canEdit = access.permissions.includes('finance') && canEditSettings;
   const [policy, setPolicy] = useState<Policy | null>(null);
   const [docExists, setDocExists] = useState(false);
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [services, setServices] = useState<TravelService[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [ready, setReady] = useState({ policy: false, categories: false, services: false });
+  const [loadErrors, setLoadErrors] = useState<Record<string, string>>({});
   const [retryKey, setRetryKey] = useState(0);
-  const [form, setForm] = useState<CommissionForm>(() => formFromPolicy(null));
+  const [form, setForm] = useState<CommissionForm>(() => setupForm(null));
+  const [baseline, setBaseline] = useState<CommissionForm>(() => setupForm(null));
+  const [showValidation, setShowValidation] = useState(false);
+  const loading = !ready.policy || !ready.categories || !ready.services;
+  const loadError = Object.values(loadErrors).join(' ');
   const [loadedVersion, setLoadedVersion] = useState<number | null>(null);
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,39 +54,47 @@ export default function CommissionPolicy() {
   const { toast, show } = useToast();
 
   useEffect(() => {
-    setLoading(true);
-    setLoadError(null);
-    const fail = (m: string) => {
-      setLoadError(m);
-      setLoading(false);
+    setReady({ policy: false, categories: false, services: false });
+    setLoadErrors({});
+    const received = (key: keyof typeof ready) => {
+      setReady(current => ({ ...current, [key]: true }));
+      setLoadErrors(current => { const next = { ...current }; delete next[key]; return next; });
+    };
+    const fail = (key: keyof typeof ready) => (message: string) => {
+      setLoadErrors(current => ({ ...current, [key]: message }));
+      setReady(current => ({ ...current, [key]: true }));
     };
     const unsubs = [
       subscribeCommissionPolicy((p, exists) => {
         setPolicy(p);
         setDocExists(exists);
-        setLoading(false);
-      }, fail),
-      subscribeVehicleCategories(setCategories, fail),
-      subscribeServices(setServices, fail),
+        received('policy');
+      }, fail('policy')),
+      subscribeVehicleCategories(rows => { setCategories(rows); received('categories'); }, fail('categories')),
+      subscribeServices(rows => { setServices(rows); received('services'); }, fail('services')),
     ];
     return () => unsubs.forEach((u) => u());
   }, [retryKey]);
 
   // Load the stored policy into the form the first time, and whenever it
   // changes while the form has no unsaved edits.
-  const stored = useMemo(() => formFromPolicy(policy), [policy]);
+  const stored = useMemo(() => setupForm(policy), [policy]);
   const version = policy?.version ?? 0;
-  const dirty = !sameForm(form, stored);
+  const dirty = !sameForm(form, baseline);
   useEffect(() => {
-    if (loading) return;
-    if (loadedVersion === null || (!dirty && loadedVersion !== version)) {
+    if (loading || loadError) return;
+    if (loadedVersion === null || (!dirty && version > loadedVersion)) {
       setForm(stored);
+      setBaseline(stored);
+      setShowValidation(false);
       setLoadedVersion(version);
     }
-  }, [loading, stored, version, loadedVersion, dirty]);
+  }, [loading, loadError, stored, version, loadedVersion, dirty]);
   const staleEdit = loadedVersion !== null && loadedVersion !== version && dirty;
 
-  const { errors, policy: valid } = validateCommissionForm(form);
+  const { errors: validationErrors, policy: valid } = validateCommissionForm(form);
+  const errors = showValidation ? validationErrors : {};
+  const setupNeedsRate = !docExists && valid !== null && valid.global === null && !Object.keys(valid.services).length && !Object.keys(valid.categories).length;
   const setRate = (kind: "services" | "categories", id: string, v: string) => setForm((f) => ({ ...f, [kind]: { ...f[kind], [id]: v } }));
 
   const draftPreview = (scope: { serviceId?: string; categoryId?: string }) => {
@@ -92,7 +108,7 @@ export default function CommissionPolicy() {
   };
 
   const activeCategories = categories.filter((c) => c.status === "Active");
-  const hasServiceRules = Object.values(form.services).some((r) => r.trim());
+  const hasServiceRules = Object.values(form.services).some(rate => typeof parseRate(rate) === 'number');
   const uncovered = activeCategories.filter((c) => draftPreview({ categoryId: c.id }) === null);
   // Rules kept for records that are no longer listed (deleted category/service).
   const orphanRules = [
@@ -101,11 +117,12 @@ export default function CommissionPolicy() {
   ];
 
   const save = async () => {
-    if (!valid) return;
+    if (!valid || setupNeedsRate || !canEdit || loading || loadError || busy || staleEdit || loadedVersion === null) return;
     setBusy(true);
     setActionError(null);
     try {
-      const v = await saveCommissionPolicy(valid, version);
+      const v = await saveCommissionPolicy(valid, loadedVersion);
+      setBaseline(form);
       setLoadedVersion(v);
       setConfirm(false);
       show(`Commission policy saved (version ${v}). It applies to bookings created from now on.`);
@@ -155,7 +172,7 @@ export default function CommissionPolicy() {
 
       {!loading && !loadError && !docExists && (
         <div role="alert" className="p-4 rounded-xl border border-amber-200 bg-amber-50 text-[13px] text-amber-900">
-          <strong>No policy saved.</strong> Commission-dependent bookings (legacy category pricing) will be unavailable until a rate applies to them. Tariff bookings with fixed partner payouts remain unaffected.
+          <strong>Commission setup is pending.</strong> No policy has been saved. Select the calculation basis, enter your agreed global or service/category rates, then choose Save policy. Trips with fixed partner payouts do not require this policy.
         </div>
       )}
 
@@ -173,10 +190,12 @@ export default function CommissionPolicy() {
       {staleEdit && (
         <div role="alert" className="p-3 rounded-xl border border-amber-200 bg-amber-50 text-[12px] text-amber-800 flex items-center justify-between gap-3">
           <span>Someone else saved a new version while you were editing. Saving now will be refused.</span>
-          <button type="button" className="underline shrink-0" onClick={() => { setForm(stored); setLoadedVersion(version); }}>Load the latest version</button>
+          <button type="button" disabled={busy} className="underline shrink-0" onClick={() => { setForm(stored); setBaseline(stored); setLoadedVersion(version); setShowValidation(false); setConfirm(false); }}>Load the latest version</button>
         </div>
       )}
 
+      {!canEdit && <p className="text-[12px] text-muted">You can view this policy. Saving changes requires finance permission and Settings edit access.</p>}
+      <fieldset disabled={loading || !!loadError || busy || !canEdit || loadedVersion === null} style={{ display: 'contents' }}>
       <div className="bg-white rounded-xl border border-line shadow-sm p-5 space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="text-[13px] font-bold text-ink">Platform rules</div>
@@ -195,6 +214,8 @@ export default function CommissionPolicy() {
             ))}
           </div>
           {errors.base && <p className="text-[11px] text-red-600 mt-1">{errors.base}</p>}
+          {!form.base && !errors.base && <p className="text-[11px] text-muted mt-1">Select the basis agreed for partner commission.</p>}
+          {!docExists && <p className="text-[11px] text-muted mt-1">Fare excluding GST is preselected for new setup. Enter the agreed commission percentage before saving; no rate has been saved automatically.</p>}
         </fieldset>
         <label className="block text-[12px]">
           <span className="font-semibold text-body">Global rate (%)</span>
@@ -228,12 +249,13 @@ export default function CommissionPolicy() {
                   <td className="px-5 py-2.5">
                     <input inputMode="decimal" aria-label={`${c.name} rate`} value={form.categories[c.id] ?? ""} onChange={(e) => setRate("categories", c.id, e.target.value)} className={inputCls(!!errors[key])} />
                   </td>
-                  <td className={`px-5 py-2.5 text-[11px] ${applied ? "text-muted" : hasServiceRules ? "text-muted" : "text-amber-700 font-medium"}`}>
+                  <td className="px-5 py-2.5 text-[11px] text-muted">
                     {applied
-                      ? `Applies: ${applied}`
+                      ? `Preview: ${applied}`
                       : hasServiceRules
-                      ? "No category/global fallback · service rules or fixed tariffs apply"
-                      : "No rate configured · fixed tariffs apply, commission duties refused"}
+                      ? "No category/global fallback · a matching service rate is required for commission-based trips"
+                      : "No commission fallback rate entered"}
+                    {errors[key] && <span className="block text-red-600">Enter a percentage from 0 to 100, with up to two decimals.</span>}
                   </td>
                 </tr>
               );
@@ -263,7 +285,7 @@ export default function CommissionPolicy() {
                   <td className="px-5 py-2.5">
                     <input inputMode="decimal" aria-label={`${s.name} rate`} value={form.services[s.id] ?? ""} onChange={(e) => setRate("services", s.id, e.target.value)} className={inputCls(!!errors[key])} />
                   </td>
-                  <td className="px-5 py-2.5 text-[11px] text-muted">{form.services[s.id]?.trim() ? "Overrides category and global rules" : "Not set"}</td>
+                  <td className="px-5 py-2.5 text-[11px] text-muted">{typeof parseRate(form.services[s.id] ?? '') === 'number' ? "Preview: overrides category and global rules" : "Uses category/global fallback when available"}{errors[key] && <span className="block text-red-600">Enter a percentage from 0 to 100, with up to two decimals.</span>}</td>
                 </tr>
               );
             })}
@@ -284,19 +306,22 @@ export default function CommissionPolicy() {
         </div>
       )}
 
+      </fieldset>
       <div className="flex flex-wrap items-center gap-3">
         <button
           type="button"
-          disabled={!dirty || !valid || busy || staleEdit}
-          onClick={() => { setActionError(null); setConfirm(true); }}
+          disabled={(!dirty && valid !== null) || loading || !!loadError || loadedVersion === null || !canEdit || busy || staleEdit}
+          onClick={() => { setShowValidation(true); setActionError(null); if (valid && !setupNeedsRate) setConfirm(true); }}
           className="px-5 py-2 rounded-lg text-[12px] font-bold text-white bg-brand hover:bg-brand-dark disabled:opacity-40"
         >
           Save policy
         </button>
-        <button type="button" disabled={!dirty || busy} onClick={() => setForm(stored)} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
+        <button type="button" disabled={!dirty || busy || loading || !!loadError} onClick={() => { setForm(stored); setBaseline(stored); setLoadedVersion(version); setShowValidation(false); setConfirm(false); }} className="px-4 py-2 border border-line rounded-lg text-[12px] font-semibold text-gray-700 hover:bg-gray-100 disabled:opacity-40">
           Discard changes
         </button>
-        {dirty && !valid && <span className="text-[11px] text-red-600">Fix the highlighted fields.</span>}
+        {showValidation && !valid && <span className="text-[11px] text-red-600">Fix the highlighted fields.</span>}
+        {showValidation && setupNeedsRate && <span className="text-[11px] text-red-600">Enter an agreed global, category or service commission rate before creating the policy. Zero is allowed only when explicitly intended.</span>}
+        {dirty && <span className="text-[11px] text-muted">Unsaved changes — previews do not affect bookings until saved.</span>}
         {valid && uncovered.length > 0 && (
           <span className="text-[11px] text-amber-700">
             {uncovered.length} active categor{uncovered.length === 1 ? "y has" : "ies have"} no category/global rate ({hasServiceRules ? "service rules or fixed tariffs apply; unmapped commission duties refused" : "fixed tariffs apply; commission duties refused"}).
@@ -334,7 +359,7 @@ export default function CommissionPolicy() {
         </div>
       )}
 
-      {confirm && valid && (
+      {confirm && valid && !staleEdit && !loading && !loadError && canEdit && (
         <ConfirmDialog
           title="Save commission policy?"
           message={
