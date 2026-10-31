@@ -105,6 +105,50 @@ export const acceptLegalDocuments = onCall(async (request) => {
 });
 
 /** Publishes a new version of one document; everyone who accepted an older version is asked again. */
+function checkLegalRevision(input: any, current: FirebaseFirestore.DocumentSnapshot) {
+  const data = current.data();
+  const status = current.exists ? data?.status : 'Missing';
+  const version = current.exists ? data?.version ?? 0 : 0;
+  const revision = current.exists ? data?.draftRevision ?? 0 : 0;
+  if (!Number.isInteger(input.expectedVersion) || !Number.isInteger(input.expectedRevision)
+    || !['Missing', 'Draft', 'Published'].includes(input.expectedStatus)) {
+    throw new HttpsError('invalid-argument', 'Reload the document editor before saving.');
+  }
+  if (input.expectedStatus !== status || input.expectedVersion !== version || input.expectedRevision !== revision) {
+    throw new HttpsError('failed-precondition', 'This document changed while you were editing. Close and reopen it to review the latest version.');
+  }
+}
+
+/** Save unpublished work only: never replaces the text currently published to users. */
+export const saveLegalDraft = onCall(async request => {
+  const actor = await requirePermission(request.auth, 'system');
+  requireAction(actor, 'Settings', 'edit');
+  const input = request.data ?? {};
+  if (!LEGAL_TYPES.includes(input.type) || !isRole(input.role)) throw new HttpsError('invalid-argument', 'Choose the document type and role.');
+  const title = text(input.title, 140);
+  const body = typeof input.body === 'string' ? input.body.trim() : '';
+  const checkboxText = typeof input.checkboxText === 'string' ? input.checkboxText.trim() : '';
+  if (title.length < 3 || body.length < 1 || body.length > 60000 || checkboxText.length > 300 || typeof input.requiresAcceptance !== 'boolean') {
+    throw new HttpsError('invalid-argument', 'Enter a title and draft text (up to 60,000 characters), with valid acceptance settings.');
+  }
+  const key = legalKey(input.type, input.role);
+  const ref = db.doc(`legal_documents/${key}`);
+  return db.runTransaction(async tx => {
+    const current = await tx.get(ref);
+    checkLegalRevision(input, current);
+    if (current.data()?.status === 'Published') throw new HttpsError('failed-precondition', 'Published text cannot be replaced by a draft. Use Publish new version after review.');
+    const revision = (current.data()?.draftRevision ?? 0) + 1;
+    tx.set(ref, {
+      key, type: input.type, role: input.role, title, body, checkboxText,
+      requiresAcceptance: input.requiresAcceptance, version: 0, status: 'Draft', draftRevision: revision,
+      ...(!current.exists ? { createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid } : {}),
+      updatedAt: FieldValue.serverTimestamp(), updatedBy: actor.uid, updatedByName: actor.name,
+    }, { merge: true });
+    auditInTx(tx, { action: 'legal_draft_saved', entity: 'legal_document', entityId: key, performedBy: actor.uid, performedByName: actor.name, role: 'admin', next: { draftRevision: revision, status: 'Draft' } });
+    return { key, draftRevision: revision };
+  });
+});
+
 export const publishLegalDocument = onCall(async (request) => {
   const actor = await requirePermission(request.auth, 'system');
   requireAction(actor, 'Settings', 'edit');
@@ -114,17 +158,22 @@ export const publishLegalDocument = onCall(async (request) => {
   const body = typeof input.body === 'string' ? input.body.trim() : '';
   if (title.length < 3) throw new HttpsError('invalid-argument', 'Enter a title.');
   if (body.length < 40 || body.length > 60000) throw new HttpsError('invalid-argument', 'The text must be between 40 and 60,000 characters.');
+  if (typeof input.requiresAcceptance !== 'boolean' || input.reviewed !== true) throw new HttpsError('failed-precondition', 'Confirm you reviewed the document and its acceptance settings before publishing.');
   const key = legalKey(input.type, input.role);
   const checkboxText = text(input.checkboxText, 300) || 'I agree to the Terms & Conditions and Privacy Policy.';
   const requiresAcceptance = input.requiresAcceptance !== false;
+  if (requiresAcceptance && (typeof input.checkboxText !== 'string' || input.checkboxText.trim().length < 10)) throw new HttpsError('invalid-argument', 'Enter the acceptance checkbox text.');
   const ref = db.doc(`legal_documents/${key}`);
   return db.runTransaction(async (tx) => {
     const cur = await tx.get(ref);
+    checkLegalRevision(input, cur);
+    if (cur.data()?.status === 'Published' && text(input.changeSummary, 300).length < 5) throw new HttpsError('invalid-argument', 'Briefly describe what changed before publishing a new version.');
     const version = (cur.exists && typeof cur.data()!.version === 'number' && cur.data()!.status === 'Published' ? cur.data()!.version : (cur.data()?.lastPublishedVersion ?? 0)) + 1;
     const doc = {
       key, type: input.type, role: input.role, title, body, checkboxText, requiresAcceptance, version, status: 'Published',
       changeSummary: text(input.changeSummary, 300), publishedAt: FieldValue.serverTimestamp(), publishedBy: actor.uid, publishedByName: actor.name,
       lastPublishedVersion: version,
+      draftRevision: cur.data()?.draftRevision ?? 0,
     };
     tx.set(ref, doc);
     tx.set(ref.collection('versions').doc(String(version)), doc);
@@ -142,7 +191,7 @@ export const seedLegalDocuments = onCall(async (request) => {
     try {
       await ref.create({
         key: d.key, type: d.type, role: d.role, title: d.title, body: d.body, checkboxText: d.checkboxText, requiresAcceptance: d.requiresAcceptance,
-        version: 0, status: 'Draft', changeSummary: 'Starter template — review with your legal adviser, then publish.',
+        version: 0, status: 'Draft', draftRevision: 0, changeSummary: 'Starter template — review with your legal adviser, then publish.',
         createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid,
       });
       created++;

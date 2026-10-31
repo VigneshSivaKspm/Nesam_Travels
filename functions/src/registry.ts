@@ -106,6 +106,7 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   getLegalStatus: fns.getLegalStatus,
   acceptLegalDocuments: fns.acceptLegalDocuments,
   publishLegalDocument: fns.publishLegalDocument,
+  saveLegalDraft: fns.saveLegalDraft,
   seedLegalDocuments: fns.seedLegalDocuments,
   // staff & partners
   approveAdminRequest: fns.approveAdminRequest,

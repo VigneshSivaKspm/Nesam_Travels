@@ -21,7 +21,7 @@ export { saveFixedRouteFare } from './fixedRoutes';
 export { createCaptureSession, getSlotChallenge, submitCapturePhoto, finalizeVehicleVerification } from './vehicleVerification';
 export { reportSecurityEvent, getIntegrityNonce, verifyDeviceIntegrity } from './security';
 export { sendVerificationCode, verifyCustomerCode, whatsappWebhook } from './customerVerification';
-export { getLegalStatus, acceptLegalDocuments, publishLegalDocument, seedLegalDocuments } from './legal';
+export { getLegalStatus, acceptLegalDocuments, publishLegalDocument, saveLegalDraft, seedLegalDocuments } from './legal';
 export { unassignedBookingAlerts } from './scheduler';
 export { approveAdminRequest, rejectAdminRequest, updateAdminAccess, saveStaffRole, deleteStaffRole, migrateLegacyAdmins } from './staff';
 export { saveCommissionPolicy } from './commission';

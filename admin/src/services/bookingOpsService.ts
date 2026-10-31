@@ -157,8 +157,13 @@ export interface LegalPublishInput {
   checkboxText: string;
   requiresAcceptance: boolean;
   changeSummary: string;
+  expectedVersion: number;
+  expectedRevision: number;
+  expectedStatus: 'Missing' | 'Draft' | 'Published';
+  reviewed: boolean;
 }
 export const publishLegalDocument = (i: LegalPublishInput) => callFunction<LegalPublishInput, { key: string; version: number }>("publishLegalDocument", i);
+export const saveLegalDraft = (i: Omit<LegalPublishInput, 'reviewed'>) => callFunction<unknown, { key: string; draftRevision: number }>('saveLegalDraft', i);
 export const seedLegalDocuments = () => callFunction<unknown, { created: number; total: number }>("seedLegalDocuments", {});
 
 export interface RequiredLegalDoc { key: string; title: string; version: number; type: string; checkboxText: string }

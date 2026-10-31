@@ -1,4 +1,4 @@
-# People Taxi — https://peopletaxi.in
+# People Taxi — https://www.peopletaxi.in
 # Account, trip and checkout screens are private; everything else may be crawled.
 
 User-agent: *
@@ -11,4 +11,4 @@ Disallow: /book/ride
 Disallow: /book/confirm
 Disallow: /book/done/
 
-Sitemap: https://peopletaxi.in/sitemap.xml
+Sitemap: https://www.peopletaxi.in/sitemap.xml

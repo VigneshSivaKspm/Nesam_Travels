@@ -3,7 +3,7 @@
 
 export const SITE = {
   name: 'People Taxi',
-  url: 'https://peopletaxi.in',
+  url: 'https://www.peopletaxi.in',
   legalName: 'NESAM Tours and Travels Private Limited',
   phone: '+919025099990',
   email: 'support@nesamcabs.com',
