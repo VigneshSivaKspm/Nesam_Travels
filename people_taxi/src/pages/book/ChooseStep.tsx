@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { RideCategory } from '@core/types';
-import { inclusionLine } from '@core/utils/bookingRules';
+import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '@core/utils/format';
@@ -177,7 +177,7 @@ export function ChooseStep() {
                 const photo = categoryPhoto(c);
                 const name = categoryName(c);
                 const b = breakupFor(c);
-                const incl = inclusionLine(c, q.outstation);
+                const incl = quotedInclusionLine(q.entries.get(c.id), c, q.outstation);
 
                 return (
                   <div

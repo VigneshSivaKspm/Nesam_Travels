@@ -335,7 +335,7 @@ export const getCustomerEnquiries = onCall({ timeoutSeconds: 30 }, async (reques
  * The travel desk prices a Multicity enquiry from the saved Multicity rates of its brand and the chosen vehicle class:
  * the road distance of every leg (pickup → stops → final destination), the trip's Indian calendar days and the brand's
  * Multicity GST policy (included or excluded), else the tariff GST added on top. The quote is written to the enquiry
- * (estimate, breakup, validity) so the customer can review and accept it; nothing else changes.
+ * (estimate, breakup, validity) for the office to send; nothing else changes.
  */
 export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (request) => {
   const actor = await requirePermission(request.auth, 'operations');
@@ -391,10 +391,12 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   await db.runTransaction(async (tx) => {
     const now = await tx.get(ref);
     if (!now.exists || ['Converted', 'Closed'].includes(now.data()!.status)) throw new HttpsError('failed-precondition', 'This enquiry is closed.');
+    // Pricing is not sending: the status changes only from New / Expired to Draft; "Mark as sent" records the send.
+    const status = ['New', 'Expired'].includes(now.data()!.status) ? 'Draft' : now.data()!.status;
     tx.update(ref, {
-      ...result, status: 'Quote sent', validUntil, quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
+      ...result, status, validUntil, quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
       multicityPricing: { tariffVersion: tariff.version, tariffClass: cls, brand, rates, legsKm: legs.map((l) => Math.round(l.distanceKm * 10) / 10) },
-      history: FieldValue.arrayUnion({ status: 'Quote sent', note: `Multicity quote ₹${result.estimate.toLocaleString('en-IN')} for ${result.vehicle} (${q.billableKm} KM, ${days} day${days === 1 ? '' : 's'}), valid ${validDays} days.`, at: Timestamp.now(), byName: actor.name }),
+      history: FieldValue.arrayUnion({ status, note: `Multicity quote ₹${result.estimate.toLocaleString('en-IN')} for ${result.vehicle} (${q.billableKm} KM, ${days} day${days === 1 ? '' : 's'}), valid ${validDays} days.`, at: Timestamp.now(), byName: actor.name }),
     });
   });
   return { ...result, saved: true, validUntil: validUntil.toDate().toISOString() };

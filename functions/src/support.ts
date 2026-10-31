@@ -7,6 +7,7 @@
 //                          is emailed the update.
 // Visitor requests are rate-limited per IP and carry a hidden honeypot field, so the form cannot be used to spam the inbox.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { PUBLIC_CALLABLE_ORIGINS } from './corsOrigins';
 import { FieldValue } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
@@ -22,7 +23,7 @@ const bad = (m: string) => new HttpsError('invalid-argument', m);
 const CATEGORIES = ['Booking help', 'Change or cancel a booking', 'Fare or payment', 'Refund', 'Driver or vehicle', 'Lost item', 'Safety concern', 'Feedback', 'Corporate / business travel', 'Partner with us', 'Other'];
 const PHONE_RE = /^\+?[0-9\s-]{10,16}$/;
 
-export const submitSupportRequest = onCall({ timeoutSeconds: 30 }, async (request) => {
+export const submitSupportRequest = onCall({ timeoutSeconds: 30, cors: PUBLIC_CALLABLE_ORIGINS, allowInvalidAppCheckToken: true }, async (request) => {
   const input = (request.data ?? {}) as Record<string, unknown>;
   // Honeypot: real people never see or fill this field. Pretend success so bots learn nothing.
   if (text(input.website, 200)) return { id: 'received' };

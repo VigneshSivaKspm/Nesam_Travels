@@ -93,7 +93,8 @@ export function ChooseRideScreen() {
   const fareSheetQuote = fareSheet ? quotes.get(fareSheet.id) ?? null : null;
   const included = route ? Math.round(route.distanceKm * (tripType === 'Round Trip' ? 2 : 1)) : 0;
   const serviceBadge = tripType === 'Airport Taxi' ? 'Airport' : tripType;
-  const gstText = `${Math.round(GST_RATE * 100)}% GST`;
+  // The GST rate the server applied to this fare (admin GST settings), else the default rate until it answers.
+  const gstText = (f?: { gstRate?: number } | null) => `${Math.round((typeof f?.gstRate === 'number' ? f.gstRate : GST_RATE) * 10000) / 100}% GST`;
 
   return (
     <SafeAreaView style={styles.root} edges={['top']}>
@@ -130,9 +131,9 @@ export function ChooseRideScreen() {
             const photo = getVehicleImage(c.name);
             const bagText = `${c.luggageCapacity ?? (c.seats >= 6 ? 4 : 2)} bags`;
             const seatText = `${c.seats} seats`;
-            const extraRate = c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
+            const extraRate = entry?.ok && entry.extraKmRate ? entry.extraKmRate : c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
             const includedKm = entry?.includedKm ?? (c.fare.baseKm > 0 ? c.fare.baseKm : (route ? included : 0));
-            const inclLine = includedKm > 0 ? `${includedKm} km included · Extra km ₹${extraRate}` : `Extra km ₹${extraRate}`;
+            const inclLine = `${entry?.ok && entry.rentalHours ? `${entry.rentalHours} hours · ` : ''}${includedKm > 0 ? `${includedKm} km included · Extra km ₹${extraRate}` : `Extra km ₹${extraRate}`}`;
             const unavailReason = !serverQuote.data ? '' : entry && !entry.ok ? entry.error || 'Not available for this trip' : '';
 
             return (
@@ -161,7 +162,7 @@ export function ChooseRideScreen() {
                   </View>
                   <Text style={styles.included}>{inclLine}</Text>
                   <View style={styles.rate}>
-                    <Text style={styles.rateLabel}>{gstText} included</Text>
+                    <Text style={styles.rateLabel}>{gstText(quote)} included</Text>
                     <Text style={styles.price}>{quote ? formatINR(quote.total) : '—'}</Text>
                   </View>
                 </Pressable>
@@ -187,7 +188,7 @@ export function ChooseRideScreen() {
       <View style={styles.bottom}>
           <View style={styles.bottomRow}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.totalLabel}>Total fare ({gstText} included)</Text>
+              <Text style={styles.totalLabel}>Total fare ({gstText(selectedQuote)} included)</Text>
               <Text style={styles.totalValue}>{selectedQuote ? formatINR(selectedQuote.total) : '—'}</Text>
             </View>
             <Button

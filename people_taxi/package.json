@@ -6,8 +6,7 @@
   "description": "People Taxi - Outstation cabs, one-way drop taxis & intercity travel platform. Built on NESAM unified booking backend.",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
-    "build:seo": "node scripts/generate-sitemap.js",
-    "build": "node scripts/generate-sitemap.js && tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

@@ -123,6 +123,7 @@ export function ReviewStep() {
         notes: composeNotes({ flight: airport ? flight : '', passengerName: forOther ? passengerName : '', passengerMobile: forOther ? passengerMobile : '', notes }),
         scheduledAt,
         tripEndAt: tripType === 'Round Trip' ? tripEndAt : null,
+        rentalHours: tripType === 'Local Rental' ? draft.rentalHours : null,
         termsAccepted,
         whatsapp: waSame ? { sameAsMobile: true } : { sameAsMobile: false, countryCode: waCode.trim(), number: waNumber.replace(/[\s()-]/g, '') },
         email: email.trim(),

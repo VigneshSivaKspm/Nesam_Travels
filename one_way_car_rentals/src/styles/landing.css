@@ -1,0 +1,261 @@
+/* Route guide and service pages (/routes/:slug, /services/:slug), plus the guide links on the
+   booking home. Same fleet-desk language as the home: a dark ink hero with a green rule, ledger
+   lists and plain cards. */
+
+.lp-hero {
+  border-bottom: 4px solid var(--brand);
+  background: var(--ink);
+  color: var(--on-dark);
+}
+.lp-hero__inner {
+  display: grid;
+  justify-items: start;
+  gap: 16px;
+  padding-block: clamp(24px, 3vw, 48px) clamp(32px, 4vw, 64px);
+}
+.lp-hero__inner > * {
+  max-width: 960px;
+}
+.lp-hero h1 {
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  font-weight: 800;
+  line-height: 1.05;
+  text-transform: uppercase;
+}
+.lp-hero__lead {
+  max-width: 62ch;
+  color: var(--on-dark-muted);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-body);
+}
+.lp-hero__note {
+  color: var(--on-dark-muted);
+  font-size: var(--fs-sm);
+}
+
+.lp-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--on-dark-muted);
+  font-size: var(--fs-sm);
+}
+.lp-crumbs a {
+  color: var(--on-dark);
+}
+.lp-crumbs [aria-current='page'] {
+  color: var(--brand-bright);
+}
+
+.lp-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-facts li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 18px 10px 14px;
+  border: 1px solid rgb(255 255 255 / 0.16);
+  border-radius: var(--r-md);
+  background: rgb(255 255 255 / 0.05);
+}
+.lp-facts .icon {
+  color: var(--brand-bright);
+}
+.lp-facts small {
+  display: block;
+  color: var(--on-dark-muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lp-facts strong {
+  color: #fff;
+  font-size: var(--fs-md);
+}
+
+.lp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 4px;
+}
+.btn.lp-btn-light {
+  --btn-bg: transparent;
+  --btn-fg: #fff;
+  --btn-line: rgb(255 255 255 / 0.35);
+}
+.btn.lp-btn-light:hover:not(:disabled) {
+  --btn-bg: rgb(255 255 255 / 0.08);
+  --btn-fg: #fff;
+  --btn-line: #fff;
+}
+
+.lp h2 {
+  margin: 8px 0 20px;
+  font-size: var(--fs-3xl);
+  line-height: var(--lh-tight);
+}
+.lp-subhead {
+  margin: 32px 0 16px;
+  font-size: var(--fs-xl);
+}
+
+.lp-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: clamp(24px, 4vw, 64px);
+  align-items: start;
+}
+.lp-prose {
+  max-width: 72ch;
+  color: var(--text);
+  font-size: var(--fs-md);
+  line-height: 1.7;
+}
+.lp-prose p + p {
+  margin-top: 14px;
+}
+
+.lp-stops {
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-left: 4px solid var(--brand);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.lp-stops h3 {
+  margin-bottom: 12px;
+  font-size: var(--fs-xl);
+}
+.lp-stops ol {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-stops li {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--line-strong);
+}
+.lp-stops li:first-child {
+  border-top: 0;
+}
+.lp-stops strong {
+  color: var(--ink);
+}
+.lp-stops span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+
+.lp-narrow {
+  max-width: calc(840px + var(--gutter) * 2);
+}
+.lp-tiles,
+.lp-links {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lp-tiles li,
+.lp-link {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  height: 100%;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.lp-tiles strong,
+.lp-link strong {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink);
+  font-size: var(--fs-lg);
+}
+.lp-tiles span,
+.lp-link span {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: var(--lh-body);
+}
+.lp-link {
+  color: inherit;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.lp-link:hover {
+  border-color: var(--brand-line);
+  box-shadow: var(--shadow-2);
+  text-decoration: none;
+}
+.lp-link strong .icon {
+  color: var(--brand);
+}
+
+.lp-missing {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding-block: 72px;
+  text-align: center;
+}
+
+/* Booking home: "Route guide" / "Details" pill on route and service cards. */
+.routes > li,
+.services > li {
+  position: relative;
+}
+.route-guide {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--r-pill);
+  background: rgb(255 255 255 / 0.94);
+  color: var(--brand-ink);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  box-shadow: var(--shadow-1);
+}
+.route-guide:hover {
+  background: var(--brand);
+  color: #fff;
+  text-decoration: none;
+}
+
+@media (max-width: 899.98px) {
+  .lp-cols {
+    grid-template-columns: 1fr;
+  }
+}
+@media (max-width: 599.98px) {
+  .lp-actions .btn {
+    width: 100%;
+  }
+}

@@ -19,6 +19,7 @@ import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
+import { RENTAL_PACKAGE_HOURS } from '@/lib/draft';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -319,7 +320,20 @@ export function BookingForm({
               </div>
             ) : null}
           </div>
-          {service === 'rental' ? <p className="bf-note">Your car and chauffeur stay with you within the city. The package hours and kilometres for each car are shown with its fare.</p> : null}
+          {service === 'rental' ? (
+            <>
+              <p className="bf-note">Your car and chauffeur stay with you within the city. The package hours and kilometres for each car are shown with its fare.</p>
+          <div className="bf-row">
+            <div className="bf-cell">
+              <label className="bf-label bf-label--out" htmlFor="bf-rental-hours">Rental package</label>
+              <select id="bf-rental-hours" className="input bf-input" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
+                <option value="">Shortest package for each car</option>
+                {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
+              </select>
+            </div>
+          </div>
+            </>
+          ) : null}
 
           <div className="bf-row">
             <div className="bf-cell">

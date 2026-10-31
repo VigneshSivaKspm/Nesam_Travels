@@ -34,6 +34,19 @@ export function inclusionLine(c: RideCategory, outstation: boolean): string {
   return parts.join(' · ');
 }
 
+/**
+ * The inclusion line of a car from its server quote (the admin tariff: package hours, included KM, extra-KM rate);
+ * the category's own wording is used only until the server has answered.
+ */
+export function quotedInclusionLine(q: { ok: boolean; includedKm?: number; extraKmRate?: number; rentalHours?: number | null } | undefined, c: RideCategory, outstation: boolean): string {
+  if (!q?.ok) return inclusionLine(c, outstation);
+  const parts: string[] = [];
+  if (q.rentalHours) parts.push(`${q.rentalHours} hours`);
+  if (q.includedKm && q.includedKm > 0) parts.push(`${q.includedKm} km included`);
+  if (q.extraKmRate && q.extraKmRate > 0) parts.push(`Extra km ${formatINR(q.extraKmRate)}`);
+  return parts.join(' · ');
+}
+
 /** The server keeps at most this many characters of a booking's notes (functions/src/shared.ts `text`). */
 export const NOTES_MAX = 300;
 

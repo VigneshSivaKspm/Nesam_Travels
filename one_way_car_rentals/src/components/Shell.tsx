@@ -13,10 +13,12 @@ import { Icon } from './Icon';
 import { FloatingCallButton } from './FloatingCallButton';
 import { AiChatbot } from './AiChatbot';
 import { DashboardMainSkeleton } from './DashboardSkeleton';
+import { ALL_ROUTES } from '@/pages/routes/routesData';
+import { ALL_SERVICES } from '@/pages/services/servicesData';
 
 export function Brand() {
   return (
-    <Link to="/book" className="brand" aria-label="One Way Car Rentals — book a cab">
+    <Link to="/" className="brand" aria-label="One Way Car Rentals — book a cab">
       <img src="/brand/one-way-car-rentals-logo.png" alt="One Way Car Rentals logo" width={126} height={42} />
     </Link>
   );
@@ -209,7 +211,7 @@ function Footer() {
             </p>
           </div>
           <div className="footer__cta-actions">
-            <Link to="/book" className="btn btn--primary btn--lg" onClick={scrollToConsole}>
+            <Link to="/" className="btn btn--primary btn--lg" onClick={scrollToConsole}>
               Book a Ride Now <Icon name="arrow-right" size={18} />
             </Link>
             <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--secondary btn--lg">
@@ -232,11 +234,20 @@ function Footer() {
           </div>
           <nav aria-label="Our services">
             <h2>Our services</h2>
-            <Link to="/book?service=outstation&trip=one-way" onClick={scrollToConsole}>One-way drop taxi</Link>
-            <Link to="/book?service=outstation&trip=round-trip" onClick={scrollToConsole}>Round trips</Link>
-            <Link to="/book?service=airport" onClick={scrollToConsole}>Airport transfers</Link>
-            <Link to="/book?service=rental" onClick={scrollToConsole}>Local hourly rental</Link>
-            <Link to="/book?service=multicity" onClick={scrollToConsole}>Multicity itineraries</Link>
+            {ALL_SERVICES.map((sv) => (
+              <Link key={sv.slug} to={`/services/${sv.slug}`}>
+                {sv.name}
+              </Link>
+            ))}
+            <Link to="/?service=multicity" onClick={scrollToConsole}>Multicity itineraries</Link>
+          </nav>
+          <nav aria-label="Popular routes">
+            <h2>Popular routes</h2>
+            {ALL_ROUTES.map((r) => (
+              <Link key={r.slug} to={`/routes/${r.slug}`}>
+                {r.origin} to {r.destination}
+              </Link>
+            ))}
           </nav>
           <nav aria-label="Bookings and help">
             <h2>Bookings &amp; help</h2>
@@ -244,7 +255,7 @@ function Footer() {
             <Link to="/account/payments">Payment options</Link>
             <Link to="/offers">Current offers</Link>
             <Link to="/support">24/7 Support</Link>
-            <Link to="/book#faq">FAQ</Link>
+            <Link to="/#faq">FAQ</Link>
           </nav>
           <nav aria-label="Company policies">
             <h2>Company</h2>
@@ -269,7 +280,7 @@ export function Shell() {
   const location = useLocation();
   const navigate = useNavigate();
   const flow = FLOW.some((re) => re.test(location.pathname));
-  const bookActive = location.pathname === '/book' || location.pathname.startsWith('/book/');
+  const bookActive = location.pathname === '/' || location.pathname === '/book' || location.pathname.startsWith('/book/');
   const isBookingHome = location.pathname === '/' || location.pathname === '/book';
 
   useEffect(() => {

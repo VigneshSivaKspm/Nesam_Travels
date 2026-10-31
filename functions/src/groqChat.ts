@@ -8,6 +8,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { requestIp } from './security';
 import { rateLimited } from './http/util';
 import { text } from './shared';
+import { PUBLIC_CALLABLE_ORIGINS } from './corsOrigins';
 
 interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -151,7 +152,13 @@ You can also call our 24/7 booking desk directly at **${SUPPORT_PHONE}**. What t
 
 // ── Main Callable ──────────────────────────────────────────────────────────
 
-export const chatWithBot = onCall({ timeoutSeconds: 45 }, async (request) => {
+export const chatWithBot = onCall(
+  {
+    timeoutSeconds: 45,
+    cors: PUBLIC_CALLABLE_ORIGINS,
+    allowInvalidAppCheckToken: true, // public endpoint — no App Check required for chat
+  },
+  async (request) => {
   const input = (request.data ?? {}) as ChatRequestInput;
   const brand = text(input.brand, 40) || 'nesam';
   const rawMessages = Array.isArray(input.messages) ? input.messages : [];

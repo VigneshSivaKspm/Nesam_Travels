@@ -2,7 +2,7 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import type { RideCategory } from '@core/types';
-import { inclusionLine } from '@core/utils/bookingRules';
+import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '@core/utils/format';
@@ -231,7 +231,7 @@ export function ChooseStep() {
                     const on = c.id === categoryId;
                     const reason = q.unavailable.get(c.id) ?? '';
                     const blocked = tooFar || !!reason;
-                    const incl = inclusionLine(c, q.outstation);
+                    const incl = quotedInclusionLine(q.entries.get(c.id), c, q.outstation);
                     return (
                       <li key={c.id} className={`cab ${on ? 'is-selected' : ''} ${blocked ? 'is-disabled' : ''}`}>
                         <input id={`cab-${c.id}`} type="radio" name="cab" className="cab__radio" checked={on} disabled={blocked} onChange={() => update({ categoryId: c.id })} />
@@ -351,7 +351,7 @@ export function ChooseStep() {
           lines={breakupFor(fareFor)?.lines ?? []}
           total={q.quotes.get(fareFor.id)?.total ?? 0}
           estimated={!q.authoritative}
-          note={inclusionLine(fareFor, q.outstation)}
+          note={quotedInclusionLine(q.entries.get(fareFor.id), fareFor, q.outstation)}
           onClose={() => setFareFor(null)}
         />
       ) : null}

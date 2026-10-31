@@ -7,6 +7,8 @@ import { formatINR } from '@core/utils/format';
 import { Icon } from '@/components/Icon';
 import { useBooking } from '@/state/Booking';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
+import { routeSlugFor } from '../routes/routesData';
+import { serviceSlugFor } from '../services/servicesData';
 import { ASSURANCE, CORRIDORS, DESTINATIONS, FAQS, FEATURES, IMG, MORE_CORRIDORS, SERVICES, STEPS, type Corridor, type Destination, type Service } from './content';
 
 function SectionHead({ no, eyebrow, title, text, action, id }: { no: string; eyebrow: string; title: string; text?: string; action?: React.ReactNode; id?: string }) {
@@ -69,6 +71,11 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
                   <Icon name="arrow-right" size={20} />
                 </span>
               </button>
+              {serviceSlugFor(s.id) ? (
+                <Link to={`/services/${serviceSlugFor(s.id)}`} className="route-guide">
+                  Details <Icon name="arrow-right" size={14} />
+                </Link>
+              ) : null}
             </li>
           ))}
           <li className="services__call">
@@ -126,17 +133,34 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
                   Plan this trip <Icon name="arrow-right" size={18} />
                 </span>
               </button>
+              {routeSlugFor(c.id) ? (
+                <Link to={`/routes/${routeSlugFor(c.id)}`} className="route-guide">
+                  Route guide <Icon name="arrow-right" size={14} />
+                </Link>
+              ) : null}
             </li>
           ))}
         </ul>
-        <div className="more-routes" role="group" aria-label="More routes">
+        <div className="more-routes" role="group" aria-label="More route guides">
           <span className="eyebrow">More routes</span>
-          {MORE_CORRIDORS.map((c) => (
-            <button key={c.id} type="button" className="chip" onClick={() => onRoute(c)}>
-              {c.origin} <Icon name="arrow-right" size={15} /> {c.destination}
-              <span className="chip__count">{c.km}</span>
-            </button>
-          ))}
+          {MORE_CORRIDORS.map((c) => {
+            const slug = routeSlugFor(c.id);
+            const label = (
+              <>
+                {c.origin} <Icon name="arrow-right" size={15} /> {c.destination}
+                <span className="chip__count">{c.km}</span>
+              </>
+            );
+            return slug ? (
+              <Link key={c.id} to={`/routes/${slug}`} className="chip">
+                {label}
+              </Link>
+            ) : (
+              <button key={c.id} type="button" className="chip" onClick={() => onRoute(c)}>
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </section>

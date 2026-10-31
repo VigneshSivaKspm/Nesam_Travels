@@ -6,6 +6,7 @@ import { useCustomerData } from '@core/context/CustomerData';
 import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { HOME_SEO } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
@@ -239,12 +240,7 @@ function Home() {
 export function BookPage({ step }: { step: BookStep }) {
   useSeo(
     step === 'plan'
-      ? {
-          title: 'People Taxi — Outstation Cabs & One Way Drop Taxi in Tamil Nadu | Upfront Fares',
-          description:
-            'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 support.',
-          canonical: '/book',
-        }
+      ? HOME_SEO
       : step === 'choose'
         ? {
             title: 'Choose Vehicle & Upfront Fares · People Taxi',

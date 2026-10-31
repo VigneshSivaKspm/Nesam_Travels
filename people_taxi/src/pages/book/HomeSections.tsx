@@ -8,6 +8,7 @@ import { Icon } from '@/components/Icon';
 import { useBooking } from '@/state/Booking';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { ASSURANCE, CORRIDORS, DESTINATIONS, FAQS, FEATURES, IMG, MORE_CORRIDORS, SERVICES, STEPS, type Corridor, type Destination, type Service } from './content';
+import { findRouteBySlug } from '../routes/routesData';
 
 function SectionHead({ eyebrow, title, text, action, id }: { eyebrow: string; title: string; text?: string; action?: React.ReactNode; id?: string }) {
   return (
@@ -19,6 +20,9 @@ function SectionHead({ eyebrow, title, text, action, id }: { eyebrow: string; ti
     </header>
   );
 }
+
+/** A corridor's route guide, at its canonical slug (e.g. /routes/chennai-to-pondicherry). */
+const routeHref = (corridorId: string) => `/routes/${findRouteBySlug(corridorId)?.slug ?? corridorId}`;
 
 /** The marketing page for each service, where one exists. */
 const SERVICE_PAGE: Record<string, string> = {
@@ -136,7 +140,7 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
                   Plan this trip <Icon name="arrow-right" size={18} />
                 </span>
               </button>
-              <Link to={`/routes/${c.id}`} className="route-guide">
+              <Link to={routeHref(c.id)} className="route-guide">
                 Route guide &amp; tariff <Icon name="arrow-right" size={14} />
               </Link>
             </li>
@@ -145,7 +149,7 @@ export function RoutesSection({ onRoute }: { onRoute: (c: Corridor) => void }) {
         <div className="more-routes" role="group" aria-label="More routes">
           <span className="more-routes__label">More routes</span>
           {MORE_CORRIDORS.map((c) => (
-            <Link key={c.id} to={`/routes/${c.id}`} className="chip">
+            <Link key={c.id} to={routeHref(c.id)} className="chip">
               {c.origin} <Icon name="arrow-right" size={15} /> {c.destination}
               <span className="chip__count">{c.km}</span>
             </Link>

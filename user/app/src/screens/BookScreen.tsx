@@ -439,8 +439,14 @@ export function BookScreen() {
                   <Text style={styles.formLabel}>Rental package</Text>
                   <View style={styles.packageBox}>
                     <Icon name="clock-3" size={16} color="#7E8896" strokeWidth={2.0} />
-                    <Text style={styles.packageText}>Hourly, within the city. Your quote shows the minimum hours and extra rates.</Text>
+                    <Text style={styles.packageText}>Hourly, within the city. Each car shows its package hours, included km and extra-hour rate.</Text>
                   </View>
+                  <Segmented
+                    style={{ marginTop: 10 }}
+                    options={[{ value: 'auto', label: 'Shortest' }, ...[4, 6, 8, 10, 12].map((h) => ({ value: String(h), label: `${h}h` }))]}
+                    value={draft.rentalHours ? String(draft.rentalHours) : 'auto'}
+                    onChange={(v) => update({ rentalHours: v === 'auto' ? null : Number(v) })}
+                  />
                 </View>
               ) : null}
 

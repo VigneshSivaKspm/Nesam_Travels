@@ -136,11 +136,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     if (!pickup || !drop || !scheduledAt || scheduleProblem(scheduledAt)) return null;
     if (tripType === 'Round Trip' && (!tripEndAt || tripEndAt.getTime() < scheduledAt.getTime())) return null;
     return {
-      pickup: { name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
-      drop: { name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
+      pickup: { id: pickup.id, name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
+      drop: { id: drop.id, name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
       tripType,
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
+      rentalHours: tripType === 'Local Rental' ? draft.rentalHours : null,
       couponCode: promoCode || '',
       brand: 'nesam',
     };
@@ -174,6 +175,8 @@ export interface BookingQuote {
   quoteError: string;
   /** Server breakup lines for the selected category (null until the server answers). */
   breakup: ServerCategoryQuote['breakup'] | null;
+  /** The server's answer for each category (included KM, extra-KM rate, package hours), by category id. */
+  entries: Map<string, ServerCategoryQuote>;
   /** Why a category cannot be priced for this trip, by category id. */
   unavailable: Map<string, string>;
   /** Chargeable calendar days of a round trip. */
@@ -239,7 +242,7 @@ export function useBookingQuote(): BookingQuote {
       quoteLoading: serverQuote.status === 'loading',
       quoteError: serverQuote.status === 'error' ? serverQuote.error : '',
       breakup: chosen?.breakup ?? null,
-      unavailable, days, retryQuote: serverQuote.retry,
+      entries: byId, unavailable, days, retryQuote: serverQuote.retry,
     };
   }, [categories, categoryId, route, tripType, pickupTime, adjustment, coupons, trips, promoCode, pickup, drop, serverQuote]);
 }

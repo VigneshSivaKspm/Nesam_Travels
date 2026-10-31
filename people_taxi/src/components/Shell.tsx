@@ -10,10 +10,11 @@ import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 import { FloatingCallButton } from './FloatingCallButton';
 import { AiChatbot } from './AiChatbot';
+import { ALL_ROUTES } from '@/pages/routes/routesData';
 
 export function Brand({ compact = false, light = false }: { compact?: boolean; light?: boolean }) {
   return (
-    <Link to="/book" className={`brand ${compact ? 'brand--compact' : ''} ${light ? 'brand--light' : ''}`} aria-label="People Taxi — book a ride">
+    <Link to="/" className={`brand ${compact ? 'brand--compact' : ''} ${light ? 'brand--light' : ''}`} aria-label="People Taxi — book a ride">
       <img
         src={compact ? '/brand/peopletaxi-symbol.png' : '/brand/peopletaxi-logo.png'}
         alt="People Taxi"
@@ -162,7 +163,7 @@ function Footer() {
             </p>
           </div>
           <div className="footer__cta-actions">
-            <Link to="/book" className="btn btn--sun btn--lg" onClick={scrollToConsole}>
+            <Link to="/" className="btn btn--sun btn--lg" onClick={scrollToConsole}>
               Book a Ride Now <Icon name="arrow-right" size={18} />
             </Link>
             <a href={`tel:${SUPPORT_PHONE}`} className="btn btn--ghost-light btn--lg">
@@ -181,20 +182,35 @@ function Footer() {
             <h2>Services</h2>
             <ul>
               <li>
-                <Link to="/book?service=one-way" onClick={scrollToConsole}>One Way Drop Taxi</Link>
+                <Link to="/services/one-way-drop-taxi">One Way Drop Taxi</Link>
               </li>
               <li>
-                <Link to="/book?service=round-trip" onClick={scrollToConsole}>Round Trips</Link>
+                <Link to="/services/outstation-round-trip">Round Trips</Link>
               </li>
               <li>
-                <Link to="/book?service=airport" onClick={scrollToConsole}>Airport Transfers</Link>
+                <Link to="/services/airport-taxi">Airport Transfers</Link>
               </li>
               <li>
-                <Link to="/book?service=rental" onClick={scrollToConsole}>Hourly City Rental</Link>
+                <Link to="/services/local-rental">Hourly City Rental</Link>
               </li>
               <li>
-                <Link to="/book?service=multicity" onClick={scrollToConsole}>Multicity Itineraries</Link>
+                <Link to="/services/pilgrimage-tours">Temple &amp; Pilgrimage Tours</Link>
               </li>
+              <li>
+                <Link to="/?service=multicity" onClick={scrollToConsole}>Multicity Itineraries</Link>
+              </li>
+            </ul>
+          </nav>
+          <nav className="footer__col" aria-label="Popular routes">
+            <h2>Popular Routes</h2>
+            <ul>
+              {ALL_ROUTES.map((r) => (
+                <li key={r.slug}>
+                  <Link to={`/routes/${r.slug}`}>
+                    {r.origin} to {r.destination}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </nav>
           <nav className="footer__col" aria-label="Support">
@@ -339,7 +355,7 @@ export function Shell() {
                 to={n.to}
                 aria-label={n.to === '/notifications' && unreadCount > 0 ? `${n.label}, ${unreadCount} unread` : n.label}
                 title={n.label}
-                className={({ isActive }) => `topnav__link ${isActive ? 'is-active' : ''}`}
+                className={({ isActive }) => `topnav__link ${isActive || (n.to === '/book' && location.pathname === '/') ? 'is-active' : ''}`}
               >
                 <Icon name={n.icon} size={19} />
                 <span className="lbl-long">{n.label}</span>
@@ -390,7 +406,7 @@ export function Shell() {
       {!isFlow ? (
         <nav className="tabbar" aria-label="Main">
           {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive ? 'is-active' : ''}`}>
+            <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive || (n.to === '/book' && location.pathname === '/') ? 'is-active' : ''}`}>
               <span className="tabbar__icon">
                 <Icon name={n.icon} size={24} />
                 {n.to === '/notifications' && unreadCount > 0 ? <em className="count">{unreadCount > 9 ? '9+' : unreadCount}</em> : null}

@@ -169,6 +169,7 @@ export function ConfirmBookingScreen() {
         bookingSource: 'nesam',
         brand: 'nesam',
         tripEndAt: tripType === 'Round Trip' ? draft.tripEndAt : null,
+        rentalHours: tripType === 'Local Rental' ? draft.rentalHours : null,
         termsAccepted,
       });
       reset();

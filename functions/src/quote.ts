@@ -8,6 +8,7 @@ import { fareServiceKey } from './fareScope';
 // outside a configured city zone), the admin vehicle-category fares remain in force and
 // the snapshot records which source priced the booking.
 import { onCall, HttpsError } from 'firebase-functions/v2/https';
+import { PUBLIC_CALLABLE_ORIGINS } from './corsOrigins';
 import { FieldValue, Transaction } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { auditInTx } from './audit';
@@ -412,7 +413,7 @@ export async function customerFareContext(tripType: TripType, pickup: GeoPlace, 
  * priceBooking() createBooking uses — so what the customer reviews is what is booked. Nothing is
  * written. The pickup time matters (night charge, calendar days), so it is validated like a booking.
  */
-export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
+export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_ORIGINS, allowInvalidAppCheckToken: true }, async (request) => {
   // Signed-out visitors may see fares too (nothing is written or returned about any account);
   // they are rate-limited per IP and get no coupon, which depends on the customer's history.
   const uid = request.auth?.uid;
@@ -490,7 +491,9 @@ export const quoteBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
         assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(adjustPartner(priced.pricing, rules)) });
         return {
           categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service,
-          model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, rentalHours: priced.pricing.rentalHours ?? null, couponMessage, couponApplied: discount > 0,
+          model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, rentalHours: priced.pricing.rentalHours ?? null,
+          // The customer-facing extra-KM rate (as entered when the fare includes GST).
+          extraKmRate: (priced.pricing.gstInclusiveBase?.extraKmRatePaise ?? priced.pricing.extraKmRatePaise) / 100, gstIncluded: priced.pricing.gstInFare === true, couponMessage, couponApplied: discount > 0,
         };
       } catch (e) {
         return { categoryId: c.id, ok: false as const, error: e instanceof HttpsError ? e.message : 'This category cannot be priced right now.' };

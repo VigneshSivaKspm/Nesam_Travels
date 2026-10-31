@@ -1,5 +1,5 @@
 import { lazy, useEffect, useRef, type ReactNode } from 'react';
-import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { CustomerDataProvider, useCustomerData } from '@core/context/CustomerData';
 import { Shell } from '@/components/Shell';
 import { EmptyState, LinkButton, PageLoader } from '@/components/ui';
@@ -10,6 +10,7 @@ import { ToastProvider } from '@/state/Toasts';
 import { isRideDismissed } from '@/state/rideFocus';
 import { takePendingReturn } from '@/lib/pendingReturn';
 import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
+import { useSeo } from '@/lib/seo';
 import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
 import { LoginModal } from '@/components/LoginModal';
@@ -108,6 +109,7 @@ function AppShellProvider({ children }: { children: ReactNode }) {
 }
 
 function NotFound() {
+  useSeo({ title: 'Page not found', noindex: true });
   return (
     <div className="page">
       <div className="card card--center">
@@ -132,7 +134,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route element={<Shell />}>
-        <Route index element={<Navigate to="/book" replace />} />
+        {/* The booking home lives at "/"; "/book" shows the same page and declares "/" as canonical. */}
+        <Route index element={<BookPage step="plan" />} />
         <Route path="/book" element={<BookPage step="plan" />} />
         <Route path="/book/ride" element={<BookPage step="choose" />} />
         <Route path="/book/confirm" element={<BookPage step="review" />} />

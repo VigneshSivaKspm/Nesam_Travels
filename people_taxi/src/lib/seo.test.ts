@@ -1,53 +1,38 @@
 import { describe, it, expect } from 'vitest';
-import {
-  PRIMARY_DOMAIN,
-  PRIMARY_BASE_URL,
-  SUPPORTED_DOMAINS,
-  ALL_BRAND_URLS,
-  getActiveDomain,
-  getActiveBaseUrl,
-  buildBreadcrumbSchema,
-} from './seo';
+import { SITE, absoluteUrl, breadcrumbSchema, renderHeadTags, resolveSeo } from '@/seo/site';
 
-describe('People Taxi SEO Utilities', () => {
-  it('contains People Taxi domains', () => {
-    expect(SUPPORTED_DOMAINS).toEqual([
-      'peopletaxi.in',
-      'peopletaxi.com',
-      'nesamcabs.com',
-    ]);
-    expect(PRIMARY_DOMAIN).toBe('peopletaxi.in');
-    expect(PRIMARY_BASE_URL).toBe('https://peopletaxi.in');
-    expect(ALL_BRAND_URLS).toContain('https://peopletaxi.in/');
+describe('People Taxi SEO', () => {
+  it('always points canonical URLs at the primary domain', () => {
+    expect(SITE.url).toBe('https://peopletaxi.in');
+    expect(absoluteUrl('/routes/chennai-to-pondicherry')).toBe('https://peopletaxi.in/routes/chennai-to-pondicherry');
+    expect(resolveSeo({ title: 'Offers', canonical: '/offers' }).canonical).toBe('https://peopletaxi.in/offers');
   });
 
-  it('resolves primary domain when window is undefined or untrusted hostname', () => {
-    expect(getActiveDomain()).toBe('peopletaxi.in');
-    expect(getActiveBaseUrl()).toBe('https://peopletaxi.in');
+  it('brands titles once and uses an absolute share image', () => {
+    const s = resolveSeo({ title: 'Offers' });
+    expect(s.title).toBe('Offers · People Taxi');
+    expect(resolveSeo({ title: 'People Taxi | Home' }).title).toBe('People Taxi | Home');
+    expect(s.image).toBe('https://peopletaxi.in/brand/og-image.jpg');
   });
 
-  it('builds breadcrumb JSON-LD schema with correct URLs and positions', () => {
-    const breadcrumbs = [
+  it('drops the canonical for private screens', () => {
+    const s = resolveSeo({ title: 'My Trips', noindex: true });
+    expect(s.canonical).toBeNull();
+    expect(s.robots).toBe('noindex, nofollow');
+  });
+
+  it('builds breadcrumb JSON-LD with absolute URLs', () => {
+    const schema = breadcrumbSchema([
       { name: 'Home', path: '/' },
-      { name: 'Corridors', path: '/routes' },
       { name: 'Chennai to Pondicherry', path: '/routes/chennai-to-pondicherry' },
-    ];
-    const schema = buildBreadcrumbSchema(breadcrumbs, 'https://peopletaxi.in') as any;
+    ]) as { itemListElement: Array<{ position: number; item: string }> };
+    expect(schema.itemListElement[0]).toMatchObject({ position: 1, item: 'https://peopletaxi.in/' });
+    expect(schema.itemListElement[1].item).toBe('https://peopletaxi.in/routes/chennai-to-pondicherry');
+  });
 
-    expect(schema['@context']).toBe('https://schema.org');
-    expect(schema['@type']).toBe('BreadcrumbList');
-    expect(schema.itemListElement).toHaveLength(3);
-    expect(schema.itemListElement[0]).toEqual({
-      '@type': 'ListItem',
-      position: 1,
-      name: 'Home',
-      item: 'https://peopletaxi.in/',
-    });
-    expect(schema.itemListElement[2]).toEqual({
-      '@type': 'ListItem',
-      position: 3,
-      name: 'Chennai to Pondicherry',
-      item: 'https://peopletaxi.in/routes/chennai-to-pondicherry',
-    });
+  it('escapes text in prerendered head tags', () => {
+    const html = renderHeadTags({ title: 'A "quoted" <b> & title', canonical: '/x' });
+    expect(html).toContain('<title>A &quot;quoted&quot; &lt;b&gt; &amp; title · People Taxi</title>');
+    expect(html).toContain('<link rel="canonical" href="https://peopletaxi.in/x" />');
   });
 });

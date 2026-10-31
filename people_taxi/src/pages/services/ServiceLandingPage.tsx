@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { serviceSeo } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
 import { ALL_SERVICES, findServiceBySlug } from './servicesData';
 import { ALL_ROUTES } from '../routes/routesData';
@@ -13,57 +14,14 @@ export function ServiceLandingPage() {
 
   const service = findServiceBySlug(serviceId || '');
 
-  useSeo(
-    service
-      ? {
-          title: service.title,
-          description: service.metaDescription,
-          keywords: service.keywords,
-          canonical: `/services/${service.slug}`,
-          ogImage: `https://peopletaxi.in${service.image}`,
-          breadcrumbs: [
-            { name: 'Home', path: '/' },
-            { name: 'Services', path: '/#services' },
-            { name: service.title.split('|')[0].trim(), path: `/services/${service.slug}` },
-          ],
-          schema: [
-            {
-              '@type': 'Service',
-              name: service.h1,
-              description: service.metaDescription,
-              provider: {
-                '@type': 'TaxiService',
-                name: 'People Taxi',
-                telephone: '+919025099990',
-                url: 'https://peopletaxi.in/',
-              },
-            },
-            {
-              '@type': 'FAQPage',
-              mainEntity: service.faqs.map((f) => ({
-                '@type': 'Question',
-                name: f.q,
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: f.a,
-                },
-              })),
-            },
-          ],
-        }
-      : {
-          title: 'Service Not Found · People Taxi',
-          description: 'The requested travel service could not be found. Explore our outstation cabs and airport taxi services.',
-          noindex: true,
-        },
-  );
+  useSeo(service ? serviceSeo(service) : { title: 'Service not found', noindex: true });
 
   if (!service) {
     return (
       <div className="page lp-missing">
         <h1>Service Not Found</h1>
         <p className="muted">We couldn’t find the service you were looking for.</p>
-        <Link to="/book" className="btn btn--primary">
+        <Link to="/" className="btn btn--primary">
           Back to Booking
         </Link>
       </div>

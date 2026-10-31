@@ -16,6 +16,12 @@ export interface ServerCategoryQuote {
   /** Chargeable calendar days (round trips). */
   days?: number;
   includedKm?: number;
+  /** Local Rental: the package hours this fare is for. */
+  rentalHours?: number | null;
+  /** Rate for each KM beyond the included KM, as the customer is charged it. */
+  extraKmRate?: number;
+  /** True when the configured fare already contained GST (it was not added on top). */
+  gstIncluded?: boolean;
   couponMessage?: string;
   couponApplied?: boolean;
   error?: string;
@@ -30,13 +36,16 @@ export interface ServerQuoteResponse {
 import type { TripType } from '../types';
 
 export interface QuoteRequest {
-  pickup: { name: string; address: string; lat: number; lng: number; type?: string };
-  drop: { name: string; address: string; lat: number; lng: number; type?: string };
+  /** `id` is the master location id when the place came from the location list; the server trusts it only at the same coordinates. */
+  pickup: { id?: string; name: string; address: string; lat: number; lng: number; type?: string };
+  drop: { id?: string; name: string; address: string; lat: number; lng: number; type?: string };
   tripType: TripType;
   /** ISO-8601 with an offset. */
   scheduledAt: string;
   tripEndAt?: string | null;
   couponCode?: string;
+  /** Local Rental: the package hours chosen (absent = the shortest package each car offers). */
+  rentalHours?: number | null;
   /** Brand scope requesting the quote. */
   brand?: string;
 }
@@ -44,4 +53,4 @@ export interface QuoteRequest {
 export const fetchQuotes = (req: QuoteRequest): Promise<ServerQuoteResponse> => callFunction<QuoteRequest, ServerQuoteResponse>('quoteBooking', req, 30000);
 
 /** Identity of a request, so a stale answer is never used for a changed trip. */
-export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.lat, r.pickup.lng, r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '', r.brand ?? '']) : '');
+export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.id ?? '', r.pickup.lat, r.pickup.lng, r.drop.id ?? '', r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '', r.brand ?? '', r.rentalHours ?? '']) : '');

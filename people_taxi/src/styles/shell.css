@@ -520,7 +520,7 @@
 .footer__grid {
   position: relative;
   display: grid;
-  grid-template-columns: minmax(260px, 1.6fr) repeat(3, minmax(150px, 1fr));
+  grid-template-columns: minmax(240px, 1.5fr) repeat(4, minmax(140px, 1fr));
   gap: clamp(24px, 3vw, 56px);
 }
 

@@ -493,7 +493,7 @@
 }
 .footer__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1.6fr) repeat(4, minmax(0, 1fr));
   gap: 28px clamp(20px, 3vw, 48px);
 }
 .footer__brand {

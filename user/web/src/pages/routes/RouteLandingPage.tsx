@@ -235,7 +235,7 @@ export function RouteLandingPage() {
               <p className="eyebrow eyebrow--red">Approved Tariff</p>
               <h2 id="sec-pricing-rates">Transparent Fare Chart: {route.origin} to {route.destination}</h2>
               <p className="sec-head__text">
-                Fares calculated based on official owner-approved Tariff v2 rates. GST (5%) and driver allowance are included upfront. Tolls at actuals.
+                Fares calculated based on official owner-approved Tariff v2 rates. Applicable GST and driver allowance are included upfront; your booking shows the exact GST. Tolls at actuals.
               </p>
             </div>
           </header>
@@ -289,7 +289,7 @@ export function RouteLandingPage() {
             </table>
           </div>
           <p className="small muted" style={{ marginTop: '8px' }}>
-            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata, and 5% GST. State permits, tolls, and parking paid at actuals with receipts.
+            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
           </p>
         </div>
       </section>

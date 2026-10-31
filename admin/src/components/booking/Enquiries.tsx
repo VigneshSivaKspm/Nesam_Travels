@@ -6,8 +6,11 @@ import { OFFICE_STAGES, refDateTime, rupee, type OfficeStage } from "../../domai
 import {
   ENQUIRY_STATUSES, assignEnquiryHandler, currentStaff, effectiveStatus, markEnquirySent, subscribeEnquiries, updateEnquiryStatus,
   type Enquiry, type EnquiryStatus,
-  multicityConversionBlocked, MULTICITY_CONVERSION_MESSAGE,
+  multicityConversionBlocked, MULTICITY_CONVERSION_MESSAGE, priceMulticityEnquiry, type MulticityQuoteResult,
 } from "../../services/enquiryService";
+import { subscribeVehicleCategories } from "../../services/adminFirestoreService";
+import { ActionError } from "../../services/callables";
+import type { VehicleCategory } from "../../types";
 import { subscribeStaffAccounts } from "../../services/staffService";
 
 const SUPPORT_LINE = "+91 9025099990";
@@ -203,6 +206,7 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
               <Button variant="ghost" icon="send" onClick={onSent}>Mark as sent</Button>
             </div>
           </section>
+          {multicityConversionBlocked(e) && status !== "Converted" && status !== "Closed" ? <MulticityPricer e={e} /> : null}
           <section className="ds-panel ds-panel-pad">
             <h3 className="text-[15px] font-bold text-ink">Customer quote</h3>
             <p className="text-[12px] text-muted mb-3">Copy this after confirming the details. No message is sent automatically.</p>
@@ -226,6 +230,58 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
         </div>
       </div>
     </>
+  );
+}
+
+/**
+ * Prices a Multicity itinerary from the brand's saved Multicity rates (the server measures every leg and counts the
+ * calendar days). Preview first; "Save quote" writes it to the enquiry (estimate, breakup, validity) for Copy quote and follow-up.
+ */
+function MulticityPricer({ e }: { e: Enquiry }) {
+  const [categories, setCategories] = useState<VehicleCategory[]>([]);
+  const [categoryId, setCategoryId] = useState(e.categoryId ?? "");
+  const [validDays, setValidDays] = useState("7");
+  const [preview, setPreview] = useState<MulticityQuoteResult | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => subscribeVehicleCategories((list) => setCategories(list.filter((c) => c.status === "Active"))), []);
+  const run = async (save: boolean) => {
+    if (!categoryId) return setError("Choose the vehicle category to quote.");
+    setBusy(true); setError(null); setSaved(false);
+    try {
+      const r = await priceMulticityEnquiry(e.id, categoryId, save, Math.min(30, Math.max(1, Number(validDays) || 7)));
+      setPreview(r);
+      if (save) setSaved(true);
+    } catch (err) {
+      setError(err instanceof ActionError ? err.message : "The quote could not be priced.");
+    } finally { setBusy(false); }
+  };
+  return (
+    <section className="ds-panel ds-panel-pad">
+      <h3 className="text-[15px] font-bold text-ink">Price Multicity quote</h3>
+      <p className="text-[12px] text-muted mb-3">Uses the {e.brand === "onewaycarrentals" ? "One Way Car Rentals" : e.brand === "people_taxi" ? "People Taxi" : "NESAM"} Multicity rates in Service &amp; Fare Settings: road distance of every leg, daily minimum KM, daily driver bata and the brand GST setting.</p>
+      {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
+      <div className="flex flex-wrap items-end gap-3">
+        <label className="ds-field"><span>Vehicle category</span>
+          <select className="ds-select" value={categoryId} onChange={(ev) => { setCategoryId(ev.target.value); setPreview(null); }}>
+            <option value="">Choose…</option>
+            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+          </select>
+        </label>
+        <label className="ds-field"><span>Quote valid (days)</span><input className="ds-input w-20" type="number" min={1} max={30} value={validDays} onChange={(ev) => setValidDays(ev.target.value)} /></label>
+        <Button onClick={() => run(false)} loading={busy} disabled={busy}>Calculate</Button>
+        <Button variant="primary" onClick={() => run(true)} loading={busy} disabled={busy || !preview || preview.categoryId !== categoryId}>Save quote</Button>
+      </div>
+      {preview && (
+        <div className="mt-3 text-[12px]">
+          <p className="text-muted">{preview.totalKm} KM itinerary · {preview.days} day{preview.days === 1 ? "" : "s"} · {preview.includedKm} KM billable · extra KM {rupee(preview.extraKmRate)}</p>
+          <ul className="grid gap-1 mt-2">{preview.breakup.map((l, i) => <li key={i} className="flex justify-between gap-3"><span>{l.label}</span><strong>{rupee(l.amount)}</strong></li>)}</ul>
+          <p className="mt-2 text-[14px] font-bold text-ink">Customer total {rupee(preview.estimate)}</p>
+          {saved && <p className="text-green-700 mt-1">Saved as this enquiry's quote. Use Copy quote to send it to the customer.</p>}
+        </div>
+      )}
+    </section>
   );
 }
 

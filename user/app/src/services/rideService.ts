@@ -338,7 +338,7 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
   if (!input.scheduledAt || !Number.isFinite(input.scheduledAt.getTime())) throw new Error('Choose your pickup date and time.');
   if (input.tripType === 'Round Trip' && (!input.tripEndAt || !Number.isFinite(input.tripEndAt.getTime()))) throw new Error('Choose when your round trip ends.');
   const bSource = input.bookingSource || input.source || input.brand || '';
-  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode, bSource]);
+  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode, bSource, input.rentalHours ?? null]);
   const requestId = pendingBookingIds.get(key) ?? doc(collection(db, BOOKINGS)).id;
   pendingBookingIds.set(key, requestId);
   // An advance booking request: it waits for NESAM's review and is not offered to any partner until then.
@@ -347,6 +347,7 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
     paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes,
     whatsapp: input.whatsapp, email: input.email || undefined,
     scheduledAt: input.scheduledAt.toISOString(), tripEndAt: input.tripType === 'Round Trip' ? input.tripEndAt?.toISOString() : undefined,
+    rentalHours: input.tripType === 'Local Rental' && input.rentalHours ? input.rentalHours : undefined,
     source: bSource || undefined,
     bookingSource: bSource || undefined,
     brand: bSource || undefined }, 60000);

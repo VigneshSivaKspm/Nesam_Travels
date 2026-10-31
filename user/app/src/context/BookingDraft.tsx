@@ -29,6 +29,8 @@ export interface BookingDraft {
   flightNumber: string;
   /** A promo code the rider applied. The booking server checks it with every quote, so the fare shown is the fare booked. */
   promoCode: string;
+  /** Local Rental package hours; null = the shortest package each car offers. */
+  rentalHours: number | null;
 }
 
 /** The services in the bottom navigation. Multicity has no booking contract on the server yet. */
@@ -86,6 +88,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
     airportDirection: 'to',
     flightNumber: '',
     promoCode: '',
+    rentalHours: null,
   });
   const [service, setServiceState] = useState<HomeService>('outstation');
   const lastOutstation = useRef<TripType>('One Way');
@@ -127,7 +130,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const reset = useCallback(() => {
     lastOutstation.current = 'One Way';
     setServiceState('outstation');
-    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '' }));
+    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '', rentalHours: null }));
   }, []);
   const setRoute = useCallback((key: string, info: RouteInfo) => setRouteState({ key, info }), []);
 
@@ -139,12 +142,13 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
     if (!pickup || !drop || !scheduledAt || scheduleProblem(scheduledAt)) return null;
     if (tripType === 'Round Trip' && (!tripEndAt || tripEndAt.getTime() < scheduledAt.getTime())) return null;
     return {
-      pickup: { name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
-      drop: { name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
+      pickup: { id: pickup.id, name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
+      drop: { id: drop.id, name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
       tripType,
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
       couponCode: promoCode || '',
+      rentalHours: tripType === 'Local Rental' ? draft.rentalHours : null,
     };
   }, [draft]);
   const serverQuote = useServerQuotes(quoteRequest);

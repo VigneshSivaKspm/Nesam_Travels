@@ -16,7 +16,7 @@ import { TimePicker, formatTime12 } from '@/components/TimePicker';
 import { useBooking } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
 import { setPendingReturn } from '@/lib/pendingReturn';
-import { saveDraft } from '@/lib/draft';
+import { saveDraft, RENTAL_PACKAGE_HOURS } from '@/lib/draft';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
@@ -316,7 +316,20 @@ export function BookingForm({
               </div>
             ) : null}
           </div>
-          {service === 'rental' ? <p className="bf-note">Chauffeur and car remain at your disposal within the city limits. Package hours and km allowances are shown on the next step.</p> : null}
+          {service === 'rental' ? (
+            <>
+              <p className="bf-note">Chauffeur and car remain at your disposal within the city limits. Package hours and km allowances are shown on the next step.</p>
+          <div className="bf-row">
+            <div className="bf-cell">
+              <label className="bf-label bf-label--out" htmlFor="bf-rental-hours">Rental package</label>
+              <select id="bf-rental-hours" className="input bf-input" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
+                <option value="">Shortest package for each car</option>
+                {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
+              </select>
+            </div>
+          </div>
+            </>
+          ) : null}
 
           <div className="bf-row">
             <div className="bf-cell">

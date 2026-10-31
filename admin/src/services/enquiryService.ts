@@ -6,6 +6,7 @@
 import { collection, doc, onSnapshot, runTransaction, serverTimestamp, Timestamp, updateDoc, arrayUnion } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { describeDataError } from "./adminFirestoreService";
+import { callFunction } from "./callables";
 
 export const ENQUIRY_STATUSES = ["New", "Call back", "No response", "Draft", "Quote sent", "Customer accepted", "Converted", "Closed", "Expired"] as const;
 export type EnquiryStatus = (typeof ENQUIRY_STATUSES)[number];
@@ -137,3 +138,12 @@ export async function markEnquiryConverted(id: string, bookingId: string) {
 }
 
 export const currentStaff = me;
+
+export interface MulticityQuoteResult {
+  estimate: number; breakup: EnquiryBreakupLine[]; gstRate: number; gstIncluded: boolean; includedKm: number; extraKmRate: number;
+  days: number; totalKm: number; categoryId: string; vehicle: string; payout: number; saved?: boolean; validUntil?: string;
+}
+
+/** Prices a Multicity enquiry on the server from the brand's saved Multicity rates; `save` writes it as the customer's quote. */
+export const priceMulticityEnquiry = (enquiryId: string, categoryId: string, save: boolean, validDays = 7) =>
+  callFunction<{ enquiryId: string; categoryId: string; save: boolean; validDays: number }, MulticityQuoteResult>("priceMulticityEnquiry", { enquiryId, categoryId, save, validDays });

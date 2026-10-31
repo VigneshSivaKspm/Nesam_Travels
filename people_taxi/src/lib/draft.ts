@@ -26,7 +26,12 @@ export interface BookingDraft {
   passengerMobile: string;
   /** Airport transfers: optional flight number (sent inside the notes). */
   flight: string;
+  /** Local Rental package hours; null = the shortest package each car offers. */
+  rentalHours: number | null;
 }
+
+/** Local Rental packages the booking server offers (each car shows which it can book). */
+export const RENTAL_PACKAGE_HOURS: readonly number[] = [4, 6, 8, 10, 12];
 
 export const EMPTY_DRAFT: BookingDraft = {
   pickup: null,
@@ -46,6 +51,7 @@ export const EMPTY_DRAFT: BookingDraft = {
   passengerName: '',
   passengerMobile: '',
   flight: '',
+  rentalHours: null,
 };
 
 const STORAGE_KEY = 'peopletaxi.booking.v1';
@@ -95,6 +101,7 @@ export function loadDraft(): BookingDraft {
       passengerName: typeof d.passengerName === 'string' ? d.passengerName.slice(0, 60) : '',
       passengerMobile: typeof d.passengerMobile === 'string' ? d.passengerMobile.slice(0, 16) : '',
       flight: typeof d.flight === 'string' ? d.flight.slice(0, 12) : '',
+      rentalHours: typeof d.rentalHours === 'number' && RENTAL_PACKAGE_HOURS.includes(d.rentalHours) ? d.rentalHours : null,
     };
   } catch {
     return EMPTY_DRAFT;

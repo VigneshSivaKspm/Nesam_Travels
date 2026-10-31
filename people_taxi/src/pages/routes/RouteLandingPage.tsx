@@ -1,6 +1,7 @@
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { routeSeo } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
 import { ALL_ROUTES, findRouteBySlug } from './routesData';
 import { formatINR } from '@core/utils/format';
@@ -13,61 +14,14 @@ export function RouteLandingPage() {
 
   const route = findRouteBySlug(routeId || '');
 
-  useSeo(
-    route
-      ? {
-          title: route.title,
-          description: route.metaDescription,
-          keywords: route.keywords,
-          canonical: `/routes/${route.slug}`,
-          ogImage: `https://peopletaxi.in${route.image}`,
-          breadcrumbs: [
-            { name: 'Home', path: '/' },
-            { name: 'Routes', path: '/#routes' },
-            { name: `${route.origin} to ${route.destination}`, path: `/routes/${route.slug}` },
-          ],
-          schema: [
-            {
-              '@type': 'TouristTrip',
-              name: route.h1,
-              description: route.metaDescription,
-              touristType: 'Outstation & Intercity Travellers',
-              itinerary: {
-                '@type': 'ItemList',
-                itemListElement: route.keyStops.map((s, idx) => ({
-                  '@type': 'ListItem',
-                  position: idx + 1,
-                  name: s.name,
-                  description: s.description,
-                })),
-              },
-            },
-            {
-              '@type': 'FAQPage',
-              mainEntity: route.faqs.map((f) => ({
-                '@type': 'Question',
-                name: f.q,
-                acceptedAnswer: {
-                  '@type': 'Answer',
-                  text: f.a,
-                },
-              })),
-            },
-          ],
-        }
-      : {
-          title: 'Route Not Found · People Taxi',
-          description: 'The requested route could not be found. Explore our popular outstation routes across Tamil Nadu.',
-          noindex: true,
-        },
-  );
+  useSeo(route ? routeSeo(route) : { title: 'Route not found', noindex: true });
 
   if (!route) {
     return (
       <div className="page lp-missing">
         <h1>Route Not Found</h1>
         <p className="muted">We couldn’t find the route you were looking for.</p>
-        <Link to="/book" className="btn btn--primary">
+        <Link to="/" className="btn btn--primary">
           Back to Booking
         </Link>
       </div>
@@ -160,7 +114,7 @@ export function RouteLandingPage() {
               Transparent Fare Chart: {route.origin} to {route.destination}
             </h2>
             <p className="sec-head__text">
-              Fares calculated based on official owner-approved Tariff v2 rates. GST (5%) and driver allowance are included upfront. Tolls at actuals.
+              Fares calculated based on official owner-approved Tariff v2 rates. Applicable GST and driver allowance are included upfront; your booking shows the exact GST. Tolls at actuals.
             </p>
           </header>
 
@@ -197,7 +151,7 @@ export function RouteLandingPage() {
             </table>
           </div>
           <p className="small muted lp-note">
-            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata, and 5% GST. State permits, tolls, and parking paid at actuals with receipts.
+            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
           </p>
         </div>
       </section>

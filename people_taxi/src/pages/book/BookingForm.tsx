@@ -21,6 +21,7 @@ import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/s
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { MulticityForm } from './MulticityForm';
+import { RENTAL_PACKAGE_HOURS } from '@/lib/draft';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -461,9 +462,18 @@ export function BookingForm({
           </div>
 
           {isRental ? (
+            <>
             <p className="jd-rental-note">
-              <Icon name="info" size={14} /> Chauffeur and vehicle remain at your disposal within city limits. Hourly and km packages are shown on the next step.
+              <Icon name="info" size={14} /> Chauffeur and vehicle remain at your disposal within city limits. Each car shows its package hours, included km and extra-hour rate on the next step.
             </p>
+            <div className="jd-field" style={{ marginTop: 10 }}>
+              <label htmlFor="bf-rental-hours" className="jd-label">Rental package</label>
+              <select id="bf-rental-hours" className="jd-control" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
+                <option value="">Shortest package for each car</option>
+                {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
+              </select>
+            </div>
+            </>
           ) : null}
 
           {/* Schedule Section */}
