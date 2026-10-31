@@ -78,7 +78,7 @@ function getTransport(): Transporter {
   if (transport && key === transportKey) return transport;
   const port = Number(env('SMTP_PORT')) || 465;
   const secure = env('SMTP_SECURE') ? env('SMTP_SECURE').toLowerCase() === 'true' : port === 465;
-  transport = nodemailer.createTransport({
+  const opts: any = {
     ...(env('SMTP_SERVICE') ? { service: env('SMTP_SERVICE') } : { host: env('SMTP_HOST'), port, secure }),
     auth: { user: env('SMTP_USER'), pass: env('SMTP_PASS') },
     // Serverless: one short-lived connection per send, bounded so a slow server never hangs a request.
@@ -86,7 +86,8 @@ function getTransport(): Transporter {
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 20000,
-  });
+  };
+  transport = nodemailer.createTransport(opts);
   transportKey = key;
   return transport;
 }

@@ -278,7 +278,7 @@ export const submitPartnerRequest = onCall(async (request) => {
     pushes.push({ id: notifyInTx(tx, n), input: n });
   });
   await pushAfterCommit(pushes);
-  void mailOfficePartnerRequest(`Partner ${kind} change request`, [['Request ID', ref.id], ['Party', party.uid]]).catch(() => null);
+  void mailOfficePartnerRequest(`Partner ${type} change request`, [['Request ID', ref.id], ['Party', party.uid]]).catch(() => null);
   void entityRef;
   return { ok: true, requestId: ref.id };
 });
