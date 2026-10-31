@@ -21,6 +21,8 @@ const MODEL_LABEL: Record<string, string> = {
   local_pickup_drop: "Local Pickup & Drop (city fare)",
   rental_package: "Local rental package",
   fixed_route: "Fixed route fare",
+  airport_transfer: "Airport transfer (base fare + extra KM)",
+  business_contract_per_km: "Business contract (per KM)",
   legacy_category: "Vehicle category fares",
 };
 

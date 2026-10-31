@@ -160,8 +160,7 @@ export async function sendEmail(to: string, m: EmailMessage): Promise<SendResult
   if (!emailConfigured()) return notConfigured('email', 'smtp', 'Email (SMTP)');
   const brand = m.brand ?? BRANDS.nesam;
   // Plain messages from older callers still go out as a branded HTML email, with the text as the fallback part.
-  const body = m.html ? { html: m.html, text: m.text } : renderEmail(brand, { title: m.subject, paragraphs: m.text.split(/
-{2,}/).map((x) => x.trim()).filter(Boolean) });
+  const body = m.html ? { html: m.html, text: m.text } : renderEmail(brand, { title: m.subject, paragraphs: m.text.split(/[\r\n]{2,}/).map((x) => x.trim()).filter(Boolean) });
   const r = await sendMail({ to, subject: m.subject, text: m.html ? m.text : body.text, html: body.html, brand, replyTo: m.replyTo });
   return { ok: r.ok, channel: 'email', status: r.status, provider: 'smtp', providerMessageId: r.messageId ?? '', ...(r.error ? { error: r.error } : {}) };
 }
