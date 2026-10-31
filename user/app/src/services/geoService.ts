@@ -10,6 +10,7 @@ import { GEOCODER_URL, ROUTING_URL, INDIA_BBOX, AVG_CITY_SPEED_KMPH } from '../c
 import { GeoPlace, LatLng, PlaceType, RouteInfo } from '../types';
 import { haversineKm, ROAD_FACTOR, isValidLatLng } from '../utils/geo';
 import { TimeoutError } from '../utils/retry';
+import { matchMainCities } from './mainCities';
 
 // ── Device location ─────────────────────────────────────────────────────────
 
@@ -214,6 +215,14 @@ function featureToPlace(f: PhotonFeature): GeoPlace | null {
 
 const searchCache = new LruCache<GeoPlace[]>(60);
 
+/** A city or town (not a street, ward, boundary or building). */
+const isSettlement = (f: PhotonFeature) => f.properties?.osm_key === 'place' && (f.properties.osm_value === 'city' || f.properties.osm_value === 'town');
+/** The geocoder's own entry for a city already listed from the main-city list. */
+const nearCity = (c: GeoPlace, f: PhotonFeature) => {
+  const [lng, lat] = f.geometry?.coordinates ?? [];
+  return isValidLatLng({ lat, lng }) && haversineKm(c, { lat, lng }) < 10;
+};
+
 /**
  * An airport, not just something named after one: OpenStreetMap's aerodrome tag, or
  * an "airport" name that is not a road, street or neighbourhood ("Airport Road").
@@ -233,8 +242,14 @@ export async function searchPlaces(query: string, near?: LatLng | null, signal?:
   if (cached) return cached;
   const url = `${GEOCODER_URL}/api/?q=${encodeURIComponent(q)}&limit=8&lang=en&bbox=${INDIA_BBOX}${bias}`;
   const data = await fetchJson<{ features?: PhotonFeature[] }>(url, signal);
-  const seen = new Set<string>();
-  const results = (data.features ?? [])
+  // A city the rider named comes first ("trichy" → Trichy, not its wards and zones), then the
+  // geocoder's cities and towns, then everything else; the geocoder's order is kept within each group.
+  const cities = matchMainCities(q);
+  const features = data.features ?? [];
+  const ordered = [...features.filter(isSettlement), ...features.filter((f) => !isSettlement(f))];
+  const seen = new Set<string>(cities.map((c) => `${c.name}|${c.address}`));
+  const found = ordered
+    .filter((f) => !(isSettlement(f) && cities.some((c) => nearCity(c, f))))
     .map(featureToPlace)
     .filter((p): p is GeoPlace => {
       if (!p) return false;
@@ -243,6 +258,7 @@ export async function searchPlaces(query: string, near?: LatLng | null, signal?:
       seen.add(k);
       return true;
     });
+  const results = [...cities, ...found];
   searchCache.set(key, results);
   return results;
 }

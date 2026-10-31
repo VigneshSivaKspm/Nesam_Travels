@@ -8,7 +8,7 @@
          Filled from src/seo/ by scripts/seo-prerender.ts (dev server and build) — edit there, not here. -->
     <!--seo:head--><!--/seo:head-->
     <meta name="author" content="NESAM Tours and Travels Private Limited" />
-    <meta name="theme-color" content="#0A0B0A" />
+    <meta name="theme-color" content="#FFFFFF" />
     <meta name="color-scheme" content="light" />
 
     <!-- Local & Geo Targeting Meta Tags (Tamil Nadu, South India) -->
@@ -62,586 +62,105 @@
     <link rel="dns-prefetch" href="https://photon.komoot.io" />
 
     <style>
-      :root {
-        --sk-brand: #0e8a3f;
-        --sk-brand-bright: #4ce38a;
-        --sk-ink: #0b0c0b;
-        --sk-ink-2: #151716;
-        --sk-ink-3: #242724;
-        --sk-paper: #f2f1ec;
-        --sk-surface: #ffffff;
-        --sk-line: #dad8cf;
-        --sk-line-strong: #b9b6aa;
-        --sk-muted: #5d625c;
-        --sk-side-w: 256px;
-        --sk-nav-h: 0px;
-        --sk-tabbar-h: 62px;
-      }
-      @media (max-width: 1199.98px) {
-        :root { --sk-side-w: 76px; }
-      }
-      @media (max-width: 899.98px) {
-        :root { --sk-side-w: 0px; --sk-nav-h: 56px; }
-      }
-
+      /* Startup placeholder, shown before the app bundle runs: the same light header and booking
+         home layout as the app, so nothing dark or unrelated flashes first. React replaces it. */
       *, *::before, *::after { box-sizing: border-box; }
       body {
         margin: 0;
-        background: #f2f1ec;
-        color: #272a27;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        background: #f5f6f4;
+        color: #29322d;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
         overflow-x: clip;
       }
-
       .sr-only {
         position: absolute;
         width: 1px;
         height: 1px;
-        padding: 0;
         margin: -1px;
+        padding: 0;
         overflow: hidden;
         clip: rect(0, 0, 0, 0);
         white-space: nowrap;
         border: 0;
       }
-
-      .shell-skeleton {
-        display: grid;
-        grid-template-columns: var(--sk-side-w) minmax(0, 1fr);
+      .boot {
         min-height: 100vh;
         min-height: 100dvh;
-        background: var(--sk-paper);
+        background: linear-gradient(180deg, #e9f6ee 0, #f5f6f4 560px);
       }
-      .shell-skeleton__body {
-        display: flex;
-        flex-direction: column;
-        min-width: 0;
-        min-height: 100dvh;
-        background: var(--sk-paper);
-      }
-      .shell-skeleton__main {
-        flex: 1;
-        outline: none;
-      }
-
-      .sk-side {
-        position: sticky;
-        top: 0;
-        z-index: 95;
-        display: flex;
-        flex-direction: column;
-        gap: 28px;
-        height: 100vh;
-        height: 100dvh;
-        padding: 22px 16px 16px;
-        background: var(--sk-ink);
-        color: #f2f4f1;
-        border-right: 1px solid #000;
-      }
-      .sk-brand {
-        display: inline-flex;
-        align-items: center;
-        gap: 12px;
-        color: #fff;
-        text-decoration: none;
-        flex: none;
-      }
-      .sk-brand img {
-        width: auto;
-        max-width: 100%;
-        height: 40px;
-        padding: 4px 8px;
-        border-radius: 6px;
+      .boot__bar {
+        height: 72px;
+        border-bottom: 1px solid #e2e6e2;
         background: #fff;
-        object-fit: contain;
       }
-      .sk-side__nav {
-        display: grid;
-        gap: 4px;
-      }
-      .sk-side__label {
-        margin: 0 0 8px 12px;
-        font-size: 0.875rem;
-        font-weight: 600;
-        letter-spacing: 0.26em;
-        text-transform: uppercase;
-        color: #6c726a;
-      }
-      .sk-side__link {
-        position: relative;
-        display: flex;
-        align-items: center;
-        gap: 14px;
-        min-height: 48px;
-        padding: 0 14px 0 16px;
-        border-radius: 3px;
-        color: #b1b7ae;
-        font-size: 1.125rem;
-        font-weight: 600;
-        letter-spacing: 0.07em;
-        text-transform: uppercase;
-        white-space: nowrap;
-        user-select: none;
-      }
-      .sk-side__link.is-active {
-        background: var(--sk-ink-3);
-        color: #fff;
-      }
-      .sk-side__link.is-active::before {
-        content: '';
-        position: absolute;
-        left: 0;
-        top: 8px;
-        bottom: 8px;
-        width: 4px;
-        border-radius: 0 2px 2px 0;
-        background: var(--sk-brand-bright);
-      }
-      .sk-side__link.is-active svg {
-        color: var(--sk-brand-bright);
-      }
-      .sk-side__foot {
-        display: grid;
-        gap: 8px;
-        margin-top: auto;
-      }
-      .sk-side__call {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 14px;
-        border: 1px dashed #3b413a;
-        border-radius: 3px;
-        color: #fff;
-        text-decoration: none;
-      }
-      .sk-side__call svg {
-        color: var(--sk-brand-bright);
-      }
-      .sk-side__call small {
-        display: block;
-        color: #b1b7ae;
-        font-size: 0.75rem;
-        letter-spacing: 0.04em;
-      }
-      .sk-side__call .num {
-        font-size: 1.25rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
-      }
-      .sk-side__btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
+      .boot__wrap {
         width: 100%;
-        min-height: 52px;
-        border: 1.5px solid var(--sk-brand);
-        border-radius: 3px;
-        background: var(--sk-brand);
-        color: #fff;
-        font-size: 1.125rem;
-        font-weight: 700;
-        letter-spacing: 0.1em;
-        text-transform: uppercase;
-        user-select: none;
+        padding-inline: clamp(14px, 2.8vw, 64px);
       }
-
-      @media (max-width: 1199.98px) {
-        .sk-side {
-          align-items: center;
-          padding-inline: 10px;
-        }
-        .sk-side__label,
-        .sk-side .lbl-long {
-          display: none;
-        }
-        .sk-side__link,
-        .sk-side__call {
-          justify-content: center;
-          width: 52px;
-          min-height: 52px;
-          padding: 0;
-        }
-        .sk-side__call {
-          border-style: solid;
-          border-color: #2c302b;
-        }
-        .sk-side__btn {
-          width: 52px;
-          padding: 0;
-        }
-      }
-
-      .sk-topbar { display: none; }
-      .sk-tabbar { display: none; }
-
-      @media (max-width: 899.98px) {
-        .shell-skeleton { display: block; }
-        .sk-side { display: none; }
-        .shell-skeleton__body { min-height: 0; }
-        .sk-topbar {
-          position: sticky;
-          top: 0;
-          z-index: 90;
-          display: block;
-          height: 56px;
-          background: var(--sk-ink);
-          border-bottom: 3px solid var(--sk-brand);
-        }
-        .sk-topbar__inner {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          height: 100%;
-          padding-inline: 14px 8px;
-        }
-        .sk-topbar .sk-brand img { height: 36px; padding: 3px 7px; }
-        .sk-topbar__btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-height: 38px;
-          padding: 0 14px;
-          font-size: 0.875rem;
-          font-weight: 700;
-          letter-spacing: 0.07em;
-          text-transform: uppercase;
-          border: 1.5px solid var(--sk-brand);
-          border-radius: 3px;
-          background: var(--sk-brand);
-          color: #fff;
-        }
-        .sk-tabbar {
-          position: fixed;
-          inset: auto 0 0 0;
-          z-index: 90;
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          height: calc(62px + env(safe-area-inset-bottom));
-          padding-bottom: env(safe-area-inset-bottom);
-          background: var(--sk-ink);
-          border-top: 1px solid #000;
-        }
-        .sk-tabbar__link {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 4px;
-          color: #b1b7ae;
-          font-size: 0.75rem;
-          font-weight: 600;
-          letter-spacing: 0.06em;
-          text-transform: uppercase;
-        }
-        .sk-tabbar__link.is-active {
-          color: var(--sk-brand-bright);
-        }
-        .shell-skeleton__main {
-          padding-bottom: calc(62px + env(safe-area-inset-bottom));
-        }
-      }
-
-      /* Hero Section Skeleton */
-      .sk-hero {
-        position: relative;
-        z-index: 2;
-        background: var(--sk-ink);
-        color: #fff;
-      }
-      .sk-hero__stage {
-        display: grid;
-        grid-template-columns: minmax(0, 5.4fr) minmax(0, 6.2fr);
-        min-height: clamp(480px, 62vh, 700px);
-        overflow: hidden;
-      }
-      .sk-hero__copy {
+      .boot__bar .boot__wrap {
         display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: flex-start;
-        gap: clamp(16px, 1.6vw, 26px);
-        padding: clamp(36px, 4.4vw, 80px) clamp(20px, 2.4vw, 48px) clamp(36px, 4vw, 64px) clamp(18px, 3.2vw, 64px);
-      }
-      .sk-eyebrow {
-        display: inline-flex;
         align-items: center;
-        gap: 10px;
-        width: fit-content;
-        padding: 7px 14px;
-        border: 1px solid rgb(76 227 138 / 0.45);
-        border-radius: 3px;
-        background: rgb(76 227 138 / 0.08);
-        color: var(--sk-brand-bright);
-        font-size: 0.875rem;
-        font-weight: 600;
-        letter-spacing: 0.2em;
-        text-transform: uppercase;
-      }
-      .sk-title {
-        color: #fff;
-        font-size: clamp(3rem, 1.1rem + 4.7vw, 6.25rem);
-        line-height: 0.9;
-        font-weight: 800;
-        letter-spacing: 0;
-        text-transform: uppercase;
-        margin: 0;
-      }
-      .sk-title em {
-        display: block;
-        margin-top: 0.06em;
-        font-style: normal;
-        color: var(--sk-brand-bright);
-      }
-      .sk-lead {
-        max-width: 46ch;
-        color: #b1b7ae;
-        font-size: clamp(1.0625rem, 0.95rem + 0.4vw, 1.3125rem);
-        line-height: 1.5;
-        margin: 0;
-      }
-      .sk-points {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 10px 28px;
-        width: 100%;
-        margin-top: 6px;
-        padding: 16px 0 0 0;
-        border-top: 1px solid #2c302b;
-        list-style: none;
-      }
-      .sk-points li {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        font-size: 1.0625rem;
-        font-weight: 600;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-      }
-      .sk-points svg {
-        color: var(--sk-brand-bright);
-      }
-      .sk-hero__media {
-        position: relative;
-        min-height: 280px;
-        background: var(--sk-ink-2);
-        clip-path: polygon(13% 0, 100% 0, 100% 100%, 0 100%);
-      }
-      .sk-hero__media::after {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(90deg, rgb(11 12 11 / 0.55) 0%, rgb(11 12 11 / 0) 38%), linear-gradient(0deg, rgb(11 12 11 / 0.45) 0%, rgb(11 12 11 / 0) 36%);
-      }
-      .sk-hero__media picture,
-      .sk-hero__media img {
-        display: block;
-        width: 100%;
         height: 100%;
-        object-fit: cover;
-        object-position: 64% 58%;
       }
-      @media (max-width: 1023.98px) {
-        .sk-hero__stage {
-          grid-template-columns: 1fr;
-          min-height: 0;
-        }
-        .sk-hero__copy {
-          padding: clamp(32px, 6vw, 56px) clamp(18px, 3.2vw, 64px) 28px;
-        }
-        .sk-hero__media {
-          min-height: clamp(220px, 40vw, 340px);
-          clip-path: polygon(0 12%, 100% 0, 100% 100%, 0 100%);
-        }
+      .boot__bar img {
+        display: block;
+        width: auto;
+        height: 40px;
       }
-
-      /* Console Skeleton */
-      .sk-console {
-        position: relative;
-        z-index: 6;
-        padding-inline: clamp(18px, 3.2vw, 64px);
-        background: var(--sk-surface);
-        border-top: 5px solid var(--sk-brand);
-        box-shadow: 0 18px 40px rgb(11 12 11 / 0.1);
-      }
-      .sk-console__inner {
-        max-width: 1760px;
+      .boot__hero {
+        display: flex;
+        flex-direction: column;
+        gap: clamp(20px, 3vw, 32px);
+        max-width: 1180px;
         margin-inline: auto;
-        padding: clamp(14px, 1.4vw, 22px) 0 clamp(16px, 1.6vw, 24px);
+        padding-block: clamp(20px, 4vw, 48px);
       }
-      .sk-console__tabs {
-        display: inline-flex;
-        border: 1.5px solid var(--sk-ink);
-        border-radius: 3px;
-        background: var(--sk-surface);
-        margin-bottom: 14px;
-      }
-      .sk-tab {
-        padding: 8px 18px;
-        font-size: 1.0625rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--sk-ink);
-        border-right: 1.5px solid var(--sk-ink);
-        user-select: none;
-      }
-      .sk-tab:last-child {
-        border-right: none;
-      }
-      .sk-tab.is-active {
-        background: var(--sk-ink);
-        color: #fff;
-      }
-      .sk-console__row {
+      .boot__title {
         display: grid;
-        grid-template-columns: minmax(0, 5.6fr) minmax(280px, 3fr) auto;
-        border: 1.5px solid var(--sk-ink);
-        border-radius: 3px;
-        background: var(--sk-surface);
+        gap: 12px;
       }
-      .sk-fields {
+      .boot__card {
+        display: grid;
+        gap: 14px;
+        padding: clamp(20px, 2.5vw, 36px);
+        border: 1px solid #ccd3ce;
+        border-radius: 20px;
+        background: #fff;
+        box-shadow: 0 12px 36px -8px rgb(13 138 69 / 0.12), 0 4px 18px rgb(0 0 0 / 0.04);
+      }
+      .boot__tabs {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .boot__row {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        border-right: 1.5px solid var(--sk-ink);
+        gap: 14px;
       }
-      .sk-field {
-        padding: 12px 18px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
+      .sk {
+        display: block;
+        border-radius: 10px;
+        background: linear-gradient(100deg, #eceeeb 30%, #f8f9f7 50%, #eceeeb 70%) 0 0 / 220% 100%;
+        animation: boot-shimmer 1.3s linear infinite;
       }
-      .sk-field:first-child {
-        border-right: 1px solid var(--sk-line);
+      .sk--title { width: min(100%, 460px); height: clamp(32px, 6vw, 52px); }
+      .sk--tab { height: 48px; }
+      .sk--field { height: 64px; }
+      .sk--go { height: 54px; background: #0d8a45; animation: none; }
+      @keyframes boot-shimmer {
+        to { background-position: -220% 0; }
       }
-      .sk-field__label {
-        font-size: 0.75rem;
-        font-weight: 700;
-        letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: var(--sk-muted);
+      @media (prefers-reduced-motion: reduce) {
+        .sk { animation: none; }
       }
-      .sk-field__box {
-        height: 24px;
-        border-radius: 2px;
+      @media (max-width: 999.98px) {
+        .boot__bar { height: 56px; }
+        .boot__bar img { height: 36px; }
       }
-      .sk-when {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        border-right: 1.5px solid var(--sk-ink);
-      }
-      .sk-when__item {
-        padding: 12px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .sk-when__item:first-child {
-        border-right: 1px solid var(--sk-line);
-      }
-      .sk-btn-go {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        gap: 10px;
-        min-height: 76px;
-        padding-inline: 34px;
-        background: var(--sk-brand);
-        color: #fff;
-        font-size: 1.375rem;
-        font-weight: 700;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        border-radius: 0 2px 2px 0;
-        user-select: none;
-      }
-      @media (max-width: 759.98px) {
-        .sk-console__tabs {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          width: 100%;
-        }
-        .sk-console__tabs .sk-tab:nth-child(2n) {
-          border-right: 0;
-        }
-        .sk-console__tabs .sk-tab:nth-child(-n + 2) {
-          border-bottom: 1.5px solid var(--sk-ink);
-        }
-        .sk-console__row {
-          grid-template-columns: 1fr;
-        }
-        .sk-fields {
-          grid-template-columns: 1fr;
-          border-right: none;
-          border-bottom: 1.5px solid var(--sk-ink);
-        }
-        .sk-field:first-child {
-          border-right: none;
-          border-bottom: 1px solid var(--sk-line-strong);
-        }
-        .sk-when {
-          border-right: none;
-          border-bottom: 1.5px solid var(--sk-ink);
-        }
-        .sk-btn-go {
-          border-radius: 0 0 2px 2px;
-        }
-      }
-
-      /* Shimmer Animation */
-      .sk-shimmer {
-        background: linear-gradient(90deg, #e9e8e1 25%, #f4f3ed 50%, #e9e8e1 75%);
-        background-size: 200% 100%;
-        animation: sk-shimmer-kf 1.6s infinite ease-in-out;
-      }
-      @keyframes sk-shimmer-kf {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
-      }
-
-      /* Strip Skeleton */
-      .sk-strip {
-        display: grid;
-        grid-template-columns: repeat(4, 1fr);
-        background: var(--sk-surface);
-        border-bottom: 1.5px solid var(--sk-ink);
-        max-width: 1760px;
-        margin-inline: auto;
-        padding: clamp(18px, 2vw, 28px) clamp(18px, 3.2vw, 64px);
-        gap: 24px;
-      }
-      .sk-strip__item {
-        display: flex;
-        align-items: center;
-        gap: 16px;
-      }
-      .sk-strip__box {
-        width: 48px;
-        height: 48px;
-        border-radius: 4px;
-        flex: none;
-      }
-      .sk-strip__text {
-        display: flex;
-        flex-direction: column;
-        gap: 6px;
-        flex: 1;
-      }
-      .sk-strip__line1 {
-        height: 16px;
-        width: 80%;
-        border-radius: 2px;
-      }
-      .sk-strip__line2 {
-        height: 12px;
-        width: 60%;
-        border-radius: 2px;
-      }
-      @media (max-width: 759.98px) {
-        .sk-strip {
-          grid-template-columns: 1fr;
-        }
+      @media (max-width: 599.98px) {
+        .boot__tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .boot__row { grid-template-columns: 1fr; }
       }
 
       /* Plain-HTML page summary shown when JavaScript is off (filled by the build per page) */
@@ -676,192 +195,37 @@
   </head>
   <body>
     <!-- Readable page summary for visitors and crawlers without JavaScript (filled per page at build) -->
-    <noscript><!--seo:body--><!--/seo:body--></noscript>
+    <noscript><style>.boot { display: none; }</style><!--seo:body--><!--/seo:body--></noscript>
 
-    <!-- React root container with initial HTML/CSS skeleton for smooth startup -->
+    <!-- React root container with the startup placeholder (see the style block above) -->
     <div id="root">
-      <div class="shell-skeleton" aria-busy="true">
-        <span class="sr-only" role="status">Starting One Way Car Rentals…</span>
-
-        <aside class="sk-side" aria-hidden="true">
-          <a href="/" class="sk-brand" aria-label="One Way Car Rentals — book a ride">
-            <img src="/brand/one-way-car-rentals-logo.png" alt="" width="120" height="40" />
-          </a>
-          <nav class="sk-side__nav" aria-label="Main menu">
-            <p class="sk-side__label">Menu</p>
-            <div class="sk-side__link is-active">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 11 6 5h12l2 6M3 11h18v8H3ZM6 19v2M18 19v2M6 14h2M16 14h2"/></svg>
-              <span class="lbl-long">Book a ride</span>
-            </div>
-            <div class="sk-side__link">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-              <span class="lbl-long">My trips</span>
-            </div>
-            <div class="sk-side__link">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M3 6h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4ZM9 6v2M9 11v2M9 16v2"/></svg>
-              <span class="lbl-long">Offers</span>
-            </div>
-            <div class="sk-side__link">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5ZM10 21h4M12 2v2"/></svg>
-              <span class="lbl-long">Notifications</span>
-            </div>
-          </nav>
-          <div class="sk-side__foot">
-            <div class="sk-side__link">
-              <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 13v-2a8 8 0 0 1 16 0v2M4 12H2v7h4v-7ZM20 12h2v7h-4v-7ZM20 19v2h-6"/></svg>
-              <span class="lbl-long">Help &amp; tickets</span>
-            </div>
-            <a class="sk-side__call" href="tel:+919025099990" aria-label="Call One Way Car Rentals +91 90250 99990">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M7 3H4v3c0 8 6 14 14 14h3v-4l-5-2-2 2a14 14 0 0 1-6-6l2-2Z"/></svg>
-              <span class="lbl-long">
-                <small>Talk to us</small>
-                <span class="num">+91 90250 99990</span>
-              </span>
-            </a>
-            <div class="sk-side__btn">Sign in</div>
+      <div class="boot" aria-busy="true">
+        <span class="sr-only" role="status">Loading One Way Car Rentals…</span>
+        <header class="boot__bar">
+          <div class="boot__wrap">
+            <img src="/brand/one-way-car-rentals-logo.png" alt="One Way Car Rentals" width="120" height="40" />
           </div>
-        </aside>
-
-        <div class="shell-skeleton__body">
-          <header class="sk-topbar">
-            <div class="sk-topbar__inner">
-              <a href="/" class="sk-brand" aria-label="One Way Car Rentals — book a ride">
-                <img src="/brand/one-way-car-rentals-logo.png" alt="" width="108" height="36" />
-              </a>
-              <div class="topbar__mobile">
-                <div class="sk-topbar__btn">Sign in</div>
+        </header>
+        <div class="boot__wrap" aria-hidden="true">
+          <div class="boot__hero">
+            <div class="boot__title">
+              <span class="sk sk--title"></span>
+              <span class="sk sk--title"></span>
+            </div>
+            <div class="boot__card">
+              <div class="boot__tabs">
+                <span class="sk sk--tab"></span>
+                <span class="sk sk--tab"></span>
+                <span class="sk sk--tab"></span>
+                <span class="sk sk--tab"></span>
               </div>
-            </div>
-          </header>
-
-          <main id="main" tabindex="-1" class="shell-skeleton__main">
-            <div class="sk-main" aria-busy="true">
-              <section class="sk-hero" aria-labelledby="sk-hero-title-initial">
-                <div class="sk-hero__stage">
-                  <div class="sk-hero__copy">
-                    <p class="sk-eyebrow">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="6" cy="18" r="3"/><circle cx="18" cy="6" r="3"/><path d="M9 18h4a4 4 0 0 0 4-4V9"/></svg> Outstation &amp; intercity cabs
-                    </p>
-                    <p id="sk-hero-title-initial" class="sk-title">
-                      Outstation rides, <em>priced before you book.</em>
-                    </p>
-                    <p class="sk-lead">
-                      Verified chauffeurs, clean air-conditioned cars and the fare for every vehicle upfront — across Tamil Nadu and beyond.
-                    </p>
-                    <ul class="sk-points">
-                      <li>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Fares shown upfront
-                      </li>
-                      <li>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Verified chauffeurs
-                      </li>
-                      <li>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg> Pay your driver in cash or UPI
-                      </li>
-                    </ul>
-                  </div>
-                  <div class="sk-hero__media">
-                    <picture>
-                      <source media="(max-width: 720px)" srcset="/website-images/web/heroes/hero-mobile.webp" />
-                      <img
-                        src="/website-images/web/heroes/hero-desktop.webp"
-                        alt="One Way Car Rentals outstation and intercity cab service across Tamil Nadu"
-                        width="1774"
-                        height="887"
-                        fetchpriority="high"
-                      />
-                    </picture>
-                  </div>
-                </div>
-                <div class="sk-console">
-                  <div class="sk-console__inner">
-                    <div class="sk-console__tabs">
-                      <span class="sk-tab is-active">One Way</span>
-                      <span class="sk-tab">Round Trip</span>
-                      <span class="sk-tab">Local Rental</span>
-                      <span class="sk-tab">Airport Taxi</span>
-                    </div>
-                    <div class="sk-console__row">
-                      <div class="sk-fields">
-                        <div class="sk-field">
-                          <span class="sk-field__label">Pickup</span>
-                          <div class="sk-field__box sk-shimmer"></div>
-                        </div>
-                        <div class="sk-field">
-                          <span class="sk-field__label">Destination</span>
-                          <div class="sk-field__box sk-shimmer"></div>
-                        </div>
-                      </div>
-                      <div class="sk-when">
-                        <div class="sk-when__item">
-                          <span class="sk-field__label">Pickup date</span>
-                          <div class="sk-field__box sk-shimmer"></div>
-                        </div>
-                        <div class="sk-when__item">
-                          <span class="sk-field__label">Time</span>
-                          <div class="sk-field__box sk-shimmer"></div>
-                        </div>
-                      </div>
-                      <div class="sk-btn-go">
-                        See fares
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <div class="sk-strip" aria-label="Why riders choose One Way Car Rentals">
-                <div class="sk-strip__item">
-                  <div class="sk-strip__box sk-shimmer"></div>
-                  <div class="sk-strip__text">
-                    <strong class="sk-strip__line1 sk-shimmer"></strong>
-                    <span class="sk-strip__line2 sk-shimmer"></span>
-                  </div>
-                </div>
-                <div class="sk-strip__item">
-                  <div class="sk-strip__box sk-shimmer"></div>
-                  <div class="sk-strip__text">
-                    <strong class="sk-strip__line1 sk-shimmer"></strong>
-                    <span class="sk-strip__line2 sk-shimmer"></span>
-                  </div>
-                </div>
-                <div class="sk-strip__item">
-                  <div class="sk-strip__box sk-shimmer"></div>
-                  <div class="sk-strip__text">
-                    <strong class="sk-strip__line1 sk-shimmer"></strong>
-                    <span class="sk-strip__line2 sk-shimmer"></span>
-                  </div>
-                </div>
-                <div class="sk-strip__item">
-                  <div class="sk-strip__box sk-shimmer"></div>
-                  <div class="sk-strip__text">
-                    <strong class="sk-strip__line1 sk-shimmer"></strong>
-                    <span class="sk-strip__line2 sk-shimmer"></span>
-                  </div>
-                </div>
+              <div class="boot__row">
+                <span class="sk sk--field"></span>
+                <span class="sk sk--field"></span>
               </div>
+              <span class="sk sk--go"></span>
             </div>
-          </main>
-
-          <nav class="sk-tabbar" aria-label="Mobile navigation">
-            <div class="sk-tabbar__link is-active">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M4 11 6 5h12l2 6M3 11h18v8H3ZM6 19v2M18 19v2M6 14h2M16 14h2"/></svg>
-              <span>Book</span>
-            </div>
-            <div class="sk-tabbar__link">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
-              <span>Trips</span>
-            </div>
-            <div class="sk-tabbar__link">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><path d="M5 17h14l-2-3V9a5 5 0 0 0-10 0v5ZM10 21h4M12 2v2"/></svg>
-              <span>Alerts</span>
-            </div>
-            <div class="sk-tabbar__link">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" class="icon" aria-hidden="true"><circle cx="12" cy="7" r="3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></svg>
-              <span>Account</span>
-            </div>
-          </nav>
+          </div>
         </div>
       </div>
     </div>

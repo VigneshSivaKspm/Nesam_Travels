@@ -1,11 +1,14 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@core/context/CustomerData';
 import { formatPhone } from '@core/utils/format';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { useInbox } from '@/state/Inbox';
 import { useAuth } from '@/state/Auth';
+import { useBooking } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
+import { scrollToBookingForm } from '@/lib/scrollToForm';
+import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 import { FloatingCallButton } from './FloatingCallButton';
@@ -30,15 +33,45 @@ const NAV = [
   { to: '/book', label: 'Book a ride', short: 'Book', icon: 'car' },
   { to: '/trips', label: 'My trips', short: 'Trips', icon: 'trip-history' },
   { to: '/notifications', label: 'Notifications', short: 'Alerts', icon: 'notifications' },
-  { to: '/account', label: 'Account', short: 'Account', icon: 'profile' },
 ] as const;
 
-/** Desktop header links. Account lives in the profile menu there; the phone tab bar keeps all four. */
+/** Desktop header links. Account lives in the profile menu there. On phones the bottom bar holds the four
+    services and Account, and the header holds My trips and Notifications. */
 const TOP_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
 
 /** Active booking flow pages where the phone bottom tab bar steps aside for the sticky FlowBar. */
 const FLOW = [/^\/book\/(ride|confirm|done\/[^/]+)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
 const IMMERSIVE = [/^\/ride\//, /^\/trips\/[^/]+$/];
+const ACCOUNT_PATHS = /^\/(account|trips|offers|legal)(\/|$)/;
+
+/** Phone bottom bar: the four services (each opens the booking form on that service) and Account. */
+function BottomNav() {
+  const location = useLocation();
+  const [params] = useSearchParams();
+  const { draft } = useBooking();
+  const onHome = location.pathname === '/book' || location.pathname === '/';
+  const current: ServiceId | null = onHome ? (parseService(params.get('service')) ?? serviceOfTrip(draft.tripType)) : null;
+  const accountActive = ACCOUNT_PATHS.test(location.pathname);
+
+  return (
+    <nav className="tabbar" aria-label="Services and account">
+      {SERVICES.map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`tabbar__link ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+          <span className="tabbar__icon">
+            <Icon name={s.icon} size={22} />
+          </span>
+          <span className="tabbar__label">{s.label}</span>
+        </Link>
+      ))}
+      <Link to="/account" className={`tabbar__link ${accountActive ? 'is-active' : ''}`} aria-current={accountActive ? 'page' : undefined}>
+        <span className="tabbar__icon">
+          <Icon name="profile" size={22} />
+        </span>
+        <span className="tabbar__label">Account</span>
+      </Link>
+    </nav>
+  );
+}
 
 function ProfileMenu() {
   const { profile } = useCustomerData();
@@ -138,16 +171,7 @@ function ProfileMenu() {
 }
 
 function Footer() {
-  const scrollToConsole = () => {
-    const el = document.getElementById('book-console');
-    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-    window.scrollTo({ top, behavior: 'smooth' });
-    setTimeout(() => {
-      const el2 = document.getElementById('book-console');
-      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-      window.scrollTo({ top: top2, behavior: 'smooth' });
-    }, 120);
-  };
+  const scrollToConsole = () => scrollToBookingForm();
 
   return (
     <footer className="footer">
@@ -387,7 +411,22 @@ export function Shell() {
               >
                 Sign in
               </Button>
-            ) : null}
+            ) : (
+              <>
+                <NavLink to="/trips" className={({ isActive }) => `icon-btn ${isActive ? 'is-active' : ''}`} aria-label="My trips" title="My trips">
+                  <Icon name="trip-history" size={20} />
+                </NavLink>
+                <NavLink
+                  to="/notifications"
+                  className={({ isActive }) => `icon-btn icon-btn--badge ${isActive ? 'is-active' : ''}`}
+                  aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+                  title="Notifications"
+                >
+                  <Icon name="notifications" size={20} />
+                  {unreadCount > 0 ? <em className="count" aria-hidden="true">{unreadCount > 9 ? '9+' : unreadCount}</em> : null}
+                </NavLink>
+              </>
+            )}
             <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
               <Icon name="help" size={20} />
             </button>
@@ -395,27 +434,21 @@ export function Shell() {
         </div>
       </header>
 
-      <main id="main" tabIndex={-1} className="main">
-        <Suspense fallback={<PageLoader />}>
+      {/* The footer waits for the page: while a screen loads, only its placeholder shows. */}
+      <Suspense
+        fallback={
+          <main id="main" tabIndex={-1} className="main">
+            <PageLoader />
+          </main>
+        }
+      >
+        <main id="main" tabIndex={-1} className="main">
           <Outlet />
-        </Suspense>
-      </main>
+        </main>
+        {!isImmersive ? <Footer /> : null}
+      </Suspense>
 
-      {!isImmersive ? <Footer /> : null}
-
-      {!isFlow ? (
-        <nav className="tabbar" aria-label="Main">
-          {NAV.map((n) => (
-            <NavLink key={n.to} to={n.to} className={({ isActive }) => `tabbar__link ${isActive || (n.to === '/book' && location.pathname === '/') ? 'is-active' : ''}`}>
-              <span className="tabbar__icon">
-                <Icon name={n.icon} size={24} />
-                {n.to === '/notifications' && unreadCount > 0 ? <em className="count">{unreadCount > 9 ? '9+' : unreadCount}</em> : null}
-              </span>
-              <span>{n.short}</span>
-            </NavLink>
-          ))}
-        </nav>
-      ) : null}
+      {!isFlow ? <BottomNav /> : null}
       <FloatingCallButton />
       <AiChatbot />
     </div>

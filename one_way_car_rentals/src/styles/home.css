@@ -180,7 +180,7 @@
   margin-top: 0;
   padding: 6px;
   border-radius: var(--r-lg);
-  background: var(--paper);
+  background: var(--brand);
 }
 .bf-service {
   display: flex;
@@ -194,21 +194,28 @@
   border: 1px solid transparent;
   border-radius: var(--r-md);
   background: transparent;
-  color: var(--muted);
+  color: #fff;
   font-size: var(--fs-xs);
   font-weight: 600;
   line-height: 1.2;
   text-align: center;
   transition: background var(--dur) var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
+/* Green service bar: white labels, and the chosen service as a white pill with green text. */
 .bf-service:hover {
-  color: var(--ink);
+  background: var(--brand-hover);
+  color: #fff;
+}
+.bf-service:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 1px;
 }
 .bf-service.is-active {
-  border-color: var(--brand-line);
+  border-color: #fff;
   background: var(--surface);
   color: var(--brand-ink);
-  box-shadow: var(--shadow-1);
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.16);
 }
 .bf-service__icon {
   display: grid;

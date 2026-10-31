@@ -9,11 +9,8 @@ export function DashboardMainSkeleton() {
       <div className="wrap home__wrap">
         <div className="home-hero">
           <div className="sk-hero-copy" aria-hidden="true">
-            <span className="sk-line sk-line--short" />
             <span className="sk-line sk-line--title" />
             <span className="sk-line sk-line--title" />
-            <span className="sk-line" />
-            <span className="sk-line sk-line--short" />
           </div>
           <div className="bf" aria-hidden="true">
             <div className="sk-tabs">

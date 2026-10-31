@@ -6,6 +6,7 @@ import { useCustomerData } from '@core/context/CustomerData';
 import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { HOME_SEO } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
@@ -75,24 +76,10 @@ function RideBanner() {
 function HeroCopy() {
   return (
     <div className="hero-copy">
-      <p className="hero-eyebrow">
-        <span className="hero-eyebrow__dash" aria-hidden="true" />
-        <Icon name="route" size={16} /> FRIENDLY CITY &amp; OUTSTATION TAXI
-      </p>
       <h1>
-        Any journey,<br />
+        Any journey,{' '}<br />
         <span className="hero-accent">priced with a friendly smile.</span>
       </h1>
-      <p className="hero-copy__sub">
-        Verified chauffeurs, clean air-conditioned cars, and 100% upfront transparent fares with no hidden costs across South India.
-      </p>
-      <hr className="hero-divider" />
-      <div className="hero-trust-simple">
-        <span><Icon name="check" size={15} /> Upfront Fares</span>
-        <span><Icon name="shield-check" size={15} /> Verified Drivers</span>
-        <span><Icon name="snowflake" size={15} /> 100% AC</span>
-        <span><Icon name="phone" size={15} /> 24/7 Helpline</span>
-      </div>
     </div>
   );
 }
@@ -157,16 +144,7 @@ function Home() {
     [setParams, update],
   );
 
-  const scrollToConsole = useCallback(() => {
-    const el = document.getElementById('book-console');
-    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-    window.scrollTo({ top, behavior: 'smooth' });
-    setTimeout(() => {
-      const el2 = document.getElementById('book-console');
-      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-      window.scrollTo({ top: top2, behavior: 'smooth' });
-    }, 120);
-  }, []);
+  const scrollToConsole = useCallback(() => scrollToBookingForm(), []);
 
   // When a service or outstation trip type is selected via URL query params, sync preference and scroll up to the console
   useEffect(() => {

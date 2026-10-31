@@ -1,0 +1,339 @@
+/* Phone layout (below 768px). Loaded last, so it refines the rules in the other sheets.
+   - The booking form is the first thing on the page, right under a one-line headline.
+   - Every card list is one swipeable row ("rail") instead of a tall stack: the next card peeks in
+     at the edge, rows snap card by card, and the scrollbars stay hidden.
+   - Sections, headings and floating buttons are scaled to phone size; tap targets stay 44px+. */
+
+@media (max-width: 767.98px) {
+  :root {
+    --section: 36px;
+  }
+
+  /* ── Hero: headline, then the form ─────────────────────────────────────── */
+  .home__wrap {
+    padding-top: 14px;
+    padding-bottom: 28px;
+  }
+  .home-hero {
+    gap: 12px;
+  }
+  .hero-copy h1 {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+    letter-spacing: 0;
+  }
+  .hero-copy h1 .hero-accent {
+    font-weight: 600;
+  }
+  .hero-copy h1 br {
+    display: none;
+  }
+
+  /* ── Header: a smaller My Trips pill ───────────────────────────────────── */
+  .head-trips--compact {
+    min-height: 36px;
+    padding: 6px 12px;
+    font-size: var(--fs-xs);
+  }
+
+  /* ── Booking form ──────────────────────────────────────────────────────── */
+  .bf {
+    padding: 12px;
+    border-radius: var(--r-lg);
+    box-shadow: 0 6px 20px -8px rgb(13 138 69 / 0.14);
+  }
+  /* The four services in one green row, icon over label, all visible at once. */
+  .bf-services {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border-radius: var(--r-md);
+  }
+  .bf-service {
+    flex-direction: column;
+    gap: 2px;
+    min-height: 52px;
+    padding: 6px 2px;
+    font-size: 0.75rem;
+  }
+  .bf-journey {
+    max-width: none;
+    margin-top: 10px;
+  }
+  .bf-form {
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .bf-route {
+    gap: 8px;
+  }
+  .bf-field {
+    gap: 10px;
+    min-height: 52px;
+    padding: 6px 12px;
+  }
+  .bf-label {
+    font-size: 0.75rem;
+  }
+  .bf-trigger {
+    font-size: 0.9375rem;
+  }
+  .bf-swap {
+    width: 32px;
+    height: 32px;
+  }
+  .bf-label--out {
+    margin-bottom: 4px;
+    font-size: 0.75rem;
+  }
+  .bf-input,
+  .bf-time {
+    min-height: 44px;
+  }
+  /* Date and time side by side; only the narrowest phones stack them. */
+  .bf-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .bf-time {
+    padding: 0 12px;
+  }
+  .bf-trust {
+    flex-wrap: wrap;
+    font-size: 0.75rem;
+  }
+
+  /* ── Section headings ──────────────────────────────────────────────────── */
+  .sec-head {
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .sec-head h2,
+  .faq-band__intro h2,
+  .assure__intro h2,
+  .how__body h2 {
+    font-size: 1.25rem;
+  }
+  .sec-head__text {
+    font-size: var(--fs-sm);
+  }
+
+  /* ── Rails ─────────────────────────────────────────────────────────────── */
+  .services,
+  .routes,
+  .destinations,
+  .fleet,
+  .strip,
+  .how__steps,
+  .assure__list,
+  .banners,
+  .more-routes,
+  .reviews__grid,
+  .catalog-cards {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 12px;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: 4px var(--gutter) 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scroll-padding-inline: var(--gutter);
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .services::-webkit-scrollbar,
+  .routes::-webkit-scrollbar,
+  .destinations::-webkit-scrollbar,
+  .fleet::-webkit-scrollbar,
+  .strip::-webkit-scrollbar,
+  .how__steps::-webkit-scrollbar,
+  .assure__list::-webkit-scrollbar,
+  .banners::-webkit-scrollbar,
+  .more-routes::-webkit-scrollbar,
+  .reviews__grid::-webkit-scrollbar,
+  .catalog-cards::-webkit-scrollbar {
+    display: none;
+  }
+  .services > li,
+  .routes > li,
+  .destinations > li,
+  .fleet > li,
+  .strip > li,
+  .how__steps > li,
+  .assure__list > li,
+  .banners > *,
+  .reviews__grid > *,
+  .catalog-cards > li {
+    flex: 0 0 min(78%, 300px);
+    min-width: 0;
+    scroll-snap-align: start;
+  }
+  /* Rows that are their own page container already span the screen. */
+  .strip,
+  .banners,
+  .destinations {
+    margin-inline: 0;
+  }
+  .service:hover,
+  .route-card:hover,
+  .destination:hover {
+    transform: none;
+  }
+
+  /* Services */
+  .service__media {
+    aspect-ratio: 16 / 10;
+    max-height: none;
+  }
+
+  /* Routes and route chips */
+  .routes > li {
+    flex-basis: min(84%, 320px);
+  }
+  .route-card {
+    min-height: 190px;
+  }
+  .more-routes {
+    align-items: center;
+    gap: 8px;
+    margin-top: 14px;
+    scroll-snap-type: none;
+  }
+  .more-routes > * {
+    flex: 0 0 auto;
+  }
+
+  /* Destinations: two and a bit on screen */
+  .destinations > li {
+    flex-basis: min(44%, 180px);
+  }
+  .destination {
+    min-height: 150px;
+  }
+  .destination__body small {
+    display: none;
+  }
+
+  /* Fleet */
+  .fleet > li {
+    flex-basis: min(62%, 240px);
+  }
+
+  /* Trust strip: small chips */
+  .band--strip {
+    padding-block: 4px;
+  }
+  .strip > li {
+    flex-basis: min(72%, 260px);
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+  .strip__item + .strip__item,
+  .strip__item:nth-child(n + 3) {
+    border: 1px solid var(--line);
+  }
+  .strip__item img {
+    width: 40px;
+    height: 40px;
+  }
+
+  /* How it works: the steps as cards; the large photo is left out */
+  .how__photo {
+    display: none;
+  }
+  .how__steps {
+    gap: 10px;
+  }
+  .how__steps > li {
+    flex-basis: min(74%, 280px);
+    grid-template-columns: 34px minmax(0, 1fr);
+    align-items: start;
+    padding: 14px;
+    border: 1px solid rgb(255 255 255 / 0.14);
+    border-radius: var(--r-md);
+  }
+  .how__steps img {
+    display: none;
+  }
+
+  /* Assurance: the points as cards; the photo collage is left out */
+  .assure__collage {
+    display: none;
+  }
+  .assure__list > li {
+    flex-basis: min(74%, 280px);
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--surface);
+  }
+
+  /* Offer and call banners */
+  .banners > * {
+    flex-basis: min(86%, 340px);
+  }
+  .banner {
+    min-height: 180px;
+    padding: 18px;
+  }
+
+  /* Reviews and catalog */
+  .reviews__grid > * {
+    flex-basis: min(84%, 320px);
+  }
+  .review-card,
+  .catalog-item {
+    padding: 16px;
+  }
+  .catalog-group {
+    margin-top: 16px;
+  }
+
+  /* ── Floating buttons: smaller, so they cover less of the form ─────────── */
+  .floating-call-btn,
+  .floating-ai-launcher {
+    width: 44px;
+    height: 44px;
+    right: 12px;
+  }
+  .floating-call-btn {
+    bottom: calc(var(--tabbar-h, 68px) + env(safe-area-inset-bottom, 0px) + 12px);
+  }
+  .floating-ai-launcher {
+    bottom: calc(var(--tabbar-h, 68px) + env(safe-area-inset-bottom, 0px) + 64px);
+  }
+  .shell--flow .floating-call-btn {
+    bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  }
+  .shell--flow .floating-ai-launcher {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (max-width: 339.98px) {
+  .bf-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bf-service {
+    font-size: 0.6875rem;
+  }
+}
+
+@media (max-width: 767.98px) and (prefers-reduced-motion: reduce) {
+  .services,
+  .routes,
+  .destinations,
+  .fleet,
+  .strip,
+  .how__steps,
+  .assure__list,
+  .banners,
+  .reviews__grid,
+  .catalog-cards {
+    scroll-behavior: auto;
+  }
+}

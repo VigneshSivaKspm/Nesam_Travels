@@ -16,7 +16,11 @@ import './styles/booking.css';
 import './styles/pages.css';
 import './styles/ride.css';
 import './styles/landing.css';
+import './styles/mobile.css';
+import { keepHomeBehindEveryScreen } from './lib/homeNav';
 import { App } from './App';
+
+keepHomeBehindEveryScreen();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

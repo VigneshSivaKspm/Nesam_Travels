@@ -1456,9 +1456,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--ink);
   border-radius: var(--r-sm);
-  background: var(--inset);
+  background: var(--ink);
 }
 .jd-tab {
   position: relative;
@@ -1468,11 +1468,11 @@
   gap: 8px;
   min-width: 0;
   min-height: 46px;
-  padding: 8px 10px 11px;
+  padding: 8px 10px;
   border: 0;
   border-radius: 10px;
   background: transparent;
-  color: var(--muted);
+  color: var(--on-dark-muted);
   font-size: var(--fs-sm);
   font-weight: 700;
   line-height: 1.2;
@@ -1483,30 +1483,25 @@
   flex: none;
 }
 .jd-tab:hover {
-  color: var(--ink);
+  background: var(--ink-2);
+  color: #fff;
 }
 .jd-tab:focus-visible {
   outline: 3px solid var(--brand-bright);
   outline-offset: 1px;
 }
 .jd-tab.is-active {
-  background: var(--surface);
-  color: var(--ink);
+  background: var(--brand);
+  color: #fff;
   font-weight: 800;
-  box-shadow: 0 1px 3px rgb(12 27 61 / 0.14);
+  box-shadow: 0 2px 8px rgb(22 101 232 / 0.45);
 }
 .jd-tab.is-active .icon {
-  color: var(--brand);
+  color: #fff;
 }
+/* The solid blue pill marks the chosen service on the dark rail; no underline needed. */
 .jd-tab.is-active::after {
-  content: '';
-  position: absolute;
-  left: 14px;
-  right: 14px;
-  bottom: 4px;
-  height: 3px;
-  border-radius: 3px;
-  background: var(--brand);
+  display: none;
 }
 
 /* Journey type / airport direction: compact and secondary */
@@ -1864,7 +1859,7 @@
     flex-direction: column;
     gap: 4px;
     min-height: 62px;
-    padding-bottom: 12px;
+    padding-bottom: 8px;
   }
 }
 

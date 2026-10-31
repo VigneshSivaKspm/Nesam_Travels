@@ -1,12 +1,13 @@
 // Stops the app until the signed-in rider has accepted the current published terms,
 // privacy policy and consents for customers (a new version asks again). If nothing is
 // published, or the status can't be read, it lets them through (same as the app).
+// The check runs in the background: the app shows meanwhile, so it never holds up the first screen.
 import { useEffect, useState, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/platform/firebase';
 import { ActionError, callFunction } from '@core/services/callables';
-import { Button, Checkbox, Notice, PageHead, PageLoader } from '@/components/ui';
+import { Button, Checkbox, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 
 interface RequiredDoc {
@@ -17,7 +18,7 @@ interface RequiredDoc {
   checkboxText: string;
 }
 
-export function LegalGate({ children }: { children: ReactNode }) {
+export function LegalGate({ active, children }: { active: boolean; children: ReactNode }) {
   const [state, setState] = useState<'loading' | 'ok' | 'needed'>('loading');
   const [missing, setMissing] = useState<RequiredDoc[]>([]);
   const [bodies, setBodies] = useState<Record<string, string>>({});
@@ -28,6 +29,10 @@ export function LegalGate({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
 
   useEffect(() => {
+    if (!active) {
+      setState('loading');
+      return undefined;
+    }
     let alive = true;
     (async () => {
       try {
@@ -48,11 +53,11 @@ export function LegalGate({ children }: { children: ReactNode }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [active]);
 
-  // The public policy page asks for nothing, so it stays readable before accepting.
-  if (state === 'ok' || pathname === '/legal') return <>{children}</>;
-  if (state === 'loading') return <PageLoader label="Checking terms…" />;
+  // Signed out, still checking or nothing to accept: the app as usual. The public policy page
+  // asks for nothing, so it stays readable before accepting.
+  if (!active || state !== 'needed' || pathname === '/legal') return <>{children}</>;
 
   const text = missing.find((m) => m.checkboxText)?.checkboxText || 'I agree to the Terms & Conditions and Privacy Policy.';
   const accept = async () => {

@@ -336,50 +336,77 @@
     flex: 0 1 auto;
     min-width: 0;
   }
+  /* Phone bottom bar: a flat white strip with the four services and Account. */
   .tabbar {
     position: fixed;
-    left: 12px;
-    right: 12px;
-    bottom: calc(var(--tabbar-gap) + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    right: 0;
+    bottom: 0;
     z-index: 90;
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 4px;
-    height: var(--tabbar-h);
-    padding: 7px;
-    border: 1px solid var(--line);
-    border-radius: 34px;
-    background: rgb(255 255 255 / 0.94);
-    backdrop-filter: blur(18px);
-    box-shadow: var(--shadow-3);
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    height: calc(64px + env(safe-area-inset-bottom, 0px));
+    padding: 6px 4px env(safe-area-inset-bottom, 0px);
+    border-top: 1px solid var(--line);
+    background: rgb(255 255 255 / 0.97);
+    backdrop-filter: blur(10px);
   }
   .tabbar__link {
+    position: relative;
     display: grid;
     justify-items: center;
     align-content: center;
-    gap: 1px;
-    border-radius: 27px;
+    gap: 3px;
+    min-width: 0;
     color: var(--muted);
-    font-size: 0.6875rem;
-    font-weight: 800;
-    transition: background var(--dur) var(--ease-out), color var(--dur) var(--ease-out), transform var(--dur) var(--ease);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-decoration: none;
+    transition: color var(--dur) var(--ease-out);
   }
   .tabbar__link:hover {
+    color: var(--ink);
     text-decoration: none;
   }
   .tabbar__link.is-active {
+    color: var(--brand);
+  }
+  .tabbar__link.is-active::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    width: 28px;
+    height: 3px;
+    border-radius: 0 0 3px 3px;
     background: var(--brand);
-    color: #fff;
-    box-shadow: 0 8px 18px rgb(22 101 232 / 0.38);
-    transform: translateY(-2px);
   }
   .tabbar__icon {
     position: relative;
+    display: grid;
+    place-items: center;
   }
-  .tabbar__icon .count {
+  .tabbar__label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* Header icons (My trips, Notifications) */
+  .icon-btn.is-active {
+    background: var(--brand-soft);
+    color: var(--brand);
+  }
+  .icon-btn--badge {
+    position: relative;
+  }
+  .icon-btn--badge .count {
     position: absolute;
-    top: -6px;
-    right: -10px;
+    top: 2px;
+    right: 0;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    font-size: 0.6875rem;
   }
 }
 @media (max-width: 480px) {

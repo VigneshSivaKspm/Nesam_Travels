@@ -7,7 +7,6 @@ import {
   DEFAULT_RENTAL_MIN_HOURS,
   RENTAL_HOURS,
   RateValue,
-  TARIFF_CLASSES,
   Tariff,
   TariffClass,
   WorkspaceService,
@@ -73,8 +72,8 @@ const emptyForm = (): FormFields => ({
 
 const str = (v: unknown): string => (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
 
-export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusyChange }: {
-  scope: FareWorkspaceScope; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void;
+export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirtyChange, onBusyChange }: {
+  scope: FareWorkspaceScope; vehicleClass: TariffClass; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void;
 }) {
   const pricingAccess = useCan("pricing");
   const settingsEdit = useCanDo("Settings", "edit");
@@ -82,10 +81,10 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
   const { tariff: t, error: loadError } = useTariff();
   const { toast, show: showToast } = useToast(6000);
 
-  // Scope hierarchy selection
+  // Scope hierarchy selection (brand, service and vehicle category are all chosen on the page above the tabs)
   const selectedBrand = scope.brand;
   const selectedService = scope.service;
-  const [selectedClass, setSelectedClass] = useState<TariffClass>("sedan");
+  const selectedClass = vehicleClass;
 
   // Form edit state
   const [form, setForm] = useState<FormFields>(emptyForm);
@@ -162,17 +161,6 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
   dirtyRef.current = isDirty;
   useEffect(() => { onDirtyChange(isDirty); onBusyChange(busy); }, [isDirty, busy, onDirtyChange, onBusyChange]);
   useEffect(() => { const warn = (event: BeforeUnloadEvent) => { if (dirtyRef.current) { event.preventDefault(); event.returnValue = ''; } }; window.addEventListener('beforeunload', warn); return () => window.removeEventListener('beforeunload', warn); }, []);
-
-  // Safe scope navigation guard: prevents discarding unsaved edits
-  const handleScopeChange = (nextBrand: ScopeBrand, nextService: WorkspaceService, nextClass: TariffClass) => {
-    if (busy || nextClass === selectedClass) return;
-    if (isDirty) {
-      const scopeName = `${selectedBrand === "common" ? "Common" : BRAND_LABELS[selectedBrand]} → ${selectedService} → ${CLASS_LABEL[selectedClass]}`;
-      const confirmed = window.confirm(`You have unsaved changes in ${scopeName}. Discard them to switch scope?`);
-      if (!confirmed) return;
-    }
-    setSelectedClass(nextClass);
-  };
 
   // Field change handler
   const setField = (key: keyof Omit<FormFields, "rentalCustomerFare" | "rentalPartnerPayout" | "rentalIncludedKm" | "rentalExtraKm" | "rentalExtraHour">, val: string) => {
@@ -332,50 +320,16 @@ export default function BrandServiceFareWorkspace({ scope, onDirtyChange, onBusy
       {t && !t.enabled && <p className="ds-note mb-4">The confirmed tariff engine is switched off. These scoped rates are saved but its booking paths currently use the existing category fallback. The shared engine switch is available under Common.</p>}
       {selectedBrand === 'common' && t && <div className="ds-panel ds-panel-pad mb-4"><strong>Shared pricing engine · all brands and services</strong><p className="text-[12px] text-muted mb-2">{t.enabled ? 'Enabled' : 'Disabled'} — changing this switch retains all rates.</p>{canEdit && <Button disabled={busy || isDirty} onClick={toggleSharedEngine}>{t.enabled ? 'Disable confirmed tariff' : 'Enable confirmed tariff'}</Button>}</div>}
 
-      {/* Scope Selector Header */}
-      <section className="ds-panel ds-panel-pad mb-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
-          <div>
-            <span className="ds-eyebrow">FARE MANAGEMENT WORKSPACE</span>
-            <h2 className="text-[18px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>
-              Customer fare &amp; partner payout
-            </h2>
-            <p className="text-[12px] text-muted">
-              Select Brand, Supported Service, and Vehicle Category to manage customer rates, partner payouts and allowances.
-            </p>
-          </div>
-          {isDirty && (
-            <Badge tone="amber">
-              <Icon name="clock" size={14} /> Unsaved changes in current scope
-            </Badge>
-          )}
-        </div>
-
-        {/* 3. Category Hierarchy */}
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-muted mb-1.5">
-            3. Select Vehicle Category
-          </label>
-          <div className="ds-chip-row">
-            {TARIFF_CLASSES.map((cls) => (
-              <Button
-                key={cls}
-                size="sm"
-                variant={selectedClass === cls ? "primary" : "secondary"}
-                onClick={() => handleScopeChange(selectedBrand, selectedService, cls)}
-              >
-                {CLASS_LABEL[cls]}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Persistent Scope Summary Banner */}
       <div className="ds-panel ds-panel-pad mb-4 bg-slate-50 border-l-4 border-l-brand flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Active Scope:</span>
           <span className="text-[15px] font-black text-ink">{scopeSummary}</span>
+          {isDirty && (
+            <Badge tone="amber">
+              <Icon name="clock" size={14} /> Unsaved changes
+            </Badge>
+          )}
           {selectedBrand === "common" ? (
             <Badge tone="neutral">Common Baseline</Badge>
           ) : brandOverrideActive ? (

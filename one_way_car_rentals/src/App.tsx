@@ -1,17 +1,17 @@
-import { lazy, useEffect, useRef, type ReactNode } from 'react';
+import { lazy, useEffect, type ReactNode } from 'react';
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom';
-import { CustomerDataProvider, useCustomerData } from '@core/context/CustomerData';
+import { CustomerDataProvider } from '@core/context/CustomerData';
 import { Shell } from '@/components/Shell';
-import { EmptyState, LinkButton, PageLoader } from '@/components/ui';
+import { EmptyState, LinkButton } from '@/components/ui';
 import { AuthProvider, useAuth } from '@/state/Auth';
 import { BookingProvider } from '@/state/Booking';
 import { InboxProvider } from '@/state/Inbox';
 import { ToastProvider } from '@/state/Toasts';
-import { isRideDismissed } from '@/state/rideFocus';
 import { useVisualViewportHeight, useOnline } from '@/lib/hooks';
 import { useSeo } from '@/lib/seo';
 import { takePendingReturn } from '@/lib/pendingReturn';
-import { AccountHold, AuthFlow, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
+import { isHomePath, isPublicPath } from '@/lib/homeNav';
+import { AccountHold, LoadError, ProfileSetup } from '@/pages/auth/AuthFlow';
 import { LegalGate } from '@/pages/auth/LegalGate';
 import { LoginModal } from '@/components/LoginModal';
 import { DashboardSkeleton } from '@/components/DashboardSkeleton';
@@ -19,7 +19,10 @@ import { DashboardSkeleton } from '@/components/DashboardSkeleton';
 // Pages load on demand: the booking map (Leaflet) and the other screens stay out of the first download.
 const page = <K extends string>(load: () => Promise<Record<K, React.ComponentType<never>>>, name: K) =>
   lazy(async () => ({ default: (await load())[name] as React.ComponentType }));
-const BookPage = lazy(() => import('@/pages/book/BookPage').then((m) => ({ default: m.BookPage })));
+const loadBookPage = () => import('@/pages/book/BookPage');
+const BookPage = lazy(() => loadBookPage().then((m) => ({ default: m.BookPage })));
+// The site opens on the booking home: fetch it alongside the account check, not after it.
+if (typeof window !== 'undefined' && isHomePath(window.location.pathname)) void loadBookPage();
 const DonePage = page(() => import('@/pages/book/DonePage'), 'DonePage');
 const RidePage = page(() => import('@/pages/ride/RidePage'), 'RidePage');
 const TripsPage = page(() => import('@/pages/TripsPage'), 'TripsPage');
@@ -33,24 +36,6 @@ const SupportPage = page(() => import('@/pages/SupportPage'), 'SupportPage');
 const LegalPage = page(() => import('@/pages/LegalPage'), 'LegalPage');
 const RouteLandingPage = page(() => import('@/pages/routes/RouteLandingPage'), 'RouteLandingPage');
 const ServiceLandingPage = page(() => import('@/pages/services/ServiceLandingPage'), 'ServiceLandingPage');
-
-/** State restoration: open the live ride (or a just-finished, unrated one) when the site opens. */
-function RideAutoFocus() {
-  const { liveRide, unratedTrip } = useCustomerData();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const id = (liveRide ?? unratedTrip)?.id ?? null;
-  const opened = useRef(false);
-
-  useEffect(() => {
-    if (!id || opened.current || isRideDismissed(id)) return;
-    // Only from the booking home, and once per visit.
-    if (location.pathname !== '/book' && location.pathname !== '/') return;
-    opened.current = true;
-    navigate(`/ride/${id}`, { replace: true });
-  }, [id, location.pathname, navigate, opened]);
-  return null;
-}
 
 /**
  * After sign-in: resume the booking the rider started as a guest. Mounted inside the terms gate, so
@@ -71,11 +56,12 @@ function PendingReturn() {
 
 function AppShellProvider({ children }: { children: ReactNode }) {
   const { state, retry, signOut, isLoginModalOpen } = useAuth();
+  const { pathname } = useLocation();
   // The public policies stay readable from the screens below that otherwise replace the app
   // (they render as for a signed-out visitor: no account data).
-  const publicPolicies = useLocation().pathname === '/legal';
-  if (state.status === 'loading')
-    return <DashboardSkeleton label={state.label} />;
+  const publicPolicies = pathname === '/legal';
+  // Public pages show straight away while a returning rider's account loads; it fills in after.
+  if (state.status === 'loading' && !isPublicPath(pathname)) return <DashboardSkeleton label={state.label} />;
   if (state.status === 'error' && !publicPolicies) return <LoadError message={state.message} onRetry={retry} onSignOut={() => void signOut()} />;
   if (state.status === 'needs-profile' && !isLoginModalOpen && !publicPolicies) return <ProfileSetup phone={state.user.phoneNumber ?? ''} />;
   if (state.status === 'on-hold' && !publicPolicies) return <AccountHold status={state.profile.status} onSignOut={() => void signOut()} />;
@@ -86,7 +72,6 @@ function AppShellProvider({ children }: { children: ReactNode }) {
       <InboxProvider userId={profile?.uid}>
         <CustomerDataProvider profile={profile}>
           <BookingProvider>
-            {profile ? <RideAutoFocus /> : null}
             {profile ? <PendingReturn /> : null}
             {children}
             <LoginModal />
@@ -96,10 +81,8 @@ function AppShellProvider({ children }: { children: ReactNode }) {
     </ToastProvider>
   );
 
-  if (profile) {
-    return <LegalGate>{content}</LegalGate>;
-  }
-  return content;
+  // Always the same wrapper, so signing in does not rebuild the screen the rider is on.
+  return <LegalGate active={!!profile}>{content}</LegalGate>;
 }
 
 function NotFound() {

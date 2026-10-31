@@ -334,6 +334,8 @@ input:not(:focus):not([aria-invalid="true"]):not([data-invalid="true"]):invalid 
 .ds-title h1 { font: 800 25px/1.3 var(--font-display); letter-spacing: -0.3px; color: var(--color-ink); margin: 3px 0 0; }
 .ds-title p { margin: 4px 0 0; font-size: 13px; color: var(--color-muted); }
 .ds-title-actions { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+/* Header with the page actions only (the title is in the top bar). */
+.ds-title--actions { min-height: 0; justify-content: flex-end; margin-bottom: 12px; }
 
 /* Live strip + inline notices */
 .ds-live-strip {

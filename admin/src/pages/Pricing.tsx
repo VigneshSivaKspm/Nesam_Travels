@@ -17,7 +17,7 @@ import FareAdjustmentCard from "../components/FareAdjustmentCard";
 import VehicleCategoriesPage from "./VehicleCategories";
 import BrandServiceFareWorkspace from "../components/BrandServiceFareWorkspace";
 import { registerFareWorkspaceGuard } from "../services/fareWorkspaceGuard";
-import { BRANDS, BRAND_LABELS, BRAND_SUPPORTED_SERVICES, WORKSPACE_SERVICES, type FareWorkspaceScope } from "../services/tariffService";
+import { BRANDS, BRAND_LABELS, BRAND_SUPPORTED_SERVICES, CLASS_LABEL, TARIFF_CLASSES, WORKSPACE_SERVICES, type FareWorkspaceScope, type TariffClass } from "../services/tariffService";
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { GST_STATES } from "../domain/gstStates";
 import { refDateTime } from "../domain/officeStage";
@@ -79,6 +79,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   onOpenExtraCharges: (view: PricingView) => void;
 }) {
   const [fareScope, setFareScope] = useState<FareWorkspaceScope>(restore?.fareScope ?? { brand: "nesam", service: "One Way" });
+  const [fareClass, setFareClass] = useState<TariffClass>("sedan");
   const gstDirty = useRef(false), gstBusy = useRef(false);
   const workspaceDirty = useRef(false);
   const workspaceBusy = useRef(false);
@@ -108,6 +109,11 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     if (workspaceBusy.current || gstBusy.current || sheet || (next.brand === fareScope.brand && next.service === fareScope.service)) return;
     if ((workspaceDirty.current || gstDirty.current) && !window.confirm("Discard the unsaved rates in " + scopeLabel + "?")) return;
     setFareScope(next);
+  };
+  const changeClass = (next: TariffClass) => {
+    if (workspaceBusy.current || next === fareClass) return;
+    if (workspaceDirty.current && !window.confirm("Discard the unsaved rates in " + scopeLabel + " → " + CLASS_LABEL[fareClass] + "?")) return;
+    setFareClass(next);
   };
   const inFareScope = (r: ServiceRule) => (!r.brand || r.brand === scopeBrand) && (!r.fareService || r.fareService === fareScope.service)
     && (r.fareService || !r.service || r.service.toLowerCase() === "all" || fareScope.service.toLowerCase().includes(r.service.toLowerCase())
@@ -244,6 +250,23 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           </div>
         </div>
 
+        {/* Tier 3: Vehicle category (the brand & service fares are set per category) */}
+        {tab === "Brand & service fares" && (
+          <div className="pt-3 mt-4 border-t border-line">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ink text-white text-[11px] font-bold">3</span>
+              <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Select Vehicle Category</span>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {TARIFF_CLASSES.map((cls) => (
+                <Button key={cls} size="sm" variant={fareClass === cls ? "primary" : "secondary"} onClick={() => changeClass(cls)}>
+                  {CLASS_LABEL[cls]}
+                </Button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Active Scope Summary */}
         <div className="flex flex-wrap items-center justify-between gap-3 mt-4 pt-3 border-t border-line">
           <div>
@@ -263,7 +286,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       </div>
 
       <div hidden={tab !== "Brand & service fares"}>
-        <BrandServiceFareWorkspace scope={fareScope} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
+        <BrandServiceFareWorkspace scope={fareScope} vehicleClass={fareClass} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
       </div>
 
       <div hidden={tab !== "GST calculation"}>
@@ -277,10 +300,19 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           <Ta>எந்த இடத்திற்கான setting?</Ta>
           <div className="ds-filterbar mt-3">
             <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}{otherStates.map(state => <option key={state} value={state}>{state}</option>)}</select></label>
-            <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">All cities</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
-            <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">All areas</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
+            <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} disabled={locationsLoaded && !cities.length} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">{locationsLoaded && !cities.length ? (sel.state ? "No cities in this state" : "No cities saved") : "All cities"}</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
+            <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} disabled={locationsLoaded && !areas.length} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">{locationsLoaded && !areas.length ? "No areas saved" : "All areas"}</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
           </div>
-          {locationError ? <p className="ds-error mt-3" role="alert">Locations could not be loaded: {locationError}. Reload to try again.</p> : !locationsLoaded ? <p className="text-[12px] text-muted mt-3" role="status">Loading cities and areas…</p> : <p className="text-[11px] text-muted mt-3">All saved locations, including inactive locations, are listed. {cities.length} cities · {areas.length} areas / zones match this selection.{!locations.length && " Add cities and areas in Locations to configure them here."}</p>}
+          {locationError ? <p className="ds-error mt-3" role="alert">Locations could not be loaded: {locationError}. Reload to try again.</p>
+            : !locationsLoaded ? <p className="text-[12px] text-muted mt-3" role="status">Loading cities and areas…</p>
+            // The city and area lists come only from the saved locations (Office → Locations).
+            : !locations.length ? (
+              <div className="ds-note mt-3 flex flex-wrap items-center justify-between gap-3" role="status">
+                <span>No cities or areas are saved yet. Add them in Locations (a City, then its areas or zones); they appear here straight away.</span>
+                <Button size="sm" variant="primary" icon="map-pin" onClick={() => onNavigate("locations")}>Open Locations</Button>
+              </div>
+            )
+            : <p className="text-[11px] text-muted mt-3">All saved locations, including inactive ones, are listed. {cities.length} {cities.length === 1 ? "city" : "cities"} · {areas.length} {areas.length === 1 ? "area / zone" : "areas / zones"} match this selection.</p>}
           <p className="text-[11px] text-faint">Existing confirmed fares and accepted partner payouts are retained.</p>
           <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
             <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>

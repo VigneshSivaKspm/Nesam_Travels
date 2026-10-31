@@ -8,6 +8,7 @@ import './styles/shell.css';
 import './styles/home.css';
 import './styles/booking.css';
 import './styles/pages.css';
+import './styles/mobile.css';
 import { App } from './App';
 
 createRoot(document.getElementById('root')!).render(

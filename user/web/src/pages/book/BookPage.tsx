@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/CustomerData';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { BookingForm } from './BookingForm';
@@ -115,14 +116,7 @@ function Home() {
     setParams({ service: 'outstation', trip: t === 'Round Trip' ? 'round-trip' : 'one-way' }, { replace: true });
   };
 
-  const scrollToConsole = useCallback(() => {
-    const el = document.getElementById('book-console');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-  }, []);
+  const scrollToConsole = useCallback(() => scrollToBookingForm(), []);
 
   useEffect(() => {
     if (rawService || tripParam) {

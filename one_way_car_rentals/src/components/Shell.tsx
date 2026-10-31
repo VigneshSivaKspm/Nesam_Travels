@@ -7,6 +7,7 @@ import { useInbox } from '@/state/Inbox';
 import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
+import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
@@ -186,16 +187,7 @@ function ProfileMenu() {
 }
 
 function Footer() {
-  const scrollToConsole = () => {
-    const el = document.getElementById('book-console');
-    const top = el ? Math.max(0, el.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-    window.scrollTo({ top, behavior: 'smooth' });
-    setTimeout(() => {
-      const el2 = document.getElementById('book-console');
-      const top2 = el2 ? Math.max(0, el2.getBoundingClientRect().top + window.pageYOffset - 80) : 0;
-      window.scrollTo({ top: top2, behavior: 'smooth' });
-    }, 120);
-  };
+  const scrollToConsole = () => scrollToBookingForm();
 
   return (
     <footer className="footer">
@@ -354,13 +346,19 @@ export function Shell() {
         </div>
       </header>
 
-      <main id="main" tabIndex={-1} className="main">
-        <Suspense fallback={isBookingHome ? <DashboardMainSkeleton /> : <PageLoader />}>
+      {/* The footer waits for the page: while a screen loads, only its placeholder shows. */}
+      <Suspense
+        fallback={
+          <main id="main" tabIndex={-1} className="main">
+            {isBookingHome ? <DashboardMainSkeleton /> : <PageLoader />}
+          </main>
+        }
+      >
+        <main id="main" tabIndex={-1} className="main">
           <Outlet />
-        </Suspense>
-      </main>
-
-      <Footer />
+        </main>
+        <Footer />
+      </Suspense>
       {!flow ? <BottomNav /> : null}
       <FloatingCallButton />
       <AiChatbot />

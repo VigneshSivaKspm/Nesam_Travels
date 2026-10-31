@@ -33,7 +33,7 @@ export function HeroCopy() {
         <Icon name="route" size={16} /> PREMIUM OUTSTATION &amp; INTERCITY CABS
       </p>
       <h1>
-        Outstation rides,<br />
+        Outstation rides,{' '}<br />
         <span className="hero-accent">priced before you book.</span>
       </h1>
       <p className="hero-copy__sub">
