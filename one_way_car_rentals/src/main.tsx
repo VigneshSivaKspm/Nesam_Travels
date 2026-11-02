@@ -18,6 +18,7 @@ import './styles/booking.css';
 import './styles/pages.css';
 import './styles/ride.css';
 import './styles/landing.css';
+import './styles/polish.css';
 import './styles/mobile.css';
 import { keepHomeBehindEveryScreen } from './lib/homeNav';
 import { installStaleVersionReload } from '../../user/web/src/components/RouteErrorBoundary';

@@ -80,15 +80,13 @@ function HeroCopy() {
         Any journey,{' '}<br />
         <span className="hero-accent">priced with a friendly smile.</span>
       </h1>
-      {/* Decoration for wide screens: a route from pickup to drop with a light travelling along it. */}
-      <svg className="hero-route" viewBox="0 0 420 210" aria-hidden="true" focusable="false">
-        <path className="hero-route__line" d="M34 178 C 104 36, 176 196, 252 104 S 362 38, 388 34" />
-        <path className="hero-route__comet" pathLength="100" d="M34 178 C 104 36, 176 196, 252 104 S 362 38, 388 34" />
-        <circle className="hero-route__ring" cx="34" cy="178" r="9" />
-        <circle className="hero-route__pin" cx="34" cy="178" r="8" />
-        <circle className="hero-route__ring hero-route__ring--late" cx="388" cy="34" r="9" />
-        <circle className="hero-route__pin" cx="388" cy="34" r="8" />
+      {/* Decoration for tablets and wider: a route that runs around the booking card, pickup to drop. */}
+      <svg className="hero-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path className="hero-route__line" d="M640 120 C 800 60, 960 110, 968 330 S 975 800, 930 940 S 800 962, 600 955 S 250 975, 40 955" />
+        <path className="hero-route__comet" pathLength="100" d="M640 120 C 800 60, 960 110, 968 330 S 975 800, 930 940 S 800 962, 600 955 S 250 975, 40 955" />
       </svg>
+      <span className="hero-pin hero-pin--a" aria-hidden="true" />
+      <span className="hero-pin hero-pin--b" aria-hidden="true" />
     </div>
   );
 }

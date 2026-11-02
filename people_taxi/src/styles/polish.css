@@ -56,98 +56,103 @@
 }
 
 /* ── Photo hero (tablet and wider) ───────────────────────────────────────────────────────────────── */
+/* The photo is the backdrop of the whole hero block: headline on top, the booking card floating over it. */
 @media (min-width: 768px) {
   .home-hero {
-    gap: 0;
-  }
-  .hero-copy {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    justify-content: center;
-    min-height: 360px;
-    padding: clamp(40px, 5vw, 72px) clamp(28px, 4.5vw, 64px) clamp(124px, 11vw, 156px);
+    padding: clamp(44px, 5vw, 76px) clamp(28px, 6vw, 96px) clamp(56px, 6.5vw, 92px);
     border-radius: var(--r-xl);
-    box-shadow: 0 34px 70px -30px rgb(12 27 61 / 0.6);
+    box-shadow: 0 40px 80px -34px rgb(12 27 61 / 0.62);
   }
   /* The photo. */
-  .hero-copy::before {
+  .home-hero::before {
     content: '';
     position: absolute;
-    inset: -5%;
+    inset: -6%;
     z-index: -2;
     background: url('/website-images/web/heroes/hero-desktop.webp') 58% 50% / cover no-repeat;
   }
-  /* A deep-blue wash on the left so the headline reads, lightening over the photo. */
-  .hero-copy::after {
+  /* A blue wash: deep at the top left where the headline sits, lighter over the rest of the photo. */
+  .home-hero::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
     background:
-      linear-gradient(95deg, rgb(8 24 66 / 0.92) 0%, rgb(13 58 168 / 0.66) 42%, rgb(13 58 168 / 0.08) 80%),
-      linear-gradient(0deg, rgb(8 24 66 / 0.5), transparent 45%);
+      linear-gradient(100deg, rgb(8 24 66 / 0.9) 0%, rgb(13 58 168 / 0.58) 46%, rgb(13 58 168 / 0.12) 82%),
+      linear-gradient(0deg, rgb(8 24 66 / 0.45), rgb(8 24 66 / 0.1) 55%, transparent);
   }
   .hero-copy h1 {
+    position: relative;
+    z-index: 1;
     color: #fff;
-    text-shadow: 0 2px 22px rgb(0 0 0 / 0.28);
+    text-shadow: 0 2px 22px rgb(0 0 0 / 0.3);
   }
   .hero-copy h1 .hero-accent {
     color: var(--sun);
   }
-  /* The booking card overlaps the photo's lower edge. */
+  /* The booking card floats over the photo. */
   .jd {
     position: relative;
     z-index: 2;
-    margin-top: calc(-1 * clamp(84px, 8vw, 112px));
+    box-shadow: 0 30px 70px -20px rgb(8 24 66 / 0.55), 0 4px 18px rgb(0 0 0 / 0.08);
   }
 }
 
-/* The route drawn over the photo (wide screens). */
-.hero-route {
+/* The route that runs around the booking card, and its two pins. */
+.hero-route,
+.hero-pin {
   display: none;
 }
-@media (min-width: 900px) {
+@media (min-width: 768px) {
   .hero-route {
     display: block;
     position: absolute;
-    top: clamp(30px, 4vw, 58px);
-    right: clamp(24px, 4vw, 64px);
+    inset: 0;
     z-index: 0;
-    width: min(38%, 440px);
-    height: auto;
-    overflow: visible;
+    width: 100%;
+    height: 100%;
     pointer-events: none;
+  }
+  .hero-pin {
+    display: block;
+    position: absolute;
+    z-index: 0;
+    width: 18px;
+    height: 18px;
+    border: 4px solid var(--sun);
+    border-radius: 50%;
+    background: #fff;
+    pointer-events: none;
+  }
+  .hero-pin--a {
+    top: 12%;
+    left: 64%;
+    margin: -9px 0 0 -9px;
+  }
+  .hero-pin--b {
+    bottom: 4.5%;
+    left: 4%;
+    margin: 0 0 -9px -9px;
   }
 }
 .hero-route__line {
   fill: none;
-  stroke: rgb(255 255 255 / 0.6);
-  stroke-width: 2.5;
+  stroke: rgb(255 255 255 / 0.62);
+  stroke-width: 3;
   stroke-linecap: round;
-  stroke-dasharray: 3 10;
+  stroke-dasharray: 5 16;
 }
 .hero-route__comet {
   fill: none;
   stroke: var(--sun);
-  stroke-width: 4.5;
+  stroke-width: 6;
   stroke-linecap: round;
-  stroke-dasharray: 9 91;
+  stroke-dasharray: 11 89;
   stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 7px rgb(255 197 61 / 0.95));
-}
-.hero-route__pin {
-  fill: #fff;
-  stroke: var(--sun);
-  stroke-width: 3.5;
-}
-.hero-route__ring {
-  fill: none;
-  stroke: var(--sun);
-  stroke-width: 2;
-  opacity: 0;
-  transform-box: fill-box;
-  transform-origin: center;
+  filter: drop-shadow(0 0 8px rgb(255 197 61 / 0.95));
 }
 
 /* ── Booking card ────────────────────────────────────────────────────────────────────────────────── */
@@ -240,21 +245,21 @@
   }
   @media (min-width: 768px) {
     /* The photo slowly zooms and drifts. */
-    .hero-copy::before {
-      animation: pt-kenburns 28s ease-in-out infinite alternate;
+    .home-hero::before {
+      animation: pt-kenburns 30s ease-in-out infinite alternate;
     }
   }
-  /* The route: a light travels pickup → drop; the pins pulse in turn. */
+  /* The route: a light travels from pickup to drop, the dashes flow, and the pins pulse in turn. */
   .hero-route__line {
-    animation: pt-flow 1.6s linear infinite;
+    animation: pt-flow 1.8s linear infinite;
   }
   .hero-route__comet {
-    animation: pt-travel 4.5s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
+    animation: pt-travel 7s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
   }
-  .hero-route__ring {
-    animation: pt-ping 2.6s ease-out infinite;
+  .hero-pin {
+    animation: pt-pin 2.6s ease-out infinite;
   }
-  .hero-route__ring--late {
+  .hero-pin--b {
     animation-delay: 1.3s;
   }
 
@@ -382,25 +387,24 @@
 }
 @keyframes pt-flow {
   to {
-    stroke-dashoffset: -26;
+    stroke-dashoffset: -42;
   }
 }
 @keyframes pt-travel {
   from {
-    stroke-dashoffset: 9;
+    stroke-dashoffset: 11;
   }
   to {
     stroke-dashoffset: -100;
   }
 }
-@keyframes pt-ping {
+@keyframes pt-pin {
   0% {
-    opacity: 0.9;
-    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(255 197 61 / 0.75);
   }
+  70%,
   100% {
-    opacity: 0;
-    transform: scale(3);
+    box-shadow: 0 0 0 22px rgb(255 197 61 / 0);
   }
 }
 @keyframes pt-sheen {
