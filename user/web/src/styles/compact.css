@@ -234,3 +234,68 @@
     animation: pt-rise 0.7s var(--ease-out, cubic-bezier(0.2, 0.7, 0.2, 1)) backwards;
   }
 }
+
+/* AI chat on phones: the floating call and AI buttons are round, with the icon centred; the chat opens as a
+   small floating window (not full screen) that sits above the on-screen keyboard. */
+@media (max-width: 767.98px) {
+  .floating-call-btn,
+  .floating-ai-launcher {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    gap: 0;
+  }
+  .floating-call-btn__label,
+  .floating-ai-launcher__text,
+  .floating-ai-launcher__pulse {
+    display: none;
+  }
+  .floating-call-btn__icon {
+    display: grid;
+    place-items: center;
+    width: auto;
+    height: auto;
+    background: none;
+    animation: none;
+  }
+  .floating-call-btn__icon svg {
+    display: block;
+    width: 26px;
+    height: 26px;
+  }
+  .floating-ai-launcher__sparkle {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    height: 100%;
+    font-size: 0;
+  }
+  .floating-ai-launcher__sparkle .ai-glyph,
+  .floating-ai-launcher__sparkle svg {
+    display: block;
+    width: 24px;
+    height: 24px;
+  }
+  .floating-ai-launcher.is-active {
+    display: none;
+  }
+
+  .ai-chat-window {
+    inset: auto 10px calc(10px + var(--kb, 0px) + env(safe-area-inset-bottom, 0px)) 10px;
+    width: auto;
+    height: min(540px, calc(var(--vvh, 100dvh) - 24px));
+    max-height: calc(var(--vvh, 100dvh) - 24px);
+    border: 1px solid var(--line, #e2e8f0);
+    border-radius: 16px;
+    box-shadow: 0 18px 44px rgb(15 23 42 / 0.28), 0 4px 12px rgb(15 23 42 / 0.1);
+  }
+  .ai-chat-input {
+    font-size: 16px;
+  }
+}
+.ai-glyph {
+  display: block;
+}
+.ai-chat-avatar .ai-glyph {
+  color: #fff;
+}

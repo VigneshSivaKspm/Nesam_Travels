@@ -122,6 +122,16 @@ function renderChat(text: string): ReactNode[] {
   return nodes;
 }
 
+/** The assistant's sparkle mark: a drawn icon, so it looks the same on every phone (no emoji font). */
+function Sparkle({ size = 20 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false" className="ai-glyph">
+      <path d="M10 3l2 6.2 6.2 2-6.2 2-2 6.2-2-6.2-6.2-2 6.2-2z" />
+      <path d="M19 2l.9 2.1L22 5l-2.1.9L19 8l-.9-2.1L16 5l2.1-.9z" />
+    </svg>
+  );
+}
+
 // ── The widget ───────────────────────────────────────────────────────────────
 
 export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: ChatBrand; Icon: IconComponent; closeIcon?: string }) {
@@ -133,6 +143,7 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
   const [messages, setMessages] = useState<Message[]>(() => [{ id: 'welcome', role: 'assistant', content: brand.welcome[readLang()], time: formatTime() }]);
   const endRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const win = useRef<HTMLDivElement>(null);
   const t = UI[lang];
 
   useEffect(() => {
@@ -140,6 +151,27 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
     inputRef.current?.focus({ preventScroll: true });
   }, [open, messages, loading]);
+
+  // On a phone the window floats above the on-screen keyboard: the keyboard's height and the visible
+  // height are handed to the stylesheet, and the latest message stays in view.
+  useEffect(() => {
+    if (!open) return undefined;
+    const vv = window.visualViewport;
+    const el = win.current;
+    if (!vv || !el) return undefined;
+    const fit = () => {
+      el.style.setProperty('--kb', `${Math.round(Math.max(0, window.innerHeight - vv.height - vv.offsetTop))}px`);
+      el.style.setProperty('--vvh', `${Math.round(vv.height)}px`);
+      endRef.current?.scrollIntoView({ block: 'end' });
+    };
+    fit();
+    vv.addEventListener('resize', fit);
+    vv.addEventListener('scroll', fit);
+    return () => {
+      vv.removeEventListener('resize', fit);
+      vv.removeEventListener('scroll', fit);
+    };
+  }, [open]);
 
   // Escape closes the chat.
   useEffect(() => {
@@ -211,18 +243,18 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
         title={brand.assistantName}
       >
         <span className="floating-ai-launcher__sparkle" aria-hidden="true">
-          {open ? <Icon name={closeIcon} size={20} /> : <span className="ai-badge-icon">✨</span>}
+          {open ? <Icon name={closeIcon} size={20} /> : <Sparkle size={22} />}
         </span>
         <span className="floating-ai-launcher__text">{open ? t.closeChat : t.askAi}</span>
         {!open && <span className="floating-ai-launcher__pulse" aria-hidden="true" />}
       </button>
 
       {open && (
-        <div className={`ai-chat-window ai-chat-window--${brand.variant}`} role="dialog" aria-modal="true" aria-label={brand.assistantName}>
+        <div ref={win} className={`ai-chat-window ai-chat-window--${brand.variant}`} role="dialog" aria-label={brand.assistantName}>
           <div className="ai-chat-head">
             <div className="ai-chat-brand">
               <span className="ai-chat-avatar">
-                <span className="ai-sparkle">✨</span>
+                <Sparkle size={17} />
               </span>
               <div>
                 <strong>{brand.assistantName}</strong>
