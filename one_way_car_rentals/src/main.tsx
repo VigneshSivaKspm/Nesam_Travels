@@ -21,11 +21,12 @@ import './styles/landing.css';
 import './styles/polish.css';
 import './styles/mobile.css';
 import { keepHomeBehindEveryScreen } from './lib/homeNav';
-import { installStaleVersionReload } from '../../user/web/src/components/RouteErrorBoundary';
+import { installStaleVersionReload, installVersionCheck } from '../../user/web/src/components/RouteErrorBoundary';
 import { App } from './App';
 
 keepHomeBehindEveryScreen();
 installStaleVersionReload();
+installVersionCheck();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

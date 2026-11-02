@@ -32,6 +32,50 @@ export function installStaleVersionReload(): void {
   });
 }
 
+/**
+ * An open tab never fetches new files by itself, so a visitor who keeps the site open would stay on an
+ * old version. Call once at startup: when the tab is visited again, and every few minutes, the site
+ * looks at the published page; if it points at newer files, a small "Refresh" bar appears.
+ */
+export function installVersionCheck(): void {
+  const mine = document.querySelector('script[type="module"][src*="/assets/index-"]')?.getAttribute('src');
+  if (!mine) return; // the dev server has no versioned files
+  let shown = false;
+
+  const showBar = () => {
+    if (shown) return;
+    shown = true;
+    const bar = document.createElement('div');
+    bar.setAttribute('role', 'status');
+    bar.style.cssText =
+      'position:fixed;left:50%;bottom:92px;transform:translateX(-50%);z-index:2147483000;display:flex;align-items:center;gap:12px;max-width:calc(100vw - 24px);padding:10px 12px 10px 16px;border-radius:999px;background:#111827;color:#fff;font:600 14px/1.3 system-ui,sans-serif;box-shadow:0 10px 30px rgba(0,0,0,.35)';
+    const text = document.createElement('span');
+    text.textContent = 'A new version of the site is ready.';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Refresh';
+    button.style.cssText = 'border:0;border-radius:999px;padding:8px 16px;background:#fff;color:#111827;font:700 14px system-ui,sans-serif;cursor:pointer';
+    button.onclick = () => window.location.reload();
+    bar.append(text, button);
+    document.body.appendChild(bar);
+  };
+
+  const check = async () => {
+    if (shown || document.visibilityState !== 'visible') return;
+    try {
+      const res = await fetch('/', { cache: 'no-store', headers: { Accept: 'text/html' } });
+      const latest = /\/assets\/index-[A-Za-z0-9_-]+\.js/.exec(await res.text())?.[0];
+      if (latest && !mine.endsWith(latest)) showBar();
+    } catch {
+      /* offline or a hiccup: try again later */
+    }
+  };
+
+  document.addEventListener('visibilitychange', () => void check());
+  window.setTimeout(() => void check(), 60_000);
+  window.setInterval(() => void check(), 5 * 60_000);
+}
+
 interface BoundaryState {
   failed: boolean;
 }
