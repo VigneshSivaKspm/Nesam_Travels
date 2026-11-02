@@ -318,12 +318,11 @@ export function BookingForm({
           </div>
           {service === 'rental' ? (
             <>
-              <p className="bf-note">Chauffeur and car remain at your disposal within the city limits. Package hours and km allowances are shown on the next step.</p>
-          <div className="bf-row">
+          <div className="bf-row bf-row--single">
             <div className="bf-cell">
               <label className="bf-label bf-label--out" htmlFor="bf-rental-hours">Rental package</label>
               <select id="bf-rental-hours" className="input bf-input" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">Shortest package for each car</option>
+                <option value="">Any package</option>
                 {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
               </select>
             </div>

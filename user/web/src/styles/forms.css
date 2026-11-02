@@ -64,3 +64,12 @@
     padding-inline: 12px;
   }
 }
+
+/* A row with a single field (Local Rental's package) takes the full width, so its text never gets cut off. */
+.bf-row.bf-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bf-row.bf-row--single .bf-input {
+  width: 100%;
+  text-overflow: ellipsis;
+}

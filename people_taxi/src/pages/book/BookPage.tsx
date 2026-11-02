@@ -77,8 +77,7 @@ function HeroCopy() {
   return (
     <div className="hero-copy">
       <h1>
-        Any journey,{' '}<br />
-        <span className="hero-accent">priced with a friendly smile.</span>
+        Book your taxi <span className="hero-accent">now</span>
       </h1>
       {/* Decoration for tablets and wider: a route that runs around the booking card, pickup to drop. */}
       <svg className="hero-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">

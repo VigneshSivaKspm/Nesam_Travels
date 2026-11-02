@@ -58,13 +58,30 @@
 /* ── Photo hero (tablet and wider) ───────────────────────────────────────────────────────────────── */
 /* The photo is the backdrop of the whole hero block: headline on top, the booking card floating over it. */
 @media (min-width: 768px) {
+  /* The hero runs edge to edge, straight under the header, and fills the first screen. */
+  .home__wrap {
+    padding-block: 0;
+  }
   .home-hero {
     position: relative;
     isolation: isolate;
     overflow: hidden;
-    padding: clamp(44px, 5vw, 76px) clamp(28px, 6vw, 96px) clamp(56px, 6.5vw, 92px);
-    border-radius: var(--r-xl);
-    box-shadow: 0 40px 80px -34px rgb(4 34 18 / 0.62);
+    justify-content: center;
+    gap: clamp(14px, 1.8vw, 22px);
+    width: auto;
+    max-width: none;
+    min-height: calc(100vh - var(--nav-h));
+    min-height: calc(100svh - var(--nav-h));
+    margin-inline: calc(-1 * var(--gutter));
+    padding: clamp(20px, 2.6vw, 36px) var(--gutter) clamp(22px, 2.6vw, 34px);
+    border-radius: 0;
+  }
+  /* The headline and the card line up in one centred column. */
+  .hero-copy,
+  .bf {
+    width: 100%;
+    max-width: 1180px;
+    margin-inline: auto;
   }
   /* The photo. */
   .home-hero::before {
@@ -88,6 +105,8 @@
     position: relative;
     z-index: 1;
     color: #fff;
+    font-size: clamp(1.75rem, 1.2rem + 1.7vw, 2.6rem);
+    line-height: 1.12;
     text-shadow: 0 2px 22px rgb(0 0 0 / 0.3);
   }
   .hero-copy h1 .hero-accent {
@@ -97,7 +116,55 @@
   .bf {
     position: relative;
     z-index: 2;
-    box-shadow: 0 30px 70px -20px rgb(4 34 18 / 0.55), 0 4px 18px rgb(0 0 0 / 0.08);
+    padding: 14px 18px 12px;
+    border-radius: var(--r-lg);
+    box-shadow: 0 22px 50px -18px rgb(4 34 18 / 0.55), 0 4px 14px rgb(0 0 0 / 0.08);
+  }
+
+  /* A compact booking card: smaller bars, fields and gaps. */
+  .bf-services {
+    gap: 4px;
+    padding: 4px;
+  }
+  .bf-service {
+    min-height: 42px;
+    padding: 6px 12px;
+  }
+  .bf-journey {
+    margin-top: 10px;
+  }
+  .bf-journey.tabs .tab {
+    min-height: 34px;
+    padding: 5px 22px;
+  }
+  .bf-form {
+    gap: 10px;
+    margin-top: 10px;
+  }
+  .bf-route {
+    gap: 10px;
+  }
+  .bf-field {
+    min-height: 52px;
+    padding: 6px 14px;
+  }
+  .bf-row {
+    gap: 12px;
+  }
+  .bf-label--out {
+    margin-bottom: 4px;
+    font-size: var(--fs-xs);
+  }
+  .bf-input,
+  .bf-time {
+    min-height: 44px;
+  }
+  .bf-submit {
+    min-height: 46px;
+    margin-top: 0;
+  }
+  .bf-trust {
+    font-size: 0.75rem;
   }
 }
 

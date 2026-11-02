@@ -463,13 +463,10 @@ export function BookingForm({
 
           {isRental ? (
             <>
-            <p className="jd-rental-note">
-              <Icon name="info" size={14} /> Chauffeur and vehicle remain at your disposal within city limits. Each car shows its package hours, included km and extra-hour rate on the next step.
-            </p>
-            <div className="jd-field" style={{ marginTop: 10 }}>
+            <div className="jd-field">
               <label htmlFor="bf-rental-hours" className="jd-label">Rental package</label>
               <select id="bf-rental-hours" className="jd-control" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
-                <option value="">Shortest package for each car</option>
+                <option value="">Any package</option>
                 {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
               </select>
             </div>

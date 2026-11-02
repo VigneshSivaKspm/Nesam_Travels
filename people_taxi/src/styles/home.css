@@ -1878,41 +1878,66 @@
   color: var(--brand);
   font-size: 1.25rem;
 }
-.timepick__group {
+.timepick__wheels {
+  position: relative;
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
-}
-.timepick__row {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 14px;
-}
-.timepick__group--min {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-.timepick__group--ampm {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-.timepick__group button {
-  min-height: 42px;
+  background: var(--paper);
   border: 1px solid var(--line);
-  border-radius: var(--r-btn);
-  background: #fff;
-  color: var(--ink);
-  font-size: var(--fs-sm);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 120ms ease;
+  border-radius: var(--r-lg);
+  padding: 0 4px;
 }
-.timepick__group button:hover {
-  border-color: var(--brand-line);
+.timepick__wheels::before {
+  content: '';
+  position: absolute;
+  top: 88px;
+  right: 6px;
+  left: 6px;
+  height: 44px;
+  border: 2px solid var(--brand);
+  border-radius: var(--r-md);
   background: var(--brand-soft);
+  pointer-events: none;
+  z-index: 1;
 }
-.timepick__group button.is-on {
-  border-color: var(--brand);
-  background: var(--brand);
-  color: #fff;
+.timepick__wheel {
+  position: relative;
+  height: 220px;
+  padding: 88px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  mask-image: linear-gradient(transparent, #000 30%, #000 70%, transparent);
+  outline: none;
+  z-index: 2;
+}
+.timepick__wheel::-webkit-scrollbar {
+  display: none;
+}
+.timepick__wheel:focus-visible {
+  border-radius: var(--r-md);
+  box-shadow: 0 0 0 2px var(--brand);
+}
+.timepick__wheel > div {
+  display: grid;
+  place-items: center;
+  height: 44px;
+  color: var(--muted);
+  font-size: 1.15rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  scroll-snap-align: center;
+  scroll-snap-stop: always;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, font-size 0.15s ease;
+}
+.timepick__wheel > div.is-on {
+  color: var(--brand-ink, var(--brand));
+  font-size: 1.35rem;
   font-weight: 800;
 }
 
