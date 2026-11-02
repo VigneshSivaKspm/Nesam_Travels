@@ -61,9 +61,6 @@ export function RouteLandingPage() {
       {/* Hero Section */}
       <header className="lp-hero">
         <div className="lp-hero__inner">
-          <span className="eyebrow eyebrow--gold">
-            <Icon name="route" size={16} /> {route.highway}
-          </span>
           <h1>{route.h1}</h1>
           <p className="lp-hero__lead">{route.summary}</p>
 
@@ -109,7 +106,6 @@ export function RouteLandingPage() {
       <section className="band" aria-labelledby="sec-pricing-rates">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Approved Tariff</p>
             <h2 id="sec-pricing-rates">
               Transparent Fare Chart: {route.origin} to {route.destination}
             </h2>
@@ -160,7 +156,6 @@ export function RouteLandingPage() {
       <section className="band band--paper" aria-labelledby="sec-overview">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Route Guide</p>
             <h2 id="sec-overview">
               Travelling from {route.origin} to {route.destination}
             </h2>
@@ -190,7 +185,6 @@ export function RouteLandingPage() {
       <section className="band" aria-labelledby="sec-why-people-taxi">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Why Travel With Us</p>
             <h2 id="sec-why-people-taxi">The People Taxi Difference on South Indian Highways</h2>
           </header>
           <ul className="lp-grid lp-grid--why">
@@ -220,7 +214,6 @@ export function RouteLandingPage() {
       <section className="band band--paper" aria-labelledby="sec-route-faqs">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Frequently Asked Questions</p>
             <h2 id="sec-route-faqs">
               {route.origin} to {route.destination} Cab FAQs
             </h2>
@@ -245,7 +238,6 @@ export function RouteLandingPage() {
       <section className="band" aria-labelledby="sec-other-routes">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Explore More</p>
             <h2 id="sec-other-routes">Other Popular South India Cabs &amp; Drop Taxi Routes</h2>
           </header>
           <ul className="lp-grid">

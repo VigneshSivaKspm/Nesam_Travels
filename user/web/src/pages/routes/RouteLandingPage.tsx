@@ -124,12 +124,6 @@ export function RouteLandingPage() {
       <header className="band band--dark" style={{ position: 'relative', overflow: 'hidden' }}>
         <div className="wrap" style={{ position: 'relative', zIndex: 2, padding: '32px 0 48px' }}>
           <div style={{ maxWidth: '820px' }}>
-            <span
-              className="eyebrow eyebrow--gold"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}
-            >
-              <Icon name="route" size={16} /> {route.highway}
-            </span>
             <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.2, marginBottom: '16px', color: '#fff' }}>
               {route.h1}
             </h1>
@@ -232,7 +226,6 @@ export function RouteLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Approved Tariff</p>
               <h2 id="sec-pricing-rates">Transparent Fare Chart: {route.origin} to {route.destination}</h2>
               <p className="sec-head__text">
                 Fares calculated based on official owner-approved Tariff v2 rates. Applicable GST and driver allowance are included upfront; your booking shows the exact GST. Tolls at actuals.
@@ -299,7 +292,6 @@ export function RouteLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Route Guide</p>
               <h2 id="sec-overview">Travelling from {route.origin} to {route.destination}</h2>
             </div>
           </header>
@@ -349,7 +341,6 @@ export function RouteLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Why Travel With Us</p>
               <h2 id="sec-why-nesam">The NESAM Difference on South Indian Highways</h2>
             </div>
           </header>
@@ -395,7 +386,6 @@ export function RouteLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Frequently Asked Questions</p>
               <h2 id="sec-route-faqs">{route.origin} to {route.destination} Cab FAQs</h2>
             </div>
           </header>
@@ -429,7 +419,6 @@ export function RouteLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Explore More</p>
               <h2 id="sec-other-routes">Other Popular South India Cabs &amp; Drop Taxi Routes</h2>
             </div>
           </header>

@@ -53,7 +53,6 @@ export function HeroCopy() {
 function SectionHeading({ eyebrow, title, id, children }: { eyebrow?: string; title: string; id: string; children?: React.ReactNode }) {
   return (
     <div className="sec-heading">
-      {eyebrow ? <span className="eyebrow">{eyebrow}</span> : null}
       <h2 id={id}>{title}</h2>
       {children}
     </div>
@@ -110,7 +109,6 @@ export function WhySection() {
   return (
     <section className="why" aria-labelledby="why-title">
       <div className="why__intro">
-        <span className="eyebrow">The NESAM way</span>
         <h2 id="why-title" className="display-h">
           Travel with clarity.
         </h2>
@@ -135,9 +133,7 @@ function SectionHead({ eyebrow, title, text, id, action }: { eyebrow: string; ti
   return (
     <header className="hx-head">
       <div className="sec-heading">
-        <span className="eyebrow">{eyebrow}</span>
         <h2 id={id}>{title}</h2>
-        {text ? <p className="hx-head__text">{text}</p> : null}
       </div>
       {action ? <div className="hx-head__action">{action}</div> : null}
     </header>
@@ -191,7 +187,6 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
         <li>
           <a className="hx-service hx-service--call" href={`tel:${SUPPORT_PHONE}`}>
             <span className="hx-service__body">
-              <span className="eyebrow">Something custom?</span>
               <strong>Multi-day tours, weddings, corporate fleets</strong>
               <span>Tell our team what you need and we’ll arrange it.</span>
             </span>
@@ -244,7 +239,6 @@ export function JourneysSection({ onRoute }: { onRoute: (c: Corridor) => void })
         ))}
       </ul>
       <div className="hx-more" role="group" aria-label="More routes">
-        <span className="eyebrow eyebrow--muted">More routes</span>
         {MORE_CORRIDORS.map((c) => (
           <button key={c.id} type="button" className="chip" onClick={() => onRoute(c)}>
             {c.origin} <Icon name="arrow-right" size={14} /> {c.destination} <span className="hx-more__km">{c.km}</span>
@@ -336,7 +330,6 @@ export function HowSection() {
   return (
     <section className="hx-how" aria-labelledby="hx-how">
       <div className="hx-how__body">
-        <span className="eyebrow">How it works</span>
         <h2 id="hx-how">Booked in minutes. Handled with care.</h2>
         <ol className="hx-how__steps">
           {STEPS.map((s, i) => (
@@ -368,7 +361,6 @@ export function AssuranceSection() {
       </div>
       <div className="hx-assure__body">
         <div className="sec-heading">
-          <span className="eyebrow">Travel with confidence</span>
           <h2 id="hx-safe">Built for long journeys and peace of mind</h2>
           <p className="hx-head__text">From the moment your driver is assigned to the receipt for your trip, every step is visible to you.</p>
         </div>
@@ -395,7 +387,6 @@ export function Banners() {
   return (
     <section className="hx-sec hx-banners" aria-label="Offers and help">
       <Link className="hx-banner" to="/offers" style={{ backgroundImage: `url(${IMG('backgrounds/offer-background')})` }}>
-        <span className="eyebrow">Offers</span>
         <strong>Promo codes and festival savings</strong>
         <span>See what’s live and apply a code when you review your booking.</span>
         <span className="hx-banner__cta">
@@ -403,7 +394,6 @@ export function Banners() {
         </span>
       </Link>
       <a className="hx-banner" href={`tel:${SUPPORT_PHONE}`} style={{ backgroundImage: `url(${IMG('backgrounds/app-promotion-background')})` }}>
-        <span className="eyebrow">Plan with a person</span>
         <strong>Corporate, family or group travel?</strong>
         <span>
           Call us on {SUPPORT_PHONE_DISPLAY}. Cancel free until {freeHours} hour{freeHours === 1 ? '' : 's'} before pickup, then a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
@@ -444,7 +434,6 @@ export function FaqSection() {
   return (
     <section className="faq" id="faq" aria-labelledby="faq-title">
       <div className="faq__intro">
-        <span className="eyebrow">Good to know</span>
         <h2 id="faq-title" className="display-h display-h--lg">
           A little help, before you go.
         </h2>
@@ -472,7 +461,6 @@ export function AppSection() {
   return (
     <section className="get-app" aria-labelledby="app-title">
       <div className="get-app__copy">
-        <span className="eyebrow">The NESAM app</span>
         <h2 id="app-title" className="display-h">
           Every trip. One place.
         </h2>

@@ -51,9 +51,6 @@ export function RouteLandingPage() {
               </li>
             </ol>
           </nav>
-          <p className="eyebrow eyebrow--gold">
-            <Icon name="route" size={16} /> {route.highway}
-          </p>
           <h1>{route.h1}</h1>
           <p className="lp-hero__lead">{route.summary}</p>
           <ul className="lp-facts">
@@ -97,7 +94,6 @@ export function RouteLandingPage() {
       <section className="band band--paper" aria-labelledby="lp-overview">
         <div className="wrap lp-cols">
           <div className="lp-prose">
-            <p className="eyebrow eyebrow--brand">Route guide</p>
             <h2 id="lp-overview">
               Travelling from {route.origin} to {route.destination}
             </h2>
@@ -121,7 +117,6 @@ export function RouteLandingPage() {
 
       <section className="band" aria-labelledby="lp-faq">
         <div className="wrap lp-narrow">
-          <p className="eyebrow eyebrow--brand">Questions</p>
           <h2 id="lp-faq">
             {route.origin} to {route.destination} taxi FAQs
           </h2>
@@ -141,7 +136,6 @@ export function RouteLandingPage() {
 
       <section className="band band--paper" aria-labelledby="lp-more">
         <div className="wrap">
-          <p className="eyebrow eyebrow--brand">More one way routes</p>
           <h2 id="lp-more">Other popular drops</h2>
           <ul className="lp-links">
             {others.map((r) => (

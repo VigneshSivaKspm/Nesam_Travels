@@ -20,7 +20,6 @@ export function detectBrand(explicit?: string): string {
 function SectionHeading({ title, id, eyebrow }: { title: string; id: string; eyebrow?: string }) {
   return (
     <header className="sec-head sec-heading">
-      {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
       <h2 id={id}>{title}</h2>
     </header>
   );
@@ -37,7 +36,6 @@ export function ReviewsSection({ brand }: PublicContentProps = {}) {
     <section className="band reviews" aria-labelledby="reviews-title">
       <div className="wrap reviews__wrap">
         <header className="sec-head sec-heading">
-          <p className="eyebrow">From our travellers</p>
           <h2 id="reviews-title">Customer reviews</h2>
           <p className="sec-head__text">Real feedback from travellers who journeyed with {brandName}</p>
         </header>
@@ -127,7 +125,6 @@ export function CatalogSection({ brand }: PublicContentProps = {}) {
     <section className="band catalog-band" aria-labelledby="catalog-title">
       <div className="wrap catalog-wrap">
         <header className="sec-head sec-heading">
-          <p className="eyebrow">Explore South India</p>
           <h2 id="catalog-title">Services, tours &amp; destinations</h2>
         </header>
 

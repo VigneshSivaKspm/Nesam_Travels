@@ -114,12 +114,6 @@ export function ServiceLandingPage() {
       <header className="band band--dark">
         <div className="wrap" style={{ padding: '36px 0 48px' }}>
           <div style={{ maxWidth: '820px' }}>
-            <span
-              className="eyebrow eyebrow--gold"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '12px' }}
-            >
-              <Icon name="car" size={16} /> NESAM Travels · South India
-            </span>
             <h1 style={{ fontSize: 'clamp(1.8rem, 4vw, 2.8rem)', lineHeight: 1.2, marginBottom: '16px', color: '#fff' }}>
               {service.h1}
             </h1>
@@ -158,7 +152,6 @@ export function ServiceLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Service Highlights</p>
               <h2 id="sec-features">Why Choose NESAM for {service.tripType}</h2>
             </div>
           </header>
@@ -194,7 +187,6 @@ export function ServiceLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Overview</p>
               <h2 id="sec-detailed-overview">How Our {service.tripType} Works</h2>
             </div>
           </header>
@@ -237,7 +229,6 @@ export function ServiceLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Help &amp; Answers</p>
               <h2 id="sec-faqs">Frequently Asked Questions</h2>
             </div>
           </header>
@@ -271,7 +262,6 @@ export function ServiceLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">Popular Corridors</p>
               <h2 id="sec-featured-routes">Book {service.tripType} on Top Routes</h2>
             </div>
           </header>
@@ -319,7 +309,6 @@ export function ServiceLandingPage() {
         <div className="wrap">
           <header className="sec-head">
             <div>
-              <p className="eyebrow eyebrow--red">All Services</p>
               <h2 id="sec-other-services">Explore More NESAM Cabs Services</h2>
             </div>
           </header>

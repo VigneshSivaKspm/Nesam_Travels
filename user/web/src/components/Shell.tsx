@@ -108,6 +108,10 @@ function NotificationsLink({ compact = false }: { compact?: boolean }) {
 const ACCOUNT_PATHS = /^\/(account|trips|notifications|offers|support|legal|about)(\/|$)/;
 
 /** Phone navigation: the four services and Account (the reference's final order). */
+/** The bottom bar: Outstation, the main service, sits in the middle (raised and filled). */
+const BAR_ORDER: ServiceId[] = ['airport', 'rental', 'outstation', 'multicity'];
+const barServices = () => BAR_ORDER.flatMap((id) => SERVICES.find((s) => s.id === id) ?? []);
+
 function BottomNav() {
   const location = useLocation();
   const [params] = useSearchParams();
@@ -117,8 +121,8 @@ function BottomNav() {
   const accountActive = ACCOUNT_PATHS.test(location.pathname) && !location.pathname.startsWith('/notifications') && !location.pathname.startsWith('/support');
   return (
     <nav className="bottom-nav" aria-label="Services and account">
-      {SERVICES.map((s) => (
-        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+      {barServices().map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${s.id === 'outstation' ? 'bottom-nav__item--main' : ''} ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
           <span className="bottom-nav__symbol">
             <Icon name={s.icon} size={24} />
           </span>

@@ -87,7 +87,6 @@ export function ServicesSection({ onPick }: { onPick: (s: Service) => void }) {
           <li className="services__call">
             <a className="service service--call" href={`tel:${SUPPORT_PHONE}`}>
               <span className="service__body">
-                <span className="eyebrow">Something custom?</span>
                 <strong>Multi-day tours, weddings, corporate fleets</strong>
                 <span>Tell our team what you need and we’ll arrange it.</span>
               </span>
@@ -247,7 +246,6 @@ export function HowSection() {
           <img src={IMG('photography/about-fleet')} alt="People Taxi verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
         <div className="how__body">
-          <p className="eyebrow eyebrow--gold">How it works</p>
           <h2 id="sec-how">Booked in minutes. Handled with care.</h2>
           <ol className="how__steps">
             {STEPS.map((s, i) => (
@@ -279,7 +277,6 @@ export function AssuranceSection() {
           <img className="assure__c" src={IMG('photography/trust-support')} alt="People Taxi 24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>
         <div className="assure__body">
-          <p className="eyebrow">Travel with confidence</p>
           <h2 id="sec-safe">Built for long journeys and peace of mind</h2>
           <p className="sec-head__text">From the moment your driver is assigned to the receipt in your inbox, every step is visible to you.</p>
           <ul className="assure__list">
@@ -307,7 +304,6 @@ export function Banners() {
     <section className="band band--paper" aria-label="Offers and help">
       <div className="wrap banners">
         <Link className="banner banner--offer" to="/offers" style={{ backgroundImage: `url(${IMG('backgrounds/offer-background')})` }}>
-          <span className="eyebrow">Offers</span>
           <strong>Promo codes and festival savings</strong>
           <span>See what’s live and apply a code at checkout.</span>
           <span className="banner__cta">
@@ -315,7 +311,6 @@ export function Banners() {
           </span>
         </Link>
         <a className="banner banner--call" href={`tel:${SUPPORT_PHONE}`} style={{ backgroundImage: `url(${IMG('backgrounds/app-promotion-background')})` }}>
-          <span className="eyebrow">Plan with a person</span>
           <strong>Family trip, pilgrimage or group tour?</strong>
           <span>
             Call us on {SUPPORT_PHONE_DISPLAY}. Cancel free until {freeHours} hour before pickup, then a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
@@ -334,7 +329,6 @@ export function FaqSection() {
     <section className="band" aria-labelledby="sec-faq" id="sec-faq-band">
       <div className="wrap faq-band">
         <div className="faq-band__intro">
-          <p className="eyebrow">Good to know</p>
           <h2 id="sec-faq">Questions, answered</h2>
           <p className="sec-head__text">Still unsure about something? Our team is a call away.</p>
           <Link className="btn btn--secondary" to="/support">

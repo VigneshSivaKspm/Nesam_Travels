@@ -59,6 +59,10 @@ function MyTripsLink({ compact = false }: { compact?: boolean }) {
   );
 }
 
+/** The bottom bar: Outstation, the main service, sits in the middle (raised and filled). */
+const BAR_ORDER: ServiceId[] = ['airport', 'rental', 'outstation', 'multicity'];
+const barServices = () => BAR_ORDER.flatMap((id) => SERVICES.find((s) => s.id === id) ?? []);
+
 function BottomNav() {
   const location = useLocation();
   const [params] = useSearchParams();
@@ -69,8 +73,8 @@ function BottomNav() {
 
   return (
     <nav className="bottom-nav" aria-label="Services and account">
-      {SERVICES.map((s) => (
-        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+      {barServices().map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`bottom-nav__item ${s.id === 'outstation' ? 'bottom-nav__item--main' : ''} ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
           <span className="bottom-nav__symbol">
             <Icon name={s.icon} size={24} />
           </span>
@@ -195,9 +199,6 @@ function Footer() {
       <div className="wrap footer__inner">
         <div className="footer__cta">
           <div className="footer__cta-copy">
-            <span className="eyebrow eyebrow--brand">
-              <Icon name="phone" size={13} /> ONE WAY CAR RENTALS 24/7 HELPLINE
-            </span>
             <h3>Ready to travel? Book your cab online in seconds.</h3>
             <p className="footer__cta-sub">
               Verified chauffeurs, upfront transparent fares, and air-conditioned cars across South India.

@@ -55,9 +55,6 @@ export function ServiceLandingPage() {
       {/* Hero Header */}
       <header className="lp-hero">
         <div className="lp-hero__inner">
-          <span className="eyebrow eyebrow--gold">
-            <Icon name="car" size={16} /> People Taxi · South India
-          </span>
           <h1>{service.h1}</h1>
           <p className="lp-hero__lead">{service.lead}</p>
 
@@ -76,7 +73,6 @@ export function ServiceLandingPage() {
       <section className="band" aria-labelledby="sec-features">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Service Highlights</p>
             <h2 id="sec-features">Why Choose People Taxi for {service.tripType}</h2>
           </header>
           <div className="lp-grid lp-grid--why">
@@ -94,7 +90,6 @@ export function ServiceLandingPage() {
       <section className="band band--paper" aria-labelledby="sec-detailed-overview">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Overview</p>
             <h2 id="sec-detailed-overview">How Our {service.tripType} Works</h2>
           </header>
           <div className="lp-prose">
@@ -122,7 +117,6 @@ export function ServiceLandingPage() {
       <section className="band" aria-labelledby="sec-faqs">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Help &amp; Answers</p>
             <h2 id="sec-faqs">Frequently Asked Questions</h2>
           </header>
           <div className="faq lp-faq">
@@ -145,7 +139,6 @@ export function ServiceLandingPage() {
       <section className="band band--paper" aria-labelledby="sec-featured-routes">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">Popular Corridors</p>
             <h2 id="sec-featured-routes">Book {service.tripType} on Top Routes</h2>
           </header>
           <ul className="lp-grid">
@@ -172,7 +165,6 @@ export function ServiceLandingPage() {
       <section className="band" aria-labelledby="sec-other-services">
         <div className="wrap">
           <header className="sec-head">
-            <p className="eyebrow">All Services</p>
             <h2 id="sec-other-services">Explore More People Taxi Services</h2>
           </header>
           <div className="lp-grid">

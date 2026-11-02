@@ -46,6 +46,10 @@ const IMMERSIVE = [/^\/ride\//, /^\/trips\/[^/]+$/];
 const ACCOUNT_PATHS = /^\/(account|trips|offers|legal)(\/|$)/;
 
 /** Phone bottom bar: the four services (each opens the booking form on that service) and Account. */
+/** The bottom bar: Outstation, the main service, sits in the middle (raised and filled). */
+const BAR_ORDER: ServiceId[] = ['airport', 'rental', 'outstation', 'multicity'];
+const barServices = () => BAR_ORDER.flatMap((id) => SERVICES.find((s) => s.id === id) ?? []);
+
 function BottomNav() {
   const location = useLocation();
   const [params] = useSearchParams();
@@ -56,8 +60,8 @@ function BottomNav() {
 
   return (
     <nav className="tabbar" aria-label="Services and account">
-      {SERVICES.map((s) => (
-        <Link key={s.id} to={serviceHref(s.id)} className={`tabbar__link ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
+      {barServices().map((s) => (
+        <Link key={s.id} to={serviceHref(s.id)} className={`tabbar__link ${s.id === 'outstation' ? 'tabbar__link--main' : ''} ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
           <span className="tabbar__icon">
             <Icon name={s.icon} size={22} />
           </span>
@@ -179,9 +183,6 @@ function Footer() {
       <div className="footer__inner">
         <div className="footer__cta">
           <div className="footer__cta-copy">
-            <span className="eyebrow eyebrow--sun">
-              <Icon name="phone" size={13} /> PEOPLE TAXI 24/7 HELPLINE
-            </span>
             <h3>Ready to travel? Book your cab online in seconds.</h3>
             <p className="footer__cta-sub">
               Verified drivers, upfront transparent fares, and air-conditioned cars across South India.

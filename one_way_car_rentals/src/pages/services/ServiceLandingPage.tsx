@@ -48,9 +48,6 @@ export function ServiceLandingPage() {
               <li aria-current="page">{service.name}</li>
             </ol>
           </nav>
-          <p className="eyebrow eyebrow--gold">
-            <Icon name="car" size={16} /> One Way Car Rentals
-          </p>
           <h1>{service.h1}</h1>
           <p className="lp-hero__lead">{service.lead}</p>
           <div className="lp-actions">
@@ -66,7 +63,6 @@ export function ServiceLandingPage() {
 
       <section className="band band--paper" aria-labelledby="lp-features">
         <div className="wrap">
-          <p className="eyebrow eyebrow--brand">Why book with us</p>
           <h2 id="lp-features">What you get</h2>
           <ul className="lp-tiles">
             {service.features.map((f) => (
@@ -82,7 +78,6 @@ export function ServiceLandingPage() {
       <section className="band" aria-labelledby="lp-overview">
         <div className="wrap lp-cols">
           <div className="lp-prose">
-            <p className="eyebrow eyebrow--brand">How it works</p>
             <h2 id="lp-overview">{service.name}, step by step</h2>
             {service.overview.map((para) => (
               <p key={para.slice(0, 32)}>{para}</p>
@@ -104,7 +99,6 @@ export function ServiceLandingPage() {
 
       <section className="band band--paper" aria-labelledby="lp-faq">
         <div className="wrap lp-narrow">
-          <p className="eyebrow eyebrow--brand">Questions</p>
           <h2 id="lp-faq">Frequently asked questions</h2>
           <div className="faq lp-faq">
             {service.faqs.map((f) => (
@@ -122,7 +116,6 @@ export function ServiceLandingPage() {
 
       <section className="band" aria-labelledby="lp-routes">
         <div className="wrap">
-          <p className="eyebrow eyebrow--brand">Popular routes</p>
           <h2 id="lp-routes">Route guides</h2>
           <ul className="lp-links">
             {ALL_ROUTES.map((r) => (
