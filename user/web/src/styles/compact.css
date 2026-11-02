@@ -171,3 +171,66 @@
   text-decoration: none;
   white-space: nowrap;
 }
+
+/* Multicity: after the chosen cities, one plain "Add city" button (no empty extra box). */
+.bf-add-city {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px dashed var(--red-line);
+  border-radius: var(--r-field);
+  background: transparent;
+  color: var(--red-ink);
+  font: inherit;
+  font-size: var(--fs-sm, 0.875rem);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur, 0.15s) var(--ease, ease);
+}
+.bf-add-city:hover,
+.bf-add-city:focus-visible {
+  background: var(--red-soft);
+}
+.bf-add-city.is-invalid {
+  border-color: var(--danger, #c62828);
+  color: var(--danger, #c62828);
+}
+
+/* Home hero: the logo sits centred above the headline; once it scrolls out of view the header shows it instead. */
+.hero-logo {
+  display: none;
+}
+@media (min-width: 768px) {
+  .hero-copy {
+    align-items: center;
+    text-align: center;
+  }
+  .hero-logo {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: center;
+    margin: 0 auto 14px;
+  }
+  .hero-logo img {
+    width: auto;
+    height: clamp(48px, 4.4vw, 62px);
+  }
+  .topbar .brand {
+    transition: opacity 0.35s ease, transform 0.35s ease, visibility 0.35s;
+  }
+  html[data-hero-logo='in'] .topbar .brand {
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-6px);
+  }
+}
+@media (min-width: 768px) and (prefers-reduced-motion: no-preference) {
+  .hero-logo {
+    animation: pt-rise 0.7s var(--ease-out, cubic-bezier(0.2, 0.7, 0.2, 1)) backwards;
+  }
+}

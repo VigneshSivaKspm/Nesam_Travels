@@ -150,7 +150,7 @@ export function ChooseStep() {
                     }}
                   >
                     <span className="cab__tick" aria-hidden="true">
-                      {isSelected ? <Icon name="check" size={14} /> : null}
+                      {isSelected ? <Icon name="check" size={13} /> : null}
                     </span>
 
                     <div className="cab__photo">
@@ -158,65 +158,47 @@ export function ChooseStep() {
                     </div>
 
                     <div className="cab__info">
-                      <h3 className="cab__name">{name}</h3>
-                      <p className="cab__model">{c.description || `${c.seats} comfortable passenger seats · All AC fleet`}</p>
-
-                      <div className="cab__badges">
-                        <span className="feat feat--ac">
-                          <Icon name="snowflake" size={12} /> AC
-                        </span>
-                        <span className="feat">
-                          <Icon name="user" size={12} /> {c.seats} Seats
-                        </span>
-                        <span className="feat">
-                          <Icon name="luggage" size={12} /> {((c as any).luggage ?? (c.seats >= 6 ? 4 : 2))} Bags
-                        </span>
+                      <div className="cab__header">
+                        <h3 className="cab__name">{name}</h3>
+                        <div className="cab__specs">
+                          <span><Icon name="user" size={12} /> {c.seats} Seats</span>
+                          <span className="cab__dot">·</span>
+                          <span><Icon name="snowflake" size={12} /> AC</span>
+                          <span className="cab__dot">·</span>
+                          <span><Icon name="luggage" size={12} /> {((c as any).luggage ?? (c.seats >= 6 ? 4 : 2))} Bags</span>
+                        </div>
                       </div>
 
                       {incl ? <p className="cab__incl">{incl}</p> : null}
+
+                      {fare ? (
+                        <button
+                          type="button"
+                          className="cab__breakup-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setFareFor(c);
+                          }}
+                        >
+                          <Icon name="info" size={12} /> Fare details
+                        </button>
+                      ) : null}
                     </div>
 
                     <div className="cab__price">
                       {fare ? (
                         <>
-                          <small className="muted">Upfront total</small>
                           <strong>{formatINR(fare.total)}</strong>
+                          <small className="muted">Tolls &amp; taxes extra</small>
                           {fare.discount > 0 ? (
-                            <small className="green">Saved {formatINR(fare.discount)}</small>
-                          ) : (
-                            <small className="muted">Tolls &amp; taxes extra</small>
-                          )}
+                            <span className="cab__saving">Save {formatINR(fare.discount)}</span>
+                          ) : null}
                         </>
                       ) : unavailable ? (
                         <span className="cab__na">Unavailable for this route</span>
                       ) : (
                         <span className="cab__price-skel skeleton" />
                       )}
-                    </div>
-
-                    <div className="cab__foot">
-                      <button
-                        type="button"
-                        className="btn btn--text btn--sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setFareFor(c);
-                        }}
-                      >
-                        <Icon name="info" size={14} /> View Fare Breakup
-                      </button>
-
-                      <Button
-                        variant={isSelected ? 'primary' : 'secondary'}
-                        size="sm"
-                        disabled={disabled}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!disabled) update({ categoryId: c.id });
-                        }}
-                      >
-                        {isSelected ? 'Selected' : 'Select Ride'}
-                      </Button>
                     </div>
                   </div>
                 );

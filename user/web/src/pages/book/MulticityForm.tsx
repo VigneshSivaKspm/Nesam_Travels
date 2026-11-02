@@ -30,13 +30,6 @@ function loadStoredState(): StoredMulticityState {
 
 const MAX_CITIES = 10;
 
-/** The boxes the form shows: every city chosen so far, then one empty box for the next city (until the limit). */
-function withNextSlot(stops: StoredMulticityState['stops']): StoredMulticityState['stops'] {
-  const filled = stops.filter((s) => s.place);
-  const empty = stops.find((s) => !s.place);
-  return filled.length < MAX_CITIES ? [...filled, empty ?? { id: newId('stop'), place: null }] : filled;
-}
-
 function saveStoredState(state: StoredMulticityState) {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -63,12 +56,6 @@ export function MulticityForm() {
     saveStoredState(state);
   }, [state]);
 
-  // Keep exactly one empty "next city" box after the chosen cities: City 2 appears once City 1 is chosen.
-  useEffect(() => {
-    const next = withNextSlot(state.stops);
-    if (next.length !== state.stops.length || next.some((st, i) => st.id !== state.stops[i]!.id)) setState((s) => ({ ...s, stops: withNextSlot(s.stops) }));
-  }, [state.stops]);
-
   const recentPlaces = useMemo<GeoPlace[]>(() => {
     const out: GeoPlace[] = [];
     const seen = new Set<string>();
@@ -91,11 +78,14 @@ export function MulticityForm() {
     return instant ? new Date(instant) : null;
   }, [state.date, state.time]);
 
+  // Only chosen cities are shown; "Add city" opens the picker for the next one.
+  const cities = useMemo(() => state.stops.filter((s) => s.place), [state.stops]);
+
   const todayStr = useMemo(() => toDateInput(new Date()), []);
   const maxDateStr = useMemo(() => toDateInput(latestPickup()), []);
 
   const removeStop = (id: string) => {
-    setState((s) => ({ ...s, stops: withNextSlot(s.stops.filter((st) => st.id !== id)) }));
+    setState((s) => ({ ...s, stops: s.stops.filter((st) => st.id !== id) }));
   };
 
   const onPickPlace = (p: GeoPlace) => {
@@ -118,7 +108,9 @@ export function MulticityForm() {
     } else if (pickerTarget) {
       setState((s) => ({
         ...s,
-        stops: s.stops.map((st) => (st.id === pickerTarget ? { ...st, place: p } : st)),
+        stops: pickerTarget === 'new'
+          ? [...s.stops.filter((st) => st.place), { id: newId('stop'), place: p }]
+          : s.stops.map((st) => (st.id === pickerTarget ? { ...st, place: p } : st)),
       }));
       setErrors((e) => {
         const next = { ...e };
@@ -150,7 +142,8 @@ export function MulticityForm() {
         pinMode: 'drop',
       };
     }
-    const idx = state.stops.findIndex((s) => s.id === pickerTarget);
+    const found = state.stops.filter((s) => s.place).findIndex((s) => s.id === pickerTarget);
+    const idx = found < 0 ? cities.length : found;
     return {
       title: `Choose City ${idx + 1}`,
       allowCurrent: false,
@@ -158,7 +151,7 @@ export function MulticityForm() {
       popularLabel: 'Popular Cities',
       pinMode: 'drop',
     };
-  }, [pickerTarget, state.stops]);
+  }, [pickerTarget, state.stops, cities.length]);
 
   const validate = (): boolean => {
     const err: Record<string, string> = {};
@@ -171,7 +164,7 @@ export function MulticityForm() {
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Choose City 1, the first stop between pickup and drop.';
+      err.stops = 'Add at least one city between pickup and drop.';
     }
 
     // Verify consecutive duplicates across the ordered itinerary
@@ -353,9 +346,9 @@ export function MulticityForm() {
         </div>
         {errors.pickup ? <p className="bf-error">{errors.pickup}</p> : null}
 
-        {/* 2. Cities along the way: one box at a time; the next one appears once this one is chosen */}
-        {state.stops.map((stop, index) => (
-          <div key={stop.id} className={`bf-field ${errors.stops && index === 0 ? 'is-invalid' : ''}`}>
+        {/* 2. Cities along the way: only the chosen ones show, then a plain "Add city" button */}
+        {cities.map((stop, index) => (
+          <div key={stop.id} className="bf-field">
             <span className="bf-pin bf-pin--stop" aria-hidden="true" />
             <div className="bf-field__main">
               <span className="bf-label" id={`mc-city-${index}-label`}>
@@ -363,7 +356,7 @@ export function MulticityForm() {
               </span>
               <button
                 type="button"
-                className={`bf-trigger ${stop.place ? '' : 'is-empty'}`}
+                className="bf-trigger"
                 aria-labelledby={`mc-city-${index}-label mc-city-${index}-val`}
                 onClick={() => setPickerTarget(stop.id)}
               >
@@ -373,15 +366,16 @@ export function MulticityForm() {
               </button>
               {stop.place?.address && stop.place.address !== stop.place.name ? <small className="bf-addr">{stop.place.address}</small> : null}
             </div>
-            {stop.place ? (
-              <button type="button" className="bf-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
-                <Icon name="trash-2" size={16} />
-              </button>
-            ) : (
-              <Icon name="chevron-right" size={16} className="bf-chev" />
-            )}
+            <button type="button" className="bf-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
+              <Icon name="trash-2" size={16} />
+            </button>
           </div>
         ))}
+        {cities.length < MAX_CITIES ? (
+          <button type="button" className={`bf-add-city ${errors.stops ? 'is-invalid' : ''}`} onClick={() => setPickerTarget('new')}>
+            <Icon name="plus" size={16} /> Add city
+          </button>
+        ) : null}
         {errors.stops ? <p className="bf-error">{errors.stops}</p> : null}
 
         {/* 3. Final Drop Point */}

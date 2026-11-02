@@ -245,32 +245,30 @@
 .cab {
   position: relative;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr) 170px;
-  grid-template-areas:
-    'photo info price'
-    'foot foot foot';
-  column-gap: 20px;
-  padding: 20px 20px 0;
+  grid-template-columns: 140px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 20px;
+  padding: 16px 20px;
   border: 1.5px solid var(--line);
   border-radius: var(--r-card);
   background: #fff;
   cursor: pointer;
   transition: all var(--dur) var(--ease);
-  box-shadow: 0 4px 14px rgb(22 101 232 / 0.03);
+  box-shadow: 0 3px 12px rgba(22, 101, 232, 0.04);
 }
 .cab:hover {
   border-color: var(--brand-line);
-  box-shadow: 0 8px 24px rgb(22 101 232 / 0.08);
+  box-shadow: 0 8px 24px rgba(22, 101, 232, 0.08);
   transform: translateY(-1px);
 }
 .cab.is-selected {
   border-color: var(--brand);
-  box-shadow: 0 0 0 2px var(--brand), 0 8px 24px rgb(22 101 232 / 0.1);
-  background: #fafcff;
+  background: #f8fbff;
+  box-shadow: 0 0 0 2px var(--brand), 0 8px 24px rgba(22, 101, 232, 0.12);
 }
 .cab.is-disabled {
   cursor: not-allowed;
-  opacity: 0.65;
+  opacity: 0.55;
   transform: none;
 }
 
@@ -282,10 +280,12 @@
   place-items: center;
   width: 22px;
   height: 22px;
-  border: 1.5px solid var(--line-strong);
+  border: 1.5px solid var(--line-strong, #cbd5e1);
   border-radius: 50%;
   background: #fff;
   color: transparent;
+  transition: all 0.15s ease;
+  z-index: 2;
 }
 .cab.is-selected .cab__tick {
   border-color: var(--brand);
@@ -293,68 +293,81 @@
   color: #fff;
 }
 .cab__photo {
-  grid-area: photo;
-  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .cab__photo img {
   width: 100%;
+  max-width: 140px;
   height: auto;
-  aspect-ratio: 360 / 220;
+  aspect-ratio: 16 / 10;
   object-fit: contain;
 }
 .cab__info {
-  grid-area: info;
   display: grid;
-  align-content: center;
   gap: 4px;
   min-width: 0;
+}
+.cab__header {
+  display: grid;
+  gap: 3px;
 }
 .cab__name {
   font-size: 1.25rem;
   font-weight: 700;
   color: var(--ink);
-  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
-.cab__model {
-  color: var(--muted);
-  font-size: var(--fs-xs);
-}
-.cab__badges {
+.cab__specs {
   display: flex;
+  align-items: center;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 8px;
-}
-.feat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  min-height: 24px;
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  background: var(--sunken);
-  color: var(--text);
-  font-size: var(--fs-2xs);
+  color: var(--muted);
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
-.feat--ac {
-  background: var(--brand-soft);
-  color: var(--brand-ink);
+.cab__specs span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.cab__dot {
+  color: var(--line-strong, #cbd5e1);
+  font-weight: 700;
 }
 .cab__incl {
-  margin-top: 6px;
-  color: var(--muted);
-  font-size: var(--fs-2xs);
+  margin-top: 2px;
+  color: var(--text-soft, #475569);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+}
+.cab__breakup-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--brand);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cab__breakup-btn:hover {
+  color: var(--brand-dark, #0d47a1);
 }
 .cab__price {
-  grid-area: price;
   display: grid;
-  align-content: center;
   justify-items: end;
-  gap: 2px;
-  padding: 6px 0 6px 18px;
-  border-left: 1px solid var(--line);
   text-align: right;
+  gap: 2px;
+  padding: 4px 28px 4px 18px;
+  border-left: 1px solid var(--line);
 }
 .cab__price strong {
   font-size: 1.625rem;
@@ -365,6 +378,7 @@
 .cab__price small {
   color: var(--muted);
   font-size: var(--fs-2xs);
+  font-weight: 500;
 }
 .cab__price-skel {
   display: block;
@@ -372,23 +386,17 @@
   height: 26px;
   border-radius: var(--r-btn);
 }
+.cab__saving {
+  display: inline-block;
+  margin-top: 2px;
+  color: #16a34a;
+  font-size: var(--fs-2xs);
+  font-weight: 700;
+}
 .cab__na {
   color: var(--amber);
   font-size: var(--fs-xs);
   font-weight: 600;
-}
-.cab__foot {
-  grid-area: foot;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px 12px;
-  margin-top: 16px;
-  padding: 10px 0;
-  border-top: 1px solid var(--line);
-  color: var(--muted);
-  font-size: var(--fs-xs);
 }
 
 /* Selection summary */
@@ -1211,36 +1219,65 @@
     width: 100%;
   }
   .cab {
-    grid-template-columns: minmax(0, 1fr) 42%;
-    grid-template-areas:
-      'info photo'
-      'price price'
-      'foot foot';
-    padding: 16px 16px 0;
+    grid-template-columns: minmax(0, 1fr) 110px;
+    align-items: start;
+    gap: 10px 12px;
+    padding: 14px 14px 12px;
+  }
+  .cab__tick {
+    top: 12px;
+    right: 12px;
+    width: 20px;
+    height: 20px;
+  }
+  .cab__photo {
+    grid-column: 2;
+    grid-row: 1;
+    margin-top: 4px;
+    padding-right: 22px;
   }
   .cab__photo img {
-    max-width: 150px;
+    max-width: 95px;
     margin-left: auto;
   }
+  .cab__info {
+    grid-column: 1;
+    grid-row: 1;
+    gap: 3px;
+  }
+  .cab__name {
+    font-size: 1.15rem;
+  }
+  .cab__specs {
+    font-size: 0.8rem;
+    gap: 4px;
+  }
+  .cab__incl {
+    font-size: 0.78rem;
+    margin-top: 3px;
+  }
   .cab__price {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-rows: auto auto;
-    align-items: center;
-    justify-items: start;
-    margin-top: 12px;
-    padding: 12px 0 0;
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-top: 4px;
+    padding: 8px 0 0;
     border-left: 0;
-    border-top: 1px solid var(--line);
-    text-align: left;
+    border-top: 1px dashed var(--line);
+    text-align: right;
   }
   .cab__price strong {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    font-size: 1.5rem;
+    font-size: 1.45rem;
+    color: var(--brand);
   }
-  .cab__foot {
-    margin-top: 12px;
+  .cab__price small {
+    order: -1;
+    font-size: 0.76rem;
+  }
+  .cab__breakup-btn {
+    margin-top: 2px;
+    font-size: 0.78rem;
   }
   .cab-tools {
     margin-top: 12px;

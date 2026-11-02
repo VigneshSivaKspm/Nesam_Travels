@@ -3,25 +3,25 @@
 // schedule follows the booking server's rules; fares are only ever priced by the server.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { GeoPlace, TripType } from '@core/types';
+import type { GeoPlace } from '@core/types';
 import { useCustomerData } from '@/state/customer';
 import { reverseGeocode } from '@core/services/geoService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
-import { isValidLatLng } from '@core/utils/geo';
-import { Button } from '@/components/ui';
+import { haversineKm, isValidLatLng } from '@core/utils/geo';
+import { Button, Tabs } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
-import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
+import { useAuth } from '@/state/Auth';
 import { setPendingReturn } from '@/lib/pendingReturn';
+import { saveDraft, RENTAL_PACKAGE_HOURS } from '@/lib/draft';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { MulticityForm } from './MulticityForm';
-import { RENTAL_PACKAGE_HOURS } from '@/lib/draft';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -37,561 +37,434 @@ const disposalFor = (pickup: GeoPlace): GeoPlace => ({
 });
 
 /** Airport direction follows the draft: whichever end is an airport. */
-const directionOf = (pickup: GeoPlace | null, drop: GeoPlace | null): AirportDirection =>
-  isAirportPlace(pickup) && !isAirportPlace(drop) ? 'from' : 'to';
-
-/** Compact two-way switch (journey type, airport direction): a quiet radio group, not another set of tabs. */
-function Segmented({
-  label,
-  value,
-  items,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  items: { id: string; label: string }[];
-  onChange: (id: string) => void;
-}) {
-  return (
-    <div className="jd-seg" role="radiogroup" aria-label={label}>
-      {items.map((i) => (
-        <button
-          key={i.id}
-          type="button"
-          role="radio"
-          aria-checked={value === i.id}
-          className={`jd-seg__btn ${value === i.id ? 'is-on' : ''}`}
-          onClick={() => onChange(i.id)}
-        >
-          {i.label}
-        </button>
-      ))}
-    </div>
-  );
-}
+const directionOf = (pickup: GeoPlace | null, drop: GeoPlace | null): AirportDirection => (isAirportPlace(pickup) && !isAirportPlace(drop) ? 'from' : 'to');
 
 export function BookingForm({
   service,
   onService,
-  outstationTrip = 'One Way',
+  outstationTrip,
   onOutstationTrip,
 }: {
   service: ServiceId;
   onService: (s: ServiceId) => void;
-  outstationTrip?: 'One Way' | 'Round Trip';
-  onOutstationTrip?: (t: 'One Way' | 'Round Trip') => void;
+  outstationTrip: 'One Way' | 'Round Trip';
+  onOutstationTrip: (t: 'One Way' | 'Round Trip') => void;
 }) {
   const navigate = useNavigate();
-  const { state: auth, openLoginModal, isLoginModalOpen } = useAuth();
   const { draft, update } = useBooking();
-  const { savedPlaces, trips } = useCustomerData();
+  const { state: auth, openLoginModal } = useAuth();
+  const { trips, savedPlaces } = useCustomerData();
+  const { position } = useDeviceLocation(true);
   const { online } = useOnline();
-  const device = useDeviceLocation();
+  const { pickup, drop, scheduledAt, tripEndAt, tripType } = draft;
 
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [endTime, setEndTime] = useState('');
-  const [airportDir, setAirportDir] = useState<AirportDirection>('to');
+  const [picker, setPicker] = useState<'pickup' | 'drop' | null>(null);
+  const [timeFor, setTimeFor] = useState<'pickup' | 'return' | null>(null);
   const [errors, setErrors] = useState<Errors>({});
-  const [pickerField, setPickerField] = useState<'pickup' | 'drop' | null>(null);
-  const [timeField, setTimeField] = useState<'pickup' | 'return' | null>(null);
+  const [direction, setDirection] = useState<AirportDirection>(() => directionOf(pickup, drop));
+  const refs = useRef<Partial<Record<Field, HTMLElement | null>>>({});
+  const pickupFromGps = useRef(false);
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
 
-  const pickupInputRef = useRef<HTMLButtonElement>(null);
-  const dropInputRef = useRef<HTMLButtonElement>(null);
+  // A device location the rider already allowed becomes the pickup, unless they chose one.
+  useEffect(() => {
+    if (!position || pickupFromGps.current || pickup || service === 'airport') return;
+    pickupFromGps.current = true;
+    void reverseGeocode(position).then((p) => {
+      if (mounted.current) update((d) => (d.pickup ? {} : { pickup: { ...p, type: 'current' } }));
+    });
+  }, [position, pickup, update, service]);
 
-  const recentPlaces = useMemo<GeoPlace[]>(() => {
-    const out: GeoPlace[] = [];
+  // Rentals drive within the pickup city: the destination is the city-disposal placeholder.
+  useEffect(() => {
+    if (service === 'rental' && pickup && (!drop || drop.id !== 'place-local-disposal')) update({ drop: disposalFor(pickup) });
+  }, [service, pickup?.lat, pickup?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Schedule (local date + time inputs mirrored into the draft) ─────────
+  const [date, setDate] = useState(() => (scheduledAt ? toDateInput(scheduledAt) : toDateInput(new Date())));
+  const [time, setTime] = useState(() => (scheduledAt ? toTimeInput(scheduledAt) : ''));
+  const [endDate, setEndDate] = useState(() => (tripEndAt ? toDateInput(tripEndAt) : ''));
+  const [endTime, setEndTime] = useState(() => (tripEndAt ? toTimeInput(tripEndAt) : ''));
+  useEffect(() => {
+    const d = combineDateTime(date, time);
+    if ((d?.getTime() ?? null) !== (scheduledAt?.getTime() ?? null)) update({ scheduledAt: d });
+  }, [date, time]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const d = tripType === 'Round Trip' ? combineDateTime(endDate, endTime) : null;
+    if ((d?.getTime() ?? null) !== (tripEndAt?.getTime() ?? null)) update({ tripEndAt: d });
+  }, [endDate, endTime, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const recent = useMemo(() => {
     const seen = new Set<string>();
+    const out: GeoPlace[] = [];
     for (const t of trips) {
       for (const p of [t.drop, t.pickup]) {
-        if (!p || !isValidLatLng(p)) continue;
-        const key = `${p.lat.toFixed(3)},${p.lng.toFixed(3)}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        out.push(p);
-        if (out.length >= 6) return out;
+        if (!isValidLatLng(p) || seen.has(p.name) || p.id === 'place-local-disposal') continue;
+        seen.add(p.name);
+        out.push({ ...p, id: `recent-${t.id}-${p.id}`, type: 'recent' });
       }
     }
-    return out;
+    return out.slice(0, 6);
   }, [trips]);
 
-  useEffect(() => {
-    if (draft.scheduledAt) {
-      setDate(toDateInput(draft.scheduledAt));
-      setTime(toTimeInput(draft.scheduledAt));
-    }
-    if (draft.tripEndAt) {
-      setEndDate(toDateInput(draft.tripEndAt));
-      setEndTime(toTimeInput(draft.tripEndAt));
-    }
-  }, [draft.scheduledAt, draft.tripEndAt]);
+  const airportField: 'pickup' | 'drop' = direction === 'to' ? 'drop' : 'pickup';
+  const pickerConfig = (f: 'pickup' | 'drop'): PickerConfig => {
+    const airportOnly = service === 'airport' && f === airportField;
+    return {
+      title: f === 'pickup' ? (service === 'rental' ? 'Pickup city or address' : 'Pickup location') : 'Drop location',
+      allowCurrent: !airportOnly,
+      popular: airportOnly ? AIRPORTS : QUICK_CITIES,
+      popularLabel: airportOnly ? 'Airports' : 'Popular destinations',
+      near: f === 'drop' ? (pickup ?? position) : position,
+      pinMode: airportOnly ? undefined : f,
+      check: airportOnly ? (p) => (isAirportPlace(p) ? '' : 'Choose an airport for this transfer.') : service === 'airport' ? (p) => (isAirportPlace(p) ? 'The other end of an airport transfer should be your city address, not an airport.' : '') : undefined,
+    };
+  };
 
-  const scheduled = useMemo(() => (date && time ? combineDateTime(date, time) : null), [date, time]);
-  const scheduledEnd = useMemo(() => (endDate && endTime ? combineDateTime(endDate, endTime) : null), [endDate, endTime]);
+  const setField = (f: 'pickup' | 'drop', p: GeoPlace) => {
+    if (f === 'pickup') pickupFromGps.current = true;
+    update({ [f]: p } as Partial<typeof draft>);
+    setErrors((e) => ({ ...e, [f]: '', form: '' }));
+  };
 
-  useEffect(() => {
-    if (scheduled) {
-      const problem = scheduleProblem(scheduled);
-      setErrors((e) => ({ ...e, time: problem ?? undefined }));
-      if (!problem) update({ scheduledAt: scheduled });
-    }
-  }, [scheduled]); // eslint-disable-line react-hooks/exhaustive-deps
+  const changeDirection = (d: AirportDirection) => {
+    if (d === direction) return;
+    setDirection(d);
+    update({ pickup: drop, drop: pickup });
+    setErrors({});
+  };
 
-  const isRoundTrip = service === 'outstation' && outstationTrip === 'Round Trip';
-
-  useEffect(() => {
-    if (isRoundTrip && scheduled && scheduledEnd) {
-      if (scheduledEnd.getTime() < scheduled.getTime()) {
-        setErrors((e) => ({ ...e, endTime: 'Return time must be after departure time' }));
-      } else {
-        setErrors((e) => ({ ...e, endTime: undefined }));
-        update({ tripEndAt: scheduledEnd });
-      }
-    }
-  }, [isRoundTrip, scheduled, scheduledEnd]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (service === 'rental' && draft.pickup && draft.drop?.id !== 'place-local-disposal') {
-      update({ drop: disposalFor(draft.pickup) });
-    }
-  }, [service, draft.pickup]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
+  // ── Validation ──────────────────────────────────────────────────────────
+  const validate = (): Errors => {
+    const e: Errors = {};
+    if (!online) e.form = 'You’re offline. Reconnect to see fares.';
+    if (!pickup) e.pickup = service === 'airport' && airportField === 'pickup' ? 'Choose the airport.' : 'Choose your pickup location.';
+    if (service !== 'rental' && !drop) e.drop = service === 'airport' && airportField === 'drop' ? 'Choose the airport.' : 'Choose your drop location.';
     if (service === 'airport') {
-      setAirportDir(directionOf(draft.pickup, draft.drop));
+      const ap = airportField === 'pickup' ? pickup : drop;
+      if (ap && !isAirportPlace(ap)) e[airportField] = 'Choose an airport for this transfer.';
     }
-  }, [service]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const setPickup = (p: GeoPlace) => {
-    update((d) => ({
-      pickup: p,
-      drop: service === 'rental' ? disposalFor(p) : d.drop?.id === p.id ? null : d.drop,
-    }));
-    setErrors((e) => ({ ...e, pickup: undefined, form: undefined }));
-    if (service !== 'rental' && !draft.drop) {
-      window.setTimeout(() => dropInputRef.current?.focus(), 150);
+    if (pickup && drop && service !== 'rental' && haversineKm(pickup, drop) < 0.2) e.drop = 'Pickup and drop are too close together.';
+    const at = combineDateTime(date, time);
+    if (!date) e.date = 'Choose a pickup date.';
+    else if (!time) e.time = 'Choose a pickup time.';
+    else {
+      const p = scheduleProblem(at);
+      if (p) e.time = p;
     }
+    if (tripType === 'Round Trip' && service === 'outstation') {
+      const end = combineDateTime(endDate, endTime);
+      if (!endDate) e.endDate = 'Choose the return date.';
+      else if (!endTime) e.endTime = 'Choose the return time.';
+      else if (at && end && end.getTime() <= at.getTime()) e.endTime = 'The return must be after the pickup.';
+    }
+    return e;
   };
 
-  const setDrop = (p: GeoPlace) => {
-    update((d) => ({
-      drop: p,
-      pickup: d.pickup?.id === p.id ? null : d.pickup,
-    }));
-    setErrors((e) => ({ ...e, drop: undefined, form: undefined }));
-  };
-
-  /** A confirmed place goes to the field that opened the picker, then the picker closes (focus returns to the form). */
-  const onPickPlace = (p: GeoPlace) => {
-    if (pickerField === 'pickup') setPickup(p);
-    else if (pickerField === 'drop') setDrop(p);
-    setPickerField(null);
-  };
-
-  const swapPlaces = () => {
-    if (!draft.pickup && !draft.drop) return;
-    update((d) => ({ pickup: d.drop, drop: d.pickup }));
-    if (service === 'airport') {
-      setAirportDir((dir) => (dir === 'to' ? 'from' : 'to'));
-    }
-    setErrors((e) => ({ ...e, pickup: undefined, drop: undefined }));
-  };
-
-  const onAirportDirChange = (next: AirportDirection) => {
-    setAirportDir(next);
-    if (next === 'to' && isAirportPlace(draft.pickup)) {
-      update((d) => ({ pickup: isAirportPlace(d.drop) ? null : d.drop, drop: d.pickup }));
-    } else if (next === 'from' && isAirportPlace(draft.drop)) {
-      update((d) => ({ pickup: d.drop, drop: isAirportPlace(d.pickup) ? null : d.pickup }));
-    }
-  };
-
-  const validate = (): boolean => {
-    const err: Errors = {};
-    if (!draft.pickup) err.pickup = 'Please choose a pickup location';
-    if (!draft.drop) err.drop = service === 'rental' ? 'Please choose your city' : 'Please choose a drop location';
-
-    if (draft.pickup && draft.drop && draft.pickup.id === draft.drop.id) {
-      err.drop = 'Pickup and drop cannot be the exact same point';
-    }
-
-    if (!date) err.date = 'Select pickup date';
-    if (!time) err.time = 'Select pickup time';
-
-    if (scheduled) {
-      const problem = scheduleProblem(scheduled);
-      if (problem) err.time = problem;
-    }
-
-    if (isRoundTrip) {
-      if (!endDate) err.endDate = 'Select return date';
-      if (!endTime) err.endTime = 'Select return time';
-      if (scheduled && scheduledEnd && scheduledEnd.getTime() < scheduled.getTime()) {
-        err.endTime = 'Return time must be after departure time';
-      }
-    }
-
-    if (!online) {
-      err.form = 'You are currently offline. Check your internet connection.';
-    }
-
-    setErrors(err);
-    return Object.keys(err).length === 0;
-  };
-
-  const onSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate()) return;
-
-    const wantedTripType: TripType =
-      service === 'airport'
-        ? 'Airport Taxi'
-        : service === 'rental'
-          ? 'Local Rental'
-          : isRoundTrip
-            ? 'Round Trip'
-            : 'One Way';
-
-    update({
-      tripType: wantedTripType,
-      scheduledAt: scheduled,
-      tripEndAt: isRoundTrip ? scheduledEnd : null,
-    });
-
-    if (auth.status === 'ready') {
-      navigate('/book/ride');
+  const search = () => {
+    if (service === 'rental' && pickup && (!drop || drop.id !== 'place-local-disposal')) update({ drop: disposalFor(pickup) });
+    const e = validate();
+    setErrors(e);
+    const first = (['pickup', 'drop', 'date', 'time', 'endDate', 'endTime'] as Field[]).find((f) => e[f]);
+    if (first) {
+      refs.current[first]?.focus();
+      refs.current[first]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
       return;
     }
-
-    if (isLoginModalOpen) return;
-    setPendingReturn('/book/ride');
-    openLoginModal({
-      title: 'Sign in to see fares',
-      subtitle: 'Sign-in is required to compare cabs and upfront fares. Your trip details are saved.',
-    });
+    if (e.form) return;
+    if (auth.status !== 'ready') {
+      // Account/profile loading can remount the form. Persist before opening phone sign-in;
+      // PendingReturn resumes selection after authentication and the existing legal gate.
+      saveDraft(draft);
+      setPendingReturn('/book/ride');
+      openLoginModal({
+        title: 'Sign in to compare fares',
+        subtitle: 'Verify your mobile number to continue with your saved trip.',
+      });
+      return;
+    }
+    navigate('/book/ride');
   };
 
-  const todayStr = useMemo(() => toDateInput(new Date()), []);
-  const maxDateStr = useMemo(() => toDateInput(latestPickup()), []);
+  const title = service === 'outstation' ? `${outstationTrip} Outstation` : SERVICE_TITLE[service];
+  const fieldErr = (f: Field) =>
+    errors[f] ? (
+      <p className="bf-error" id={`bf-${f}-err`} role="alert">
+        {errors[f]}
+      </p>
+    ) : null;
 
-  const pickupConfig: PickerConfig = useMemo(() => {
-    if (service === 'airport' && airportDir === 'from') {
-      return {
-        title: 'Choose Departure Airport',
-        allowCurrent: false,
-        popular: AIRPORTS,
-        popularLabel: 'Major Airports',
-        pinMode: 'pickup',
-      };
-    }
-    return {
-      title: 'Choose Pickup Location',
-      allowCurrent: true,
-      popular: QUICK_CITIES,
-      popularLabel: 'Popular Cities',
-      pinMode: 'pickup',
-    };
-  }, [service, airportDir]);
-
-  const dropConfig: PickerConfig = useMemo(() => {
-    if (service === 'airport' && airportDir === 'to') {
-      return {
-        title: 'Choose Destination Airport',
-        allowCurrent: false,
-        popular: AIRPORTS,
-        popularLabel: 'Major Airports',
-        near: draft.pickup,
-        pinMode: 'drop',
-      };
-    }
-    return {
-      title: service === 'rental' ? 'Choose Rental City' : 'Choose Drop Location',
-      allowCurrent: false,
-      popular: QUICK_CITIES,
-      popularLabel: 'Popular Destinations',
-      near: draft.pickup,
-      pinMode: 'drop',
-    };
-  }, [service, airportDir, draft.pickup]);
-
-  const isRental = service === 'rental';
-  const fromAirport = service === 'airport' && airportDir === 'from';
-  const toAirport = service === 'airport' && airportDir === 'to';
+  const locationField = (f: 'pickup' | 'drop', label: string) => {
+    const p = f === 'pickup' ? pickup : drop;
+    const airportSide = service === 'airport' && f === airportField;
+    return (
+      <div className={`bf-field ${errors[f] ? 'is-invalid' : ''}`}>
+        <span className={`bf-pin bf-pin--${f}`} aria-hidden="true" />
+        <div className="bf-field__main">
+          <span className="bf-label" id={`bf-${f}-label`}>
+            {label}
+          </span>
+          <button
+            ref={(el) => {
+              refs.current[f] = el;
+            }}
+            type="button"
+            className={`bf-trigger ${p ? '' : 'is-empty'}`}
+            aria-labelledby={`bf-${f}-label bf-${f}-value`}
+            aria-describedby={errors[f] ? `bf-${f}-err` : undefined}
+            aria-invalid={!!errors[f] || undefined}
+            onClick={() => setPicker(f)}
+          >
+            <span id={`bf-${f}-value`} className="bf-trigger__text">
+              {p ? p.name : ''}
+            </span>
+          </button>
+          {p && p.address !== p.name && p.id !== 'place-local-disposal' ? <small className="bf-addr">{p.address}</small> : null}
+        </div>
+        <Icon name="chevron-right" size={16} className="bf-chev" />
+      </div>
+    );
+  };
 
   return (
-    <div className="jd" id="book-console">
-      <header className="jd-head">
-        <h2>{SERVICE_TITLE[service]}</h2>
-        <p>
-          {service === 'multicity'
-            ? 'Build your custom multi-stop tour itinerary and get an exact upfront quote'
-            : 'Compare fares across all vehicle categories before booking'}
-        </p>
-      </header>
+    <section className="bf" id="book-console" aria-labelledby="bf-title">
+      <div className="bf-head">
+        <h2 id="bf-title">{title}</h2>
+        <p>{service === 'multicity' ? 'Plan multi-stop itineraries with transparent upfront package quotes.' : 'Verified chauffeurs. Upfront fares. Pay at drop.'}</p>
+      </div>
 
-      {/* Service rail: Outstation · Airport · Local Rental · Multicity */}
-      <nav className="jd-rail" aria-label="Booking services">
+      <div className="bf-services" role="group" aria-label="Services">
         {SERVICES.map((s) => (
-          <button
-            key={s.id}
-            type="button"
-            className={`jd-tab ${service === s.id ? 'is-active' : ''}`}
-            aria-current={service === s.id ? 'true' : undefined}
-            onClick={() => onService(s.id)}
-          >
-            <Icon name={s.icon} size={18} />
+          <button key={s.id} type="button" className={`bf-service ${service === s.id ? 'is-active' : ''}`} aria-pressed={service === s.id} aria-controls="bf-form" onClick={() => onService(s.id)}>
+            <span className="bf-service__icon">
+              <Icon name={s.icon} size={22} />
+            </span>
             <span>{s.label}</span>
           </button>
         ))}
-      </nav>
+      </div>
 
-      {/* Outstation sub-toggle: One Way / Round Trip */}
       {service === 'outstation' ? (
-        <Segmented
-          label="Outstation journey type"
-          value={outstationTrip}
-          onChange={(t) => {
-            if (onOutstationTrip) onOutstationTrip(t as 'One Way' | 'Round Trip');
+        <Tabs
+          className="bf-journey"
+          active={outstationTrip}
+          onChange={(v) => {
+            onOutstationTrip(v as 'One Way' | 'Round Trip');
             setErrors({});
           }}
           items={[
-            { id: 'One Way', label: 'One Way Drop' },
+            { id: 'One Way', label: 'One Way' },
             { id: 'Round Trip', label: 'Round Trip' },
           ]}
         />
-      ) : null}
-
-      {/* Airport direction sub-toggle */}
-      {service === 'airport' ? (
-        <Segmented
-          label="Airport direction"
-          value={airportDir}
-          onChange={(id) => onAirportDirChange(id as AirportDirection)}
+      ) : service === 'airport' ? (
+        <Tabs
+          className="bf-journey"
+          active={direction}
+          onChange={(v) => changeDirection(v as AirportDirection)}
           items={[
-            { id: 'to', label: 'Going to airport' },
-            { id: 'from', label: 'Pickup from airport' },
+            { id: 'to', label: 'To airport' },
+            { id: 'from', label: 'From airport' },
           ]}
         />
       ) : null}
 
-      {/* If Multicity, show the full interactive itinerary form */}
       {service === 'multicity' ? (
         <MulticityForm />
       ) : (
-        <form className="jd-form" onSubmit={onSubmit} noValidate>
-          {/* Separate Pickup and Drop boxes with central swap button */}
-          <div className={`jd-route-separated ${isRental ? 'jd-route-separated--single' : ''}`}>
-            {/* Pickup card */}
-            <div className={`jd-route-card ${errors.pickup ? 'is-invalid' : ''}`}>
-              <div className="jd-route-card__head">
-                <span className="jd-stop__mark is-pickup" aria-hidden="true" />
-                <label htmlFor="bf-pickup" className="jd-label">
-                  {fromAirport ? 'Airport pickup' : isRental ? 'Pickup in your city' : 'Pickup location'}
-                </label>
-              </div>
-              <button
-                ref={pickupInputRef}
-                id="bf-pickup"
-                type="button"
-                className={`jd-value ${!draft.pickup ? 'is-empty' : ''}`}
-                aria-describedby={errors.pickup ? 'bf-pickup-error' : undefined}
-                onClick={() => setPickerField('pickup')}
-              >
-                <span className="jd-value__text">
-                  {draft.pickup?.name ?? ''}
-                </span>
-                {draft.pickup?.address && draft.pickup.address !== draft.pickup.name ? (
-                  <span className="jd-value__addr">{draft.pickup.address}</span>
-                ) : null}
-              </button>
-              {errors.pickup ? (
-                <p id="bf-pickup-error" className="jd-error">
-                  {errors.pickup}
-                </p>
-              ) : null}
+        <form
+          id="bf-form"
+          className="bf-form"
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            search();
+          }}
+        >
+          <div className={`bf-route ${service === 'rental' ? 'bf-route--single' : ''}`}>
+            <div className="bf-route__cell">
+              {locationField('pickup', service === 'rental' ? 'Pickup in your city' : service === 'airport' && direction === 'from' ? 'Pickup airport' : 'Pickup location')}
+              {fieldErr('pickup')}
             </div>
-
-            {/* Swap button between pickup and drop */}
-            {!isRental ? (
-              <div className="jd-swap-divider">
-                <button
-                  type="button"
-                  className="jd-swap-btn"
-                  title="Swap pickup and drop"
-                  aria-label="Swap pickup and drop"
-                  disabled={!draft.pickup && !draft.drop}
-                  onClick={swapPlaces}
-                >
-                  <Icon name="swap" size={18} />
-                </button>
-              </div>
+            {service === 'outstation' ? (
+              <button
+                type="button"
+                className="bf-swap"
+                aria-label="Swap pickup and drop"
+                title="Swap route"
+                disabled={!pickup && !drop}
+                onClick={() => {
+                  update({ pickup: drop, drop: pickup });
+                  setErrors((e) => ({ ...e, pickup: '', drop: '' }));
+                }}
+              >
+                <Icon name="swap" size={16} />
+              </button>
             ) : null}
-
-            {/* Drop card */}
-            {!isRental ? (
-              <div className={`jd-route-card ${errors.drop ? 'is-invalid' : ''}`}>
-                <div className="jd-route-card__head">
-                  <span className="jd-stop__mark is-drop" aria-hidden="true" />
-                  <label htmlFor="bf-drop" className="jd-label">
-                    {toAirport ? 'Airport destination' : 'Drop location'}
-                  </label>
-                </div>
-                <button
-                  ref={dropInputRef}
-                  id="bf-drop"
-                  type="button"
-                  className={`jd-value ${!draft.drop ? 'is-empty' : ''}`}
-                  aria-describedby={errors.drop ? 'bf-drop-error' : undefined}
-                  onClick={() => setPickerField('drop')}
-                >
-                  <span className="jd-value__text">
-                    {draft.drop?.name ?? ''}
-                  </span>
-                  {draft.drop?.address && draft.drop.address !== draft.drop.name ? (
-                    <span className="jd-value__addr">{draft.drop.address}</span>
-                  ) : null}
-                </button>
-                {errors.drop ? (
-                  <p id="bf-drop-error" className="jd-error">
-                    {errors.drop}
-                  </p>
-                ) : null}
+            {service !== 'rental' ? (
+              <div className="bf-route__cell">
+                {locationField('drop', service === 'airport' && direction === 'to' ? 'Drop airport' : 'Drop location')}
+                {fieldErr('drop')}
               </div>
             ) : null}
           </div>
-
-          {isRental ? (
+          {service === 'rental' ? (
             <>
-            <div className="jd-field">
-              <label htmlFor="bf-rental-hours" className="jd-label">Rental package</label>
-              <select id="bf-rental-hours" className="jd-control" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
+          <div className="bf-row bf-row--single">
+            <div className="bf-cell">
+              <label className="bf-label bf-label--out" htmlFor="bf-rental-hours">Rental package</label>
+              <select id="bf-rental-hours" className="input bf-input" value={draft.rentalHours ?? ''} onChange={(e) => update({ rentalHours: e.target.value ? Number(e.target.value) : null })}>
                 <option value="">Any package</option>
                 {RENTAL_PACKAGE_HOURS.map((h) => <option key={h} value={h}>{h} hours</option>)}
               </select>
             </div>
+          </div>
             </>
           ) : null}
 
-          {/* Schedule Section */}
-          <div className="jd-section" role="group" aria-labelledby="jd-sched">
-            <p className="jd-section__title" id="jd-sched">
-              Pickup schedule
-            </p>
-            <div className="jd-pair">
-              <div className="jd-field">
-                <label htmlFor="bf-date" className="jd-label">
-                  Date
-                </label>
-                <input
-                  id="bf-date"
-                  type="date"
-                  className={`jd-control ${errors.date ? 'is-invalid' : ''}`}
-                  min={todayStr}
-                  max={maxDateStr}
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                />
-                {errors.date ? <p className="jd-error">{errors.date}</p> : null}
-              </div>
-              <div className="jd-field">
-                <label htmlFor="bf-time" className="jd-label">
-                  Time
-                </label>
-                <button
-                  id="bf-time"
-                  type="button"
-                  className={`jd-control jd-control--btn ${!time ? 'is-empty' : ''} ${errors.time ? 'is-invalid' : ''}`}
-                  onClick={() => setTimeField('pickup')}
-                >
-                  <span>{time ? formatTime12(time) : ''}</span>
-                  <Icon name="clock" size={18} />
-                </button>
-                {errors.time ? <p className="jd-error">{errors.time}</p> : null}
-              </div>
+          <div className="bf-row">
+            <div className="bf-cell">
+              <label className="bf-label bf-label--out" htmlFor="bf-date">
+                Pickup date
+              </label>
+              <input
+                ref={(el) => {
+                  refs.current.date = el;
+                }}
+                id="bf-date"
+                className="input bf-input"
+                type="date"
+                value={date}
+                min={toDateInput(new Date())}
+                max={toDateInput(latestPickup())}
+                aria-invalid={!!errors.date || undefined}
+                aria-describedby={errors.date ? 'bf-date-err' : undefined}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setErrors((x) => ({ ...x, date: '', time: '' }));
+                }}
+              />
+              {fieldErr('date')}
+            </div>
+            <div className="bf-cell">
+              <span className="bf-label bf-label--out" id="bf-time-label">
+                Pickup time
+              </span>
+              <button
+                ref={(el) => {
+                  refs.current.time = el;
+                }}
+                type="button"
+                className={`bf-time ${time ? '' : 'is-empty'}`}
+                aria-labelledby="bf-time-label bf-time-value"
+                aria-invalid={!!errors.time || undefined}
+                aria-describedby={errors.time ? 'bf-time-err' : undefined}
+                onClick={() => setTimeFor('pickup')}
+              >
+                <span id="bf-time-value">{time ? formatTime12(time) : ''}</span>
+                <Icon name="chevron-down" size={15} />
+              </button>
+              {fieldErr('time')}
             </div>
           </div>
 
-          {/* Return schedule for Round Trips */}
-          {isRoundTrip ? (
-            <div className="jd-section" role="group" aria-labelledby="jd-return">
-              <p className="jd-section__title" id="jd-return">
-                Return schedule
-              </p>
-              <div className="jd-pair">
-                <div className="jd-field">
-                  <label htmlFor="bf-end-date" className="jd-label">
-                    Return date
-                  </label>
-                  <input
-                    id="bf-end-date"
-                    type="date"
-                    className={`jd-control ${errors.endDate ? 'is-invalid' : ''}`}
-                    min={date || todayStr}
-                    max={maxDateStr}
-                    value={endDate}
-                    onChange={(e) => setEndDate(e.target.value)}
-                    required
-                  />
-                  {errors.endDate ? <p className="jd-error">{errors.endDate}</p> : null}
-                </div>
-                <div className="jd-field">
-                  <label htmlFor="bf-end-time" className="jd-label">
-                    Return time
-                  </label>
-                  <button
-                    id="bf-end-time"
-                    type="button"
-                    className={`jd-control jd-control--btn ${!endTime ? 'is-empty' : ''} ${errors.endTime ? 'is-invalid' : ''}`}
-                    onClick={() => setTimeField('return')}
-                  >
-                    <span>{endTime ? formatTime12(endTime) : 'Choose return time'}</span>
-                    <Icon name="clock" size={18} />
-                  </button>
-                  {errors.endTime ? <p className="jd-error">{errors.endTime}</p> : null}
-                </div>
+          {service === 'outstation' && outstationTrip === 'Round Trip' ? (
+            <div className="bf-row">
+              <div className="bf-cell">
+                <label className="bf-label bf-label--out" htmlFor="bf-end-date">
+                  Return date
+                </label>
+                <input
+                  ref={(el) => {
+                    refs.current.endDate = el;
+                  }}
+                  id="bf-end-date"
+                  className="input bf-input"
+                  type="date"
+                  value={endDate}
+                  min={date || toDateInput(new Date())}
+                  max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
+                  aria-invalid={!!errors.endDate || undefined}
+                  aria-describedby={errors.endDate ? 'bf-endDate-err' : undefined}
+                  onChange={(e) => {
+                    setEndDate(e.target.value);
+                    setErrors((x) => ({ ...x, endDate: '', endTime: '' }));
+                  }}
+                />
+                {fieldErr('endDate')}
+              </div>
+              <div className="bf-cell">
+                <span className="bf-label bf-label--out" id="bf-end-time-label">
+                  Return time
+                </span>
+                <button
+                  ref={(el) => {
+                    refs.current.endTime = el;
+                  }}
+                  type="button"
+                  className={`bf-time ${endTime ? '' : 'is-empty'}`}
+                  aria-labelledby="bf-end-time-label bf-end-time-value"
+                  aria-invalid={!!errors.endTime || undefined}
+                  aria-describedby={errors.endTime ? 'bf-endTime-err' : undefined}
+                  onClick={() => setTimeFor('return')}
+                >
+                  <span id="bf-end-time-value">{endTime ? formatTime12(endTime) : ''}</span>
+                  <Icon name="chevron-down" size={15} />
+                </button>
+                {fieldErr('endTime')}
               </div>
             </div>
           ) : null}
 
           {errors.form ? (
-            <p className="jd-error jd-error--form" role="alert">
+            <p className="bf-error bf-error--form" role="alert">
               {errors.form}
             </p>
           ) : null}
-
-          <div className="jd-action">
-            <Button type="submit" variant="primary" size="lg" block className="jd-submit" iconTrailing="arrow-right">
-              Search Cabs &amp; View Fares
-            </Button>
-          </div>
+          <Button type="submit" size="lg" block iconTrailing="arrow-right" className="bf-submit">
+            Search Cabs &amp; Compare Fares
+          </Button>
         </form>
       )}
 
-      {pickerField ? (
+      {picker ? (
         <LocationPicker
-          config={pickerField === 'pickup' ? pickupConfig : dropConfig}
+          config={pickerConfig(picker)}
           saved={savedPlaces}
-          recent={recentPlaces}
-          onPick={onPickPlace}
-          onClose={() => setPickerField(null)}
-        />
-      ) : null}
-
-      {timeField ? (
-        <TimePicker
-          value={timeField === 'pickup' ? time : endTime}
-          date={timeField === 'pickup' ? date : endDate}
-          title={timeField === 'pickup' ? 'Select Pickup Time' : 'Select Return Time'}
-          onPick={(val) => {
-            if (timeField === 'pickup') setTime(val);
-            else setEndTime(val);
+          recent={recent}
+          onClose={() => setPicker(null)}
+          onSelect={(p) => {
+            setField(picker, p);
+            setPicker(null);
           }}
-          onClose={() => setTimeField(null)}
         />
       ) : null}
-    </div>
+      {timeFor ? (
+        <TimePicker
+          title={timeFor === 'pickup' ? 'Pickup time' : 'Return time'}
+          date={timeFor === 'pickup' ? date : endDate}
+          value={timeFor === 'pickup' ? time : endTime}
+          validate={timeFor === 'pickup' ? 'pickup' : 'after'}
+          notBefore={timeFor === 'return' ? combineDateTime(date, time) : null}
+          onClose={() => setTimeFor(null)}
+          onConfirm={(t) => {
+            if (timeFor === 'pickup') {
+              setTime(t);
+              setErrors((x) => ({ ...x, time: '' }));
+            } else {
+              setEndTime(t);
+              setErrors((x) => ({ ...x, endTime: '' }));
+            }
+            setTimeFor(null);
+          }}
+        />
+      ) : null}
+    </section>
   );
 }
-export default BookingForm;

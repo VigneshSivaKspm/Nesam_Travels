@@ -1,7 +1,7 @@
 // Multicity & Custom Tour Itinerary Form for People Taxi.
 // Allows riders to build multi-stop road trip itineraries with reorderable intermediate stops,
 // departure and return schedules.
-// Submits a validated itinerary enquiry (submitMulticityEnquiry) with stable submissionId.
+// Submits a validated itinerary enquiry (submitMulticityEnquiry) with stable submissionId and people_taxi brand.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import type { GeoPlace } from '@core/types';
@@ -30,18 +30,11 @@ function loadStoredState(): StoredMulticityState {
 
 const MAX_CITIES = 10;
 
-/** The boxes the form shows: every city chosen so far, then one empty box for the next city (until the limit). */
-function withNextSlot(stops: StoredMulticityState['stops']): StoredMulticityState['stops'] {
-  const filled = stops.filter((s) => s.place);
-  const empty = stops.find((s) => !s.place);
-  return filled.length < MAX_CITIES ? [...filled, empty ?? { id: newId('stop'), place: null }] : filled;
-}
-
 function saveStoredState(state: StoredMulticityState) {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   } catch {
-    // Ignore write errors
+    // Ignore storage write issues
   }
 }
 
@@ -58,16 +51,10 @@ export function MulticityForm() {
   const submittingRef = useRef(false);
   const [submittedQuote, setSubmittedQuote] = useState<{ code: string; message: string } | null>(null);
 
-  // Sync to session storage on change
+  // Synchronize draft changes into sessionStorage
   useEffect(() => {
     saveStoredState(state);
   }, [state]);
-
-  // Keep exactly one empty "next city" box after the chosen cities: City 2 appears once City 1 is chosen.
-  useEffect(() => {
-    const next = withNextSlot(state.stops);
-    if (next.length !== state.stops.length || next.some((st, i) => st.id !== state.stops[i]!.id)) setState((s) => ({ ...s, stops: withNextSlot(s.stops) }));
-  }, [state.stops]);
 
   const recentPlaces = useMemo<GeoPlace[]>(() => {
     const out: GeoPlace[] = [];
@@ -91,12 +78,14 @@ export function MulticityForm() {
     return instant ? new Date(instant) : null;
   }, [state.date, state.time]);
 
+  // Only chosen cities are shown; "Add city" opens the picker for the next one.
+  const cities = useMemo(() => state.stops.filter((s) => s.place), [state.stops]);
+
   const todayStr = useMemo(() => toDateInput(new Date()), []);
   const maxDateStr = useMemo(() => toDateInput(latestPickup()), []);
 
-  // Stop list mutations
   const removeStop = (id: string) => {
-    setState((s) => ({ ...s, stops: withNextSlot(s.stops.filter((st) => st.id !== id)) }));
+    setState((s) => ({ ...s, stops: s.stops.filter((st) => st.id !== id) }));
   };
 
   const onPickPlace = (p: GeoPlace) => {
@@ -105,6 +94,7 @@ export function MulticityForm() {
       setErrors((e) => {
         const next = { ...e };
         delete next.pickup;
+        delete next.itinerary;
         return next;
       });
     } else if (pickerTarget === 'drop') {
@@ -112,17 +102,21 @@ export function MulticityForm() {
       setErrors((e) => {
         const next = { ...e };
         delete next.drop;
+        delete next.itinerary;
         return next;
       });
     } else if (pickerTarget) {
-      // It's a stop ID
       setState((s) => ({
         ...s,
-        stops: s.stops.map((st) => (st.id === pickerTarget ? { ...st, place: p } : st)),
+        stops: pickerTarget === 'new'
+          ? [...s.stops.filter((st) => st.place), { id: newId('stop'), place: p }]
+          : s.stops.map((st) => (st.id === pickerTarget ? { ...st, place: p } : st)),
       }));
       setErrors((e) => {
         const next = { ...e };
         delete next[`stop_${pickerTarget}`];
+        delete next.stops;
+        delete next.itinerary;
         return next;
       });
     }
@@ -148,7 +142,8 @@ export function MulticityForm() {
         pinMode: 'drop',
       };
     }
-    const idx = state.stops.findIndex((s) => s.id === pickerTarget);
+    const found = state.stops.filter((s) => s.place).findIndex((s) => s.id === pickerTarget);
+    const idx = found < 0 ? cities.length : found;
     return {
       title: `Choose City ${idx + 1}`,
       allowCurrent: false,
@@ -156,7 +151,7 @@ export function MulticityForm() {
       popularLabel: 'Popular Cities',
       pinMode: 'drop',
     };
-  }, [pickerTarget, state.stops]);
+  }, [pickerTarget, state.stops, cities.length]);
 
   const validate = (): boolean => {
     const err: Record<string, string> = {};
@@ -164,15 +159,15 @@ export function MulticityForm() {
       err.pickup = 'Please select a starting pickup location.';
     }
     if (!validMulticityPlace(state.drop)) {
-      err.drop = 'Please select a final destination point.';
+      err.drop = 'Please select a final destination drop point.';
     }
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Choose City 1, the first stop between pickup and drop.';
+      err.stops = 'Add at least one city between pickup and drop.';
     }
 
-    // Verify consecutive duplicates
+    // Verify consecutive duplicates across the ordered itinerary
     const allPoints = [state.pickup, ...filledStops.map((s) => s.place), state.drop].filter(Boolean) as GeoPlace[];
     for (let i = 0; i < allPoints.length - 1; i++) {
       if (allPoints[i].name.trim().toLowerCase() === allPoints[i + 1].name.trim().toLowerCase()) {
@@ -241,7 +236,7 @@ export function MulticityForm() {
         message: res.message || 'Your itinerary quote request has been received.',
       });
 
-      // Clear stored draft upon success
+      // Clear draft on successful submission
       try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Submission succeeded even if storage is unavailable. */ }
     } catch (err: any) {
       setErrors({ form: err.message || 'Failed to submit itinerary quote. Please try again.' });
@@ -251,234 +246,258 @@ export function MulticityForm() {
     }
   };
 
-  // If successfully submitted, render success confirmation card
+  const resetState = () => {
+    setSubmittedQuote(null);
+    setState({
+      submissionId: newId('sub'),
+      pickup: null,
+      drop: null,
+      stops: [{ id: newId('stop'), place: null }],
+      date: '',
+      time: '',
+      endDate: '',
+      categoryId: '',
+      notes: '',
+    });
+    setErrors({});
+  };
+
+  // ── Success State ──────────────────────────────────────────────────────────
   if (submittedQuote) {
     return (
-      <div className="jd jd-multicity-success" role="region" aria-label="Itinerary quote confirmation">
-        <div className="jd-success-card">
-          <div className="jd-success-card__icon" aria-hidden="true">
-            <Icon name="circle-check" size={48} />
-          </div>
-          <h3>Quote Request Received!</h3>
-          <p className="jd-success-card__code">
-            Reference: <strong>{submittedQuote.code}</strong>
-          </p>
-          <div className="jd-success-card__badge">
-            <Icon name="clock" size={16} /> Status: <span>Under Travel Desk Review</span>
-          </div>
-          <p className="jd-success-card__copy">
-            Our travel desk is calculating exact highway route distance, state permit charges and custom tour package pricing.
-            The travel desk will contact you after reviewing your itinerary and preparing a quote.
-          </p>
+      <div className="bf-success" role="region" aria-label="Itinerary quote confirmation">
+        <div className="bf-success__icon" aria-hidden="true">
+          <Icon name="circle-check" size={52} />
+        </div>
+        <h3 className="text-xl font-bold text-ink">Quote Request Received!</h3>
+        <p className="bf-success__code">
+          Reference: <strong>{submittedQuote.code}</strong>
+        </p>
+        <div className="bf-success__status">
+          <Icon name="clock" size={14} /> Status: <span>Under Travel Desk Review</span>
+        </div>
+        <p className="bf-success__desc">
+          Our travel desk is calculating exact highway route distance, state permit charges and custom tour package pricing.
+          The travel desk will contact you after reviewing your itinerary and preparing a quote.
+        </p>
 
-          <div className="jd-success-card__itinerary">
-            <span className="jd-preview-label">Requested Itinerary:</span>
-            <div className="jd-itinerary-preview">
-              <span className="jd-itinerary-stop is-start">{state.pickup?.name}</span>
-              {state.stops.filter((s) => s.place).map((s, idx) => (
-                <span key={s.id} className="jd-itinerary-stop is-mid">
-                  <Icon name="arrow-right" size={12} /> {s.place?.name}
-                </span>
-              ))}
-              <span className="jd-itinerary-stop is-end">
-                <Icon name="arrow-right" size={12} /> {state.drop?.name}
+        <div className="bf-success__itinerary">
+          <span className="bf-route-summary__title">Requested Itinerary:</span>
+          <div className="bf-route-flow">
+            <span className="bf-route-flow__stop">{state.pickup?.name}</span>
+            {state.stops.filter((s) => s.place).map((s) => (
+              <span key={s.id} className="bf-route-flow__stop">
+                <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {s.place?.name}
               </span>
-            </div>
+            ))}
+            <span className="bf-route-flow__stop">
+              <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {state.drop?.name}
+            </span>
           </div>
+        </div>
 
-          <div className="jd-success-card__actions">
-            <Button
-              type="button"
-              variant="secondary"
-              size="md"
-              onClick={() => {
-                setSubmittedQuote(null);
-                setState({
-                  submissionId: newId('sub'),
-                  pickup: null,
-                  drop: null,
-                  stops: [{ id: newId('stop'), place: null }],
-                  date: '',
-                  time: '',
-                  endDate: '',
-                  categoryId: '',
-                  notes: '',
-                });
-              }}
-            >
-              Plan Another Tour
-            </Button>
-            <Link to="/trips" className="btn btn--primary btn--md">
-              View My Trips
-            </Link>
-          </div>
+        <div className="bf-success__actions">
+          <Button type="button" variant="secondary" size="md" onClick={resetState}>
+            Plan Another Tour
+          </Button>
+          <Link to="/trips" className="btn btn--primary btn--md">
+            View My Trips
+          </Link>
+        </div>
 
-          <div className="jd-support-strip">
-            <span>Need immediate travel desk assistance?</span>
-            <a href={`tel:${SUPPORT_PHONE}`} className="jd-tel-link">
-              <Icon name="phone" size={16} /> Call {SUPPORT_PHONE_DISPLAY}
-            </a>
-          </div>
+        <div className="bf-success__support">
+          <span>Need immediate travel desk assistance?</span>
+          <a href={`tel:${SUPPORT_PHONE}`} className="bf-call-link">
+            <Icon name="phone" size={14} /> Call {SUPPORT_PHONE_DISPLAY}
+          </a>
         </div>
       </div>
     );
   }
 
   return (
-    <form className="jd-form jd-multicity-form" onSubmit={onSubmit} noValidate>
-      <fieldset className="jd-fieldset" disabled={submitting}>
-      {/* Route & Intermediate Stops Section */}
-      <div className="jd-section" role="group" aria-label="Route and stops">
-        {/* 1. Pickup Point */}
-        <div className={`jd-field-box ${errors.pickup ? 'is-invalid' : ''}`}>
-          <div className="jd-field-box__head">
-            <span className="jd-box-dot is-pickup" aria-hidden="true" />
-            <label htmlFor="mc-pickup-btn" className="jd-field-box__label">
+    <form className="bf-multicity" onSubmit={onSubmit} noValidate>
+      <fieldset className="bf-fieldset" disabled={submitting}>
+      {/* ── Route & Stops Section ── */}
+      <div className="bf-section" role="group" aria-label="Route and stops">
+        {/* 1. Starting Pickup Point */}
+        <div className={`bf-field ${errors.pickup ? 'is-invalid' : ''}`}>
+          <span className="bf-pin" aria-hidden="true" />
+          <div className="bf-field__main">
+            <span className="bf-label" id="mc-pickup-label">
               Pickup location
-            </label>
-          </div>
-          <button
-            id="mc-pickup-btn"
-            type="button"
-            className={`jd-value ${!state.pickup ? 'is-empty' : ''}`}
-            onClick={() => setPickerTarget('pickup')}
-          >
-            <span className="jd-value__text">
-              {state.pickup?.name ?? ''}
             </span>
+            <button
+              id="mc-pickup-btn"
+              type="button"
+              className={`bf-trigger ${!state.pickup ? 'is-empty' : ''}`}
+              aria-labelledby="mc-pickup-label mc-pickup-val"
+              onClick={() => setPickerTarget('pickup')}
+            >
+              <span id="mc-pickup-val" className="bf-trigger__text">
+                {state.pickup?.name ?? ''}
+              </span>
+            </button>
             {state.pickup?.address && state.pickup.address !== state.pickup.name ? (
-              <span className="jd-value__addr">{state.pickup.address}</span>
+              <small className="bf-addr">{state.pickup.address}</small>
             ) : null}
-          </button>
-          {errors.pickup ? <p className="jd-error">{errors.pickup}</p> : null}
+          </div>
+          <Icon name="chevron-right" size={16} className="bf-chev" />
         </div>
+        {errors.pickup ? <p className="bf-error">{errors.pickup}</p> : null}
 
-        {/* 2. Cities along the way: one box at a time; the next one appears once this one is chosen */}
-        {state.stops.map((stop, index) => (
-          <div key={stop.id} className={`jd-field-box ${errors.stops && index === 0 ? 'is-invalid' : ''}`}>
-            <div className="jd-field-box__head">
-              <span className="jd-box-dot is-via" aria-hidden="true" />
-              <span className="jd-field-box__label">City {index + 1}</span>
-              {stop.place ? (
-                <button type="button" className="jd-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
-                  <Icon name="trash" size={15} />
-                </button>
-              ) : null}
+        {/* 2. Cities along the way: only the chosen ones show, then a plain "Add city" button */}
+        {cities.map((stop, index) => (
+          <div key={stop.id} className="bf-field">
+            <span className="bf-pin bf-pin--stop" aria-hidden="true" />
+            <div className="bf-field__main">
+              <span className="bf-label" id={`mc-city-${index}-label`}>
+                City {index + 1}
+              </span>
+              <button
+                type="button"
+                className="bf-trigger"
+                aria-labelledby={`mc-city-${index}-label mc-city-${index}-val`}
+                onClick={() => setPickerTarget(stop.id)}
+              >
+                <span id={`mc-city-${index}-val`} className="bf-trigger__text">
+                  {stop.place?.name ?? ''}
+                </span>
+              </button>
+              {stop.place?.address && stop.place.address !== stop.place.name ? <small className="bf-addr">{stop.place.address}</small> : null}
             </div>
-            <button type="button" className={`jd-value ${stop.place ? '' : 'is-empty'}`} aria-label={`City ${index + 1}${stop.place ? `: ${stop.place.name}` : ''}`} onClick={() => setPickerTarget(stop.id)}>
-              <span className="jd-value__text">{stop.place?.name ?? ''}</span>
-              {stop.place?.address && stop.place.address !== stop.place.name ? <span className="jd-value__addr">{stop.place.address}</span> : null}
+            <button type="button" className="bf-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
+              <Icon name="trash" size={16} />
             </button>
           </div>
         ))}
-        {errors.stops ? <p className="jd-error">{errors.stops}</p> : null}
-
-        {/* 3. Final Drop Destination */}
-        <div className={`jd-field-box ${errors.drop ? 'is-invalid' : ''}`}>
-          <div className="jd-field-box__head">
-            <span className="jd-box-dot is-drop" aria-hidden="true" />
-            <label htmlFor="mc-drop-btn" className="jd-field-box__label">
-              Drop location
-            </label>
-          </div>
-          <button
-            id="mc-drop-btn"
-            type="button"
-            className={`jd-value ${!state.drop ? 'is-empty' : ''}`}
-            onClick={() => setPickerTarget('drop')}
-          >
-            <span className="jd-value__text">
-              {state.drop?.name ?? ''}
-            </span>
-            {state.drop?.address && state.drop.address !== state.drop.name ? (
-              <span className="jd-value__addr">{state.drop.address}</span>
-            ) : null}
+        {cities.length < MAX_CITIES ? (
+          <button type="button" className={`bf-add-city ${errors.stops ? 'is-invalid' : ''}`} onClick={() => setPickerTarget('new')}>
+            <Icon name="plus" size={16} /> Add city
           </button>
-          {errors.drop ? <p className="jd-error">{errors.drop}</p> : null}
+        ) : null}
+        {errors.stops ? <p className="bf-error">{errors.stops}</p> : null}
+
+        {/* 3. Final Drop Point */}
+        <div className={`bf-field ${errors.drop ? 'is-invalid' : ''}`}>
+          <span className="bf-pin bf-pin--drop" aria-hidden="true" />
+          <div className="bf-field__main">
+            <span className="bf-label" id="mc-drop-label">
+              Drop location
+            </span>
+            <button
+              id="mc-drop-btn"
+              type="button"
+              className={`bf-trigger ${!state.drop ? 'is-empty' : ''}`}
+              aria-labelledby="mc-drop-label mc-drop-val"
+              onClick={() => setPickerTarget('drop')}
+            >
+              <span id="mc-drop-val" className="bf-trigger__text">
+                {state.drop?.name ?? ''}
+              </span>
+            </button>
+            {state.drop?.address && state.drop.address !== state.drop.name ? (
+              <small className="bf-addr">{state.drop.address}</small>
+            ) : null}
+          </div>
+          <Icon name="chevron-right" size={16} className="bf-chev" />
         </div>
-        {errors.itinerary ? <p className="jd-error">{errors.itinerary}</p> : null}
+        {errors.drop ? <p className="bf-error">{errors.drop}</p> : null}
+        {errors.itinerary ? <p className="bf-error">{errors.itinerary}</p> : null}
 
       </div>
 
-      {/* Schedule Section */}
-      <div className="jd-section" role="group" aria-label="Trip schedule">        <div className="jd-pair">
-          <div className="jd-field">
-            <label htmlFor="mc-date" className="jd-label">
+      {/* ── Schedule Section ── */}
+      <div className="bf-section" role="group" aria-label="Trip schedule">
+        <div className="bf-row">
+          <div className="bf-cell">
+            <label className="bf-label bf-label--out" htmlFor="mc-date">
               Departure date
             </label>
             <input
               id="mc-date"
               type="date"
-              className={`jd-control ${errors.date ? 'is-invalid' : ''}`}
+              className="input bf-input"
               min={todayStr}
               max={maxDateStr}
               value={state.date}
-              onChange={(e) => setState((s) => ({ ...s, date: e.target.value }))}
+              onChange={(e) => {
+                setState((s) => ({ ...s, date: e.target.value }));
+                setErrors((x) => ({ ...x, date: '', time: '' }));
+              }}
               required
             />
-            {errors.date ? <p className="jd-error">{errors.date}</p> : null}
+            {errors.date ? <p className="bf-error">{errors.date}</p> : null}
           </div>
-          <div className="jd-field">
-            <label htmlFor="mc-time-btn" className="jd-label">
+
+          <div className="bf-cell">
+            <span className="bf-label bf-label--out" id="mc-time-label">
               Departure time
-            </label>
+            </span>
             <button
               id="mc-time-btn"
               type="button"
-              className={`jd-control jd-control--btn ${!state.time ? 'is-empty' : ''} ${errors.time ? 'is-invalid' : ''}`}
+              className={`bf-time ${state.time ? '' : 'is-empty'}`}
+              aria-labelledby="mc-time-label mc-time-val"
               onClick={() => setTimePickerOpen(true)}
             >
-              <span>{state.time ? formatTime12(state.time) : ''}</span>
-              <Icon name="clock" size={18} />
+              <span id="mc-time-val">{state.time ? formatTime12(state.time) : ''}</span>
+              <Icon name="clock" size={16} />
             </button>
-            {errors.time ? <p className="jd-error">{errors.time}</p> : null}
+            {errors.time ? <p className="bf-error">{errors.time}</p> : null}
           </div>
         </div>
       </div>
 
       {errors.form ? (
-        <p className="jd-error jd-error--form" role="alert">
+        <p className="bf-error bf-error--form" role="alert">
           {errors.form}
         </p>
       ) : null}
 
-      {/* Action Buttons */}
-      <div className="jd-action">
+      {/* ── Action Buttons ── */}
+      <div className="bf-actions">
         <Button
           type="submit"
           variant="primary"
           size="lg"
           block
           loading={submitting}
-          className="jd-submit"
+          className="bf-submit"
           iconTrailing="arrow-right"
         >
           Search Cabs & View Fares
         </Button>
       </div>
 
-      {/* Place Picker Modal */}
+      {/* ── Place Picker Modal ── */}
       {pickerTarget ? (
         <LocationPicker
           config={pickerConfig}
           saved={savedPlaces}
           recent={recentPlaces}
-          onPick={onPickPlace}
+          onSelect={onPickPlace}
           onClose={() => setPickerTarget(null)}
         />
       ) : null}
 
-      {/* Time Picker Modal */}
+      {/* ── Time Picker Modal ── */}
       {timePickerOpen ? (
         <TimePicker
-          value={state.time}
+          title="Departure time"
           date={state.date}
-          title="Select Departure Time"
-          onPick={(val) => setState((s) => ({ ...s, time: val }))}
+          value={state.time}
+          validate="pickup"
           onClose={() => setTimePickerOpen(false)}
+          onConfirm={(t) => {
+            setState((s) => ({ ...s, time: t }));
+            setErrors((x) => ({ ...x, time: '' }));
+            setTimePickerOpen(false);
+          }}
         />
       ) : null}
       </fieldset>
     </form>
   );
 }
+

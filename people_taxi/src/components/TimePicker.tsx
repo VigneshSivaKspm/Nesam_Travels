@@ -1,55 +1,32 @@
-// A 12-hour AM/PM clock scroller that matches native mobile and web clock pickers.
-import { useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+// The pickup-time sheet: three scrolling wheels — hour 1–12, every minute 00–59 and AM/PM. The chosen
+// time is checked again when confirmed, so a time that became too soon while the sheet was open is refused.
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { Button, Dialog } from './ui';
 import { combineDateTime } from '@/lib/schedule';
 
 const HOURS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
 const MINUTES = Array.from({ length: 60 }, (_, i) => i);
-const MERIDIEMS = ['AM', 'PM'] as const;
+const MERIDIEMS = ['AM', 'PM'];
 const ITEM_H = 44;
 
-const pad = (n: number) => String(n).padStart(2, '0');
-
-export function formatTime12(value: string): string {
-  if (!value || !/^\d{2}:\d{2}$/.test(value)) return value;
-  const [h24, m] = value.split(':').map(Number) as [number, number];
-  const ampm = h24 >= 12 ? 'PM' : 'AM';
-  const h12 = h24 % 12 || 12;
-  return `${h12}:${pad(m)} ${ampm}`;
-}
-
-const parse12 = (val: string): { hour: number; minute: number; ampm: 'AM' | 'PM' } => {
-  if (!val || !/^\d{2}:\d{2}$/.test(val)) return { hour: 9, minute: 0, ampm: 'AM' };
-  const [h24, m] = val.split(':').map(Number) as [number, number];
-  return {
-    hour: h24 % 12 || 12,
-    minute: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0,
-    ampm: h24 >= 12 ? 'PM' : 'AM',
-  };
+export const formatTime12 = (hhmm: string) => {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return '';
+  return `${h % 12 === 0 ? 12 : h % 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`;
 };
 
-/** One vertically scrolling column snapped to the centre highlight band. */
-function Wheel<T extends string | number>({
-  label,
-  items,
-  value,
-  format = String,
-  onChange,
-}: {
-  label: string;
-  items: readonly T[] | T[];
-  value: T;
-  format?: (item: T) => string;
-  onChange: (item: T) => void;
-}) {
+function split(hhmm: string) {
+  const [h, m] = hhmm ? (hhmm.split(':').map(Number) as [number, number]) : [18, 0];
+  return { hour: h % 12 === 0 ? 12 : h % 12, minute: Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0, pm: h >= 12 };
+}
+
+/** One vertically scrolling column; the item snapped to the centre band is the selected value. */
+function Wheel<T extends string | number>({ label, items, value, format = String, onChange }: { label: string; items: T[]; value: T; format?: (item: T) => string; onChange: (item: T) => void }) {
   const ref = useRef<HTMLDivElement>(null);
 
   useLayoutEffect(() => {
-    const idx = (items as T[]).indexOf(value);
-    if (idx >= 0 && ref.current) {
-      ref.current.scrollTop = idx * ITEM_H;
-    }
+    ref.current?.scrollTo({ top: items.indexOf(value) * ITEM_H });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const onScroll = () => {
@@ -59,10 +36,11 @@ function Wheel<T extends string | number>({
     if (next !== value) onChange(next);
   };
 
+  // Keyboard: arrows step by one, Page Up / Down by five, Home / End jump to the ends.
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const steps: Record<string, number | undefined> = { ArrowDown: 1, ArrowUp: -1, PageDown: 5, PageUp: -5 };
     const step = steps[e.key];
-    const at = (items as T[]).indexOf(value);
+    const at = items.indexOf(value);
     const to = step !== undefined ? at + step : e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : null;
     if (to === null) return;
     e.preventDefault();
@@ -72,26 +50,9 @@ function Wheel<T extends string | number>({
   };
 
   return (
-    <div
-      ref={ref}
-      className="timepick__wheel"
-      role="listbox"
-      aria-label={label}
-      tabIndex={0}
-      onScroll={onScroll}
-      onKeyDown={onKeyDown}
-    >
+    <div ref={ref} className="timepick__wheel" role="listbox" aria-label={label} tabIndex={0} onScroll={onScroll} onKeyDown={onKeyDown}>
       {items.map((item, i) => (
-        <div
-          key={item}
-          role="option"
-          aria-selected={item === value}
-          className={item === value ? 'is-on' : ''}
-          onClick={() => {
-            ref.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' });
-            onChange(item);
-          }}
-        >
+        <div key={item} role="option" aria-selected={item === value} className={item === value ? 'is-on' : ''} onClick={() => ref.current?.scrollTo({ top: i * ITEM_H, behavior: 'smooth' })}>
           {format(item)}
         </div>
       ))}
@@ -100,109 +61,79 @@ function Wheel<T extends string | number>({
 }
 
 export function TimePicker({
-  value,
+  title = 'Pickup time',
   date,
-  title = 'Select Pickup Time',
-  minTime,
-  onPick,
+  value,
   onConfirm,
   onClose,
+  validate = 'pickup',
+  notBefore,
 }: {
-  value: string;
-  date?: string;
   title?: string;
-  minTime?: string;
-  onPick?: (val: string) => void;
-  onConfirm?: (val: string) => void;
+  date: string;
+  value: string;
+  onConfirm: (hhmm: string) => void;
   onClose: () => void;
+  validate?: 'pickup' | 'after';
+  notBefore?: Date | null;
 }) {
-  const initial = useMemo(() => parse12(value), [value]);
-  const [hour, setHour] = useState(initial.hour);
-  const [minute, setMinute] = useState(initial.minute);
-  const [ampm, setAmpm] = useState<'AM' | 'PM'>(initial.ampm);
+  const init = split(value);
+  const [hour, setHour] = useState(init.hour);
+  const [minute, setMinute] = useState(init.minute);
+  const [pm, setPm] = useState(init.pm);
   const [error, setError] = useState('');
 
-  const to24 = (h12: number, am: 'AM' | 'PM'): number => {
-    if (am === 'AM') return h12 === 12 ? 0 : h12;
-    return h12 === 12 ? 12 : h12 + 12;
+  const pick = <T,>(set: (v: T) => void) => (v: T) => {
+    set(v);
+    setError('');
   };
 
-  const preview = `${pad(to24(hour, ampm))}:${pad(minute)}`;
+  const hhmm = () => `${String((hour % 12) + (pm ? 12 : 0)).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
 
-  const handleConfirm = () => {
-    if (date) {
-      const dt = combineDateTime(date, preview);
-      if (dt) {
-        const problem = scheduleProblem(dt);
-        if (problem) {
-          setError(problem);
-          return;
-        }
+  const confirm = () => {
+    const t = hhmm();
+    const at = date ? combineDateTime(date, t) : null;
+    if (at) {
+      const problem = validate === 'pickup' ? scheduleProblem(at) : notBefore && at.getTime() <= notBefore.getTime() ? 'The return must be after the pickup.' : '';
+      if (problem) {
+        setError(problem);
+        return;
       }
     }
-    if (minTime && preview < minTime) {
-      setError('Please choose a time after pickup');
-      return;
-    }
-    (onPick ?? onConfirm)?.(preview);
-    onClose?.();
+    onConfirm(t);
   };
 
   return (
     <Dialog
       title={title}
+      subtitle="Times are in IST."
       onClose={onClose}
-      variant="sheet"
       footer={
         <>
           <Button variant="secondary" onClick={onClose}>
-            Cancel
+            Close
           </Button>
-          <Button variant="primary" onClick={handleConfirm}>
-            Set time
+          <Button icon="check" onClick={confirm}>
+            Confirm time
           </Button>
         </>
       }
     >
       <div className="timepick">
-        <p className="timepick__now">
-          {hour}:{pad(minute)} <span>{ampm}</span>
+        <p className="timepick__now num" aria-live="polite">
+          {hour}:{String(minute).padStart(2, '0')} <span>{pm ? 'PM' : 'AM'}</span>
         </p>
-
         <div className="timepick__wheels">
-          <Wheel
-            label="Hour"
-            items={HOURS}
-            value={hour}
-            onChange={(h) => {
-              setHour(h);
-              setError('');
-            }}
-          />
-          <Wheel
-            label="Minute"
-            items={MINUTES}
-            value={minute}
-            format={pad}
-            onChange={(m) => {
-              setMinute(m);
-              setError('');
-            }}
-          />
-          <Wheel
-            label="Period"
-            items={MERIDIEMS}
-            value={ampm}
-            onChange={(p) => {
-              setAmpm(p);
-              setError('');
-            }}
-          />
+          <Wheel label="Hour" items={HOURS} value={hour} onChange={pick(setHour)} />
+          <Wheel label="Minutes" items={MINUTES} value={minute} format={(m) => String(m).padStart(2, '0')} onChange={pick(setMinute)} />
+          <Wheel label="AM or PM" items={MERIDIEMS} value={pm ? 'PM' : 'AM'} onChange={pick<string>((m) => setPm(m === 'PM'))} />
         </div>
-
-        {error ? <p className="bf-error">{error}</p> : null}
+        {error ? (
+          <p className="field__error" role="alert">
+            {error}
+          </p>
+        ) : null}
       </div>
     </Dialog>
   );
 }
-export default TimePicker;

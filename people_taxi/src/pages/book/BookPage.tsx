@@ -74,8 +74,27 @@ function RideBanner() {
 }
 
 function HeroCopy() {
+  // While the logo shows in the hero the header leaves its own logo out; once the page scrolls past it, the header takes over.
+  const logo = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = logo.current;
+    const root = document.documentElement;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry) root.dataset.heroLogo = entry.isIntersecting ? 'in' : 'out';
+    }, { rootMargin: '-72px 0px 0px 0px' });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      delete root.dataset.heroLogo;
+    };
+  }, []);
+
   return (
     <div className="hero-copy">
+      <div className="hero-logo" ref={logo}>
+        <img src="/brand/peopletaxi-logo.png" alt="People Taxi" width={224} height={52} />
+      </div>
       <h1>
         Dependable taxis, <span className="hero-accent">for every journey.</span>
       </h1>
