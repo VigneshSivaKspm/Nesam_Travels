@@ -51,7 +51,7 @@ const wrap = (inner: string) =>
 function homeBody(): string {
   return wrap(
     `<h1>One Way Taxi &amp; Outstation Cabs in Tamil Nadu</h1>` +
-      `<p>Book a one way drop taxi, outstation round trip, airport transfer or hourly local rental across Tamil Nadu, Bangalore and Pondicherry. See the fare for every vehicle before you book, travel with a verified chauffeur and pay your driver by cash or UPI at the end of the trip.</p>` +
+      `<p>Book a one way drop taxi, outstation round trip, airport transfer or hourly local rental across Tamil Nadu, Bangalore and Pondicherry. See the fare for every vehicle before you book, travel with a verified driver and pay your driver by cash or UPI at the end of the trip.</p>` +
       `<h2>Popular one way routes</h2>${routeLinks()}` +
       `<h2>Services</h2>${serviceLinks()}` +
       `<h2>More ways to travel</h2>${list(SERVICES.map((s) => `<strong>${e(s.title)}</strong> — ${e(s.text)}`))}` +

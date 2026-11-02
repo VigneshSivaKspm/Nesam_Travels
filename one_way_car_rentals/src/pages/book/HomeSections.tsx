@@ -265,7 +265,7 @@ export function HowSection() {
           </ol>
         </div>
         <div className="how__photo">
-          <img src={IMG('photography/about-fleet')} alt="One Way Car Rentals verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
+          <img src={IMG('photography/about-fleet')} alt="One Way Car Rentals verified drivers and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
       </div>
     </section>
@@ -277,7 +277,7 @@ export function AssuranceSection() {
     <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
         <div className="assure__collage" aria-hidden="true">
-          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with One Way Car Rentals" width={724} height={543} loading="lazy" />
+          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial driver with One Way Car Rentals" width={724} height={543} loading="lazy" />
           <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
           <img className="assure__c" src={IMG('photography/trust-support')} alt="24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>

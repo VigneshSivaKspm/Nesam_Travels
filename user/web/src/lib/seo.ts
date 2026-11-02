@@ -55,7 +55,7 @@ export function getActiveBaseUrl(): string {
 }
 
 export const DEFAULT_DESCRIPTION =
-  'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 customer support.';
+  'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified drivers, clean AC cars, upfront fares & 24/7 customer support.';
 export const DEFAULT_KEYWORDS =
   'one way drop taxi, outstation cabs tamil nadu, drop taxi chennai, chennai to pondicherry cab, chennai to bangalore taxi, coimbatore to ooty cab, madurai outstation cabs, trichy drop taxi, intercity cab booking, airport taxi chennai, drop taxi online booking, nesam cabs, nesam travels';
 export const DEFAULT_OG_IMAGE = `${PRIMARY_BASE_URL}/website-images/web/heroes/hero-desktop.webp`;

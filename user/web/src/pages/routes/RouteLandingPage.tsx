@@ -360,7 +360,7 @@ export function RouteLandingPage() {
               </p>
             </li>
             <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
-              <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Verified Chauffeurs</h3>
+              <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Verified Drivers</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
                 Full commercial licenses, highway route experience, and background-verified drivers.
               </p>
@@ -374,7 +374,7 @@ export function RouteLandingPage() {
             <li style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', borderLeft: '4px solid var(--red)' }}>
               <h3 style={{ fontSize: '1.15rem', marginBottom: '8px', color: '#0f172a' }}>Pay Driver in Cash or UPI</h3>
               <p style={{ color: '#64748b', fontSize: '0.95rem' }}>
-                Zero advance payments required during booking. Pay your chauffeur via Google Pay, PhonePe, or Cash upon arrival.
+                Zero advance payments required during booking. Pay your driver via Google Pay, PhonePe, or Cash upon arrival.
               </p>
             </li>
           </ul>

@@ -25,15 +25,15 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'One Way',
     image: '/website-images/web/photography/service-one-way.webp',
     metaDescription:
-      'Book one way drop taxi across Tamil Nadu with NESAM Cabs. Pay only for one-way distance with zero return fare. Clean AC sedans, SUVs & Innova Crysta with verified chauffeurs.',
+      'Book one way drop taxi across Tamil Nadu with NESAM Cabs. Pay only for one-way distance with zero return fare. Clean AC sedans, SUVs & Innova Crysta with verified drivers.',
     keywords:
       'one way drop taxi, drop taxi tamil nadu, one way cab chennai, drop taxi online booking, zero return fare cab, intercity one way taxi, outstation drop taxi',
     lead:
-      'Pay only for the distance you travel between cities. Zero return charges, fares shown before you book, and commercial chauffeurs who know the highways.',
+      'Pay only for the distance you travel between cities. Zero return charges, fares shown before you book, and commercial drivers who know the highways.',
     features: [
       { title: 'Zero Return Fare', text: 'You only pay for the one-way distance from pickup to drop city. Never pay for the car’s return journey.' },
       { title: 'Fares Shown Upfront', text: 'View exact distance fare, driver bata, and GST before confirming. No hidden night fees.' },
-      { title: 'Pay Cash or UPI', text: 'Nothing charged upfront when you book. Pay your chauffeur comfortably at the end of the ride.' },
+      { title: 'Pay Cash or UPI', text: 'Nothing charged upfront when you book. Pay your driver comfortably at the end of the ride.' },
       { title: 'Boarding Security', text: '4-digit OTP boarding code ensures your trip only begins once you are seated inside the vehicle.' },
     ],
     overview: [
@@ -67,24 +67,24 @@ export const ALL_SERVICES: ServiceDetail[] = [
   {
     id: 'outstation-round-trip',
     slug: 'outstation-round-trip',
-    title: 'Outstation Round Trip Cabs | Multi-Day Car Rental with Chauffeur',
-    h1: 'Outstation Round Trip Car Rentals with Chauffeur',
+    title: 'Outstation Round Trip Cabs | Multi-Day Car Rental with Driver',
+    h1: 'Outstation Round Trip Car Rentals with Driver',
     tripType: 'Round Trip',
     image: '/website-images/web/photography/service-round-trip.webp',
     metaDescription:
-      'Book outstation round trip cabs with dedicated chauffeur across South India. Calendar-day billing, 250 km/day minimum, clean AC cars for family vacations and temple tours.',
+      'Book outstation round trip cabs with dedicated driver across South India. Calendar-day billing, 250 km/day minimum, clean AC cars for family vacations and temple tours.',
     keywords:
       'outstation round trip cab, outstation car rental with driver, multi day cab booking tamil nadu, family vacation car rental, round trip taxi rate per km',
     lead:
-      'Out and back over one day or multiple days with your dedicated chauffeur. Transparent calendar-day billing, generous daily km limits, and complete flexibility.',
+      'Out and back over one day or multiple days with your dedicated driver. Transparent calendar-day billing, generous daily km limits, and complete flexibility.',
     features: [
-      { title: 'Dedicated Chauffeur', text: 'The same professional driver and vehicle stays with your group throughout the journey.' },
+      { title: 'Dedicated Driver', text: 'The same professional driver and vehicle stays with your group throughout the journey.' },
       { title: 'Calendar Day Billing', text: 'Simple, transparent billing based on calendar days with clear daily driver bata.' },
       { title: 'Sightseeing Freedom', text: 'Stop at viewpoint spots, heritage monuments, and restaurants on your own schedule.' },
       { title: 'All-Inclusive Quotes', text: 'See your complete minimum km package and daily allowance before you confirm.' },
     ],
     overview: [
-      'Whether planning a long-weekend getaway to Ooty or Kodaikanal, a family darshan tour across South Indian temples, or a business trip covering multiple industrial towns, NESAM Outstation Round Trips provide the comfort of your own car with the relaxation of a professional chauffeur.',
+      'Whether planning a long-weekend getaway to Ooty or Kodaikanal, a family darshan tour across South Indian temples, or a business trip covering multiple industrial towns, NESAM Outstation Round Trips provide the comfort of your own car with the relaxation of a professional driver.',
       'Our round trips are billed by calendar day with fair daily minimum kilometre allowances (250 km/day for Sedans & SUVs, 300 km/day for Innova Crysta). Any extra kilometres travelled are charged at low standard per-km rates with zero surcharge.',
     ],
     pricingRules: [
@@ -119,9 +119,9 @@ export const ALL_SERVICES: ServiceDetail[] = [
     lead:
       'Never miss a flight. Guaranteed punctual pickups, flight status tracking, professional meet-and-greet, and upfront fixed package fares with zero surge pricing.',
     features: [
-      { title: 'Guaranteed Punctuality', text: 'Chauffeurs arrive 15 minutes before scheduled pickup time for seamless departure.' },
+      { title: 'Guaranteed Punctuality', text: 'Drivers arrive 15 minutes before scheduled pickup time for seamless departure.' },
       { title: 'Zero Surge Pricing', text: 'Fixed upfront package fares regardless of peak hours, rain, or midnight timings.' },
-      { title: 'Airport Meet & Greet', text: 'Chauffeur assists with luggage at arrival gates and guides you to the vehicle.' },
+      { title: 'Airport Meet & Greet', text: 'Driver assists with luggage at arrival gates and guides you to the vehicle.' },
       { title: 'Generous Boot Space', text: 'Spacious sedans and SUVs capable of handling large international and domestic luggage.' },
     ],
     overview: [
@@ -142,23 +142,23 @@ export const ALL_SERVICES: ServiceDetail[] = [
       },
       {
         q: 'Can the driver assist with luggage?',
-        a: 'Yes, our verified chauffeurs happily assist with loading and unloading your luggage.',
+        a: 'Yes, our verified drivers happily assist with loading and unloading your luggage.',
       },
     ],
   },
   {
     id: 'local-rental',
     slug: 'local-rental',
-    title: 'Hourly Local Car Rental with Chauffeur | City Disposal Packages',
-    h1: 'Hourly Local Car Rental & City Disposal with Chauffeur',
+    title: 'Hourly Local Car Rental with Driver | City Disposal Packages',
+    h1: 'Hourly Local Car Rental & City Disposal with Driver',
     tripType: 'Local Rental',
     image: '/website-images/web/photography/service-corporate.webp',
     metaDescription:
-      'Hire a car and chauffeur by the hour for local city travel in Chennai, Bangalore, Coimbatore, and Madurai. Flexible 4hr, 8hr, and 12hr packages for business and shopping.',
+      'Hire a car and driver by the hour for local city travel in Chennai, Bangalore, Coimbatore, and Madurai. Flexible 4hr, 8hr, and 12hr packages for business and shopping.',
     keywords:
-      'hourly car rental with driver, local cab rental chennai, city taxi by hour, car disposal with chauffeur bangalore, 8 hours 80 km cab package',
+      'hourly car rental with driver, local cab rental chennai, city taxi by hour, car disposal with driver bangalore, 8 hours 80 km cab package',
     lead:
-      'Chauffeur-driven vehicle at your command within city limits. Multi-stop meetings, wedding shopping, or sightseeing with flexible hourly packages.',
+      'A car with a driver, at your service within city limits. Multi-stop meetings, wedding shopping, or sightseeing with flexible hourly packages.',
     features: [
       { title: 'Car at Your Disposal', text: 'Vehicle waits for you at every stop while you attend meetings or shopping.' },
       { title: 'Flexible Packages', text: 'Choose from 1 hr / 10 km up to full-day 12 hr / 120 km packages.' },
@@ -190,11 +190,11 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'Round Trip',
     image: '/website-images/web/photography/service-pilgrimage.webp',
     metaDescription:
-      'Book sacred South India temple tour cabs with NESAM Cabs. Darshan packages to Rameshwaram, Tirupati, Navagraha, Madurai Meenakshi, Palani with respectful chauffeurs.',
+      'Book sacred South India temple tour cabs with NESAM Cabs. Darshan packages to Rameshwaram, Tirupati, Navagraha, Madurai Meenakshi, Palani with respectful drivers.',
     keywords:
       'tamil nadu temple tour cab, rameshwaram pilgrimage taxi, tirupati balaji darshan cab, navagraha temple taxi package, south india spiritual tour car rental',
     lead:
-      'Experience divine peace on sacred temple circuits. Courteous, respectful chauffeurs familiar with temple timings, darshan queues, and holy rituals.',
+      'Experience divine peace on sacred temple circuits. Courteous, respectful drivers familiar with temple timings, darshan queues, and holy rituals.',
     features: [
       { title: 'Temple Knowledge', text: 'Drivers familiar with temple pooja timings, dress codes, and car parking near shrines.' },
       { title: 'Comfort for Seniors', text: 'Gentle driving and easy boarding for elderly parents and young children.' },
@@ -203,7 +203,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
     ],
     overview: [
       'Tamil Nadu is the sacred Land of Temples. From the coastal shrine of Lord Ramanatha in Rameshwaram and the soaring gopurams of Madurai Meenakshi, to the Navagraha temples of Kumbakonam and the hilltop sanctum of Palani Murugan, pilgrimage is at the heart of South Indian culture.',
-      'NESAM Cabs specializes in dedicated pilgrimage packages. Our chauffeurs take personal care of senior citizens, navigate near temple entrances for minimum walking, and guide your family on sacred traditions.',
+      'NESAM Cabs specializes in dedicated pilgrimage packages. Our drivers take personal care of senior citizens, navigate near temple entrances for minimum walking, and guide your family on sacred traditions.',
     ],
     pricingRules: [
       { title: 'Round-Trip Outstation Rates', detail: 'Sedan at ₹14/km, SUV at ₹19/km, Crysta at ₹22/km' },

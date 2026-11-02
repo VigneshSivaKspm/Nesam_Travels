@@ -1,14 +1,6 @@
 /* NESAM Cabs — "Executive" theme. Loaded last, so it sets the look of the whole site:
-   charcoal and warm ivory, a deep crimson for action, thin gold rules, a serif display face for headlines and
+   charcoal and warm ivory, a deep crimson for action, thin gold rules, Poppins throughout and
    sharp, precise corners. Behaviour and layout stay the same as the other two customer sites. */
-@font-face {
-  font-family: 'Playfair Display';
-  font-style: normal;
-  font-weight: 400 900;
-  font-display: swap;
-  src: url('../assets/fonts/playfair-600.woff2') format('woff2');
-}
-
 :root {
   --red: #a31621;
   --red-hover: #8b111b;
@@ -36,7 +28,8 @@
   --line-strong: #d9d2c8;
   --navy: #14171c;
 
-  --font-head: 'Playfair Display', 'Nesam UI', Georgia, 'Times New Roman', serif;
+  --font: 'Poppins', 'Noto Sans Tamil', 'Latha', 'Nirmala UI', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-head: 'Poppins', 'Noto Sans Tamil', 'Latha', 'Nirmala UI', system-ui, sans-serif;
 
   --r-xs: 3px;
   --r-btn: 4px;
@@ -65,7 +58,7 @@ h2,
 .sec-heading h2 {
   font-family: var(--font-head);
   font-weight: 600;
-  letter-spacing: -0.005em;
+  letter-spacing: -0.01em;
 }
 .hx-head h2::after,
 .sec-heading h2::after,
@@ -143,8 +136,8 @@ h2,
     font-family: var(--font-head);
     font-size: clamp(2rem, 1.3rem + 2.6vw, 3.5rem);
     font-weight: 600;
-    line-height: 1.1;
-    letter-spacing: -0.01em;
+    line-height: 1.12;
+    letter-spacing: -0.025em;
     background: none;
     }
   .hero-copy h1::after {
@@ -419,4 +412,151 @@ h2,
   .bf {
     border-top: 3px solid var(--gold);
   }
+}
+
+/* ── Layout: a split hero (headline left, booking panel right) and a centred menu ───────────────── */
+.topbar__nav {
+  justify-content: center;
+}
+@media (min-width: 1000px) {
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 440px;
+    align-items: center;
+    column-gap: clamp(32px, 5vw, 88px);
+    padding-inline: max(var(--gutter), calc((100% - 1216px) / 2));
+  }
+  .hero-copy {
+    max-width: none;
+    margin: 0;
+  }
+  .hero-copy h1 {
+    font-size: clamp(2.6rem, 1.5rem + 2.6vw, 4.1rem);
+    line-height: 1.08;
+  }
+  .bf {
+    justify-self: end;
+    max-width: 440px;
+    margin: 0;
+  }
+  .bf-route {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 10px;
+  }
+  .bf-swap {
+    top: 50%;
+    right: 44px;
+    left: auto;
+    transform: translateY(-50%);
+  }
+  .bf-swap:hover:not(:disabled) {
+    transform: translateY(-50%);
+  }
+}
+
+/* Multicity on phones: the same padded inner box as the single-trip form, so fields never touch the card edge. */
+@media (max-width: 767.98px) {
+  .bf-multicity {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface, #fff);
+  }
+}
+
+/* ── Fonts (bundled; latin) ─────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/poppins-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/poppins-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/poppins-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Poppins';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/poppins-700.woff2') format('woff2');
+}
+
+/* ── Icons: fine, crisp lines with square ends ───────────────────────────────────────────────────── */
+.icon svg {
+  stroke-width: 1.5;
+  stroke-linecap: square;
+  stroke-linejoin: miter;
+}
+
+/* ── Side menu: an executive list: full-width rows, hairline dividers, a charcoal footer ─────────── */
+.drawer__panel {
+  width: min(88vw, 360px);
+  box-shadow: 24px 0 60px -20px rgb(0 0 0 / 0.45);
+}
+.drawer__head {
+  padding: 16px 20px;
+}
+.drawer__quick {
+  padding: 4px 0 8px;
+}
+.drawer__quick a {
+  min-height: 54px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line-soft);
+  border-radius: 0;
+  font-weight: 500;
+}
+.drawer__quick a::after {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-top: 1.5px solid var(--faint);
+  border-right: 1.5px solid var(--faint);
+  rotate: 45deg;
+}
+.drawer__group summary {
+  min-height: 52px;
+  padding: 0 20px;
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+.drawer__links {
+  padding: 0 0 10px;
+}
+.drawer__links a {
+  padding: 11px 20px 11px 30px;
+  border-radius: 0;
+  color: var(--body);
+  font-size: 0.875rem;
+}
+.drawer__foot {
+  padding: 18px 20px calc(18px + env(safe-area-inset-bottom, 0px));
+  border-top: 2px solid var(--gold);
+  background: var(--ink);
+}
+.drawer__call {
+  border: 1px solid var(--gold);
+  background: transparent;
+  color: #e9cf9d;
+}
+.drawer__copy {
+  color: #8d929b;
 }

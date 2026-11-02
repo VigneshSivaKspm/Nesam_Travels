@@ -263,3 +263,404 @@ html[data-hero-logo='in'] .topbar .brand {
     height: 62px;
   }
 }
+
+/* Service buttons: readable text on the pale bar; the chosen one is solid blue with white text. */
+.bf-service {
+  background: transparent;
+  color: var(--brand-ink);
+}
+.bf-service:hover:not(.is-active) {
+  background: #fff;
+  color: var(--brand);
+}
+.bf-service.is-active,
+.bf-service.is-active:hover {
+  background: var(--brand);
+  color: #fff;
+}
+
+/* ── Layout: photo first, headline top-left, the booking bar anchored along the bottom ──────────── */
+@media (min-width: 768px) {
+  .home-hero {
+    justify-content: space-between;
+  }
+  .hero-copy {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .hero-logo {
+    justify-content: flex-start;
+    margin-inline: 0;
+  }
+  .hero-copy h1 {
+    max-width: 14ch;
+    font-size: clamp(2.4rem, 1.4rem + 3vw, 4.2rem);
+    line-height: 1.04;
+  }
+}
+
+/* Section headings are centred. */
+.sec-heading,
+.hx-head,
+.routes__head,
+.why__intro,
+.faq__intro {
+  text-align: center;
+}
+.hx-head__text {
+  margin-inline: auto;
+}
+.hx-head h2::after,
+.sec-heading h2::after,
+.routes__head .display-h::after,
+.why__intro .display-h::after,
+.faq__intro .display-h::after {
+  margin-inline: auto;
+}
+
+/* Phone bar: a floating pill instead of a full-width strip. */
+@media (max-width: 899.98px) {
+  .tabbar {
+    right: 12px;
+    bottom: calc(10px + env(safe-area-inset-bottom, 0px));
+    left: 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: #fff;
+    box-shadow: 0 6px 18px rgb(15 23 42 / 0.16);
+  }
+}
+
+/* Multicity on phones: the same padded inner box as the single-trip form, so fields never touch the card edge. */
+@media (max-width: 767.98px) {
+  .bf-multicity {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface, #fff);
+  }
+}
+
+/* ── Fonts (bundled; latin) ─────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Nunito';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('../assets/fonts/nunito-400-900.woff2') format('woff2');
+}
+
+/* ── Icons: soft rounded lines, set in tinted bubbles on the service buttons ─────────────────────── */
+.icon svg {
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bf-service .icon {
+  box-sizing: content-box;
+  padding: 5px;
+  border-radius: 50%;
+  background: rgb(22 101 232 / 0.1);
+}
+.bf-service.is-active .icon {
+  background: rgb(255 255 255 / 0.22);
+}
+
+/* ── Side menu: a bottom sheet with rounded top corners, pill shortcuts and soft cards ───────────── */
+.drawer {
+  align-items: flex-end;
+}
+.drawer__panel {
+  width: 100%;
+  height: auto;
+  max-height: 88dvh;
+  border-radius: 28px 28px 0 0;
+  box-shadow: 0 -12px 40px rgb(15 23 42 / 0.25);
+}
+.drawer__panel::before {
+  content: '';
+  flex: none;
+  align-self: center;
+  width: 44px;
+  height: 5px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--line-strong);
+}
+.drawer__head {
+  padding: 8px 14px 4px 20px;
+  border-bottom: 0;
+}
+.drawer__quick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 16px 12px;
+}
+.drawer__quick a {
+  min-height: 46px;
+  padding: 0 18px 0 8px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+  font-weight: 800;
+}
+.drawer__quick a .icon {
+  box-sizing: content-box;
+  padding: 6px;
+  border-radius: 50%;
+  background: #fff;
+  color: var(--brand);
+}
+.drawer__group {
+  margin: 0 16px 8px;
+  border-top: 0;
+  border-radius: 20px;
+  background: var(--sunken);
+}
+.drawer__group summary {
+  min-height: 52px;
+  padding: 0 18px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.drawer__links {
+  padding: 0 8px 10px;
+}
+.drawer__foot {
+  border-top: 0;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .drawer__panel {
+    animation-name: drawer-up;
+  }
+}
+@keyframes drawer-up {
+  from {
+    translate: 0 100%;
+  }
+}
+
+/* Header on wide screens: while the hero shows the logo, the header leaves its own out and "Book a ride"
+   takes the first place; once the hero scrolls away the logo slides back in and the menu moves along. */
+@media (min-width: 900px) {
+  .topnav {
+    justify-content: flex-start;
+  }
+  .topbar .brand {
+    max-width: 260px;
+    overflow: hidden;
+    transition: max-width 0.4s ease, opacity 0.3s ease, visibility 0.4s;
+  }
+  html[data-hero-logo='in'] .topbar .brand {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* The same on phones and small tablets: no header logo while the hero shows it; it slides in on scroll. */
+@media (max-width: 899.98px) {
+  .topbar__mobile {
+    margin-left: auto;
+  }
+  .topbar .brand {
+    max-width: 220px;
+    overflow: hidden;
+    transition: max-width 0.4s ease, opacity 0.3s ease, visibility 0.4s;
+  }
+  html[data-hero-logo='in'] .topbar .brand {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+/* Side menu shortcuts: a tidy 2 × 2 grid of equal pills. */
+.drawer__quick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.drawer__quick a {
+  justify-content: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 0 10px 0 6px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+.drawer__quick a .icon {
+  flex: none;
+}
+
+/* ── Inner pages: plain page headers and white account cards (no banner, no rings, no gradients) ─── */
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px 24px;
+  padding: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink);
+  isolation: auto;
+  overflow: visible;
+}
+.page-head::before,
+.page-head::after {
+  display: none;
+}
+.page-head__text h1 {
+  color: var(--ink);
+  font-weight: 800;
+}
+.page-head .eyebrow {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+.page-head__text p:not(.eyebrow) {
+  color: var(--muted);
+}
+.page-head .btn--secondary {
+  --btn-bg: #fff;
+  --btn-fg: var(--ink);
+  --btn-line: var(--line-strong);
+}
+.page-head .btn--primary {
+  --btn-bg: var(--brand);
+  --btn-fg: #fff;
+  --btn-line: var(--brand);
+  box-shadow: none;
+}
+.page-head .back-link {
+  background: var(--brand-soft);
+  color: var(--brand-ink);
+}
+
+.profile-card {
+  padding: 28px 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: #fff;
+  box-shadow: none;
+  color: var(--body);
+}
+.profile-card .muted {
+  color: var(--muted);
+}
+.profile-card h2 {
+  color: var(--ink);
+  font-weight: 800;
+}
+.profile-card .btn--secondary {
+  --btn-bg: #fff;
+  --btn-fg: var(--brand-ink);
+  --btn-line: var(--brand-line);
+}
+.profile-card__photo {
+  border: 3px solid var(--brand-soft);
+  box-shadow: none;
+}
+.profile-card__cam {
+  border-color: #fff;
+  background: var(--brand);
+  color: #fff;
+}
+.credit-card {
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: #fff;
+  box-shadow: none;
+  color: var(--ink);
+}
+.credit-card:hover {
+  transform: none;
+  border-color: var(--brand-line);
+}
+.credit-card > .icon {
+  color: var(--brand);
+}
+.credit-card__text small {
+  color: var(--muted);
+  font-weight: 600;
+}
+.credit-card__text strong {
+  font-weight: 800;
+}
+.group > h2.eyebrow {
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  letter-spacing: 0.06em;
+}
+
+/* A page header with a back button: the button sits to the left of the title. */
+.page-head:has(> .back-btn) {
+  flex-wrap: nowrap;
+  gap: 12px;
+  justify-content: flex-start;
+}
+.page-head:has(> .back-btn) .page-head__actions {
+  margin-left: auto;
+}
+
+/* Vehicle cards on phones: the price sits right under the car image; "Fare details" is at the bottom left. */
+@media (max-width: 999.98px) {
+  .cab__info {
+    display: flex;
+    flex-direction: column;
+    grid-row: 1 / span 2;
+  }
+  .cab__breakup-btn {
+    margin-top: auto;
+    padding-top: 8px;
+  }
+  .cab__photo {
+    align-self: start;
+  }
+  .cab__price {
+    grid-column: 2;
+    grid-row: 2;
+    align-self: end;
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+}
+
+/* Under the Confirm button: the shield on the left, two short lines of text beside it. */
+.rv-act__note {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 2px;
+  align-items: start;
+  justify-content: center;
+  text-align: left;
+}
+.rv-act__note > .icon {
+  grid-row: 1 / span 2;
+  margin-top: 2px;
+  color: var(--brand);
+}
+.rv-act__note a {
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* Wide screens: the total is already in the price summary on the right, so the left card does not repeat it. */
+@media (min-width: 1000px) {
+  .rv-sum__total {
+    display: none;
+  }
+}

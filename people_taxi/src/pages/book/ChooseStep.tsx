@@ -189,7 +189,6 @@ export function ChooseStep() {
                       {fare ? (
                         <>
                           <strong>{formatINR(fare.total)}</strong>
-                          <small className="muted">Tolls &amp; taxes extra</small>
                           {fare.discount > 0 ? (
                             <span className="cab__saving">Save {formatINR(fare.discount)}</span>
                           ) : null}
@@ -213,7 +212,7 @@ export function ChooseStep() {
                     </Button>
                   }
                 >
-                  Try selecting "All Vehicles" to browse our complete chauffeur fleet.
+                  Try selecting "All Vehicles" to browse our complete driver fleet.
                 </EmptyState>
               ) : null}
             </div>

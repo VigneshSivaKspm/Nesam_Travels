@@ -32,7 +32,7 @@ export const SERVICES: readonly ServiceMeta[] = [
   {
     id: 'rental',
     label: 'Local Rental',
-    tagline: 'Hourly city disposal packages with chauffeur',
+    tagline: 'Hourly city disposal packages with driver',
     tripType: 'Local Rental',
     online: true,
     icon: 'clock',

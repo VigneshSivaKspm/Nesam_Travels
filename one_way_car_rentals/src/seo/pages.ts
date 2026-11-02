@@ -8,7 +8,7 @@ import { SITE, absoluteUrl, faqSchema, type SeoProps } from './site';
 export const HOME_SEO: SeoProps = {
   title: 'One Way Car Rentals | One Way Taxi & Drop Cabs in Tamil Nadu',
   description:
-    'Book a one way taxi or outstation cab across Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every fare before you book, verified chauffeurs, 24/7 support.',
+    'Book a one way taxi or outstation cab across Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every fare before you book, verified drivers, 24/7 support.',
   keywords:
     'one way car rentals, one way taxi, one way drop taxi, one way cab, drop taxi tamil nadu, outstation cabs, one way car rental with driver, chennai one way taxi, intercity cab booking',
   canonical: '/',

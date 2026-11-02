@@ -14,7 +14,7 @@ export const SITE = {
 } as const;
 
 export const DEFAULT_DESCRIPTION =
-  'Book outstation cabs, one-way drop taxis and round trips across Tamil Nadu, Bangalore and Pondicherry with People Taxi. Upfront fares, verified chauffeurs, 24/7 support.';
+  'Book outstation cabs, one-way drop taxis and round trips across Tamil Nadu, Bangalore and Pondicherry with People Taxi. Upfront fares, verified drivers, 24/7 support.';
 
 const ROBOTS_INDEX = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 const ROBOTS_NOINDEX = 'noindex, nofollow';
@@ -103,7 +103,7 @@ export function siteSchema(): object {
         logo: absoluteUrl(SITE.logo),
         image: absoluteUrl(SITE.image),
         description:
-          'Outstation cabs, one-way drop taxis, round trips, airport transfers, local hourly rentals and temple tours with verified chauffeurs across Tamil Nadu, Bangalore and Pondicherry.',
+          'Outstation cabs, one-way drop taxis, round trips, airport transfers, local hourly rentals and temple tours with verified drivers across Tamil Nadu, Bangalore and Pondicherry.',
         telephone: SITE.phone,
         email: SITE.email,
         currenciesAccepted: 'INR',

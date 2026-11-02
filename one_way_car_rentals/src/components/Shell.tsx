@@ -202,7 +202,7 @@ function Footer() {
           <div className="footer__cta-copy">
             <h3>Ready to travel? Book your cab online in seconds.</h3>
             <p className="footer__cta-sub">
-              Verified chauffeurs, upfront transparent fares, and air-conditioned cars across South India.
+              Verified drivers, upfront transparent fares, and air-conditioned cars across South India.
             </p>
           </div>
           <div className="footer__cta-actions">

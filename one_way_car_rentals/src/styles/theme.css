@@ -299,3 +299,147 @@ html[data-hero-logo='in'] .topbar .brand {
     height: 62px;
   }
 }
+
+/* Multicity on phones: the same padded inner box as the single-trip form, so fields never touch the card edge. */
+@media (max-width: 767.98px) {
+  .bf-multicity {
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    background: var(--surface, #fff);
+  }
+}
+
+/* ── Fonts (bundled; latin) ─────────────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-condensed-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Barlow Condensed';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('../assets/fonts/barlow-condensed-700.woff2') format('woff2');
+}
+
+/* ── Icons: bold, rounded strokes ────────────────────────────────────────────────────────────────── */
+.icon svg {
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ── Side menu: a green header band, a 2×2 grid of square shortcuts, then the lists ─────────────── */
+.drawer__panel {
+  width: min(88vw, 340px);
+}
+.drawer__head {
+  padding: 12px 14px;
+  border-top: 0;
+  border-bottom: 0;
+  background: var(--brand);
+}
+.drawer__head > span {
+  padding: 6px 10px;
+  border-radius: var(--r-md);
+  background: #fff;
+}
+.drawer__close {
+  background: rgb(255 255 255 / 0.18);
+  color: #fff;
+}
+.drawer__close:hover {
+  background: rgb(255 255 255 / 0.3);
+  color: #fff;
+}
+.drawer__quick {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+}
+.drawer__quick a {
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 84px;
+  padding: 10px 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  font-family: var(--font-display);
+  font-size: 0.9375rem;
+  letter-spacing: 0.05em;
+  text-align: center;
+  text-transform: uppercase;
+}
+.drawer__quick a .icon {
+  color: var(--brand);
+}
+.drawer__group {
+  border-top: 0;
+}
+.drawer__group summary {
+  margin: 0 12px 4px;
+  padding: 0 12px;
+  border-left: 4px solid var(--brand);
+  background: var(--sunken);
+  color: var(--ink);
+}
+.drawer__links a {
+  padding-left: 22px;
+}
+.drawer__foot {
+  border-top: 4px solid var(--brand);
+}
+
+/* Side menu header: white, with a thin green rule on top. */
+.drawer__head {
+  border-top: 3px solid var(--brand);
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+}
+.drawer__head > span {
+  padding: 0;
+  background: none;
+}
+.drawer__close {
+  background: var(--sunken);
+  color: var(--muted);
+}
+.drawer__close:hover {
+  background: var(--line);
+  color: var(--ink);
+}

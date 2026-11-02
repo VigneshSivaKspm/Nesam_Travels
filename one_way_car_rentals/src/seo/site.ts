@@ -14,7 +14,7 @@ export const SITE = {
 } as const;
 
 export const DEFAULT_DESCRIPTION =
-  'Book a one way taxi or outstation cab across Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every fare before you book, verified chauffeurs, 24/7 support.';
+  'Book a one way taxi or outstation cab across Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every fare before you book, verified drivers, 24/7 support.';
 
 const ROBOTS_INDEX = 'index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1';
 const ROBOTS_NOINDEX = 'noindex, nofollow';
@@ -102,7 +102,7 @@ export function siteSchema(): object {
         logo: absoluteUrl(SITE.logo),
         image: absoluteUrl(SITE.image),
         description:
-          'One way drop taxis, outstation round trips, airport transfers, local hourly rentals and temple tours with verified chauffeurs across Tamil Nadu, Bangalore and Pondicherry.',
+          'One way drop taxis, outstation round trips, airport transfers, local hourly rentals and temple tours with verified drivers across Tamil Nadu, Bangalore and Pondicherry.',
         telephone: SITE.phone,
         email: SITE.email,
         currenciesAccepted: 'INR',

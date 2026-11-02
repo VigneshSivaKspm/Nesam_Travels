@@ -35,14 +35,14 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'One Way',
     imageUrl: IMG('photography/service-one-way'),
     metaDescription:
-      'One way drop taxi between cities in Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every vehicle’s fare before booking, verified chauffeurs.',
+      'One way drop taxi between cities in Tamil Nadu, Bangalore and Pondicherry. Pay for the drop only, see every vehicle’s fare before booking, verified drivers.',
     keywords:
       'one way drop taxi, one way taxi tamil nadu, one way cab, drop taxi online booking, intercity one way cab, one way car rental with driver, outstation drop taxi',
     lead: 'Going to another city and not coming back the same way? Book a one-way drop and pay for the trip you actually take — never for the car’s empty return.',
     features: [
       { title: 'No return fare', text: 'A one-way booking is priced for your drop, not for a round trip you won’t take.' },
       { title: 'Fares before you book', text: 'Compare every vehicle — hatchback to tempo traveller — with what is and isn’t included.' },
-      { title: 'Verified chauffeurs', text: 'Commercial drivers who know the highways, with name, phone and vehicle number shared once assigned.' },
+      { title: 'Verified drivers', text: 'Commercial drivers who know the highways, with name, phone and vehicle number shared once assigned.' },
       { title: 'Boarding code', text: 'The trip can’t start until you share the 4-digit code shown only to you.' },
     ],
     overview: [
@@ -74,17 +74,17 @@ export const ALL_SERVICES: ServiceDetail[] = [
     slug: 'outstation-round-trip',
     homeId: 'round-trip',
     title: 'Outstation Round Trip Cab with Driver | Multi-Day Car Rental',
-    h1: 'Outstation Round Trips with a Chauffeur',
+    h1: 'Outstation Round Trips with a Driver',
     name: 'Outstation round trip',
     tripType: 'Round Trip',
     imageUrl: IMG('photography/service-round-trip'),
     metaDescription:
-      'Outstation round trip cabs with a dedicated chauffeur for one day or several. Calendar-day billing, fares shown before you book, clean AC cars across South India.',
+      'Outstation round trip cabs with a dedicated driver for one day or several. Calendar-day billing, fares shown before you book, clean AC cars across South India.',
     keywords:
       'outstation round trip cab, outstation cab with driver, multi day car rental with driver, round trip taxi tamil nadu, family trip car rental',
     lead: 'Out and back over one day or many, with the same car and driver throughout. Billed by calendar day, with the fare shown before you book.',
     features: [
-      { title: 'Same car, same driver', text: 'Your chauffeur stays with you for the whole trip.' },
+      { title: 'Same car, same driver', text: 'Your driver stays with you for the whole trip.' },
       { title: 'Calendar-day billing', text: 'Simple to plan: each calendar day of the trip is a billing day.' },
       { title: 'Your own schedule', text: 'Stop for viewpoints, temples and meals when you want to.' },
       { title: 'Room for everyone', text: 'Sedans, SUVs and tempo travellers for families and groups.' },
@@ -119,7 +119,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'Airport Taxi',
     imageUrl: IMG('photography/service-airport'),
     metaDescription:
-      'Pre-booked airport taxi for Chennai, Bangalore, Coimbatore, Madurai and Trichy airports. Scheduled pickups, verified chauffeurs, fares shown before you book.',
+      'Pre-booked airport taxi for Chennai, Bangalore, Coimbatore, Madurai and Trichy airports. Scheduled pickups, verified drivers, fares shown before you book.',
     keywords:
       'airport taxi chennai, chennai airport cab, bangalore airport taxi, coimbatore airport taxi, madurai airport cab, trichy airport taxi, airport drop taxi',
     lead: 'Pickups and drops arranged before your flight, with the fare for every vehicle shown upfront and a driver you can call once assigned.',
@@ -145,7 +145,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
       },
       {
         q: 'Will the driver help with luggage?',
-        a: 'Yes, our chauffeurs help load and unload your bags.',
+        a: 'Yes, our drivers help load and unload your bags.',
       },
     ],
   },
@@ -158,10 +158,10 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'Local Rental',
     imageUrl: IMG('photography/service-corporate'),
     metaDescription:
-      'Hire a car with a chauffeur by the hour within city limits — for meetings, shopping, hospital visits or family functions. Fares shown before you book.',
+      'Hire a car with a driver by the hour within city limits — for meetings, shopping, hospital visits or family functions. Fares shown before you book.',
     keywords:
       'local car rental with driver, hourly cab rental, car with driver for a day, city cab package, local taxi by the hour chennai',
-    lead: 'A car and chauffeur at your disposal by the hour within city limits. Make as many stops as you need while the driver waits.',
+    lead: 'A car and driver at your disposal by the hour within city limits. Make as many stops as you need while the driver waits.',
     features: [
       { title: 'Car waits for you', text: 'Your driver waits at each stop while you finish your work.' },
       { title: 'Hourly packages', text: 'Choose the package that fits your day.' },
@@ -194,10 +194,10 @@ export const ALL_SERVICES: ServiceDetail[] = [
     tripType: 'Round Trip',
     imageUrl: IMG('photography/service-pilgrimage'),
     metaDescription:
-      'Temple tour cabs for Rameswaram, Tirupati, Madurai Meenakshi, Palani and the Navagraha temples. Courteous chauffeurs, fares shown before you book.',
+      'Temple tour cabs for Rameswaram, Tirupati, Madurai Meenakshi, Palani and the Navagraha temples. Courteous drivers, fares shown before you book.',
     keywords:
       'temple tour taxi tamil nadu, pilgrimage cab, navagraha temple tour car, rameshwaram taxi, tirupati darshan cab, palani temple taxi',
-    lead: 'Darshan trips and multi-temple circuits without the travel stress, with patient chauffeurs who are used to temple towns.',
+    lead: 'Darshan trips and multi-temple circuits without the travel stress, with patient drivers who are used to temple towns.',
     features: [
       { title: 'Temple-town experience', text: 'Drivers familiar with temple timings and parking near the shrines.' },
       { title: 'Easy for elders', text: 'Comfortable cars and unhurried driving for senior family members.' },

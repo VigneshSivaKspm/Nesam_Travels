@@ -69,11 +69,11 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     keywords:
       'chennai to pondicherry drop taxi, chennai to pondicherry cab, one way taxi chennai to pondi, ecr cab chennai to pondicherry, chennai airport to pondicherry taxi fare, innova crysta chennai to pondicherry',
     summary:
-      'Travel smoothly from Chennai to Pondicherry along the picturesque East Coast Road (ECR). Enjoy upfront fares, zero return fare on one-way drops, and verified commercial chauffeurs.',
+      'Travel smoothly from Chennai to Pondicherry along the picturesque East Coast Road (ECR). Enjoy upfront fares, zero return fare on one-way drops, and verified commercial drivers.',
     overview: [
       'The Chennai to Pondicherry corridor is one of the most scenic coastal highway road trips in South India. Stretching approximately 150 km via the East Coast Road (ECR), you travel past the Bay of Bengal shoreline, historic temples, and quiet fishing hamlets.',
       'With NESAM Cabs one-way drop taxi service, you only pay for the 150 km one-way journey. Unlike traditional car rentals that charge return fares for empty return journeys, NESAM ensures you save up to 40% to 50% on intercity cab travel.',
-      'Our chauffeurs are certified commercial drivers familiar with the ECR route, coastal weather, and local sightseeing spots. Whether travelling for a weekend getaway, corporate meeting, or family holiday, choose from AC Sedans (Dzire/Etios), comfortable 6/7-seater SUVs (Ertiga), or executive Innova Crysta cabs.',
+      'Our drivers are certified commercial drivers familiar with the ECR route, coastal weather, and local sightseeing spots. Whether travelling for a weekend getaway, corporate meeting, or family holiday, choose from AC Sedans (Dzire/Etios), comfortable 6/7-seater SUVs (Ertiga), or executive Innova Crysta cabs.',
     ],
     keyStops: [
       {
@@ -132,7 +132,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     drop: place('d-blr', 'Bangalore Majestic', 'Bengaluru, Karnataka', 12.9767, 77.5713),
     image: '/website-images/web/destinations/route-chennai-bangalore.webp',
     metaDescription:
-      'Book Chennai to Bangalore one way cab or outstation round trip with NESAM Cabs. Transparent per km rates, zero return fare, highway chauffeurs, pay via cash or UPI.',
+      'Book Chennai to Bangalore one way cab or outstation round trip with NESAM Cabs. Transparent per km rates, zero return fare, highway drivers, pay via cash or UPI.',
     keywords:
       'chennai to bangalore cab, chennai to bangalore drop taxi, one way taxi chennai to bangalore, cab fare chennai to bangalore, innova crysta chennai to bangalore, outstation cab bangalore',
     summary:
@@ -184,7 +184,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
   {
     id: 'coimbatore-ooty',
     slug: 'coimbatore-to-ooty',
-    title: 'Coimbatore to Ooty Cab | Hill Station Taxi & Ghat Road Chauffeur',
+    title: 'Coimbatore to Ooty Cab | Hill Station Taxi & Ghat Road Driver',
     h1: 'Coimbatore to Ooty Hill Station Taxi & Ghat Road Cab',
     origin: 'Coimbatore',
     destination: 'Ooty',
@@ -195,15 +195,15 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     drop: place('d-ooty', 'Ooty Charring Cross', 'Udhagamandalam, Tamil Nadu', 11.4102, 76.695),
     image: '/website-images/web/destinations/route-coimbatore-ooty.webp',
     metaDescription:
-      'Book Coimbatore to Ooty cab with skilled ghat-road chauffeurs. Clean AC cars, upfront fares, airport & railway station pickup. Experience the Nilgiris comfortably.',
+      'Book Coimbatore to Ooty cab with skilled ghat-road drivers. Clean AC cars, upfront fares, airport & railway station pickup. Experience the Nilgiris comfortably.',
     keywords:
       'coimbatore to ooty cab, coimbatore to ooty taxi fare, coimbatore airport to ooty cab, ooty taxi service, ghat road certified drivers ooty, innova coimbatore to ooty',
     summary:
-      'Ascend into the Queen of Hill Stations with experienced ghat-road chauffeurs. Clean AC cars, breathtaking mountain views through Mettupalayam and Coonoor, and guaranteed safety.',
+      'Ascend into the Queen of Hill Stations with experienced ghat-road drivers. Clean AC cars, breathtaking mountain views through Mettupalayam and Coonoor, and guaranteed safety.',
     overview: [
       'The journey from Coimbatore to Ooty (Udhagamandalam) ascends from the Kongu plains into the misty Nilgiri hills. Over 88 km, you navigate the famous Nilgiri ghat road featuring 14 hairpin bends, lush emerald tea plantations, and cool mountain air.',
-      'Ghat roads require special hill-driving expertise. Every NESAM chauffeur assigned to Nilgiri trips has verified experience on mountain routes, ensuring your family travels safely without motion sickness or stress.',
-      'Whether landing at Coimbatore Airport (CJB) or arriving at Coimbatore Junction railway station, your chauffeur greets you on time and provides comfortable door-to-door transit to your Ooty resort or homestay.',
+      'Ghat roads require special hill-driving expertise. Every NESAM driver assigned to Nilgiri trips has verified experience on mountain routes, ensuring your family travels safely without motion sickness or stress.',
+      'Whether landing at Coimbatore Airport (CJB) or arriving at Coimbatore Junction railway station, your driver greets you on time and provides comfortable door-to-door transit to your Ooty resort or homestay.',
     ],
     keyStops: [
       {
@@ -258,14 +258,14 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     drop: place('d-rsm', 'Rameshwaram Temple', 'Rameswaram, Tamil Nadu', 9.2876, 79.3129),
     image: '/website-images/web/destinations/route-madurai-rameshwaram.webp',
     metaDescription:
-      'Book Madurai to Rameshwaram pilgrimage taxi with NESAM Cabs. Visit Ramanathaswamy Temple, Pamban Bridge, and Dhanushkodi with verified courteous chauffeurs.',
+      'Book Madurai to Rameshwaram pilgrimage taxi with NESAM Cabs. Visit Ramanathaswamy Temple, Pamban Bridge, and Dhanushkodi with verified courteous drivers.',
     keywords:
       'madurai to rameshwaram taxi, madurai to rameshwaram cab fare, rameshwaram temple taxi, pamban bridge cab, dhanushkodi taxi from madurai, madurai airport to rameshwaram cab',
     summary:
-      'Sacred pilgrimage and architectural wonder in one unforgettable journey. Travel across the Pamban Sea Bridge to Sri Ramanathaswamy Temple and Dhanushkodi with verified chauffeurs.',
+      'Sacred pilgrimage and architectural wonder in one unforgettable journey. Travel across the Pamban Sea Bridge to Sri Ramanathaswamy Temple and Dhanushkodi with verified drivers.',
     overview: [
       'The pilgrimage corridor from Madurai to Rameshwaram connects the sacred city of Goddess Meenakshi to one of the twelve divine Jyotirlinga shrines of Lord Shiva on Pamban Island.',
-      'Covering 172 km along NH-87, the highlight of the drive is traversing the iconic Pamban Sea Bridge, where ocean waters lap on both sides of the road. NESAM chauffeurs are familiar with temple darshan timings, sacred theertham bath rituals, and Dhanushkodi beach regulations.',
+      'Covering 172 km along NH-87, the highlight of the drive is traversing the iconic Pamban Sea Bridge, where ocean waters lap on both sides of the road. NESAM drivers are familiar with temple darshan timings, sacred theertham bath rituals, and Dhanushkodi beach regulations.',
       'Pickups are available directly from Madurai Airport (IXM), Madurai Meenakshi Temple hotels, and Madurai Junction railway station.',
     ],
     keyStops: [
@@ -295,7 +295,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     faqs: [
       {
         q: 'Can the cab take us all the way to Dhanushkodi?',
-        a: 'Yes, modern cabs can proceed along the paved coastal road to Arichal Munai (the southern land’s end). Our chauffeurs know the local beach driving restrictions.',
+        a: 'Yes, modern cabs can proceed along the paved coastal road to Arichal Munai (the southern land’s end). Our drivers know the local beach driving restrictions.',
       },
       {
         q: 'How many days are recommended for Madurai - Rameshwaram tour?',
@@ -325,7 +325,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     keywords:
       'bangalore to mysore cab, bangalore to mysore taxi fare, bangalore mysore expressway cab, bangalore airport to mysore taxi, one way cab bangalore to mysore',
     summary:
-      'Cruise down the world-class 10-lane Bengaluru-Mysuru Expressway in total comfort. Reach the City of Palaces in just 2.5 hours with professional highway chauffeurs.',
+      'Cruise down the world-class 10-lane Bengaluru-Mysuru Expressway in total comfort. Reach the City of Palaces in just 2.5 hours with professional highway drivers.',
     overview: [
       'The 142 km Bangalore to Mysore corridor has been transformed by the new access-controlled 10-lane expressway, cutting travel time from 4.5 hours down to just 2.5 hours.',
       'NESAM Cabs provides point-to-point drop taxi and round-trip rentals from all parts of Bengaluru (Electronic City, Koramangala, Whitefield, Indiranagar, Malleshwaram) straight to Mysore Palace, Chamundi Hills, and Brindavan Gardens.',
@@ -367,7 +367,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     drop: place('d-tjv', 'Thanjavur Big Temple', 'Thanjavur, Tamil Nadu', 10.787, 79.1378),
     image: '/website-images/web/destinations/destination-thanjavur.webp',
     metaDescription:
-      'Book Trichy to Thanjavur cab with NESAM Cabs. Visit UNESCO Brihadisvara Temple, Maratha Palace, and Chola heritage sites with courteous chauffeurs.',
+      'Book Trichy to Thanjavur cab with NESAM Cabs. Visit UNESCO Brihadisvara Temple, Maratha Palace, and Chola heritage sites with courteous drivers.',
     keywords:
       'trichy to thanjavur cab, trichy to thanjavur taxi fare, trichy airport to thanjavur cab, thanjavur big temple taxi, chola heritage temple tour cab',
     summary:

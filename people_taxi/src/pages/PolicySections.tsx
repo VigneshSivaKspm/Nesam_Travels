@@ -55,7 +55,7 @@ const POLICIES: { id: PolicyId; paragraphs: string[] }[] = [
     id: 'terms',
     paragraphs: [
       `${BRAND} is a booking service of ${COMPANY_LEGAL_NAME}. Check your route, pickup time, passenger details, vehicle category and fare before confirming. A booking request is subject to availability; rely on the confirmation and status shown in your booking. Provide accurate contact details and obtain permission when booking for another passenger. Keep login OTPs private and share the boarding OTP only with the assigned driver at pickup.`,
-      'One-way drops, round trips, airport transfers, hourly rentals and multicity trips follow the selected package. These are chauffeur-driven services unless expressly stated otherwise. Changes to stops, distance or hours may change the fare; contact support before changing your itinerary. Traffic and weather can affect arrival times, so allow time for onward connections.',
+      'One-way drops, round trips, airport transfers, hourly rentals and multicity trips follow the selected package. These services come with a driver unless expressly stated otherwise. Changes to stops, distance or hours may change the fare; contact support before changing your itinerary. Traffic and weather can affect arrival times, so allow time for onward connections.',
       'Indian law applies. These policies do not exclude statutory consumer rights, remedies for deficient service or liability that cannot lawfully be excluded. Read your booking confirmation and any versioned agreements below together with these policies.',
     ],
   },

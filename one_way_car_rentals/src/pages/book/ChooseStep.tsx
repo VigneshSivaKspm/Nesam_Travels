@@ -58,7 +58,7 @@ export function ChooseStep() {
   const selectedHidden = !!selected && !shown.some((c) => c.id === selected.id);
 
   const summaryFare = quote && selected && !q.unavailable.has(selected.id) ? quote.total : null;
-  const summaryLabel = canContinue ? 'Total upfront fare' : q.quoteLoading ? 'Confirming fare with server…' : 'Estimated fare';
+  const summaryLabel = canContinue ? 'Total fare' : q.quoteLoading ? 'Checking the fare…' : 'Estimated fare';
 
   return (
     <div className="flow-page">

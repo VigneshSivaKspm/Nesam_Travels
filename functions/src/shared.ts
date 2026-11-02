@@ -16,7 +16,27 @@ export const inIndia = (lat: unknown, lng: unknown): boolean =>
   typeof lat === 'number' && typeof lng === 'number' && Number.isFinite(lat) && Number.isFinite(lng)
   && lat >= 6.5 && lat <= 35.7 && lng >= 68.1 && lng <= 97.4;
 
+// A route between two points does not change when a tariff does, so a looked-up route is remembered
+// for a few hours on this instance. Repeat quotes for the same trip (and the same popular routes asked
+// by different riders) skip the routing service, which is the slowest step of a quote.
+const ROUTE_TTL_MS = 6 * 60 * 60 * 1000;
+const ROUTE_CACHE_MAX = 800;
+const routeCache = new Map<string, { at: number; info: RouteInfo }>();
+const routeKey = (a: GeoPlace, b: GeoPlace) => [a.lat, a.lng, b.lat, b.lng].map((n) => n.toFixed(4)).join(',');
+
 export async function routeFor(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
+  const key = routeKey(a, b);
+  const hit = routeCache.get(key);
+  if (hit && Date.now() - hit.at < ROUTE_TTL_MS) return hit.info;
+  const info = await lookUpRoute(a, b);
+  if (!info.estimated) {
+    if (routeCache.size >= ROUTE_CACHE_MAX) routeCache.delete(routeCache.keys().next().value as string);
+    routeCache.set(key, { at: Date.now(), info });
+  }
+  return info;
+}
+
+async function lookUpRoute(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   // Never accept distance or duration from the caller.
   if (Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001) {
     return { distanceKm: 1, durationMin: 15, estimated: true, path: [] };

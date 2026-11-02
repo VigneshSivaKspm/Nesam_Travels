@@ -27,8 +27,8 @@ export function PaymentChoice({
           onChange={() => onChange('Cash')}
         />
         <div className="pay-opt__text">
-          <strong>Pay Cash to Chauffeur</strong>
-          <small>Pay your chauffeur in cash when your journey finishes.</small>
+          <strong>Pay Cash to Driver</strong>
+          <small>Pay your driver in cash when your journey finishes.</small>
         </div>
         <Icon name="wallet" size={20} />
       </label>
@@ -43,7 +43,7 @@ export function PaymentChoice({
           onChange={() => onChange('UPI')}
         />
         <div className="pay-opt__text">
-          <strong>Pay Chauffeur via UPI / QR</strong>
+          <strong>Pay Driver via UPI / QR</strong>
           <small>Scan and pay your driver's UPI QR code (GPay, PhonePe, Paytm) at destination.</small>
         </div>
         <Icon name="sparkles" size={20} />

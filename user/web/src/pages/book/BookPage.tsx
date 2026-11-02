@@ -185,7 +185,7 @@ export function BookPage({ step }: { step: BookStep }) {
       ? {
           title: 'NESAM Cabs — Outstation Cabs & One Way Drop Taxi in Tamil Nadu | Upfront Fares',
           description:
-            'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified chauffeurs, clean AC cars, upfront fares & 24/7 support.',
+            'Book outstation cabs, one-way drop taxis & round trips across Tamil Nadu, Bangalore & Pondicherry. Verified drivers, clean AC cars, upfront fares & 24/7 support.',
           canonical: '/book',
         }
       : step === 'choose'

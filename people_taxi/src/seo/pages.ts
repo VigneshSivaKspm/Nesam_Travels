@@ -8,7 +8,7 @@ import { SITE, absoluteUrl, faqSchema, type SeoProps } from './site';
 export const HOME_SEO: SeoProps = {
   title: 'People Taxi | Outstation Cabs & One Way Drop Taxi in Tamil Nadu',
   description:
-    'Book outstation cabs, one-way drop taxis and round trips across Tamil Nadu, Bangalore and Pondicherry with People Taxi. Upfront fares, verified chauffeurs, 24/7 support.',
+    'Book outstation cabs, one-way drop taxis and round trips across Tamil Nadu, Bangalore and Pondicherry with People Taxi. Upfront fares, verified drivers, 24/7 support.',
   keywords:
     'people taxi, outstation cabs tamil nadu, drop taxi, one way drop taxi, drop taxi chennai, intercity cab booking, airport taxi chennai, outstation taxi booking, people cabs',
   canonical: '/',

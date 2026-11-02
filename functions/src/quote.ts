@@ -432,26 +432,41 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   assertServiceSupported(brand, tripType);
   const now = new Date();
   const when = parsePickupInstant(input.scheduledAt);
-  const window = bookingWindowFrom((await db.doc('settings/operations').get()).data());
+  // Everything below that does not depend on the route starts now, so the reads overlap with the
+  // route lookup instead of waiting for each other. Prices themselves are never cached: every quote
+  // reads the current tariff, categories, adjustment and rules.
+  const settled = <T,>(p: Promise<T>): Promise<T> => {
+    p.catch(() => undefined); // a failure is reported where the result is awaited, never as an unhandled rejection
+    return p;
+  };
+  const operationsRead = settled(db.doc('settings/operations').get());
+  const routeLookup = settled(routeFor(pickup, drop));
+  const customerRead = settled(uid ? db.doc(`customers/${uid}`).get() : Promise.resolve(null));
+  const catalogue = settled(
+    Promise.all([
+      db.collection('vehicle_categories').where('status', '==', 'Active').get(),
+      loadTariffConfig(),
+      loadFareAdjustment(),
+      input.couponCode && uid ? db.collection('coupons').get() : Promise.resolve(null),
+      input.couponCode && uid ? db.collection('bookings').where('customerId', '==', uid).get() : Promise.resolve(null),
+      loadServiceRules(),
+      loadCommissionPolicy(),
+      db.collection('services').get(),
+    ]),
+  );
+  const window = bookingWindowFrom((await operationsRead).data());
   const problem = pickupWindowProblem(when, now, window);
   if (problem || !when) throw new HttpsError('invalid-argument', problem || 'Choose the pickup date and time.');
   const tripEndAt = tripType === 'Round Trip' ? parsePickupInstant(input.tripEndAt) : null;
-  const route = await routeFor(pickup, drop);
-  const { fixedRoutes, localCityId } = await customerFareContext(tripType, pickup, drop, route.distanceKm);
-  const customer = uid ? await db.doc(`customers/${uid}`).get() : null;
+  const route = await routeLookup;
+  const [{ fixedRoutes, localCityId }, customer] = await Promise.all([customerFareContext(tripType, pickup, drop, route.distanceKm), customerRead]);
   if (customer?.exists && !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
   // A coupon is only checked for an existing customer account.
   const customerId = customer?.exists ? uid : null;
-  const [categories, tariff, adjustmentDoc, coupons, history, serviceRules, policy, servicesSnap] = await Promise.all([
-    db.collection('vehicle_categories').where('status', '==', 'Active').get(),
-    loadTariffConfig(),
-    loadFareAdjustment(),
-    input.couponCode && customerId ? db.collection('coupons').get() : Promise.resolve(null),
-    input.couponCode && customerId ? db.collection('bookings').where('customerId', '==', customerId).get() : Promise.resolve(null),
-    loadServiceRules(),
-    loadCommissionPolicy(),
-    db.collection('services').get(),
-  ]);
+  const [categories, tariff, adjustmentDoc, couponsRead, historyRead, serviceRules, policy, servicesSnap] = await catalogue;
+  // A coupon is only checked for an existing customer account.
+  const coupons = customerId ? couponsRead : null;
+  const history = customerId ? historyRead : null;
   const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
   const recipientState = recipientGstState(customer?.data());
   const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, fareServiceKey(tripType));

@@ -243,7 +243,7 @@ export function HowSection() {
     <section className="band band--dark" aria-labelledby="sec-how" id="sec-how-band">
       <div className="wrap how">
         <div className="how__photo">
-          <img src={IMG('photography/about-fleet')} alt="People Taxi verified chauffeurs and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
+          <img src={IMG('photography/about-fleet')} alt="People Taxi verified drivers and premium vehicle fleet" width={1448} height={1086} loading="lazy" />
         </div>
         <div className="how__body">
           <h2 id="sec-how">Booked in minutes. Handled with care.</h2>
@@ -272,7 +272,7 @@ export function AssuranceSection() {
     <section className="band" aria-labelledby="sec-safe" id="sec-safe-band">
       <div className="wrap assure">
         <div className="assure__collage" aria-hidden="true">
-          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial chauffeur with People Taxi" width={724} height={543} loading="lazy" />
+          <img className="assure__a" src={IMG('photography/trust-driver')} alt="Verified commercial driver with People Taxi" width={724} height={543} loading="lazy" />
           <img className="assure__b" src={IMG('photography/trust-interior')} alt="Clean and sanitized AC car interior" width={724} height={543} loading="lazy" />
           <img className="assure__c" src={IMG('photography/trust-support')} alt="People Taxi 24/7 customer care team support" width={724} height={543} loading="lazy" />
         </div>

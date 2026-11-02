@@ -236,7 +236,7 @@ export function BookingForm({
     <section className="bf" id="book-console" aria-labelledby="bf-title">
       <div className="bf-head">
         <h2 id="bf-title">{title}</h2>
-        <p>{service === 'multicity' ? 'Plan multi-stop itineraries with transparent upfront package quotes.' : 'Verified chauffeurs. Upfront fares. Pay at drop.'}</p>
+        <p>{service === 'multicity' ? 'Plan multi-stop itineraries with transparent upfront package quotes.' : 'Verified drivers. Upfront fares. Pay at drop.'}</p>
       </div>
 
       <div className="bf-services" role="group" aria-label="Services">

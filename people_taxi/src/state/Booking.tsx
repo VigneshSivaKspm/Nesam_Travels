@@ -137,7 +137,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   // request is made (and no earlier answer is kept); becoming ready starts a fresh quote for the
   // current draft even when the trip itself has not changed.
   const { state: auth } = useAuth();
-  const serverQuote = useServerQuotes(quoteRequest, auth.status === 'ready');
+  // Anything the admin changes that prices a trip (vehicle fares, the price adjustment, coupons) arrives
+  // live; its fingerprint makes the quote ask the server again, so new prices show within seconds.
+  const pricingStamp = useMemo(
+    () => JSON.stringify([categories.map((c) => [c.id, c.displayOrder, c.fare]), adjustment, coupons.map((c) => [c.code, c.discountValue, c.validUntil])]),
+    [categories, adjustment, coupons],
+  );
+  const serverQuote = useServerQuotes(quoteRequest, auth.status === 'ready', pricingStamp);
 
   const value = useMemo<BookingValue>(
     () => ({ draft, update, reset, startFrom, route, routeStatus, retryRoute, categories, categoryStatus, adjustment, coupons, serverQuote }),

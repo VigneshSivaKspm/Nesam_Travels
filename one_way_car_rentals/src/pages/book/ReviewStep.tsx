@@ -195,7 +195,7 @@ export function ReviewStep() {
                 <img src={categoryPhoto(category)} alt="" className="review-car__img" width={120} height={75} />
                 <div className="review-car__info">
                   <strong>{categoryName(category)}</strong>
-                  <p className="muted small">{category.seats} passengers · AC · Chauffeur driven</p>
+                  <p className="muted small">{category.seats} passengers · AC · Driver driven</p>
                   <p className="review-car__price num">
                     <strong>{formatINR(quote.total)}</strong> <small>all-inclusive</small>
                   </p>

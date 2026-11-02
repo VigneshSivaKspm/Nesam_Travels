@@ -129,7 +129,7 @@ export interface Service {
 export const SERVICES: Service[] = [
   { id: 'one-way', title: 'One-way outstation', text: 'A drop in another city, priced for the route you actually travel.', image: 'photography/service-one-way', action: { tripType: 'One Way' } },
   { id: 'round-trip', title: 'Round trips', text: 'Out and back over one day or many, billed by calendar day.', image: 'photography/service-round-trip', action: { tripType: 'Round Trip' } },
-  { id: 'local-rental', title: 'Local hourly rental', text: 'Car and chauffeur at your disposal by the hour within city limits.', image: 'photography/service-corporate', action: { tripType: 'Local Rental' } },
+  { id: 'local-rental', title: 'Local hourly rental', text: 'Car and driver at your disposal by the hour within city limits.', image: 'photography/service-corporate', action: { tripType: 'Local Rental' } },
   { id: 'airport', title: 'Airport transfers', text: 'Scheduled pickups and drops, arranged before your flight.', image: 'photography/service-airport', action: { tripType: 'Airport Taxi', search: 'airport' } },
   { id: 'family', title: 'Family journeys', text: 'Room for luggage, little ones and everyone’s plans.', image: 'photography/service-family', action: { tripType: 'Round Trip' } },
   { id: 'pilgrimage', title: 'Temple & pilgrimage', text: 'Darshan trips and temple circuits without the travel stress.', image: 'photography/service-pilgrimage', action: { tripType: 'Round Trip' } },
@@ -139,7 +139,7 @@ export const SERVICES: Service[] = [
 
 export const FEATURES = [
   { image: 'features/feature-transparent-fare', title: 'Fares before you book', text: 'See the fare for every vehicle, with what is and isn’t included, before you commit.' },
-  { image: 'features/feature-chauffeur', title: 'Verified chauffeurs', text: 'Commercial drivers who know the highways and take pride in the journey.' },
+  { image: 'features/feature-chauffeur', title: 'Verified drivers', text: 'Commercial drivers who know the highways and take pride in the journey.' },
   { image: 'features/feature-clean-ac', title: 'Clean, air-conditioned cars', text: 'A well-kept fleet, from hatchbacks to vans, ready for long distances.' },
   { image: 'features/feature-support', title: 'A team you can call', text: 'Talk to People Taxi about a booking or a trip in progress, any time you need.' },
 ];

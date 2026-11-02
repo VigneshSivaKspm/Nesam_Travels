@@ -162,7 +162,7 @@ const APPROVED_CATEGORIES = [
     id: 'innova-crysta',
     name: 'Innova Crysta',
     code: 'INNOVA_CRYSTA',
-    description: 'Executive Luxury MPV, Premium Highway Chauffeur (Top of the Line)',
+    description: 'Executive Luxury MPV, Premium Highway Driver (Top of the Line)',
     imageUrl: '',
     icon: '⭐',
     seatingCapacity: 7,

@@ -43,13 +43,13 @@ const headline = (t: TripRecord): { title: string; text: string; tone: 'pending'
   if (t.status === 'Approved' || t.status === 'Assigned') {
     return {
       title: 'Your ride is confirmed',
-      text: 'Our chauffeur will arrive at your pickup location on time.',
+      text: 'Our driver will arrive at your pickup location on time.',
       tone: 'ok',
     };
   }
   return {
     title: 'Booking Request Received',
-    text: 'Our dispatch team is assigning your chauffeur. You will receive updates shortly.',
+    text: 'Our dispatch team is assigning your driver. You will receive updates shortly.',
     tone: 'pending',
   };
 };
@@ -80,7 +80,7 @@ function BookedDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void
           <circle className="booked__ring" cx="32" cy="32" r="29" />
           <path className="booked__tick" d="M19 33.5l9 9 17-19" />
         </svg>
-        <p className="booked__lead">Your ride request is saved. Our dispatch team will assign your chauffeur and keep you updated.</p>
+        <p className="booked__lead">Your ride request is saved. Our dispatch team will assign your driver and keep you updated.</p>
         <div className="booked__id">
           <span>Booking ID</span>
           <strong className="num">{bookingRef(trip)}</strong>
@@ -182,7 +182,7 @@ export function DonePage() {
                 <Icon name="car" size={17} />
                 <span>
                   <strong>{trip.categoryName}</strong>
-                  <small>{trip.paymentMethod === 'UPI' ? 'Pay chauffeur by UPI' : 'Pay chauffeur in cash'}</small>
+                  <small>{trip.paymentMethod === 'UPI' ? 'Pay driver by UPI' : 'Pay driver in cash'}</small>
                 </span>
                 <span className="badge badge--green">{tripTypeLabel(trip.tripType)}</span>
               </div>

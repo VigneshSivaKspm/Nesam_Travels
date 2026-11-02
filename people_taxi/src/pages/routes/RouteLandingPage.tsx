@@ -195,7 +195,7 @@ export function RouteLandingPage() {
               </p>
             </li>
             <li className="lp-tile">
-              <h3>Verified Chauffeurs</h3>
+              <h3>Verified Drivers</h3>
               <p>Full commercial licenses, highway route experience, and background-verified drivers.</p>
             </li>
             <li className="lp-tile">
@@ -204,7 +204,7 @@ export function RouteLandingPage() {
             </li>
             <li className="lp-tile">
               <h3>Pay Driver in Cash or UPI</h3>
-              <p>Zero advance payments required during booking. Pay your chauffeur via Google Pay, PhonePe, or Cash upon arrival.</p>
+              <p>Zero advance payments required during booking. Pay your driver via Google Pay, PhonePe, or Cash upon arrival.</p>
             </li>
           </ul>
         </div>

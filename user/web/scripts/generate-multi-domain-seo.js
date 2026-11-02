@@ -57,7 +57,7 @@ export const URL_ENTRIES = [
       {
         loc: '/website-images/web/heroes/hero-family.webp',
         title: 'Book Outstation Taxi with NESAM Cabs',
-        caption: 'Plan and book intercity one-way and round-trip journeys with verified commercial chauffeurs',
+        caption: 'Plan and book intercity one-way and round-trip journeys with verified commercial drivers',
       },
       {
         loc: '/website-images/web/vehicles/sedan.webp',
@@ -120,7 +120,7 @@ export const URL_ENTRIES = [
     images: [
       {
         loc: '/website-images/web/photography/service-round-trip.webp',
-        title: 'Outstation Round Trip Car Rentals with Chauffeur',
+        title: 'Outstation Round Trip Car Rentals with Driver',
         caption: 'Multi-day outstation car rentals with dedicated driver and calendar day billing',
       },
     ],
@@ -146,8 +146,8 @@ export const URL_ENTRIES = [
     images: [
       {
         loc: '/website-images/web/photography/service-corporate.webp',
-        title: 'Hourly Local Car Rental with Chauffeur',
-        caption: 'Vehicle and chauffeur at your disposal by the hour within city limits',
+        title: 'Hourly Local Car Rental with Driver',
+        caption: 'Vehicle and driver at your disposal by the hour within city limits',
       },
     ],
   },
@@ -186,7 +186,7 @@ export const URL_ENTRIES = [
       {
         loc: '/website-images/web/destinations/route-chennai-bangalore.webp',
         title: 'Chennai to Bangalore Outstation Cab',
-        caption: '345 km highway trip, approx 6 hr with verified commercial chauffeur via NH-48.',
+        caption: '345 km highway trip, approx 6 hr with verified commercial driver via NH-48.',
       },
     ],
   },
@@ -199,7 +199,7 @@ export const URL_ENTRIES = [
       {
         loc: '/website-images/web/destinations/route-coimbatore-ooty.webp',
         title: 'Coimbatore to Ooty Hill Station Taxi',
-        caption: '88 km scenic ghat road journey, approx 2 hr 50 min with certified mountain chauffeurs.',
+        caption: '88 km scenic ghat road journey, approx 2 hr 50 min with certified mountain drivers.',
       },
     ],
   },

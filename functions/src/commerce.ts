@@ -127,7 +127,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
           fare: { baseFare: 0, baseKm: 0, perKmRate: 20, perMinuteRate: 0, minimumFare: 2600, nightCharge: 0, driverAllowance: 400, outstationPerKmRate: 20, extras: { waitingPerHour: 0, extraKmRate: 20, tollIncluded: false, parkingIncluded: false, permitCharge: 0, carrierCharge: 400 } },
         },
         {
-          id: 'cat-crysta', name: 'Innova Crysta', description: 'Executive Luxury MPV, Premium Highway Chauffeur', seats: 7, displayOrder: 5,
+          id: 'cat-crysta', name: 'Innova Crysta', description: 'Executive Luxury MPV, Premium Highway Driver', seats: 7, displayOrder: 5,
           matchVehicleTypes: ['crysta', 'innova crysta'], tariffClass: 'crysta', dutyClass: 'crysta',
           fare: { baseFare: 0, baseKm: 0, perKmRate: 26, perMinuteRate: 0, minimumFare: 3380, nightCharge: 0, driverAllowance: 600, outstationPerKmRate: 26, extras: { waitingPerHour: 0, extraKmRate: 26, tollIncluded: false, parkingIncluded: false, permitCharge: 0, carrierCharge: 400 } },
         },

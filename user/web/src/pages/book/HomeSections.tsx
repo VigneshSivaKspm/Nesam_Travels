@@ -337,7 +337,7 @@ export function HowSection() {
         </ol>
       </div>
       <div className="hx-how__photo">
-        <img src={IMG('photography/about-fleet')} alt="NESAM chauffeurs and fleet" width={1448} height={1086} loading="lazy" />
+        <img src={IMG('photography/about-fleet')} alt="NESAM drivers and fleet" width={1448} height={1086} loading="lazy" />
       </div>
     </section>
   );

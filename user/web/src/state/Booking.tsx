@@ -146,7 +146,13 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       brand: 'nesam',
     };
   }, [draft]);
-  const serverQuote = useServerQuotes(quoteRequest);
+  // Anything the admin changes that prices a trip (vehicle fares, the price adjustment, coupons) arrives
+  // live; its fingerprint makes the quote ask the server again, so new prices show within seconds.
+  const pricingStamp = useMemo(
+    () => JSON.stringify([categories.map((c) => [c.id, c.displayOrder, c.fare]), adjustment, coupons.map((c) => [c.code, c.discountValue, c.validUntil])]),
+    [categories, adjustment, coupons],
+  );
+  const serverQuote = useServerQuotes(quoteRequest, true, pricingStamp);
 
   const value = useMemo<BookingValue>(
     () => ({ draft, update, reset, startFrom, route, routeStatus, retryRoute, categories, categoryStatus, adjustment, coupons, serverQuote }),

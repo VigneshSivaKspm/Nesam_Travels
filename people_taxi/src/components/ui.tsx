@@ -269,9 +269,6 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
           onChange={(e) => onChange?.(e.target.checked)}
           {...rest}
         />
-        <span className="check__box" aria-hidden="true">
-          <Icon name="check" size={14} />
-        </span>
         {body}
       </label>
     );

@@ -38,7 +38,7 @@ const COPY: RouteCopy[] = [
     h1: 'Chennai to Pondicherry One Way Taxi',
     highway: 'East Coast Road (ECR) or GST Road via Tindivanam',
     metaDescription:
-      'Chennai to Pondicherry one way taxi with a verified chauffeur. Pay for the drop only, see the fare for every car before you book, pay the driver by cash or UPI.',
+      'Chennai to Pondicherry one way taxi with a verified driver. Pay for the drop only, see the fare for every car before you book, pay the driver by cash or UPI.',
     keywords:
       'chennai to pondicherry one way taxi, chennai to pondicherry drop taxi, chennai to pondicherry cab, ecr taxi pondicherry, one way cab chennai to puducherry',
     summary:
@@ -75,11 +75,11 @@ const COPY: RouteCopy[] = [
     h1: 'Chennai to Bangalore One Way Taxi',
     highway: 'NH-48 via Sriperumbudur, Vellore, Krishnagiri and Hosur',
     metaDescription:
-      'Chennai to Bangalore one way cab with highway-experienced chauffeurs. Upfront fares for every vehicle, no return fare on drops, pay your driver by cash or UPI.',
+      'Chennai to Bangalore one way cab with highway-experienced drivers. Upfront fares for every vehicle, no return fare on drops, pay your driver by cash or UPI.',
     keywords:
       'chennai to bangalore one way taxi, chennai to bangalore drop taxi, chennai to bangalore cab, one way cab chennai to bengaluru, chennai to bangalore car rental with driver',
     summary:
-      'Around 345 km on the NH-48 corridor between Tamil Nadu’s capital and Bengaluru. A single drop, priced for the one way you travel, with a chauffeur who drives this highway regularly.',
+      'Around 345 km on the NH-48 corridor between Tamil Nadu’s capital and Bengaluru. A single drop, priced for the one way you travel, with a driver who drives this highway regularly.',
     overview: [
       'The Chennai–Bangalore run is mostly divided highway through Sriperumbudur, Ranipet, Vellore, Krishnagiri and Hosur, with plenty of food courts along the way. Early-morning departures avoid the heaviest city traffic at both ends.',
       'Pick up anywhere in Chennai — including the airport or Chennai Central — and drop at any address in Bengaluru, from Electronic City to Whitefield or Kempegowda Airport. As the trip crosses into Karnataka, the interstate permit and tolls are billed at actual cost and shown on your receipt.',
@@ -116,7 +116,7 @@ const COPY: RouteCopy[] = [
     keywords:
       'coimbatore to ooty one way taxi, coimbatore to ooty cab, coimbatore airport to ooty taxi, coimbatore to ooty drop taxi, ooty cab booking',
     summary:
-      'About 88 km from the plains to the Queen of Hills, climbing the Nilgiri ghat through Coonoor. Book a one-way drop with a chauffeur used to hill driving.',
+      'About 88 km from the plains to the Queen of Hills, climbing the Nilgiri ghat through Coonoor. Book a one-way drop with a driver used to hill driving.',
     overview: [
       'From Coimbatore the road runs flat to Mettupalayam, then climbs steadily through tea estates and hairpin bends to Coonoor and on to Ooty. The climb is slow, so plan for close to three hours even though the distance is short.',
       'Many riders book this trip straight from Coimbatore airport after a flight. Set your pickup at the airport or any address in the city, choose your drop in Ooty — a hotel, cottage or the lake — and compare every vehicle’s fare before you confirm.',
@@ -138,7 +138,7 @@ const COPY: RouteCopy[] = [
       },
       {
         q: 'Are the drivers used to hill roads?',
-        a: 'Trips on ghat roads are assigned to verified commercial chauffeurs comfortable with hairpin bends and hill traffic.',
+        a: 'Trips on ghat roads are assigned to verified commercial drivers comfortable with hairpin bends and hill traffic.',
       },
     ],
   },
@@ -149,7 +149,7 @@ const COPY: RouteCopy[] = [
     h1: 'Madurai to Rameshwaram One Way Taxi',
     highway: 'NH-87 via Paramakudi, Ramanathapuram and the Pamban bridge',
     metaDescription:
-      'Madurai to Rameshwaram one way taxi for temple visits and Dhanushkodi. Verified chauffeurs, fares shown before booking, pay your driver by cash or UPI.',
+      'Madurai to Rameshwaram one way taxi for temple visits and Dhanushkodi. Verified drivers, fares shown before booking, pay your driver by cash or UPI.',
     keywords:
       'madurai to rameshwaram one way taxi, madurai to rameshwaram cab, madurai to rameshwaram drop taxi, rameshwaram temple taxi, madurai airport to rameshwaram cab',
     summary:
@@ -218,7 +218,7 @@ const COPY: RouteCopy[] = [
     h1: 'Bangalore to Mysore One Way Taxi',
     highway: 'Bengaluru–Mysuru Expressway (NH-275)',
     metaDescription:
-      'Bangalore to Mysore one way taxi on the Bengaluru–Mysuru expressway. Verified chauffeurs, every vehicle’s fare shown upfront, cash or UPI payment.',
+      'Bangalore to Mysore one way taxi on the Bengaluru–Mysuru expressway. Verified drivers, every vehicle’s fare shown upfront, cash or UPI payment.',
     keywords:
       'bangalore to mysore one way taxi, bangalore to mysore cab, bengaluru to mysuru drop taxi, bangalore to mysore car with driver, mysore palace taxi',
     summary:
@@ -283,7 +283,7 @@ const COPY: RouteCopy[] = [
     h1: 'Chennai to Tirupati One Way Taxi',
     highway: 'Via Tiruvallur and Tiruttani',
     metaDescription:
-      'Chennai to Tirupati one way taxi for Tirumala darshan. Verified chauffeurs, upfront fares for every vehicle, interstate permit and tolls at actuals, cash or UPI.',
+      'Chennai to Tirupati one way taxi for Tirumala darshan. Verified drivers, upfront fares for every vehicle, interstate permit and tolls at actuals, cash or UPI.',
     keywords:
       'chennai to tirupati one way taxi, chennai to tirupati cab, chennai to tirupati drop taxi, chennai to tirumala taxi, tirupati darshan cab from chennai',
     summary:

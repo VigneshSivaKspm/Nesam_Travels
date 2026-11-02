@@ -151,7 +151,7 @@ export const SPEC_DEFAULT_CATEGORIES: RideCategory[] = [
   {
     id: 'cat-crysta',
     name: 'Innova Crysta',
-    description: 'Executive Luxury MPV, Premium Highway Chauffeur',
+    description: 'Executive Luxury MPV, Premium Highway Driver',
     seats: 7,
     displayOrder: 5,
     matchVehicleTypes: ['crysta', 'innova crysta'],

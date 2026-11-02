@@ -39,7 +39,7 @@ Brand Identity & Standards:
 - Services: Outstation One-Way Drop Taxi, Round Trips, Airport Transfers (Chennai MAA, Coimbatore CJB, Madurai IXM, Trichy TRZ, Bangalore BLR), Hourly City Rentals (4hr/40km, 8hr/80km, 12hr/120km), Multi-City and Hill Station Pilgrimage Tours (Munnar, Kodaikanal, Ooty, Madurai, Rameshwaram, Kanyakumari, Tirupati).
 - Fleets: Sedan (Dzire, Etios - 4 seats, 2 bags), SUV (Ertiga, Triber - 6-7 seats), Prime SUV (Innova, Innova Crysta - 7 seats, maximum comfort), Tempo Traveller (12, 14, 17 seaters).
 - Pricing Model: 100% upfront transparent fares. Zero hidden charges. Zero surge pricing during peak hours or bad weather.
-- Boarding & Safety: Safe 4-digit boarding OTP generated for the customer upon booking confirmation, shared only with the verified chauffeur at pickup.
+- Boarding & Safety: Safe 4-digit boarding OTP generated for the customer upon booking confirmation, shared only with the verified driver at pickup.
 - Payment: Pay the driver directly via Cash or UPI at trip end, or pay online.
 - Cancellation: Free until 1 hour before pickup; after that a ₹100 cancellation fee applies.
 - 24/7 Helpline: ${SUPPORT_PHONE}.
@@ -56,7 +56,7 @@ Brand Identity & Standards:
 - Services: One-Way Drop Taxi (pay only for one way!), Round Trips, Airport Transfers, Hourly City Rentals, Multi-City Tours.
 - Fleets: Sedan (Dzire, Etios), Prime Sedan, SUV (Ertiga), Prime SUV (Innova / Innova Crysta), Tempo Traveller.
 - Pricing: Upfront transparent fares with no surge pricing. Pay your driver directly via Cash or UPI at drop.
-- Boarding Safety: Verified chauffeurs with secure boarding OTP.
+- Boarding Safety: Verified drivers with secure boarding OTP.
 - 24/7 Customer Care: ${SUPPORT_PHONE}.
 
 Guidelines:
@@ -131,7 +131,7 @@ const INTENT_WORDS: Array<[Intent, RegExp]> = [
   ['toll', /(toll|parking|permit|state tax|சுங்க|டோல்|பார்க்கிங்)/],
   ['payment', /(payment|\bpay\b|upi|cash|advance|gpay|phonepe|செலுத்த|பணம்|panam)/],
   ['boarding', /(otp|boarding|code|safety|safe|பாதுகாப்பு|ஓடிபி)/],
-  ['driver', /(driver|chauffeur|டிரைவர்|ஓட்டுநர்)/],
+  ['driver', /(driver|driver|டிரைவர்|ஓட்டுநர்)/],
   ['airport', /(airport|flight|விமான)/],
   ['rental', /(rental|hourly|\bhours?\b|local|disposal|வாடகை|மணி நேர)/],
   ['multicity', /(multi|tour|package|itinerary|munnar|ooty|kodai|rameshwaram|kanyakumari|tirupati|pilgrim|சுற்றுலா|யாத்திரை)/],

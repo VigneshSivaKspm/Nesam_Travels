@@ -1,6 +1,6 @@
 // Step 3 — review & confirm: trip, vehicle, contact, payment and booking request submission.
 import { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { FareBreakdown as Fare } from '@core/types';
 import { useCustomerData } from '@/state/customer';
 import { createRideRequest } from '@core/services/rideService';
@@ -8,14 +8,14 @@ import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SCHEDULED_CANCELLATION_FEE, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
-import { Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
+import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
+import { BackButton, Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
-import { FREE_CANCEL_WINDOW, PolicyLinks } from '@/pages/PolicySections';
+import { PolicyLinks } from '@/pages/PolicySections';
 import { categoryName, categoryPhoto } from '@/lib/categories';
 import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
 
@@ -44,7 +44,6 @@ export function ReviewStep() {
     tripEndAt,
     payment,
     notes,
-    waSame,
     waCode,
     waNumber,
     email,
@@ -53,6 +52,7 @@ export function ReviewStep() {
     passengerMobile,
     flight,
   } = draft;
+  const waSame = true; // trip updates go to the same mobile number
   const category = q.category;
 
   const hadProfile = useRef(!!profile);
@@ -66,7 +66,7 @@ export function ReviewStep() {
       <div className="flow-page">
         <div className="wrap flow-page__wrap review-missing">
           <PageHead
-            back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Back to Vehicles</Button>}
+            back={<BackButton to="/book/ride" label="Back to vehicles" />}
             title="Review & Confirm"
           />
           {q.quoteLoading ? (
@@ -196,7 +196,7 @@ export function ReviewStep() {
     <div className="flow-page flow-page--review">
       <div className="wrap flow-page__wrap">
         <PageHead
-          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Back to Vehicles</Button>}
+          back={<BackButton to="/book/ride" label="Back to vehicles" />}
           eyebrow="Step 3 of 3 · Final Review"
           title="Review &amp; Confirm Booking"
         >
@@ -214,9 +214,6 @@ export function ReviewStep() {
                   <Icon name="arrow-right" size={18} />
                   <span>{drop.id === 'place-local-disposal' ? 'Within City' : drop.name}</span>
                 </h2>
-                <Link to="/book" className="btn btn--text btn--sm">
-                  Edit
-                </Link>
               </div>
 
               {scheduledAt ? (
@@ -237,15 +234,12 @@ export function ReviewStep() {
                   <strong>{categoryName(category)}</strong>
                   <small className="muted">{category.description || `${category.seats} seats · AC fleet`}</small>
                 </div>
-                <Link to="/book/ride" className="btn btn--text btn--sm">
-                  Change Cab
-                </Link>
               </div>
 
               <div className="rv-sum__total">
                 <div>
-                  <strong>Authoritative Server Fare</strong>
-                  <small className="muted">All inclusions &amp; discounts accounted for</small>
+                  <strong>Total fare</strong>
+                  <small className="muted">All charges and discounts are included</small>
                 </div>
                 <strong className="rv-sum__amount num">{formatINR(quote.total)}</strong>
               </div>
@@ -256,7 +250,7 @@ export function ReviewStep() {
 
               <div className="rv-grid">
                 <TextField
-                  label="Contact Mobile (for Driver & SMS)"
+                  label="Mobile number"
                   value={profile?.phone ? formatPhone(profile.phone) : 'Sign in on booking'}
                   readOnly
                   disabled
@@ -273,29 +267,7 @@ export function ReviewStep() {
 
               <div className="rv-fold">
                 <Checkbox
-                  label="Receive trip updates on WhatsApp"
-                  description="Real-time chauffeur assignment, OTP and live arrival updates."
-                  checked={waSame}
-                  onChange={(checked) => update({ waSame: checked })}
-                />
-                {!waSame ? (
-                  <div className="rv-grid rv-grid--wa" style={{ marginTop: 10 }}>
-                    <TextField label="Code" value={waCode} onChange={(e) => update({ waCode: e.target.value })} />
-                    <TextField
-                      label="WhatsApp Number"
-                      value={waNumber}
-                      error={waError}
-                      placeholder="9876543210"
-                      onChange={(e) => update({ waNumber: e.target.value })}
-                    />
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="rv-fold">
-                <Checkbox
                   label="Booking this ride for someone else?"
-                  description="We will share chauffeur & cab details with the passenger directly."
                   checked={forOther}
                   onChange={(checked) => update({ forOther: checked })}
                 />
@@ -326,7 +298,7 @@ export function ReviewStep() {
                     label="Flight Number (Optional)"
                     placeholder="e.g. 6E 214"
                     value={flight}
-                    hint="Our chauffeur will track flight delays and adjust pickup time automatically."
+                    hint="Our driver will track flight delays and adjust pickup time automatically."
                     onChange={(e) => update({ flight: e.target.value.toUpperCase() })}
                   />
                 </div>
@@ -334,7 +306,7 @@ export function ReviewStep() {
 
               <div className="rv-fold">
                 <TextArea
-                  label="Chauffeur Instructions / Landmarks"
+                  label="Note for the driver"
                   placeholder="e.g. Apartment gate number, landmark near house, luggage count…"
                   value={notes}
                   rows={2}
@@ -344,23 +316,9 @@ export function ReviewStep() {
               </div>
             </section>
 
-            <section className="card" aria-labelledby="rv-pay-head">
-              <h2 id="rv-pay-head">Payment Method</h2>
-              <p className="muted small" style={{ marginBottom: 12 }}>
-                You do not pay anything right now. Pay your chauffeur directly at the end of the trip.
-              </p>
-              <PaymentChoice value={payment} onChange={(p) => update({ payment: p })} />
-            </section>
-
             <section className="card rv-policy" ref={termsRef}>
               <Checkbox
                 label="I agree to the Fare and Cancellation Terms"
-                description={
-                  <span>
-                    Free cancellation while the booking is pending or more than {FREE_CANCEL_WINDOW} before pickup.
-                    After that, a {formatINR(SCHEDULED_CANCELLATION_FEE)} cancellation fee applies. Tolls, parking and permits are paid separately.
-                  </span>
-                }
                 checked={termsAccepted}
                 onChange={setTermsAccepted}
               />
@@ -376,13 +334,21 @@ export function ReviewStep() {
           </div>
 
           <aside className="review__sticky">
+            <section className="card" aria-labelledby="rv-pay-head">
+              <h2 id="rv-pay-head">Payment Method</h2>
+              <p className="muted small" style={{ marginBottom: 12 }}>
+                Nothing to pay now. Pay your driver at the end of the trip.
+              </p>
+              <PaymentChoice value={payment} onChange={(p) => update({ payment: p })} />
+            </section>
+
             <div className="card sel-card">
-              <span className="sel-card__eyebrow">Price Summary</span>
+              <span className="sel-card__eyebrow">Fare</span>
 
               <div className="sel-card__total">
                 <div>
-                  <span>Total Amount Due</span>
-                  <small className="muted">To be paid directly to chauffeur</small>
+                  <span>Total to pay</span>
+                  <small className="muted">Pay the driver directly</small>
                 </div>
                 <strong className="num">{formatINR(quote.total)}</strong>
               </div>
@@ -401,7 +367,7 @@ export function ReviewStep() {
                 icon="info"
                 onClick={() => setShowFare(true)}
               >
-                View Detailed Fare Breakup
+                See fare details
               </Button>
 
               <div className="rv-act">
@@ -417,7 +383,11 @@ export function ReviewStep() {
                   {profile ? 'Confirm & Book Ride' : 'Sign in to Confirm'}
                 </Button>
                 <p className="rv-act__note">
-                  <Icon name="shield-check" size={14} /> Immediate booking request · 24/7 Support: {SUPPORT_PHONE_DISPLAY}
+                  <Icon name="shield-check" size={16} />
+                  <span>We send your request right away</span>
+                  <span>
+                    24/7 Support: <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>
+                  </span>
                 </p>
               </div>
             </div>
