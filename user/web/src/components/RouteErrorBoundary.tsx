@@ -5,7 +5,6 @@
 // itself once to pick up the new version. Anything else that breaks a page shows a short message
 // with Reload and Home buttons instead of a white screen.
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
 
 const RELOAD_KEY = 'nesam.stale.reload';
 
@@ -70,10 +69,13 @@ class Boundary extends Component<{ children: ReactNode }, BoundaryState> {
   }
 }
 
-/** Wrap the page area: it recovers by itself when the rider moves to another page. */
-export function RouteErrorBoundary({ children }: { children: ReactNode }) {
-  const { pathname } = useLocation();
-  return <Boundary key={pathname}>{children}</Boundary>;
+/**
+ * Wrap the page area. Pass the current page (`resetKey`, e.g. the route's pathname) so the screen
+ * recovers by itself when the rider moves to another page. (This file is shared by three sites, so it
+ * does not import the router itself.)
+ */
+export function RouteErrorBoundary({ resetKey, children }: { resetKey: string; children: ReactNode }) {
+  return <Boundary key={resetKey}>{children}</Boundary>;
 }
 
 export default RouteErrorBoundary;

@@ -22,6 +22,8 @@ export interface QuickTrip {
   businessId: string;
   serviceId: string;
   tripType: ManualBookingForm["tripType"] | "Local Rental" | "Airport Taxi";
+  /** A Multicity trip: priced and booked as a Round Trip, but chosen and named as Multicity. */
+  multicity?: boolean;
   pickupText: string;
   dropText: string;
   pickup: PickedPoint | null;
@@ -95,15 +97,17 @@ export type QuickData = ReturnType<typeof useQuickData>;
 const locLabel = (l: MasterLocation) => [l.name, l.area && l.area !== l.name ? l.area : "", l.city && l.city !== l.name ? l.city : ""].filter(Boolean).join(", ");
 
 /** The built-in services: the platform's trip types, offered before any configured service. */
-export const TRIP_SERVICES: { tripType: QuickTrip["tripType"]; label: string }[] = [
-  { tripType: "One Way", label: "Outstation · One Way" },
+export const TRIP_SERVICES: { key: string; tripType: QuickTrip["tripType"]; label: string; multicity?: boolean }[] = [
+  { key: "One Way", tripType: "One Way", label: "Outstation · One Way" },
+  { key: "Round Trip", tripType: "Round Trip", label: "Outstation · Round Trip" },
   // Multicity is priced from the Round Trip rates (the tariff inherits them), so it uses that trip type.
-  { tripType: "Round Trip", label: "Multicity" },
-  { tripType: "Local Rental", label: "Local Rental" },
-  { tripType: "Airport Taxi", label: "Airport Transfer" },
+  { key: "Multicity", tripType: "Round Trip", label: "Multicity", multicity: true },
+  { key: "Local Rental", tripType: "Local Rental", label: "Local Rental" },
+  { key: "Airport Taxi", tripType: "Airport Taxi", label: "Airport Transfer" },
 ];
 const TRIP_OPTION = "trip:";
-export const tripServiceLabel = (t: QuickTrip["tripType"]) => TRIP_SERVICES.find((x) => x.tripType === t)?.label ?? TRIP_SERVICES[0].label;
+export const tripServiceLabel = (t: Pick<QuickTrip, "tripType" | "multicity">) => TRIP_SERVICES.find((x) => x.tripType === t.tripType && !!x.multicity === !!t.multicity)?.label ?? TRIP_SERVICES[0].label;
+const tripOptionKey = (t: Pick<QuickTrip, "tripType" | "multicity">) => (t.multicity ? "Multicity" : t.tripType);
 
 /** Local rentals are priced to a city-disposal point beside the pickup, as the customer apps book them. */
 const DISPOSAL_ID = "place-local-disposal";
@@ -349,12 +353,13 @@ export function TripFields({ trip, set, data, compact, idPrefix, action, allowed
       <div className={compact ? "ds-quick-grid" : "ds-form-grid"}>
         <label className="ds-field" data-span={compact ? undefined : "2"}>
           <span>Service</span>
-          <select className="ds-select" value={trip.serviceId || `${TRIP_OPTION}${trip.tripType}`} onChange={(e) => {
+          <select className="ds-select" value={trip.serviceId || `${TRIP_OPTION}${tripOptionKey(trip)}`} onChange={(e) => {
             const v = e.target.value;
-            if (v.startsWith(TRIP_OPTION)) set({ serviceId: "", ...withTripType(trip, v.slice(TRIP_OPTION.length) as QuickTrip["tripType"]) });
-            else set({ serviceId: v, ...withTripType(trip, tripTypeForService(data.services.find((x) => x.id === v))) });
+            const builtIn = v.startsWith(TRIP_OPTION) ? TRIP_SERVICES.find((x) => x.key === v.slice(TRIP_OPTION.length)) : undefined;
+            if (builtIn) set({ serviceId: "", multicity: !!builtIn.multicity, ...withTripType(trip, builtIn.tripType) });
+            else set({ serviceId: v, multicity: false, ...withTripType(trip, tripTypeForService(data.services.find((x) => x.id === v))) });
           }}>
-            {TRIP_SERVICES.filter(x => !allowedTripTypes || allowedTripTypes.includes(x.tripType)).map((x) => <option key={x.tripType} value={`${TRIP_OPTION}${x.tripType}`}>{x.label}</option>)}
+            {TRIP_SERVICES.filter(x => !allowedTripTypes || allowedTripTypes.includes(x.tripType)).map((x) => <option key={x.key} value={`${TRIP_OPTION}${x.key}`}>{x.label}</option>)}
             {data.services.filter(s => !allowedTripTypes || allowedTripTypes.includes(tripTypeForService(s))).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
           {airportAt && (
@@ -418,7 +423,7 @@ export function TripFields({ trip, set, data, compact, idPrefix, action, allowed
           <strong>{trip.pickup && trip.drop ? `${trip.pickup.name || trip.pickupText} → ${rental ? "Within city limits" : trip.drop.name || trip.dropText}` : rental ? "Choose the pickup" : "Choose pickup & drop"}</strong>
           <small>{trip.pickup && trip.drop ? "Road distance is calculated with the estimate." : `Search an address or choose from ${data.pickups.length} saved locations`}</small>
         </div>
-        <small>{service?.name ?? tripServiceLabel(trip.tripType)}</small>
+        <small>{service?.name ?? tripServiceLabel(trip)}</small>
       </div>
       <div className="flex flex-wrap items-center gap-4 mt-3 text-[11px] text-faint">
         <span className="flex items-center gap-1.5"><Icon name="map-pin" size={13} />Location boundaries</span>
@@ -683,7 +688,7 @@ export function QuickFareCard({ onProceed, onSaved }: { onProceed: (trip: QuickT
         {stale && !calculating && <p className="text-[11px] text-warn mt-3">The trip changed. {invalid}</p>}
       </form>
       {saving && chosen && (
-        <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || tripServiceLabel(trip.tripType)} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onSaved(e); }} />
+        <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || tripServiceLabel(trip)} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onSaved(e); }} />
       )}
     </section>
   );

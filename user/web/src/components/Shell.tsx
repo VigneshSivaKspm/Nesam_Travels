@@ -287,7 +287,7 @@ export function Shell() {
 
       <main id="main" tabIndex={-1} className="main">
         <Suspense fallback={<PageLoader />}>
-          <RouteErrorBoundary>
+          <RouteErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </RouteErrorBoundary>
         </Suspense>

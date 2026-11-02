@@ -356,7 +356,7 @@ export function Shell() {
         }
       >
         <main id="main" tabIndex={-1} className="main">
-          <RouteErrorBoundary>
+          <RouteErrorBoundary resetKey={location.pathname}>
             <Outlet />
           </RouteErrorBoundary>
         </main>

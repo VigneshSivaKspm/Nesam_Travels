@@ -346,7 +346,7 @@ export default function NewBooking({ draft, onCreated, onCancel, onEnquirySaved 
           <span className="text-[11px] text-muted ml-auto">Advance payment is optional.</span>
         </div>
         {saving && chosen && (
-          <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || tripServiceLabel(trip.tripType)} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onEnquirySaved(e); }} />
+          <SaveEnquiryDialog trip={trip} estimate={chosen} serviceName={service?.name || tripServiceLabel(trip)} onClose={() => setSaving(false)} onSaved={(e) => { setSaving(false); onEnquirySaved(e); }} />
         )}
       </div>
     );
