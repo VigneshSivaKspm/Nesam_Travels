@@ -73,3 +73,30 @@
   width: 100%;
   text-overflow: ellipsis;
 }
+
+/* Multicity: a city between pickup and drop, and its remove button (above the box's click area). */
+.bf-pin--stop {
+  width: 8px;
+  height: 8px;
+  margin: 2px;
+  border-color: var(--red);
+  background: var(--red);
+}
+.bf-stop-remove {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.bf-stop-remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

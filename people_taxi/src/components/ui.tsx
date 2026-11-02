@@ -697,7 +697,7 @@ export function PageHead({
     <header className="page-head">
       {back}
       <div className="page-head__text">
-        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+        {eyebrow && /^Step \d/.test(eyebrow) ? <p className="eyebrow">{eyebrow}</p> : null}
         <h1>{title}</h1>
         {children ? <p className="page-head__sub">{children}</p> : null}
       </div>

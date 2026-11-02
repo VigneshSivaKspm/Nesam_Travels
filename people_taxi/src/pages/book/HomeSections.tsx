@@ -13,9 +13,7 @@ import { findRouteBySlug } from '../routes/routesData';
 function SectionHead({ eyebrow, title, text, action, id }: { eyebrow: string; title: string; text?: string; action?: React.ReactNode; id?: string }) {
   return (
     <header className="sec-head">
-      <p className="eyebrow">{eyebrow}</p>
       <h2 id={id}>{title}</h2>
-      {text ? <p className="sec-head__text">{text}</p> : null}
       {action}
     </header>
   );

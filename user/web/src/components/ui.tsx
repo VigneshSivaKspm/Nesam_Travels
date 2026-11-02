@@ -393,7 +393,7 @@ export function PageHead({
     <header className="page-head">
       {back ?? (backTo ? <BackButton to={backTo} /> : null)}
       <div className="page-head__text">
-        {eyebrow ? <p className="eyebrow eyebrow--muted">{eyebrow}</p> : null}
+        {eyebrow && /^Step \d/.test(eyebrow) ? <p className="eyebrow eyebrow--muted">{eyebrow}</p> : null}
         <h1>{title}</h1>
         {children ? <p className="page-head__sub">{children}</p> : null}
       </div>

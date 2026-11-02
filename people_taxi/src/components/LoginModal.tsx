@@ -15,7 +15,7 @@ const RESEND_SECONDS = 30;
 const OTP_LENGTH = 6;
 
 const agreement = (
-  <p className="login-modal__note">
+  <p className="login-modal__agree">
     By continuing you agree to People Taxi’s{' '}
     <Link to="/legal#terms" target="_blank" rel="noopener">
       Terms &amp; Conditions<span className="sr-only"> (opens in a new tab)</span>
@@ -282,9 +282,6 @@ export function LoginModal() {
               <Button type="submit" size="lg" block loading={sending} disabled={mobile.length < 10}>
                 {sending ? 'Sending code…' : 'Continue'}
               </Button>
-              <p className="login-modal__note">
-                <Icon name="lock" size={14} /> Fares shown upfront · No payment is taken now
-              </p>
               {agreement}
             </form>
           </>

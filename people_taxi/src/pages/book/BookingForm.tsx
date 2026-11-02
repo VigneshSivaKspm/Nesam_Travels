@@ -565,9 +565,6 @@ export function BookingForm({
             <Button type="submit" variant="primary" size="lg" block className="jd-submit" iconTrailing="arrow-right">
               Search Cabs &amp; View Fares
             </Button>
-            <p className="jd-trust">
-              <Icon name="shield-check" size={16} /> Fares are 100% upfront · Zero hidden fees · Pay driver directly
-            </p>
           </div>
         </form>
       )}

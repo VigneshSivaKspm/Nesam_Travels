@@ -28,6 +28,15 @@ function loadStoredState(): StoredMulticityState {
   catch { return loadMulticityDraft(null); }
 }
 
+const MAX_CITIES = 10;
+
+/** The boxes the form shows: every city chosen so far, then one empty box for the next city (until the limit). */
+function withNextSlot(stops: StoredMulticityState['stops']): StoredMulticityState['stops'] {
+  const filled = stops.filter((s) => s.place);
+  const empty = stops.find((s) => !s.place);
+  return filled.length < MAX_CITIES ? [...filled, empty ?? { id: newId('stop'), place: null }] : filled;
+}
+
 function saveStoredState(state: StoredMulticityState) {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -53,6 +62,12 @@ export function MulticityForm() {
   useEffect(() => {
     saveStoredState(state);
   }, [state]);
+
+  // Keep exactly one empty "next city" box after the chosen cities: City 2 appears once City 1 is chosen.
+  useEffect(() => {
+    const next = withNextSlot(state.stops);
+    if (next.length !== state.stops.length || next.some((st, i) => st.id !== state.stops[i]!.id)) setState((s) => ({ ...s, stops: withNextSlot(s.stops) }));
+  }, [state.stops]);
 
   const recentPlaces = useMemo<GeoPlace[]>(() => {
     const out: GeoPlace[] = [];
@@ -80,34 +95,10 @@ export function MulticityForm() {
   const maxDateStr = useMemo(() => toDateInput(latestPickup()), []);
 
   // Stop list mutations
-  const addStop = () => {
-    if (state.stops.length >= 10) return;
-    setState((s) => ({
-      ...s,
-      stops: [...s.stops, { id: newId('stop'), place: null }],
-    }));
-  };
-
   const removeStop = (id: string) => {
-    setState((s) => ({
-      ...s,
-      stops: s.stops.length > 1 ? s.stops.filter((st) => st.id !== id) : [{ id: newId('stop'), place: null }],
-    }));
+    setState((s) => ({ ...s, stops: withNextSlot(s.stops.filter((st) => st.id !== id)) }));
   };
 
-  const moveStop = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= state.stops.length) return;
-    setState((s) => {
-      const next = [...s.stops];
-      const temp = next[index];
-      next[index] = next[targetIndex];
-      next[targetIndex] = temp;
-      return { ...s, stops: next };
-    });
-  };
-
-  // Place picker callback
   const onPickPlace = (p: GeoPlace) => {
     if (pickerTarget === 'pickup') {
       setState((s) => ({ ...s, pickup: p }));
@@ -141,7 +132,7 @@ export function MulticityForm() {
   const pickerConfig: PickerConfig = useMemo(() => {
     if (pickerTarget === 'pickup') {
       return {
-        title: 'Choose Starting City / Pickup Point',
+        title: 'Choose Pickup Location',
         allowCurrent: true,
         popular: QUICK_CITIES,
         popularLabel: 'Major Cities',
@@ -150,7 +141,7 @@ export function MulticityForm() {
     }
     if (pickerTarget === 'drop') {
       return {
-        title: 'Choose Final Destination City',
+        title: 'Choose Drop Location',
         allowCurrent: false,
         popular: QUICK_CITIES,
         popularLabel: 'Popular Destinations',
@@ -159,7 +150,7 @@ export function MulticityForm() {
     }
     const idx = state.stops.findIndex((s) => s.id === pickerTarget);
     return {
-      title: `Choose Stop ${idx + 1}`,
+      title: `Choose City ${idx + 1}`,
       allowCurrent: false,
       popular: QUICK_CITIES,
       popularLabel: 'Popular Cities',
@@ -178,7 +169,7 @@ export function MulticityForm() {
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Please add at least one stop along your route.';
+      err.stops = 'Choose City 1, the first stop between pickup and drop.';
     }
 
     // Verify consecutive duplicates
@@ -198,7 +189,7 @@ export function MulticityForm() {
       if (prob) err.time = prob;
     }
 
-    if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added stop, or remove the empty stop.';
+    if (filledStops.some((stop) => !validMulticityPlace(stop.place))) err.stops = 'Choose a valid location for every city.';
 
     if (!online) {
       err.form = 'You are currently offline. Please check your internet connection.';
@@ -337,17 +328,13 @@ export function MulticityForm() {
     <form className="jd-form jd-multicity-form" onSubmit={onSubmit} noValidate>
       <fieldset className="jd-fieldset" disabled={submitting}>
       {/* Route & Intermediate Stops Section */}
-      <div className="jd-section" role="group" aria-labelledby="mc-route-title">
-        <p className="jd-section__title" id="mc-route-title">
-          <Icon name="route" size={16} /> Multicity Route &amp; Cities
-        </p>
-
+      <div className="jd-section" role="group" aria-label="Route and stops">
         {/* 1. Pickup Point */}
         <div className={`jd-field-box ${errors.pickup ? 'is-invalid' : ''}`}>
           <div className="jd-field-box__head">
             <span className="jd-box-dot is-pickup" aria-hidden="true" />
             <label htmlFor="mc-pickup-btn" className="jd-field-box__label">
-              Starting Pickup Location
+              Pickup location
             </label>
           </div>
           <button
@@ -366,85 +353,32 @@ export function MulticityForm() {
           {errors.pickup ? <p className="jd-error">{errors.pickup}</p> : null}
         </div>
 
-        {/* 2. Intermediate stops */}
-        <div className="jd-multicity-stops">
-          <div className="jd-stops-header">
+        {/* 2. Cities along the way: one box at a time; the next one appears once this one is chosen */}
+        {state.stops.map((stop, index) => (
+          <div key={stop.id} className={`jd-field-box ${errors.stops && index === 0 ? 'is-invalid' : ''}`}>
             <div className="jd-field-box__head">
               <span className="jd-box-dot is-via" aria-hidden="true" />
-              <span className="jd-stops-header__label">Next Stops ({state.stops.length}/10)</span>
+              <span className="jd-field-box__label">City {index + 1}</span>
+              {stop.place ? (
+                <button type="button" className="jd-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
+                  <Icon name="trash" size={15} />
+                </button>
+              ) : null}
             </div>
-            <button
-              type="button"
-              className="btn-add-stop"
-              disabled={state.stops.length >= 10}
-              onClick={addStop}
-            >
-              <Icon name="plus" size={14} /> Add City
+            <button type="button" className={`jd-value ${stop.place ? '' : 'is-empty'}`} aria-label={`City ${index + 1}${stop.place ? `: ${stop.place.name}` : ''}`} onClick={() => setPickerTarget(stop.id)}>
+              <span className="jd-value__text">{stop.place?.name ?? ''}</span>
+              {stop.place?.address && stop.place.address !== stop.place.name ? <span className="jd-value__addr">{stop.place.address}</span> : null}
             </button>
           </div>
-
-          {state.stops.map((stop, index) => {
-            const stopErr = errors[`stop_${stop.id}`];
-            return (
-              <div key={stop.id} className={`jd-stop-row ${stopErr ? 'is-invalid' : ''}`}>
-                <div className="jd-stop-badge">Stop {index + 1}</div>
-                <div className="jd-stop-input-wrap">
-                  <button
-                    type="button"
-                    className={`jd-value jd-value--stop ${!stop.place ? 'is-empty' : ''}`}
-                    onClick={() => setPickerTarget(stop.id)}
-                  >
-                    <span className="jd-value__text">
-                      {stop.place?.name ?? ''}
-                    </span>
-                    {stop.place?.address && stop.place.address !== stop.place.name ? (
-                      <span className="jd-value__addr">{stop.place.address}</span>
-                    ) : null}
-                  </button>
-                </div>
-                <div className="jd-stop-actions">
-                  <button
-                    type="button"
-                    className="btn-icon-action"
-                    disabled={index === 0}
-                    title="Move city up"
-                    aria-label={`Move city ${index + 1} up`}
-                    onClick={() => moveStop(index, 'up')}
-                  >
-                    <Icon name="arrow-up" size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon-action"
-                    disabled={index === state.stops.length - 1}
-                    title="Move city down"
-                    aria-label={`Move city ${index + 1} down`}
-                    onClick={() => moveStop(index, 'down')}
-                  >
-                    <Icon name="arrow-down" size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-icon-action is-delete"
-                    title="Remove city"
-                    aria-label={`Remove city ${index + 1}`}
-                    onClick={() => removeStop(stop.id)}
-                  >
-                    <Icon name="trash" size={14} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-          {errors.stops ? <p className="jd-error">{errors.stops}</p> : null}
-        </div>
+        ))}
+        {errors.stops ? <p className="jd-error">{errors.stops}</p> : null}
 
         {/* 3. Final Drop Destination */}
         <div className={`jd-field-box ${errors.drop ? 'is-invalid' : ''}`}>
           <div className="jd-field-box__head">
             <span className="jd-box-dot is-drop" aria-hidden="true" />
             <label htmlFor="mc-drop-btn" className="jd-field-box__label">
-              Final Destination Drop Point
+              Drop location
             </label>
           </div>
           <button
@@ -467,11 +401,7 @@ export function MulticityForm() {
       </div>
 
       {/* Schedule Section */}
-      <div className="jd-section" role="group" aria-labelledby="mc-sched-title">
-        <p className="jd-section__title" id="mc-sched-title">
-          <Icon name="calendar" size={16} /> Trip Schedule
-        </p>
-        <div className="jd-pair">
+      <div className="jd-section" role="group" aria-label="Trip schedule">        <div className="jd-pair">
           <div className="jd-field">
             <label htmlFor="mc-date" className="jd-label">
               Departure date
@@ -525,16 +455,6 @@ export function MulticityForm() {
         >
           Search Cabs & View Fares
         </Button>
-        <p className="jd-trust">
-          <Icon name="shield-check" size={16} /> Transparent custom tour package pricing · 24/7 dedicated travel desk
-        </p>
-
-        <div className="jd-offline-fallback">
-          <span>Prefer speaking with our tour coordinator?</span>
-          <a href={`tel:${SUPPORT_PHONE}`} className="jd-call-link">
-            <Icon name="phone" size={15} /> Call {SUPPORT_PHONE_DISPLAY}
-          </a>
-        </div>
       </div>
 
       {/* Place Picker Modal */}

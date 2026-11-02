@@ -432,9 +432,6 @@ export function BookingForm({
           <Button type="submit" size="lg" block trailing="arrow-right" className="bf-submit">
             Search Cabs &amp; Compare Fares
           </Button>
-          <p className="bf-trust">
-            <Icon name="shield-check" size={14} /> Clear upfront fares. Pay your driver in cash or UPI.
-          </p>
         </form>
       )}
 

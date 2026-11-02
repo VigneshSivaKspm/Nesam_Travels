@@ -418,9 +418,6 @@ export function BookingForm({
           <Button type="submit" size="lg" block trailing="arrow-right" className="bf-submit">
             Search Cabs
           </Button>
-          <p className="bf-trust">
-            <Icon name="shield-check" size={13} /> Clear fares. Dedicated support.
-          </p>
         </form>
       )}
 

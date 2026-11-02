@@ -73,3 +73,47 @@
   width: 100%;
   text-overflow: ellipsis;
 }
+
+/* Sign-in popup: the terms sentence is plain centred text with the two links inline. */
+.login-modal__agree {
+  display: block;
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.7;
+  text-align: center;
+  text-wrap: balance;
+}
+.login-modal__agree a {
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Multicity: a city between pickup and drop, and its remove button (above the box's click area). */
+.bf-pin--stop {
+  width: 8px;
+  height: 8px;
+  margin: 2px;
+  border-color: var(--brand);
+  background: var(--brand);
+}
+.bf-stop-remove {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.bf-stop-remove:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}

@@ -18,9 +18,7 @@ function SectionHead({ no, eyebrow, title, text, action, id }: { no: string; eye
         {no}
       </span>
       <div className="sec-head__text-wrap">
-        <p className="eyebrow">{eyebrow}</p>
         <h2 id={id}>{title}</h2>
-        {text ? <p className="sec-head__text">{text}</p> : null}
       </div>
       {action ? <div className="sec-head__action">{action}</div> : null}
     </header>

@@ -263,9 +263,6 @@ export function LoginModal() {
               <Button type="submit" size="lg" block loading={sending} disabled={mobile.length < 10} trailing="arrow-right">
                 {sending ? 'Sending code…' : 'Continue'}
               </Button>
-              <p className="login-modal__note">
-                <Icon name="lock" size={13} /> We text a one-time code to this number. Nothing is charged when you sign in.
-              </p>
             </form>
           </>
         ) : (
