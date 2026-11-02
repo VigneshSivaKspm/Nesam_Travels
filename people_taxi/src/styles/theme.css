@@ -664,3 +664,11 @@ html[data-hero-logo='in'] .topbar .brand {
     display: none;
   }
 }
+
+/* Hero on wide screens: the form sits close under the headline. */
+@media (min-width: 768px) {
+  .home-hero {
+    justify-content: center;
+    gap: clamp(18px, 2.4vw, 32px);
+  }
+}
