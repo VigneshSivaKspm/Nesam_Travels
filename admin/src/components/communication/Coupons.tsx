@@ -12,6 +12,7 @@ import { ActionError } from "../../services/callables";
 import { useBookings } from "../../hooks/useOfficeData";
 import { agreedPayoutOf, fareOf, refDate, refDateTime, refTime, rupee } from "../../domain/officeStage";
 import { Modal, Toast, useToast } from "../Feedback";
+import TimeSelect12 from "../TimeSelect12";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader } from "../ui";
 import { TripFields, emptyTrip, estimateFacts, tripPickupDate, tripToForm, useQuickData, validateTrip, type QuickTrip } from "../booking/QuickFare";
 
@@ -109,7 +110,7 @@ function WindowField({ label, value, onChange }: { label: string; value: string;
       <div className="flex flex-wrap gap-1.5">
         <Button size="sm" variant="ghost" onClick={() => onChange(`${day(0)}T${time}`)}>Today</Button>
         <Button size="sm" variant="ghost" onClick={() => onChange(`${day(1)}T${time}`)}>Tomorrow</Button>
-        <input type="time" className="ds-input !w-auto" aria-label={`${label} · time`} value={time} onChange={(e) => onChange(`${date}T${e.target.value || "10:00"}`)} />
+        <TimeSelect12 label={`${label} · time`} value={time} onChange={(v) => onChange(`${date}T${v || "10:00"}`)} />
       </div>
     </div>
   );

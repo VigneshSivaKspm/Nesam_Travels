@@ -17,6 +17,7 @@ import {
 } from "../services/tourPackageService";
 import { normalizeVendorStatus } from "../utils/vendorStatus";
 import { auth } from "../services/firebase";
+import TimeSelect12 from "../components/TimeSelect12";
 import { ConfirmDialog, ErrorBanner, Toast, useToast } from "../components/Feedback";
 
 type FormTab = "basic" | "itinerary" | "pricing" | "availability" | "inclusions";
@@ -736,7 +737,7 @@ export default function TourPackages() {
                     {formData.departures.map((d, idx) => (
                       <div key={d.id} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center p-3 bg-gray-50 rounded-xl border border-line">
                         <input type="date" aria-label="Departure date" value={d.date} onChange={(e) => updateDeparture(idx, { date: e.target.value })} className={`${inputCls} bg-white`} />
-                        <input type="time" aria-label="Departure time" value={d.time || ""} onChange={(e) => updateDeparture(idx, { time: e.target.value })} className={`${inputCls} bg-white`} />
+                        <TimeSelect12 label="Departure time" value={d.time || ""} onChange={(v) => updateDeparture(idx, { time: v })} />
                         <input inputMode="numeric" aria-label="Seats available" value={d.availableSeats === undefined ? "" : String(d.availableSeats)} placeholder="Seats" onChange={(e) => updateDeparture(idx, { availableSeats: e.target.value === "" ? undefined : toWhole(e.target.value) })} className={`${inputCls} bg-white`} />
                         <select aria-label="Departure status" value={d.status} onChange={(e) => updateDeparture(idx, { status: e.target.value as PackageDeparture["status"] })} className={`${inputCls} bg-white`}>
                           {DEPARTURE_STATUSES.map((s) => (

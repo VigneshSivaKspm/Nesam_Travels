@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useId, useRef, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type TextareaHTMLAttributes } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useNavigate, type LinkProps } from 'react-router-dom';
 import { Icon } from './Icon';
 
@@ -350,7 +351,8 @@ export function Dialog({
     }
   };
 
-  return (
+  // Rendered into the page body so no parent card (containment, transforms) can displace the popup.
+  return createPortal(
     <div className={`overlay overlay--${variant}`} onMouseDown={(e) => e.target === e.currentTarget && dismissible && onClose()} onKeyDown={onKey}>
       <div className={`dialog dialog--${variant} ${wide ? 'dialog--wide' : ''} ${className}`} role="dialog" aria-modal="true" aria-labelledby={titleId} ref={ref}>
         <div className="dialog__head">
@@ -363,7 +365,8 @@ export function Dialog({
         <div className="dialog__body">{children}</div>
         {footer ? <div className="dialog__foot">{footer}</div> : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

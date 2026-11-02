@@ -1043,3 +1043,35 @@
     bottom: calc(20px + env(safe-area-inset-bottom, 0px) + 64px);
   }
 }
+
+/* AI chat: language switch (EN | தமிழ்) in the header, and the list wrapper for bullet lines. */
+.chat-list {
+  margin: 0;
+  padding: 0;
+}
+.ai-chat-lang {
+  display: inline-flex;
+  padding: 2px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.ai-chat-lang button {
+  min-width: 34px;
+  height: 26px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.ai-chat-lang button[aria-pressed='true'] {
+  background: #ffffff;
+  color: #1f2937;
+}
+.ai-chat-lang button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 1px;
+}

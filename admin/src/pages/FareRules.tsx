@@ -18,6 +18,7 @@ import AppFarePreview from "../components/AppFarePreview";
 import { auth } from "../services/firebase";
 import { ConfirmDialog, ErrorBanner, Modal, Toast, useToast } from "../components/Feedback";
 import { Button } from "../components/ui";
+import TimeSelect12 from "../components/TimeSelect12";
 
 const PRICING_MODELS: { value: PricingModel; label: string; desc: string }[] = [
   { value: "BASE_PLUS_PER_KM", label: "Base Fare + Per KM", desc: "Initial base fare covering base KM, then per-KM rate for extra distance." },
@@ -379,12 +380,7 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
 
           <div>
             <label className="block text-[10px] font-semibold text-muted mb-1">Pickup Time</label>
-            <input
-              type="time"
-              value={calcInput.pickupTime}
-              onChange={(e) => setCalcInput({ ...calcInput, pickupTime: e.target.value })}
-              className="w-full p-2 border border-line rounded-xl text-xs focus:border-brand focus:outline-none"
-            />
+            <TimeSelect12 label="Pickup time" value={calcInput.pickupTime} onChange={(v) => setCalcInput({ ...calcInput, pickupTime: v })} />
           </div>
 
           <div>
@@ -1079,22 +1075,12 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1">
                           <div>
                             <label className="block text-[10px] font-semibold text-muted">Night Window Start</label>
-                            <input
-                              type="time"
-                              value={formData.nightStartTime}
-                              onChange={(e) => setFormData({ ...formData, nightStartTime: e.target.value })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs"
-                            />
+                            <TimeSelect12 label="Night window start" value={formData.nightStartTime} onChange={(v) => setFormData({ ...formData, nightStartTime: v })} />
                           </div>
 
                           <div>
                             <label className="block text-[10px] font-semibold text-muted">Night Window End</label>
-                            <input
-                              type="time"
-                              value={formData.nightEndTime}
-                              onChange={(e) => setFormData({ ...formData, nightEndTime: e.target.value })}
-                              className="w-full p-2 border rounded-lg bg-white text-xs"
-                            />
+                            <TimeSelect12 label="Night window end" value={formData.nightEndTime} onChange={(v) => setFormData({ ...formData, nightEndTime: v })} />
                           </div>
 
                           <div>

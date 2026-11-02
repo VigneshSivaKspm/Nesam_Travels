@@ -8,11 +8,14 @@ import type { Booking, MarketplaceTrip } from "../types";
 import { bookingPickupDate, toDate, type DateLike } from "../utils/time";
 import { fulfilmentOf } from "./bookingFlow";
 
-export const OFFICE_STAGES = ["New bookings", "To publish", "Published", "Accepted", "All bookings"] as const;
+/** The Bookings tabs: the four stages of an open booking, then where a booking ends up. */
+export const OFFICE_STAGES = ["New bookings", "To publish", "Published", "Accepted", "Ongoing", "Completed", "Cancelled", "All bookings"] as const;
 export type OfficeStage = (typeof OFFICE_STAGES)[number];
+/** The stages of a booking that is still open (not yet on trip). */
+export type OpenStage = "New bookings" | "To publish" | "Published" | "Accepted";
 
 /** Stage of an open booking; null once it is on trip, completed, cancelled or rejected. */
-export function officeStageOf(b: Booking, market?: Pick<MarketplaceTrip, "status"> | null): Exclude<OfficeStage, "All bookings"> | null {
+export function officeStageOf(b: Booking, market?: Pick<MarketplaceTrip, "status"> | null): OpenStage | null {
   const f = fulfilmentOf(b, market?.status);
   switch (f) {
     case "awaiting_review": return "New bookings";
@@ -21,6 +24,17 @@ export function officeStageOf(b: Booking, market?: Pick<MarketplaceTrip, "status
     case "vendor_assigned":
     case "driver_assigned": return "Accepted";
     default: return null;
+  }
+}
+
+/** The Bookings tab a booking belongs in: its open stage, or Ongoing / Completed / Cancelled (rejected bookings count as Cancelled). */
+export function bookingTabOf(b: Booking, market?: Pick<MarketplaceTrip, "status"> | null): Exclude<OfficeStage, "All bookings"> {
+  switch (fulfilmentOf(b, market?.status)) {
+    case "in_progress": return "Ongoing";
+    case "completed": return "Completed";
+    case "cancelled":
+    case "rejected": return "Cancelled";
+    default: return officeStageOf(b, market) ?? "New bookings";
   }
 }
 

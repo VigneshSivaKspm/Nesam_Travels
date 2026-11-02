@@ -13,6 +13,7 @@ import { Modal } from "../Feedback";
 import { Button, Icon } from "../ui";
 import { FareBreakupCard } from "./Enquiries";
 import { isoDateIST } from "../../utils/time";
+import TimeSelect12 from "../TimeSelect12";
 import { refDateTime, rupee } from "../../domain/officeStage";
 import { subscribeBusinessAccounts, type BusinessAccount } from "../../services/businessService";
 
@@ -96,7 +97,8 @@ const locLabel = (l: MasterLocation) => [l.name, l.area && l.area !== l.name ? l
 /** The built-in services: the platform's trip types, offered before any configured service. */
 export const TRIP_SERVICES: { tripType: QuickTrip["tripType"]; label: string }[] = [
   { tripType: "One Way", label: "Outstation · One Way" },
-  { tripType: "Round Trip", label: "Outstation · Round Trip" },
+  // Multicity is priced from the Round Trip rates (the tariff inherits them), so it uses that trip type.
+  { tripType: "Round Trip", label: "Multicity" },
   { tripType: "Local Rental", label: "Local Rental" },
   { tripType: "Airport Taxi", label: "Airport Transfer" },
 ];
@@ -137,7 +139,7 @@ export function validateTrip(t: QuickTrip): string | null {
   if (!t.date || !t.time) return "Choose the pickup date and time.";
   const at = tripPickupDate(t);
   if (!at || at.getTime() < Date.now() + 30 * 60000) return "Pickup must be at least 30 minutes from now.";
-  if (t.tripType === "Round Trip" && !t.endDate) return "Choose when the round trip ends.";
+  if (t.tripType === "Round Trip" && !t.endDate) return "Choose when the trip ends.";
   if (t.tripType === "Airport Taxi" && t[airportSide(t)]?.type !== "airport") return `Choose the airport as the ${airportSide(t)} for this transfer.`;
   return null;
 }
@@ -185,24 +187,8 @@ export const estimateFacts = { partnerPayoutOf, includedKmOf, extraKmRateOf };
 
 // ── Trip fields ───────────────────────────────────────────────────────────
 
-const HOURS = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, "0"));
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, "0"));
-
-/** 24-hour India time as hour and minute lists; the value stays "HH:mm". */
-function TimeSelect({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
-  const [h = "00", m = "00"] = value.split(":");
-  return (
-    <span className="ds-time">
-      <select id={id} className="ds-select" aria-label={`${label} hour`} value={h} onChange={(e) => onChange(`${e.target.value}:${m}`)}>
-        {HOURS.map((x) => <option key={x} value={x}>{x}</option>)}
-      </select>
-      <span aria-hidden="true">:</span>
-      <select className="ds-select" aria-label={`${label} minute`} value={m} onChange={(e) => onChange(`${h}:${e.target.value}`)}>
-        {MINUTES.map((x) => <option key={x} value={x}>{x}</option>)}
-      </select>
-    </span>
-  );
-}
+/** The pickup and return times use the shared 12-hour (AM / PM) control; the value stays "HH:mm". */
+const TimeSelect = TimeSelect12;
 
 interface PlaceOption {
   key: string;

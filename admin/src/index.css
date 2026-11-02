@@ -802,7 +802,7 @@ details.ds-disclosure > summary { cursor: pointer; font-size: 12px; font-weight:
 .ds-quick-grid { grid-template-columns: minmax(170px, 1.1fr) minmax(160px, 1.3fr) minmax(160px, 1.3fr) minmax(130px, .9fr) minmax(110px, .8fr) auto; }
 .ds-quick-action { padding-top: 21px; }
 .ds-quick-action .ds-btn { min-height: 40px; }
-.ds-time { display: flex; align-items: center; gap: 4px; max-width: 180px; color: var(--color-muted); font-weight: 600; }
+.ds-time { display: flex; align-items: center; gap: 4px; max-width: 230px; color: var(--color-muted); font-weight: 600; }
 .ds-time .ds-select { flex: 1 1 0; min-width: 0; padding-inline: 8px; font-variant-numeric: tabular-nums; }
 .ds-combo { position: relative; }
 .ds-combo .ds-input { width: 100%; padding-right: 30px; }

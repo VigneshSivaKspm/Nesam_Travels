@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import Button from "./ui/Button";
 import Icon from "./ui/Icon";
 
@@ -110,7 +111,8 @@ export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClo
     }
   };
 
-  return (
+  // Rendered into the page body so no parent card (containment, transforms) can displace the popup.
+  return createPortal(
     <div
       className={`ds-overlay ${drawer ? "ds-drawer-overlay" : ""}`}
       onMouseDown={(e) => {
@@ -145,7 +147,8 @@ export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClo
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

@@ -13,7 +13,7 @@ import Enquiries from "../components/booking/Enquiries";
 import { effectiveStatus, subscribeEnquiries, type Enquiry } from "../services/enquiryService";
 import { paymentOf } from "../domain/bookingFlow";
 import {
-  OFFICE_STAGES, agreedPayoutOf, assignmentDeadline, customerGroups, fareOf, matchesTripType, officeStageOf, officeStatusLabel, refDate, refTime, type OfficeStage,
+  OFFICE_STAGES, agreedPayoutOf, assignmentDeadline, bookingTabOf, customerGroups, fareOf, matchesTripType, officeStageOf, officeStatusLabel, refDate, refTime, type OfficeStage,
 } from "../domain/officeStage";
 import { useCan } from "../components/AccessContext";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, TableSkeleton, toneForStatus } from "../components/ui";
@@ -75,17 +75,14 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
   const stageOf = (b: Booking) => officeStageOf(b, data.marketById.get(b.id));
 
   const counts = useMemo(() => {
-    const c: Record<OfficeStage, number> = { "New bookings": 0, "To publish": 0, Published: 0, Accepted: 0, "All bookings": all.length };
-    for (const b of all) {
-      const s = officeStageOf(b, data.marketById.get(b.id));
-      if (s) c[s]++;
-    }
+    const c: Record<OfficeStage, number> = { "New bookings": 0, "To publish": 0, Published: 0, Accepted: 0, Ongoing: 0, Completed: 0, Cancelled: 0, "All bookings": all.length };
+    for (const b of all) c[bookingTabOf(b, data.marketById.get(b.id))]++;
     return c;
   }, [all, data.marketById]);
 
   const categoriesInUse = useMemo(() => Array.from(new Set(all.map((b) => b.vehicleCategory || b.vehicle).filter(Boolean))).sort(), [all]);
 
-  const inStage = useMemo(() => all.filter((b) => stage === "All bookings" || stageOf(b) === stage), [all, stage, data.marketById]); // eslint-disable-line react-hooks/exhaustive-deps
+  const inStage = useMemo(() => all.filter((b) => stage === "All bookings" || bookingTabOf(b, data.marketById.get(b.id)) === stage), [all, stage, data.marketById]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const filtered = useMemo(() => {
     const q = f.search.trim().toLowerCase();

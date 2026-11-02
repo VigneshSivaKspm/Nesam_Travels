@@ -6,8 +6,6 @@ import { useNavigate } from 'react-router-dom';
 import type { GeoPlace } from '@core/types';
 import { useCustomerData } from '@/state/CustomerData';
 import { reverseGeocode } from '@core/services/geoService';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY, SUPPORT_WHATSAPP } from '@core/config/constants';
-import { whatsappLink } from '@/lib/contact';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { haversineKm, isValidLatLng } from '@core/utils/geo';
 import { Button, Tabs } from '@/components/ui';
@@ -20,6 +18,7 @@ import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/s
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { RENTAL_PACKAGE_HOURS } from '@/lib/draft';
+import { MulticityForm } from './MulticityForm';
 
 type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
@@ -265,24 +264,7 @@ export function BookingForm({
       ) : null}
 
       {service === 'multicity' ? (
-        <div className="bf-offline-service" id="bf-form">
-          <span className="bf-offline-service__icon" aria-hidden="true">
-            <Icon name="travel-multicity" size={26} />
-          </span>
-          <h3>Multicity trips are planned with our team</h3>
-          <p>Tell us your stops and dates. NESAM will plan the route and share the fare before anything is confirmed. Online booking for multi-stop trips is not available yet.</p>
-          <div className="bf-offline-service__actions">
-            <a className="btn btn--primary" href={`tel:${SUPPORT_PHONE}`}>
-              <Icon name="phone" size={17} /> Call {SUPPORT_PHONE_DISPLAY}
-            </a>
-            <a className="btn btn--secondary" href={whatsappLink(SUPPORT_WHATSAPP, 'Hello NESAM, I would like to plan a multicity trip.')} target="_blank" rel="noopener noreferrer">
-              <Icon name="chat" size={17} /> WhatsApp
-            </a>
-          </div>
-          <p className="bf-trust">
-            <Icon name="shield-check" size={13} /> Clear fares. Dedicated support.
-          </p>
-        </div>
+        <MulticityForm />
       ) : (
         <form
           id="bf-form"

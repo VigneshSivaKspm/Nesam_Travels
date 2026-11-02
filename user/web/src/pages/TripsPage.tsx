@@ -8,6 +8,7 @@ import { isValidLatLng } from '@core/utils/geo';
 import { customerStatus, paymentLabel, tabOfTrip, tripStatusChip } from '@core/utils/tripView';
 import { Badge, Button, EmptyState, LinkButton, Notice, PageHead, Tabs } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { TourQuotes } from '@/components/TourQuotes';
 import { AccountLayout, SignInPrompt } from '@/components/AccountLayout';
 import { useSeo } from '@/lib/seo';
 import { tripTypeLabel } from '@/lib/services';
@@ -126,6 +127,7 @@ export function TripsPage() {
         <SignInPrompt title="Sign in to see your bookings" text="Sign in with your mobile number to view upcoming bookings, trip history and receipts." />
       ) : (
         <>
+          <TourQuotes brand="nesam" />
           <Tabs
             variant="boxed"
             className="bk-tabs"
