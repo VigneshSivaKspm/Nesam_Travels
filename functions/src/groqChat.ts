@@ -193,8 +193,8 @@ function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta'): str
         : `**Local hourly rental**\n• A car with a driver inside the city: **4, 6, 8, 10 or 12 hour** packages with included km.\n• Choose **Local Rental** on the home page and enter your pickup; each car shows its package fare.`;
     case 'multicity':
       return ta
-        ? `**பல நகரச் சுற்றுலா (Multicity)**\n• முகப்புப் பக்கத்தில் **Multicity** தாவலைத் திறந்து, தொடக்க இடம், இடையில் நிற்கும் நகரங்கள், இறுதி இடம், தேதி, நேரம் ஆகியவற்றைக் கொடுத்து **Get Trip Quote** அழுத்துங்கள்.\n• எங்கள் பயண மேசை வழியைக் கணக்கிட்டு உங்களுக்குக் கட்டணத்தை அனுப்பும்; ஏற்றால் புக்கிங் உறுதியாகும்.\n• உங்கள் கோரிக்கை நிலை **My Trips** இல் தெரியும்.`
-        : `**Multicity tours**\n• Open the **Multicity** tab on the home page, add your start, the cities in between, the final drop, date and time, then tap **Get Trip Quote**.\n• Our travel desk works out the route and sends you a price; accept it and the booking is confirmed.\n• You can follow your request under **My Trips**.`;
+        ? `**பல நகரச் சுற்றுலா (Multicity)**\n• முகப்புப் பக்கத்தில் **Multicity** தாவலைத் திறந்து, தொடக்க இடம், இடையில் நிற்கும் நகரங்கள், இறுதி இடம், தேதி, நேரம் ஆகியவற்றைக் கொடுத்து படிவத்தின் கீழுள்ள பொத்தானை அழுத்துங்கள்.\n• எங்கள் பயண மேசை வழியைக் கணக்கிட்டு உங்களுக்குக் கட்டணத்தை அனுப்பும்; ஏற்றால் புக்கிங் உறுதியாகும்.\n• உங்கள் கோரிக்கை நிலை **My Trips** இல் தெரியும்.`
+        : `**Multicity tours**\n• Open the **Multicity** tab on the home page, add your start, the cities in between, the final drop, date and time, then send the request with the button at the bottom of the form.\n• Our travel desk works out the route and sends you a price; accept it and the booking is confirmed.\n• You can follow your request under **My Trips**.`;
     case 'oneway':
       return ta
         ? `**ஒருவழி டிராப் டாக்ஸி**: நீங்கள் செல்லும் ஒரு வழிக்கான கட்டணம் மட்டுமே; காலி வண்டி திரும்பும் கட்டணம் இல்லை. **சுற்றுப் பயணம்** (Round Trip) தேர்வு செய்தால் திரும்பும் தேதியும் நேரமும் கொடுக்க வேண்டும்.\nஉங்கள் வழிக்கான சரியான கட்டணத்தை புக்கிங் படிவத்தில் பார்க்கலாம்.`

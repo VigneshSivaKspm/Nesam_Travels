@@ -380,7 +380,7 @@ export default function FareRules({ onBack }: { onBack: () => void }) {
 
           <div>
             <label className="block text-[10px] font-semibold text-muted mb-1">Pickup Time</label>
-            <TimeSelect12 label="Pickup time" value={calcInput.pickupTime} onChange={(v) => setCalcInput({ ...calcInput, pickupTime: v })} />
+            <TimeSelect12 label="Pickup time" value={calcInput.pickupTime ?? ""} onChange={(v) => setCalcInput({ ...calcInput, pickupTime: v })} />
           </div>
 
           <div>

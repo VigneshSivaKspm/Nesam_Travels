@@ -10,6 +10,7 @@ import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } fr
 import { CONTACT } from '@/lib/contact';
 import { PageLoader } from './ui';
 import { Icon } from './Icon';
+import { RouteErrorBoundary } from './RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
 import { AiChatbot } from './AiChatbot';
 
@@ -286,7 +287,9 @@ export function Shell() {
 
       <main id="main" tabIndex={-1} className="main">
         <Suspense fallback={<PageLoader />}>
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </Suspense>
       </main>
 

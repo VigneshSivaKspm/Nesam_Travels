@@ -66,7 +66,7 @@ async function deliverCampaign(id: string, sentBy: string, sentByName: string): 
       if (!live.length) { skipped++; return; }
       let firstId = '';
       for (const a of live) {
-        const nid = await notify({ recipientType: a.type, recipientId: a.id, category: 'general', severity, sound: 'general', title, message, sentBy, push, meta });
+        const nid = await notify({ recipientType: a.type, recipientId: a.id, brand: 'all', category: 'general', severity, sound: 'general', title, message, sentBy, push, meta });
         firstId ||= nid ?? '';
       }
       sent++;

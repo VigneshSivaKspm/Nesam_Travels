@@ -1,9 +1,10 @@
-import { collection, doc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, getDoc, onSnapshot, query, serverTimestamp, updateDoc, where } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { callFunction } from './callables';
 import { formatDateTime12, toDate } from '../utils/time';
 import { categoryOf, ctaOf, severityOf, soundOf } from '../utils/notificationModel';
 import type { PartnerNotification, PartnerPenalty, PenaltyStatus } from '../types/notifications';
+import { normalizeBrand, visibleOnSite, type SiteBrand } from '../utils/brandScope';
 
 const str = (v: unknown): string => (typeof v === 'string' ? v : v == null ? '' : String(v));
 const amount = (v: unknown): number => {
@@ -12,12 +13,40 @@ const amount = (v: unknown): number => {
   return Number.isFinite(n) ? n : 0;
 };
 
-/** This user's own notifications (rules allow reading only those addressed to them). */
-export function subscribeToNotifications(recipientId: string, callback: (n: PartnerNotification[]) => void) {
+/** The brand a booking was made on, read once per booking (older notifications carry only the booking). */
+const bookingBrands = new Map<string, Promise<ReturnType<typeof normalizeBrand>>>();
+function brandOfBooking(bookingId: string) {
+  let known = bookingBrands.get(bookingId);
+  if (!known) {
+    known = getDoc(doc(db, 'bookings', bookingId))
+      .then((s) => {
+        const d = s.data();
+        return normalizeBrand(d?.brand || d?.bookingSource || d?.source);
+      })
+      .catch(() => '' as const);
+    bookingBrands.set(bookingId, known);
+  }
+  return known;
+}
+
+export type NotificationRole = 'customer' | 'driver' | 'vendor';
+
+/**
+ * This user's own notifications (rules allow reading only those addressed to them).
+ * - `role`: one login can be a rider, a driver and a vendor at once; only notifications for that role
+ *   are returned (a vendor's "Account suspended" must not appear in the rider's inbox). Older ones that
+ *   record no role are treated as rider notifications.
+ * - `site`: only that site's notifications (and those sent to every site): the same rider account works
+ *   on NESAM Cabs, One Way Car Rentals and People Taxi, and each should show only its own.
+ */
+export function subscribeToNotifications(recipientId: string, callback: (n: PartnerNotification[]) => void, scope: { role?: NotificationRole; site?: SiteBrand } = {}) {
+  const { role, site } = scope;
+  let latest = 0;
   return onSnapshot(
     query(collection(db, 'notifications'), where('recipientId', '==', recipientId)),
     (snap) => {
-      const rows = snap.docs.map((d): PartnerNotification => {
+      const forRole = (data: Record<string, unknown>) => !role || !str(data.recipientType) || str(data.recipientType) === role;
+      const rows = snap.docs.filter((d) => forRole(d.data())).map((d): PartnerNotification => {
         const data = d.data();
         const created = toDate(data.createdAt);
         const base = { type: str(data.type), category: str(data.category), severity: str(data.severity), priority: str(data.priority), sound: str(data.sound), cta: data.cta, bookingId: str(data.bookingId) };
@@ -33,12 +62,21 @@ export function subscribeToNotifications(recipientId: string, callback: (n: Part
           sound: soundOf(base),
           bookingId: str(data.bookingId),
           bookingCode: str(data.bookingCode),
+          brand: normalizeBrand(data.brand),
           ...ctaOf(base),
           popup: data.push !== false,
         };
       });
       rows.sort((a, b) => b.createdAtMs - a.createdAtMs);
-      callback(rows);
+      if (!site) return callback(rows);
+
+      // Notifications that name no brand but belong to a booking take that booking's brand.
+      const run = ++latest;
+      void Promise.all(
+        rows.map(async (n) => (n.brand || !n.bookingId ? n : { ...n, brand: await brandOfBooking(n.bookingId) })),
+      ).then((resolved) => {
+        if (run === latest) callback(resolved.filter((n) => visibleOnSite(site, normalizeBrand(n.brand))));
+      });
     },
     () => callback([]),
   );

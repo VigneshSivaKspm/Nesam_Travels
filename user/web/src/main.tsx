@@ -11,6 +11,9 @@ import './styles/pages.css';
 import './styles/multicity.css';
 import './styles/mobile.css';
 import { App } from './App';
+import { installStaleVersionReload } from './components/RouteErrorBoundary';
+
+installStaleVersionReload();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

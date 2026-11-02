@@ -6,7 +6,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { DocumentData } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { audit } from './audit';
-import { deliveryRow, notify, NotificationCategory, NotificationSeverity, RecipientType } from './notify';
+import { brandKey, deliveryRow, notify, NotificationCategory, NotificationSeverity, RecipientType } from './notify';
 import { SendResult, sendEmail, sendSms, sendWhatsApp, toDigits } from './providers';
 import { approved, requirePermission, text, requireAction } from './shared';
 
@@ -50,7 +50,9 @@ export const sendNotification = onCall({ timeoutSeconds: 300 }, async (request) 
   const severity = SEVERITIES.includes(input.severity) ? (input.severity as NotificationSeverity) : 'info';
   const channels = new Set<Channel>((Array.isArray(input.channels) ? input.channels : ['in_app']).filter((c: unknown): c is Channel => CHANNELS.includes(c as Channel)));
   channels.add('in_app');
-  const common = { category, severity, sound: 'general' as const, title, message, sentBy: admin.uid, push: channels.has('push') };
+  // Customers use one login on all three sites: a message goes to every site unless one brand is chosen.
+  const brand = brandKey(input.brand) || 'all';
+  const common = { category, severity, sound: 'general' as const, title, message, sentBy: admin.uid, push: channels.has('push'), brand };
 
   if (input.target === 'admin') {
     await notify({ ...common, recipientType: 'admin', recipientId: 'admin', push: false });

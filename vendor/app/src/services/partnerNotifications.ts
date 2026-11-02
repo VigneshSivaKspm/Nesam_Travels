@@ -13,11 +13,15 @@ const amount = (v: unknown): number => {
 };
 
 /** This user's own notifications (rules allow reading only those addressed to them). */
-export function subscribeToNotifications(recipientId: string, callback: (n: PartnerNotification[]) => void) {
+/**
+ * One login can be a rider, a driver and a vendor at once, so with `role` only the notifications for
+ * that role are returned (older ones that record no role are kept).
+ */
+export function subscribeToNotifications(recipientId: string, callback: (n: PartnerNotification[]) => void, role?: 'customer' | 'driver' | 'vendor') {
   return onSnapshot(
     query(collection(db, 'notifications'), where('recipientId', '==', recipientId)),
     (snap) => {
-      const rows = snap.docs.map((d): PartnerNotification => {
+      const rows = snap.docs.filter((d) => !role || !str(d.data().recipientType) || str(d.data().recipientType) === role).map((d): PartnerNotification => {
         const data = d.data();
         const created = toDate(data.createdAt);
         const base = { type: str(data.type), category: str(data.category), severity: str(data.severity), priority: str(data.priority), sound: str(data.sound), cta: data.cta, bookingId: str(data.bookingId) };

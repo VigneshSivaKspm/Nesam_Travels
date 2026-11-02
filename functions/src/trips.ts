@@ -241,7 +241,7 @@ export const advanceTrip = onCall({ timeoutSeconds: 60 }, async (request) => {
     pushes.push({ id: notifyInTx(tx, admin), input: admin });
     if (b.customerId) {
       const c: NotifyInput = {
-        recipientType: 'customer', recipientId: b.customerId, category: 'trips', severity: 'info', sound: 'general', push: true, sentBy: driver.uid,
+        recipientType: 'customer', brand: b.brand, recipientId: b.customerId, category: 'trips', severity: 'info', sound: 'general', push: true, sentBy: driver.uid,
         title: to === 'Reached Pickup' ? 'Your driver has arrived' : to === 'Trip Started' ? 'Your trip has started' : 'Trip completed',
         message: to === 'Reached Pickup'
           ? `${driver.name} is at your pickup point. Share the 4-digit boarding OTP from your NESAM app to start the trip.`

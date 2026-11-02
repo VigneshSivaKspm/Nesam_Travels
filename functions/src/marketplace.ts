@@ -309,7 +309,7 @@ export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
     // The customer is told what is true: a partner has the booking, driver details are still to come.
     if (text(b.customerId)) {
       const toCustomer: NotifyInput = {
-        recipientType: 'customer', recipientId: text(b.customerId), category: 'trips', severity: 'info', sound: 'approval',
+        recipientType: 'customer', brand: b.brand, recipientId: text(b.customerId), category: 'trips', severity: 'info', sound: 'approval',
         title: 'Your booking is with a NESAM partner', message: `Booking ${label} is confirmed with a partner. Driver and vehicle details will follow before your pickup.`,
         bookingId, bookingCode: label, cta: { label: 'Open trip', page: 'trips', bookingId }, push: true, sentBy: admin.uid,
       };

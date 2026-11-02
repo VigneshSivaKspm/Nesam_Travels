@@ -49,6 +49,7 @@ export function InboxProvider({ userId, children }: { userId?: string | null; ch
       setLoaded(true);
       return undefined;
     }
+    // This rider's own notifications, for this site only (the same login can also be a vendor or driver).
     return subscribeToNotifications(userId, (list) => {
       setNotifications(list);
       setLoaded(true);
@@ -63,7 +64,7 @@ export function InboxProvider({ userId, children }: { userId?: string | null; ch
           push({ title: n.title, message: n.message, tone: n.severity === 'critical' || n.severity === 'warning' ? 'warning' : 'info', action: { label: n.ctaLabel || 'Open', run: () => navigate(pathForPage(n.ctaPage)) } });
         }
       }
-    });
+    }, { role: 'customer', site: 'onewaycarrentals' });
   }, [userId, push, navigate]);
 
   const value = useMemo<InboxValue>(() => ({ notifications, loaded, unreadCount: notifications.filter((n) => !n.read).length }), [notifications, loaded]);

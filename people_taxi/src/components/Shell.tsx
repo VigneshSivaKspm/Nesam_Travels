@@ -11,6 +11,7 @@ import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
+import { RouteErrorBoundary } from '../../../user/web/src/components/RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
 import { AiChatbot } from './AiChatbot';
 import { ALL_ROUTES } from '@/pages/routes/routesData';
@@ -443,7 +444,9 @@ export function Shell() {
         }
       >
         <main id="main" tabIndex={-1} className="main">
-          <Outlet />
+          <RouteErrorBoundary>
+            <Outlet />
+          </RouteErrorBoundary>
         </main>
         {!isImmersive ? <Footer /> : null}
       </Suspense>

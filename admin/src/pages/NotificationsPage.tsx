@@ -85,6 +85,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
   // Compose State
   const [sendTarget, setSendTarget] = useState<"admin" | "all_drivers" | "all_customers" | "all_vendors" | "single_user">("admin");
   const [selectedUserId, setSelectedUserId] = useState("");
+  const [sendBrand, setSendBrand] = useState<"all" | "nesam" | "people_taxi" | "onewaycarrentals">("all");
   const [sendChannel, setSendChannel] = useState<"In-App" | "SMS" | "WhatsApp" | "Email" | "Push Notification">("In-App");
   const [sendCategory, setSendCategory] = useState("alert");
   const [sendTitle, setSendTitle] = useState("");
@@ -218,6 +219,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
       type: sendCategory,
       title: sendTitle.trim(),
       message: sendMessage.trim(),
+      ...(sendTarget === "all_customers" || sendTarget === "single_user" ? { brand: sendBrand } : {}),
     });
 
     setIsSending(false);
@@ -665,6 +667,25 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                   </button>
                 ))}
               </div>
+
+              {(sendTarget === "all_customers" || sendTarget === "single_user") && (
+                <div className="mt-3">
+                  <label htmlFor="send-brand" className="text-[11px] font-semibold text-faint block mb-1">
+                    Show this to riders of
+                  </label>
+                  <select
+                    id="send-brand"
+                    value={sendBrand}
+                    onChange={(e) => setSendBrand(e.target.value as typeof sendBrand)}
+                    className="w-full px-3 py-2 text-[13px] border border-line rounded-lg focus:outline-none focus:border-brand"
+                  >
+                    <option value="all">All sites (NESAM, People Taxi, One Way Car Rentals)</option>
+                    <option value="nesam">NESAM Cabs only</option>
+                    <option value="people_taxi">People Taxi only</option>
+                    <option value="onewaycarrentals">One Way Car Rentals only</option>
+                  </select>
+                </div>
+              )}
 
               {sendTarget === "single_user" && (
                 <div className="mt-3">

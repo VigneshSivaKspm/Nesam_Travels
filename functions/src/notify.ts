@@ -25,6 +25,18 @@ export interface NotificationCta {
   bookingId?: string;
 }
 
+/** The customer site a notification belongs to; "all" reaches every site. Anything else names no brand. */
+export type BrandKey = 'nesam' | 'onewaycarrentals' | 'people_taxi' | 'all' | '';
+
+export function brandKey(raw: unknown): BrandKey {
+  const v = typeof raw === 'string' ? raw.toLowerCase().trim() : '';
+  if (v === 'all') return 'all';
+  if (v.includes('people')) return 'people_taxi';
+  if (v.includes('oneway') || v.includes('one_way') || v.includes('one-way')) return 'onewaycarrentals';
+  if (v.includes('nesam')) return 'nesam';
+  return '';
+}
+
 export interface NotifyInput {
   recipientType: RecipientType;
   /** Shared staff inbox is the literal 'admin'. */
@@ -43,6 +55,8 @@ export interface NotifyInput {
   push?: boolean;
   /** Who caused it, for the audit view. */
   sentBy?: string;
+  /** Which customer site this is for (a rider's login works on all three), e.g. the booking's brand. */
+  brand?: string;
   /** Extra fields stored on the in-app record (e.g. campaignId, requiresAck, imageUrl). */
   meta?: Record<string, string | boolean>;
 }
@@ -57,6 +71,7 @@ function record(n: NotifyInput) {
   return {
     recipientId: n.recipientId,
     recipientType: n.recipientType,
+    brand: brandKey(n.brand),
     category: n.category,
     type: n.category,
     severity: n.severity ?? 'info',

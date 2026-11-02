@@ -523,7 +523,7 @@ export function MulticityForm() {
           className="jd-submit"
           iconTrailing="arrow-right"
         >
-          Get Trip Quote
+          Search Cabs & View Fares
         </Button>
         <p className="jd-trust">
           <Icon name="shield-check" size={16} /> Transparent custom tour package pricing · 24/7 dedicated travel desk

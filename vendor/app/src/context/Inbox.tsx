@@ -24,7 +24,7 @@ export function InboxProvider({ userId, role, penaltyField, children }: { userId
   const [notifications, setNotifications] = useState<PartnerNotification[]>([]);
   const [penalties, setPenalties] = useState<PartnerPenalty[]>([]);
 
-  useEffect(() => subscribeToNotifications(userId, setNotifications), [userId]);
+  useEffect(() => subscribeToNotifications(userId, setNotifications, role), [userId, role]);
   useEffect(() => (penaltyField ? subscribeToPenalties(penaltyField, userId, setPenalties) : undefined), [userId, penaltyField]);
   useEffect(() => {
     void registerForPush(userId, role);

@@ -398,6 +398,8 @@ export interface ComposeNotificationInput {
   title: string;
   message: string;
   actionUrl?: string;
+  /** Customer messages only: the one site that should show it ("all" = every site). */
+  brand?: "all" | "nesam" | "people_taxi" | "onewaycarrentals";
 }
 
 export interface SendResultSummary {
@@ -430,6 +432,7 @@ export async function sendAdminNotification(input: ComposeNotificationInput): Pr
       category: CATEGORIES.includes(input.type as never) ? input.type : categoryOf({ type: input.type }),
       title: input.title,
       message: input.message,
+      ...(input.brand ? { brand: input.brand } : {}),
     });
     return { success: true, count: res.recipients, channels: res.channels };
   } catch (err) {

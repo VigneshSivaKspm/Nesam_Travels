@@ -14,6 +14,8 @@ export interface PartnerNotification {
   sound: NotificationSound;
   bookingId: string;
   bookingCode: string;
+  /** Which site the notification belongs to (empty = sent before brands were recorded). */
+  brand: string;
   ctaLabel: string;
   ctaPage: string;
   /** false = quiet inbox entry (no popup or tone). */

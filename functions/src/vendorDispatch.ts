@@ -78,7 +78,7 @@ export const vendorAssignDriver = onCall({ timeoutSeconds: 60 }, async (request)
     pushes.push({ id: notifyInTx(tx, toDriver), input: toDriver });
     if (text(b.customerId)) {
       const toCustomer: NotifyInput = {
-        recipientType: 'customer', recipientId: text(b.customerId), category: 'trips', severity: 'success', sound: 'approval',
+        recipientType: 'customer', brand: b.brand, recipientId: text(b.customerId), category: 'trips', severity: 'success', sound: 'approval',
         title: action === 'assign' ? 'Driver assigned' : 'Your driver has changed',
         message: `${text(driver.name)} (${vehicle.number}) will pick you up${when ? ` at ${formatDateTime12(when)}` : ''}. Share your boarding OTP only at the pickup.`,
         bookingId, bookingCode: label, cta: { label: 'Open trip', page: 'trips', bookingId }, push: true, sentBy: uid,
