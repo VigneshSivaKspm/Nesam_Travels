@@ -80,6 +80,15 @@ function HeroCopy() {
         Any journey,{' '}<br />
         <span className="hero-accent">priced with a friendly smile.</span>
       </h1>
+      {/* Decoration for wide screens: a route from pickup to drop with a light travelling along it. */}
+      <svg className="hero-route" viewBox="0 0 420 210" aria-hidden="true" focusable="false">
+        <path className="hero-route__line" d="M34 178 C 104 36, 176 196, 252 104 S 362 38, 388 34" />
+        <path className="hero-route__comet" pathLength="100" d="M34 178 C 104 36, 176 196, 252 104 S 362 38, 388 34" />
+        <circle className="hero-route__ring" cx="34" cy="178" r="9" />
+        <circle className="hero-route__pin" cx="34" cy="178" r="8" />
+        <circle className="hero-route__ring hero-route__ring--late" cx="388" cy="34" r="9" />
+        <circle className="hero-route__pin" cx="388" cy="34" r="8" />
+      </svg>
     </div>
   );
 }

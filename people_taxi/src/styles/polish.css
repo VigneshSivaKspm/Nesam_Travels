@@ -1,16 +1,18 @@
-/* People Taxi home: atmosphere, entrance and scroll animations.
+/* People Taxi home: a photo hero, an animated background and entrance / scroll animations.
    Decoration only, and built so nothing can stay hidden:
-   - Motion is switched on only for visitors who have not asked for reduced motion.
+   - Motion runs only for visitors who have not asked for reduced motion.
    - Scroll effects use the browser's scroll-driven animations (no script). A browser without them
-     shows every section normally, and phones (where cards are swipe rows) skip them. */
+     shows every section normally, and phones (where cards are swipe rows) skip them.
+   - The photo hero is for tablets and wider; phones keep the compact, form-first home. */
 
-/* ── Atmosphere: a sky-blue glow fading to white, with two soft colour orbs ──────────────────────── */
+/* ── Page atmosphere ─────────────────────────────────────────────────────────────────────────────── */
 .home {
   position: relative;
   isolation: isolate;
   overflow-x: clip;
-  background: linear-gradient(180deg, var(--paper) 0, #fff 560px);
+  background: linear-gradient(180deg, var(--paper) 0, #fff 640px);
 }
+/* Two soft colour orbs (blue and yellow, the theme colours) behind the hero. */
 .home::before,
 .home::after {
   content: '';
@@ -28,14 +30,127 @@
   background: radial-gradient(circle, rgb(76 155 255 / 0.4), transparent 70%);
 }
 .home::after {
-  top: 220px;
+  top: 300px;
   left: -180px;
   width: 440px;
   height: 440px;
   background: radial-gradient(circle, rgb(255 197 61 / 0.3), transparent 70%);
 }
+/* A faint map-dot grid across the top of the page, fading out as it goes down. */
+.home__wrap {
+  position: relative;
+}
+.home__wrap::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  top: -28px;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  height: 868px;
+  background-image: radial-gradient(rgb(22 101 232 / 0.2) 1.3px, transparent 1.7px);
+  background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+  mask-image: linear-gradient(180deg, #000 0%, transparent 92%);
+  pointer-events: none;
+}
 
-/* ── Booking card ─────────────────────────────────────────────────────────────────────────────────── */
+/* ── Photo hero (tablet and wider) ───────────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .home-hero {
+    gap: 0;
+  }
+  .hero-copy {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    justify-content: center;
+    min-height: 360px;
+    padding: clamp(40px, 5vw, 72px) clamp(28px, 4.5vw, 64px) clamp(124px, 11vw, 156px);
+    border-radius: var(--r-xl);
+    box-shadow: 0 34px 70px -30px rgb(12 27 61 / 0.6);
+  }
+  /* The photo. */
+  .hero-copy::before {
+    content: '';
+    position: absolute;
+    inset: -5%;
+    z-index: -2;
+    background: url('/website-images/web/heroes/hero-desktop.webp') 58% 50% / cover no-repeat;
+  }
+  /* A deep-blue wash on the left so the headline reads, lightening over the photo. */
+  .hero-copy::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(95deg, rgb(8 24 66 / 0.92) 0%, rgb(13 58 168 / 0.66) 42%, rgb(13 58 168 / 0.08) 80%),
+      linear-gradient(0deg, rgb(8 24 66 / 0.5), transparent 45%);
+  }
+  .hero-copy h1 {
+    color: #fff;
+    text-shadow: 0 2px 22px rgb(0 0 0 / 0.28);
+  }
+  .hero-copy h1 .hero-accent {
+    color: var(--sun);
+  }
+  /* The booking card overlaps the photo's lower edge. */
+  .jd {
+    position: relative;
+    z-index: 2;
+    margin-top: calc(-1 * clamp(84px, 8vw, 112px));
+  }
+}
+
+/* The route drawn over the photo (wide screens). */
+.hero-route {
+  display: none;
+}
+@media (min-width: 900px) {
+  .hero-route {
+    display: block;
+    position: absolute;
+    top: clamp(30px, 4vw, 58px);
+    right: clamp(24px, 4vw, 64px);
+    z-index: 0;
+    width: min(38%, 440px);
+    height: auto;
+    overflow: visible;
+    pointer-events: none;
+  }
+}
+.hero-route__line {
+  fill: none;
+  stroke: rgb(255 255 255 / 0.6);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-dasharray: 3 10;
+}
+.hero-route__comet {
+  fill: none;
+  stroke: var(--sun);
+  stroke-width: 4.5;
+  stroke-linecap: round;
+  stroke-dasharray: 9 91;
+  stroke-dashoffset: 0;
+  filter: drop-shadow(0 0 7px rgb(255 197 61 / 0.95));
+}
+.hero-route__pin {
+  fill: #fff;
+  stroke: var(--sun);
+  stroke-width: 3.5;
+}
+.hero-route__ring {
+  fill: none;
+  stroke: var(--sun);
+  stroke-width: 2;
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+/* ── Booking card ────────────────────────────────────────────────────────────────────────────────── */
 .jd {
   transition: box-shadow var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
 }
@@ -85,7 +200,7 @@
   .hero-copy h1 {
     animation: pt-rise 0.75s var(--ease-out) backwards;
   }
-  /* The accent line fades in, then its blue slowly shimmers (only where gradient text is supported). */
+  /* The accent line fades in, then a light slowly shimmers across it (gradient text only where supported). */
   .hero-copy h1 .hero-accent {
     animation: pt-fade 0.9s 0.2s var(--ease-out) backwards;
   }
@@ -98,6 +213,12 @@
       -webkit-text-fill-color: transparent;
       animation: pt-fade 0.9s 0.2s var(--ease-out) backwards, pt-shimmer 7s linear 1.2s infinite;
     }
+    /* On the photo the accent is yellow. */
+    @media (min-width: 768px) {
+      .hero-copy h1 .hero-accent {
+        background-image: linear-gradient(90deg, #ffc53d 0%, #fff0b8 40%, #ffc53d 80%);
+      }
+    }
   }
   .jd {
     animation: pt-rise 0.85s 0.18s var(--ease-out) backwards;
@@ -107,12 +228,34 @@
     animation: pt-fade 0.4s var(--ease-out) backwards;
   }
 
-  /* The orbs drift slowly. */
+  /* ── Always moving, gently ───────────────────────────────────────────────────────────────────── */
   .home::before {
     animation: pt-drift 14s ease-in-out infinite alternate;
   }
   .home::after {
     animation: pt-drift 18s ease-in-out -6s infinite alternate-reverse;
+  }
+  .home__wrap::before {
+    animation: pt-grid 7s linear infinite;
+  }
+  @media (min-width: 768px) {
+    /* The photo slowly zooms and drifts. */
+    .hero-copy::before {
+      animation: pt-kenburns 28s ease-in-out infinite alternate;
+    }
+  }
+  /* The route: a light travels pickup → drop; the pins pulse in turn. */
+  .hero-route__line {
+    animation: pt-flow 1.6s linear infinite;
+  }
+  .hero-route__comet {
+    animation: pt-travel 4.5s cubic-bezier(0.45, 0.05, 0.4, 1) infinite;
+  }
+  .hero-route__ring {
+    animation: pt-ping 2.6s ease-out infinite;
+  }
+  .hero-route__ring--late {
+    animation-delay: 1.3s;
   }
 
   /* The sweep crosses the button every few seconds, and on hover. */
@@ -222,6 +365,42 @@
 @keyframes pt-drift {
   to {
     transform: translate(40px, 30px) scale(1.12);
+  }
+}
+@keyframes pt-grid {
+  to {
+    transform: translateY(28px);
+  }
+}
+@keyframes pt-kenburns {
+  from {
+    transform: scale(1) translate(0, 0);
+  }
+  to {
+    transform: scale(1.1) translate(-1.6%, -1.2%);
+  }
+}
+@keyframes pt-flow {
+  to {
+    stroke-dashoffset: -26;
+  }
+}
+@keyframes pt-travel {
+  from {
+    stroke-dashoffset: 9;
+  }
+  to {
+    stroke-dashoffset: -100;
+  }
+}
+@keyframes pt-ping {
+  0% {
+    opacity: 0.9;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(3);
   }
 }
 @keyframes pt-sheen {

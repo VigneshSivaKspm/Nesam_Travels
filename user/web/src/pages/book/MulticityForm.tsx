@@ -528,7 +528,7 @@ export function MulticityForm() {
           className="bf-submit"
           trailing="arrow-right"
         >
-          Get Trip Quote
+          Search Cabs & View Fares
         </Button>
         <p className="bf-trust">
           <Icon name="shield-check" size={14} /> Clear upfront package quotes. No hidden extras. 24/7 highway support.
