@@ -208,7 +208,7 @@ export function BookingForm({
             onClick={() => setPicker(f)}
           >
             <span id={`bf-${f}-value`} className="bf-trigger__text">
-              {p ? p.name : airportSide ? 'Choose airport' : f === 'pickup' ? 'Choose pickup location' : 'Choose drop location'}
+              {p ? p.name : ''}
             </span>
           </button>
           {p && p.address !== p.name && p.id !== 'place-local-disposal' ? <small className="bf-addr">{p.address}</small> : null}
@@ -356,7 +356,7 @@ export function BookingForm({
                 aria-describedby={errors.time ? 'bf-time-err' : undefined}
                 onClick={() => setTimeFor('pickup')}
               >
-                <span id="bf-time-value">{time ? formatTime12(time) : 'Select time'}</span>
+                <span id="bf-time-value">{time ? formatTime12(time) : ''}</span>
                 <Icon name="chevron-down" size={15} />
               </button>
               {fieldErr('time')}
@@ -403,7 +403,7 @@ export function BookingForm({
                   aria-describedby={errors.endTime ? 'bf-endTime-err' : undefined}
                   onClick={() => setTimeFor('return')}
                 >
-                  <span id="bf-end-time-value">{endTime ? formatTime12(endTime) : 'Select time'}</span>
+                  <span id="bf-end-time-value">{endTime ? formatTime12(endTime) : ''}</span>
                   <Icon name="chevron-down" size={15} />
                 </button>
                 {fieldErr('endTime')}

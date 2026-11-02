@@ -399,7 +399,7 @@ export function BookingForm({
                 onClick={() => setPickerField('pickup')}
               >
                 <span className="jd-value__text">
-                  {draft.pickup?.name ?? (fromAirport ? 'Select departure airport' : 'Enter pickup city, area or landmark')}
+                  {draft.pickup?.name ?? ''}
                 </span>
                 {draft.pickup?.address && draft.pickup.address !== draft.pickup.name ? (
                   <span className="jd-value__addr">{draft.pickup.address}</span>
@@ -446,7 +446,7 @@ export function BookingForm({
                   onClick={() => setPickerField('drop')}
                 >
                   <span className="jd-value__text">
-                    {draft.drop?.name ?? (toAirport ? 'Select destination airport' : 'Enter destination city or landmark')}
+                    {draft.drop?.name ?? ''}
                   </span>
                   {draft.drop?.address && draft.drop.address !== draft.drop.name ? (
                     <span className="jd-value__addr">{draft.drop.address}</span>
@@ -508,7 +508,7 @@ export function BookingForm({
                   className={`jd-control jd-control--btn ${!time ? 'is-empty' : ''} ${errors.time ? 'is-invalid' : ''}`}
                   onClick={() => setTimeField('pickup')}
                 >
-                  <span>{time ? formatTime12(time) : 'Choose time'}</span>
+                  <span>{time ? formatTime12(time) : ''}</span>
                   <Icon name="clock" size={18} />
                 </button>
                 {errors.time ? <p className="jd-error">{errors.time}</p> : null}

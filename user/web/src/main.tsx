@@ -9,6 +9,7 @@ import './styles/home.css';
 import './styles/booking.css';
 import './styles/pages.css';
 import './styles/multicity.css';
+import './styles/forms.css';
 import './styles/mobile.css';
 import { App } from './App';
 import { installStaleVersionReload, installVersionCheck } from './components/RouteErrorBoundary';

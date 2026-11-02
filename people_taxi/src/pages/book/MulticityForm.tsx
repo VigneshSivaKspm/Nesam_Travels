@@ -357,7 +357,7 @@ export function MulticityForm() {
             onClick={() => setPickerTarget('pickup')}
           >
             <span className="jd-value__text">
-              {state.pickup?.name ?? 'Enter starting city, hotel or pickup point'}
+              {state.pickup?.name ?? ''}
             </span>
             {state.pickup?.address && state.pickup.address !== state.pickup.name ? (
               <span className="jd-value__addr">{state.pickup.address}</span>
@@ -395,7 +395,7 @@ export function MulticityForm() {
                     onClick={() => setPickerTarget(stop.id)}
                   >
                     <span className="jd-value__text">
-                      {stop.place?.name ?? `Add stop ${index + 1}`}
+                      {stop.place?.name ?? ''}
                     </span>
                     {stop.place?.address && stop.place.address !== stop.place.name ? (
                       <span className="jd-value__addr">{stop.place.address}</span>
@@ -454,7 +454,7 @@ export function MulticityForm() {
             onClick={() => setPickerTarget('drop')}
           >
             <span className="jd-value__text">
-              {state.drop?.name ?? 'Enter final city or return drop point'}
+              {state.drop?.name ?? ''}
             </span>
             {state.drop?.address && state.drop.address !== state.drop.name ? (
               <span className="jd-value__addr">{state.drop.address}</span>
@@ -498,7 +498,7 @@ export function MulticityForm() {
               className={`jd-control jd-control--btn ${!state.time ? 'is-empty' : ''} ${errors.time ? 'is-invalid' : ''}`}
               onClick={() => setTimePickerOpen(true)}
             >
-              <span>{state.time ? formatTime12(state.time) : 'Choose time'}</span>
+              <span>{state.time ? formatTime12(state.time) : ''}</span>
               <Icon name="clock" size={18} />
             </button>
             {errors.time ? <p className="jd-error">{errors.time}</p> : null}

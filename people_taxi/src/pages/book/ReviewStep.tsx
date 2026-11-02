@@ -66,7 +66,7 @@ export function ReviewStep() {
       <div className="flow-page">
         <div className="wrap flow-page__wrap review-missing">
           <PageHead
-            back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Choose Vehicle</Button>}
+            back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Back to Vehicles</Button>}
             title="Review & Confirm"
           />
           {q.quoteLoading ? (
@@ -196,7 +196,7 @@ export function ReviewStep() {
     <div className="flow-page flow-page--review">
       <div className="wrap flow-page__wrap">
         <PageHead
-          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Choose Vehicle</Button>}
+          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book/ride')} icon="arrow-left">Back to Vehicles</Button>}
           eyebrow="Step 3 of 3 · Final Review"
           title="Review &amp; Confirm Booking"
         >

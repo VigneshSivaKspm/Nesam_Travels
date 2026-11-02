@@ -355,7 +355,7 @@ export function MulticityForm() {
               onClick={() => setPickerTarget('pickup')}
             >
               <span id="mc-pickup-val" className="bf-trigger__text">
-                {state.pickup?.name ?? 'Select starting city, hotel or pickup point'}
+                {state.pickup?.name ?? ''}
               </span>
             </button>
             {state.pickup?.address && state.pickup.address !== state.pickup.name ? (
@@ -393,7 +393,7 @@ export function MulticityForm() {
                   onClick={() => setPickerTarget(stop.id)}
                 >
                   <span className={`bf-stop-name ${!stop.place ? 'is-empty' : ''}`}>
-                    {stop.place?.name ?? `Add stop ${index + 1}`}
+                    {stop.place?.name ?? ''}
                   </span>
                   {stop.place?.address && stop.place.address !== stop.place.name ? (
                     <span className="bf-stop-addr">{stop.place.address}</span>
@@ -451,7 +451,7 @@ export function MulticityForm() {
               onClick={() => setPickerTarget('drop')}
             >
               <span id="mc-drop-val" className="bf-trigger__text">
-                {state.drop?.name ?? 'Select final city or return drop point'}
+                {state.drop?.name ?? ''}
               </span>
             </button>
             {state.drop?.address && state.drop.address !== state.drop.name ? (
@@ -503,7 +503,7 @@ export function MulticityForm() {
               aria-labelledby="mc-time-label mc-time-val"
               onClick={() => setTimePickerOpen(true)}
             >
-              <span id="mc-time-val">{state.time ? formatTime12(state.time) : 'Select time'}</span>
+              <span id="mc-time-val">{state.time ? formatTime12(state.time) : ''}</span>
               <Icon name="clock-3" size={16} />
             </button>
             {errors.time ? <p className="bf-error">{errors.time}</p> : null}

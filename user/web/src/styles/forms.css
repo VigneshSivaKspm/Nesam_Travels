@@ -1,0 +1,66 @@
+/* Booking form tidy-up.
+   1. An empty box shows only its label: no "Choose …" hint inside it.
+   2. The One Way / Round Trip (and To / From airport) switch is a compact pill control. */
+
+/* ── 1. Empty boxes: the label is the prompt ─────────────────────────────────────────────────────── */
+.bf-field:has(.bf-trigger.is-empty) .bf-label {
+  color: var(--muted);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+/* With no text inside, the whole box stays clickable (the trigger covers it) and keeps a sensible height. */
+.bf-trigger.is-empty {
+  min-height: 0;
+}
+.bf-stop-trigger {
+  align-self: stretch;
+  min-height: 40px;
+}
+
+/* ── 2. Journey switch ───────────────────────────────────────────────────────────────────────────── */
+.bf-journey.tabs {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(max-content, 1fr);
+  width: fit-content;
+  max-width: 100%;
+  gap: 4px;
+  padding: 4px;
+  border: 0;
+  border-radius: var(--r-lg);
+  background: var(--sunken);
+}
+.bf-journey.tabs .tab {
+  min-height: 40px;
+  padding: 8px 26px;
+  border-radius: var(--r-field);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  transition: background var(--dur) var(--ease), color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+.bf-journey.tabs .tab:hover {
+  color: var(--ink);
+}
+.bf-journey.tabs .tab.is-active,
+.bf-journey.tabs .tab[aria-selected='true'] {
+  background: var(--red);
+  color: #fff;
+  box-shadow: 0 6px 14px -6px rgb(198 40 40 / 0.6);
+}
+.bf-journey.tabs .tab.is-active::after,
+.bf-journey.tabs .tab[aria-selected='true']::after {
+  display: none;
+}
+
+/* On phones the two choices share the full width. */
+@media (max-width: 767.98px) {
+  .bf-journey.tabs {
+    display: grid;
+    grid-auto-columns: minmax(0, 1fr);
+    width: 100%;
+  }
+  .bf-journey.tabs .tab {
+    padding-inline: 12px;
+  }
+}

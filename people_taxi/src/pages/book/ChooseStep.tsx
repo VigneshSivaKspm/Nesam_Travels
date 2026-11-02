@@ -59,17 +59,11 @@ export function ChooseStep() {
     <div className="flow-page flow-page--choose">
       <div className="wrap flow-page__wrap">
         <PageHead
-          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book')} icon="arrow-left">Edit Route</Button>}
+          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book')} icon="arrow-left">Back to Route</Button>}
           eyebrow="Step 2 of 3 · Choose Vehicle"
-          title={
-            <span className="route-title">
-              <span>{pickup.name}</span>
-              <Icon name="arrow-right" size={20} />
-              <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
-            </span>
-          }
+          title="Choose your vehicle"
         >
-          {route ? `${formatDistance(route.distanceKm)} · approx. ${formatDuration(route.durationMin)}` : 'Pricing authoritatively via server'}
+          Compare vehicle categories and upfront fares with transparent pricing.
         </PageHead>
 
         <FlowSteps total={3} current={2} />
@@ -78,21 +72,31 @@ export function ChooseStep() {
           <div className="choose__main">
             <section className="trip-sum" aria-label="Trip summary">
               <div className="trip-sum__top">
-                <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
-                {scheduledAt ? (
-                  <span className="trip-sum__when">
-                    <Icon name="calendar" size={14} /> {formatDate(scheduledAt)}, {formatTime(scheduledAt)}
-                    {tripEndAt ? ` → Return: ${formatDate(tripEndAt)}` : ''}
-                  </span>
-                ) : null}
+                <div className="trip-sum__badges">
+                  <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
+                  {scheduledAt ? (
+                    <span className="trip-sum__when">
+                      <Icon name="calendar" size={14} /> {formatDate(scheduledAt)}, {formatTime(scheduledAt)}
+                      {tripEndAt ? ` → Return: ${formatDate(tripEndAt)}` : ''}
+                    </span>
+                  ) : null}
+                </div>
+                <Link to="/book" className="btn-edit-trip" title="Modify route or schedule">
+                  <Icon name="edit" size={14} /> Edit Route
+                </Link>
               </div>
               <div className="trip-sum__route">
-                <div>
-                  <strong>{pickup.name}</strong> → <strong>{drop.id === 'place-local-disposal' ? 'Within city' : drop.name}</strong>
+                <div className="route-title">
+                  <span>{pickup.name}</span>
+                  <Icon name="arrow-right" size={18} />
+                  <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
                 </div>
-                <Link to="/book" className="btn btn--text btn--sm">
-                  Change
-                </Link>
+                {route ? (
+                  <div className="trip-sum__meta">
+                    <Icon name="route" size={14} />
+                    <span>{formatDistance(route.distanceKm)} · approx. {formatDuration(route.durationMin)}</span>
+                  </div>
+                ) : null}
               </div>
             </section>
 

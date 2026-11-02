@@ -1,0 +1,34 @@
+/* Booking form tidy-up: an empty box shows only its label, with no hint text inside it. */
+
+/* The box itself is the button: it covers the whole card, so it stays easy to click with no text in it. */
+.jd-route-card,
+.jd-field-box {
+  position: relative;
+}
+.jd-route-card .jd-value,
+.jd-field-box .jd-value {
+  min-height: 24px;
+}
+.jd-route-card .jd-value::after,
+.jd-field-box .jd-value::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.jd-route-card .jd-value:focus-visible,
+.jd-field-box .jd-value:focus-visible {
+  outline: none;
+}
+
+/* With nothing chosen yet, the label is the prompt, so it reads a little larger. */
+.jd-route-card:has(.jd-value.is-empty) .jd-label,
+.jd-field-box:has(.jd-value.is-empty) .jd-field-box__label {
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+.jd-route-card:has(.jd-value.is-empty),
+.jd-field-box:has(.jd-value.is-empty) {
+  align-content: center;
+  min-height: 64px;
+}
