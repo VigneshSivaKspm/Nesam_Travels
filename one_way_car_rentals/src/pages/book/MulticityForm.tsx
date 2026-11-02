@@ -1,16 +1,15 @@
 // Multicity & Custom Tour Itinerary Form for One Way Car Rentals.
 // Allows riders to build multi-stop road trip itineraries with reorderable intermediate stops,
-// departure and return schedules, preferred cab category and custom notes.
+// departure and return schedules.
 // Submits a validated itinerary enquiry (submitMulticityEnquiry) with stable submissionId and onewaycarrentals brand.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { GeoPlace, RideCategory } from '@core/types';
+import type { GeoPlace } from '@core/types';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { callFunction, newId } from '@core/services/callables';
 import { useCustomerData } from '@/state/customer';
 import { useAuth } from '@/state/Auth';
-import { subscribeToRideCategories, type RideCategoryStatus } from '@core/services/pricingService';
 import { loadMulticityDraft, multicityInstant, validMulticityDate, validMulticityPlace, type MulticityDraft } from '@core/utils/multicityDraft';
 import { useOnline } from '@/lib/hooks';
 import { latestPickup, toDateInput } from '@/lib/schedule';
@@ -39,9 +38,6 @@ function saveStoredState(state: StoredMulticityState) {
 
 export function MulticityForm() {
   const { state: auth, openLoginModal } = useAuth();
-  const [categories, setCategories] = useState<RideCategory[]>([]);
-  const [categoryStatus, setCategoryStatus] = useState<RideCategoryStatus>('loading');
-  useEffect(() => subscribeToRideCategories((rows, status) => { setCategories(rows); setCategoryStatus(status); }, true), []);
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
 
@@ -165,7 +161,7 @@ export function MulticityForm() {
     }
     const idx = state.stops.findIndex((s) => s.id === pickerTarget);
     return {
-      title: `Choose Via City #${idx + 1}`,
+      title: `Choose Stop ${idx + 1}`,
       allowCurrent: false,
       popular: QUICK_CITIES,
       popularLabel: 'Popular Cities',
@@ -184,7 +180,7 @@ export function MulticityForm() {
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Please add at least one via city along your multicity route.';
+      err.stops = 'Please add at least one stop along your route.';
     }
 
     // Verify consecutive duplicates across the ordered itinerary
@@ -204,8 +200,7 @@ export function MulticityForm() {
       if (prob) err.time = prob;
     }
 
-    if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added via city, or remove the empty city.';
-    if (state.categoryId && (categoryStatus !== 'ready' || !categories.some(category => category.id === state.categoryId))) err.form = 'Choose an available category or No preference.';
+    if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added stop, or remove the empty one.';
 
     if (!online) {
       err.form = 'You are currently offline. Please check your internet connection.';
@@ -242,8 +237,6 @@ export function MulticityForm() {
         stops: GeoPlace[];
         scheduledAt: string;
         tripEndAt?: string;
-        categoryId?: string;
-        notes?: string;
       }, { id: string; code: string; status: string; message: string }>('submitMulticityEnquiry', {
         submissionId: state.submissionId,
         brand: 'onewaycarrentals',
@@ -252,8 +245,6 @@ export function MulticityForm() {
         drop: state.drop!,
         stops: filledStops,
         scheduledAt: scheduled!.toISOString(),
-        ...(state.categoryId ? { categoryId: state.categoryId } : {}),
-        ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       });
 
       setSubmittedQuote({
@@ -340,8 +331,6 @@ export function MulticityForm() {
     );
   }
 
-  const filledStopsCount = state.stops.filter((s) => s.place !== null).length;
-
   return (
     <form className="bf-multicity" onSubmit={onSubmit} noValidate>
       <fieldset className="bf-fieldset" disabled={submitting}>
@@ -381,7 +370,7 @@ export function MulticityForm() {
         <div className="bf-stops">
           <div className="bf-stops__head">
             <span className="bf-stops__count">
-              Via Cities / Next Stop ({state.stops.length}/10)
+              Next Stops ({state.stops.length}/10)
             </span>
             <button
               type="button"
@@ -397,14 +386,14 @@ export function MulticityForm() {
             const stopErr = errors[`stop_${stop.id}`];
             return (
               <div key={stop.id} className={`bf-stop-row ${stopErr ? 'is-invalid' : ''}`}>
-                <span className="bf-stop-badge">Via City #{index + 1}</span>
+                <span className="bf-stop-badge">Stop {index + 1}</span>
                 <button
                   type="button"
                   className="bf-stop-trigger"
                   onClick={() => setPickerTarget(stop.id)}
                 >
                   <span className={`bf-stop-name ${!stop.place ? 'is-empty' : ''}`}>
-                    {stop.place?.name ?? `Enter via city #${index + 1} or stopover point`}
+                    {stop.place?.name ?? `Add stop ${index + 1}`}
                   </span>
                   {stop.place?.address && stop.place.address !== stop.place.name ? (
                     <span className="bf-stop-addr">{stop.place.address}</span>
@@ -472,25 +461,8 @@ export function MulticityForm() {
           <Icon name="chevron-right" size={16} className="bf-chev" />
         </div>
         {errors.drop ? <p className="bf-error">{errors.drop}</p> : null}
+        {errors.itinerary ? <p className="bf-error">{errors.itinerary}</p> : null}
 
-        {/* 4. Ordered Route Summary Card */}
-        {(state.pickup || filledStopsCount > 0 || state.drop) ? (
-          <div className="bf-route-summary">
-            <span className="bf-route-summary__title">Ordered Itinerary Summary</span>
-            <div className="bf-route-flow">
-              <span className="bf-route-flow__stop">{state.pickup?.name || 'Start'}</span>
-              {state.stops.filter((s) => s.place).map((s) => (
-                <span key={s.id} className="bf-route-flow__stop">
-                  <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {s.place?.name}
-                </span>
-              ))}
-              <span className="bf-route-flow__stop">
-                <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {state.drop?.name || 'Destination'}
-              </span>
-            </div>
-            {errors.itinerary ? <p className="bf-error mt-2">{errors.itinerary}</p> : null}
-          </div>
-        ) : null}
       </div>
 
       {/* ── Schedule Section ── */}
@@ -537,57 +509,6 @@ export function MulticityForm() {
             {errors.time ? <p className="bf-error">{errors.time}</p> : null}
           </div>
         </div>
-      </div>
-
-      {/* ── Vehicle Preference Section ── */}
-      <div className="bf-section" role="group" aria-labelledby="mc-cat-title">
-        <p className="bf-section__title" id="mc-cat-title">
-          <Icon name="car" size={16} /> Preferred Vehicle Category
-        </p>
-        <p role="status">{categoryStatus === 'loading' ? 'Loading configured categories…' : categoryStatus === 'error' ? 'Categories could not be loaded. You can continue with No preference.' : !categories.length ? 'No categories configured. You can continue with No preference.' : ''}</p>
-        <div className="bf-cat-chips" role="radiogroup" aria-label="Vehicle preference">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={!state.categoryId}
-            className={`bf-cat-chip ${!state.categoryId ? 'is-active' : ''}`}
-            onClick={() => setState((s) => ({ ...s, categoryId: '' }))}
-          >
-            No preference
-          </button>
-          {categories.map((cat) => {
-            const isSelected = state.categoryId === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                className={`bf-cat-chip ${isSelected ? 'is-active' : ''}`}
-                onClick={() => setState((s) => ({ ...s, categoryId: isSelected ? '' : cat.id }))}
-              >
-                <span>{cat.name}</span>
-                {cat.seats ? <span className="bf-cat-chip__seats">({cat.seats} seats)</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── Tour Notes Section ── */}
-      <div className="bf-section">
-        <label className="bf-label bf-label--out" htmlFor="mc-notes">
-          Tour notes &amp; custom requirements (optional)
-        </label>
-        <textarea
-          maxLength={500}
-          id="mc-notes"
-          className="bf-textarea"
-          rows={3}
-          placeholder="e.g. 4 adults with 3 suitcases; temple darshan schedule; senior citizen pickup; specific highway halts..."
-          value={state.notes}
-          onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
-        />
       </div>
 
       {errors.form ? (

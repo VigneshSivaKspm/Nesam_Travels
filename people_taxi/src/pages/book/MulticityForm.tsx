@@ -1,16 +1,15 @@
 // Multicity & Custom Tour Itinerary Form for People Taxi.
 // Allows riders to build multi-stop road trip itineraries with reorderable intermediate stops,
-// departure and return schedules, preferred cab category and custom notes.
+// departure and return schedules.
 // Submits a validated itinerary enquiry (submitMulticityEnquiry) with stable submissionId.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import type { GeoPlace, RideCategory } from '@core/types';
+import type { GeoPlace } from '@core/types';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
 import { callFunction, newId } from '@core/services/callables';
 import { useCustomerData } from '@/state/customer';
 import { useAuth } from '@/state/Auth';
-import { subscribeToRideCategories, type RideCategoryStatus } from '@core/services/pricingService';
 import { loadMulticityDraft, multicityInstant, validMulticityDate, validMulticityPlace, type MulticityDraft } from '@core/utils/multicityDraft';
 import { useOnline } from '@/lib/hooks';
 import { latestPickup, toDateInput } from '@/lib/schedule';
@@ -39,9 +38,6 @@ function saveStoredState(state: StoredMulticityState) {
 
 export function MulticityForm() {
   const { state: auth, openLoginModal } = useAuth();
-  const [categories, setCategories] = useState<RideCategory[]>([]);
-  const [categoryStatus, setCategoryStatus] = useState<RideCategoryStatus>('loading');
-  useEffect(() => subscribeToRideCategories((rows, status) => { setCategories(rows); setCategoryStatus(status); }, true), []);
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
 
@@ -163,7 +159,7 @@ export function MulticityForm() {
     }
     const idx = state.stops.findIndex((s) => s.id === pickerTarget);
     return {
-      title: `Choose Via City #${idx + 1}`,
+      title: `Choose Stop ${idx + 1}`,
       allowCurrent: false,
       popular: QUICK_CITIES,
       popularLabel: 'Popular Cities',
@@ -182,7 +178,7 @@ export function MulticityForm() {
 
     const filledStops = state.stops.filter((s) => s.place !== null);
     if (filledStops.length === 0) {
-      err.stops = 'Please add at least one via city along your multicity route.';
+      err.stops = 'Please add at least one stop along your route.';
     }
 
     // Verify consecutive duplicates
@@ -203,7 +199,6 @@ export function MulticityForm() {
     }
 
     if (state.stops.some(stop => !validMulticityPlace(stop.place))) err.stops = 'Choose a location for every added stop, or remove the empty stop.';
-    if (state.categoryId && (categoryStatus !== 'ready' || !categories.some(category => category.id === state.categoryId))) err.form = 'Choose an available category or No preference.';
 
     if (!online) {
       err.form = 'You are currently offline. Please check your internet connection.';
@@ -240,8 +235,6 @@ export function MulticityForm() {
         stops: GeoPlace[];
         scheduledAt: string;
         tripEndAt?: string;
-        categoryId?: string;
-        notes?: string;
       }, { id: string; code: string; status: string; message: string }>('submitMulticityEnquiry', {
         submissionId: state.submissionId,
         brand: 'people_taxi',
@@ -250,8 +243,6 @@ export function MulticityForm() {
         drop: state.drop!,
         stops: filledStops,
         scheduledAt: scheduled!.toISOString(),
-        ...(state.categoryId ? { categoryId: state.categoryId } : {}),
-        ...(state.notes.trim() ? { notes: state.notes.trim() } : {}),
       });
 
       setSubmittedQuote({
@@ -342,8 +333,6 @@ export function MulticityForm() {
     );
   }
 
-  const filledStopsCount = state.stops.filter((s) => s.place !== null).length;
-
   return (
     <form className="jd-form jd-multicity-form" onSubmit={onSubmit} noValidate>
       <fieldset className="jd-fieldset" disabled={submitting}>
@@ -377,12 +366,12 @@ export function MulticityForm() {
           {errors.pickup ? <p className="jd-error">{errors.pickup}</p> : null}
         </div>
 
-        {/* 2. Intermediate / Via Cities */}
+        {/* 2. Intermediate stops */}
         <div className="jd-multicity-stops">
           <div className="jd-stops-header">
             <div className="jd-field-box__head">
               <span className="jd-box-dot is-via" aria-hidden="true" />
-              <span className="jd-stops-header__label">Via Cities / Next Stop ({state.stops.length}/10)</span>
+              <span className="jd-stops-header__label">Next Stops ({state.stops.length}/10)</span>
             </div>
             <button
               type="button"
@@ -398,7 +387,7 @@ export function MulticityForm() {
             const stopErr = errors[`stop_${stop.id}`];
             return (
               <div key={stop.id} className={`jd-stop-row ${stopErr ? 'is-invalid' : ''}`}>
-                <div className="jd-stop-badge">Via City #{index + 1}</div>
+                <div className="jd-stop-badge">Stop {index + 1}</div>
                 <div className="jd-stop-input-wrap">
                   <button
                     type="button"
@@ -406,7 +395,7 @@ export function MulticityForm() {
                     onClick={() => setPickerTarget(stop.id)}
                   >
                     <span className="jd-value__text">
-                      {stop.place?.name ?? `Enter via city #${index + 1} or stopover point`}
+                      {stop.place?.name ?? `Add stop ${index + 1}`}
                     </span>
                     {stop.place?.address && stop.place.address !== stop.place.name ? (
                       <span className="jd-value__addr">{stop.place.address}</span>
@@ -473,25 +462,8 @@ export function MulticityForm() {
           </button>
           {errors.drop ? <p className="jd-error">{errors.drop}</p> : null}
         </div>
+        {errors.itinerary ? <p className="jd-error">{errors.itinerary}</p> : null}
 
-        {/* Visual Route Flow Summary */}
-        {(state.pickup || filledStopsCount > 0 || state.drop) ? (
-          <div className="jd-itinerary-preview-card">
-            <span className="jd-preview-label">Itinerary summary:</span>
-            <div className="jd-itinerary-preview">
-              <span className="jd-itinerary-stop is-start">{state.pickup?.name || 'Start'}</span>
-              {state.stops.filter((s) => s.place).map((s) => (
-                <span key={s.id} className="jd-itinerary-stop is-mid">
-                  <Icon name="arrow-right" size={12} /> {s.place?.name}
-                </span>
-              ))}
-              <span className="jd-itinerary-stop is-end">
-                <Icon name="arrow-right" size={12} /> {state.drop?.name || 'Destination'}
-              </span>
-            </div>
-            {errors.itinerary ? <p className="jd-error">{errors.itinerary}</p> : null}
-          </div>
-        ) : null}
       </div>
 
       {/* Schedule Section */}
@@ -532,49 +504,6 @@ export function MulticityForm() {
             {errors.time ? <p className="jd-error">{errors.time}</p> : null}
           </div>
         </div>
-      </div>
-
-      {/* Vehicle Category Preference */}
-      <div className="jd-section" role="group" aria-labelledby="mc-cat-title">
-        <p className="jd-section__title" id="mc-cat-title">
-          <Icon name="car" size={16} /> Preferred Vehicle Category
-        </p>
-        <p role="status">{categoryStatus === 'loading' ? 'Loading configured categories…' : categoryStatus === 'error' ? 'Categories could not be loaded. You can continue with No preference.' : !categories.length ? 'No categories configured. You can continue with No preference.' : ''}</p>
-        <div className="jd-category-chips" role="radiogroup" aria-label="Vehicle category">
-          <button type="button" role="radio" aria-checked={!state.categoryId} className={`jd-cat-chip ${!state.categoryId ? 'is-selected' : ''}`} onClick={() => setState(s => ({ ...s, categoryId: '' }))}>No preference</button>
-          {categories.map((cat) => {
-            const isSelected = state.categoryId === cat.id;
-            return (
-              <button
-                key={cat.id}
-                type="button"
-                role="radio"
-                aria-checked={isSelected}
-                className={`jd-cat-chip ${isSelected ? 'is-selected' : ''}`}
-                onClick={() => setState((s) => ({ ...s, categoryId: isSelected ? '' : cat.id }))}
-              >
-                <span className="jd-cat-chip__name">{cat.name}</span>
-                {cat.seats ? <span className="jd-cat-chip__seats">{cat.seats} Seats</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Notes / Special Instructions */}
-      <div className="jd-section">
-        <label htmlFor="mc-notes" className="jd-label">
-          Tour notes &amp; special requirements (optional)
-        </label>
-        <textarea
-          maxLength={500}
-          id="mc-notes"
-          className="jd-textarea"
-          rows={3}
-          placeholder="e.g. 4 adults, 2 kids with 3 suitcases; temple darshan schedule; returning to pickup point..."
-          value={state.notes}
-          onChange={(e) => setState((s) => ({ ...s, notes: e.target.value }))}
-        />
       </div>
 
       {errors.form ? (

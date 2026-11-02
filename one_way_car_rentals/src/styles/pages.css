@@ -1107,3 +1107,76 @@ a.setting:hover {
     height: 52px;
   }
 }
+
+/* ── My trips: tour quote requests (Multicity enquiries) ──────────────────── */
+.quotes {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.quotes__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+}
+.quotes__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  gap: 12px;
+}
+.qcard {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+}
+.qcard__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.qcard__code {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.qcard__route {
+  color: var(--ink);
+  font-size: var(--fs-body);
+  font-weight: 700;
+  line-height: 1.4;
+}
+.qcard__meta,
+.qcard__valid {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+.qcard__text {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+}
+.qcard__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: var(--fs-sm);
+}
+.qcard__price strong {
+  color: var(--ink);
+  font-size: var(--fs-lg);
+}

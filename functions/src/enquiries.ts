@@ -302,13 +302,17 @@ export const getCustomerEnquiries = onCall({ timeoutSeconds: 30 }, async (reques
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Sign in required.');
 
+  // Newest first, sorted here: a rider has only a handful of enquiries, and sorting in the query
+  // would need a composite index on customerId + createdAt.
   const snap = await db.collection('enquiries')
     .where('customerId', '==', uid)
-    .orderBy('createdAt', 'desc')
-    .limit(20)
+    .limit(100)
     .get();
+  const newest = [...snap.docs]
+    .sort((a, b) => (b.data().createdAt?.toMillis?.() ?? 0) - (a.data().createdAt?.toMillis?.() ?? 0))
+    .slice(0, 20);
 
-  return snap.docs.map((d) => {
+  return newest.map((d) => {
     const data = d.data();
     return {
       id: d.id,

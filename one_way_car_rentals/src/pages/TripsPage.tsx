@@ -9,6 +9,7 @@ import { paymentLabel, tabOfTrip, tripStatusChip, type TripTab } from '@core/uti
 import { Button, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { RoutePoints } from '@/components/RoutePoints';
+import { TourQuotes } from '@/components/TourQuotes';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { useSeo } from '@/lib/seo';
 import { useAuth } from '@/state/Auth';
@@ -96,6 +97,22 @@ export function TripsPage() {
   const [limit, setLimit] = useState(PAGE);
   const [cancelTrip, setCancelTrip] = useState<TripRecord | null>(null);
 
+  const counts = useMemo(() => {
+    const c: Record<TripTab, number> = { Upcoming: 0, Completed: 0, Cancelled: 0 };
+    for (const t of trips) c[tabOfTrip(t)] += 1;
+    return c;
+  }, [trips]);
+
+  const shown = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const list = trips.filter((t) => tabOfTrip(t) === tab && (!q || [t.pickup.name, t.drop.name, t.bookingId, t.categoryName].some((s) => s.toLowerCase().includes(q))));
+    // Upcoming: soonest pickup first. History: newest first.
+    const pickupAt = (t: TripRecord) => (t.scheduledAt ?? t.createdAt)?.getTime() ?? 0;
+    const closedAt = (t: TripRecord) => (t.completedAt ?? t.cancelledAt ?? t.createdAt)?.getTime() ?? 0;
+    return tab === 'Upcoming' ? list.sort((a, b) => pickupAt(a) - pickupAt(b)) : list.sort((a, b) => closedAt(b) - closedAt(a));
+  }, [trips, tab, query]);
+
+  // Signed out: after the hooks above, so they run in the same order on every render.
   if (!profile) {
     return (
       <>
@@ -121,21 +138,6 @@ export function TripsPage() {
     );
   }
 
-  const counts = useMemo(() => {
-    const c: Record<TripTab, number> = { Upcoming: 0, Completed: 0, Cancelled: 0 };
-    for (const t of trips) c[tabOfTrip(t)] += 1;
-    return c;
-  }, [trips]);
-
-  const shown = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = trips.filter((t) => tabOfTrip(t) === tab && (!q || [t.pickup.name, t.drop.name, t.bookingId, t.categoryName].some((s) => s.toLowerCase().includes(q))));
-    // Upcoming: soonest pickup first. History: newest first.
-    const pickupAt = (t: TripRecord) => (t.scheduledAt ?? t.createdAt)?.getTime() ?? 0;
-    const closedAt = (t: TripRecord) => (t.completedAt ?? t.cancelledAt ?? t.createdAt)?.getTime() ?? 0;
-    return tab === 'Upcoming' ? list.sort((a, b) => pickupAt(a) - pickupAt(b)) : list.sort((a, b) => closedAt(b) - closedAt(a));
-  }, [trips, tab, query]);
-
   return (
     <>
       <PageHead
@@ -151,6 +153,7 @@ export function TripsPage() {
       </PageHead>
 
       <div className="page">
+        <TourQuotes brand="onewaycarrentals" />
         <div className="toolbar">
           <div className="tabs" role="tablist" aria-label="Trip status">
             {TABS.map((t) => (
