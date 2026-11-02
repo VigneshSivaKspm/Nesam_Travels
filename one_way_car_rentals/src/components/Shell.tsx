@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatPhone } from '@core/utils/format';
@@ -13,6 +13,7 @@ import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 import { RouteErrorBoundary } from '../../../user/web/src/components/RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
+import { SideDrawer } from './SideDrawer';
 import { AiChatbot } from './AiChatbot';
 import { DashboardMainSkeleton } from './DashboardSkeleton';
 import { ALL_ROUTES } from '@/pages/routes/routesData';
@@ -272,7 +273,9 @@ function Footer() {
 export function Shell() {
   const { online, recovered } = useOnline();
   const location = useLocation();
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The menu closes whenever the page changes.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
   const flow = FLOW.some((re) => re.test(location.pathname));
   const bookActive = location.pathname === '/' || location.pathname === '/book' || location.pathname.startsWith('/book/');
   const isBookingHome = location.pathname === '/' || location.pathname === '/book';
@@ -313,6 +316,11 @@ export function Shell() {
 
       <header className="topbar">
         <div className="wrap topbar__inner">
+          <button type="button" className="menu-btn" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
           <Brand />
           <nav className="topbar__nav" aria-label="Main">
             <Link to="/book" className={`topbar__link ${bookActive ? 'is-active' : ''}`}>
@@ -336,14 +344,6 @@ export function Shell() {
           <div className="topbar__mobile">
             <MyTripsLink compact />
             <NotificationsLink compact />
-            <button
-              type="button"
-              className="head-action head-action--icon"
-              aria-label="Help and support"
-              onClick={() => navigate('/support')}
-            >
-              <Icon name="support" size={22} />
-            </button>
           </div>
         </div>
       </header>
@@ -364,6 +364,7 @@ export function Shell() {
         <Footer />
       </Suspense>
       {!flow ? <BottomNav /> : null}
+      <SideDrawer open={menuOpen} onClose={() => setMenuOpen(false)} brand={<Brand />} />
       <FloatingCallButton />
       <AiChatbot />
     </div>

@@ -311,3 +311,230 @@
 .ai-chat-avatar .ai-glyph {
   color: #fff;
 }
+
+/* ── Side menu (hamburger): every footer link in one simple list, on phones and tablets ──────────── */
+.menu-btn {
+  display: none;
+}
+@media (max-width: 999.98px) {
+  .menu-btn {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: 40px;
+    height: 40px;
+    margin-left: -6px;
+    border: 0;
+    border-radius: var(--r-md);
+    background: transparent;
+    color: var(--ink);
+    cursor: pointer;
+  }
+  .menu-btn:active {
+    background: var(--sunken, #f1f3f5);
+  }
+}
+.drawer {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+}
+.drawer__backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgb(15 23 42 / 0.45);
+}
+.drawer__panel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(86vw, 340px);
+  height: 100%;
+  background: var(--surface, #fff);
+  box-shadow: 0 0 40px rgb(0 0 0 / 0.25);
+}
+.drawer__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-bottom: 1px solid var(--line);
+}
+.drawer__close {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+.drawer__close:hover {
+  background: var(--sunken, #f1f3f5);
+  color: var(--ink);
+}
+.drawer__body {
+  flex: 1;
+  min-height: 0;
+  padding: 8px 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.drawer__quick,
+.drawer__links {
+  margin: 0;
+  padding: 0 8px;
+  list-style: none;
+}
+.drawer__quick {
+  padding-bottom: 8px;
+}
+.drawer__quick a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 46px;
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+.drawer__quick a .icon {
+  color: var(--brand);
+}
+.drawer__quick a:hover,
+.drawer__links a:hover {
+  background: var(--sunken, #f1f3f5);
+}
+.drawer__group {
+  border-top: 1px solid var(--line);
+}
+.drawer__group summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 18px;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  list-style: none;
+  cursor: pointer;
+}
+.drawer__group summary::-webkit-details-marker {
+  display: none;
+}
+.drawer__group summary .icon {
+  transition: rotate 0.2s ease;
+}
+.drawer__group[open] summary .icon {
+  rotate: 180deg;
+}
+.drawer__links {
+  padding-bottom: 10px;
+}
+.drawer__links a {
+  display: block;
+  padding: 10px 12px;
+  border-radius: var(--r-md);
+  color: var(--ink);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+.drawer__foot {
+  display: grid;
+  gap: 8px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+}
+.drawer__call {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 46px;
+  border-radius: var(--r-md);
+  background: var(--brand);
+  color: #fff;
+  font-weight: 700;
+  text-decoration: none;
+}
+.drawer__copy {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs, 0.75rem);
+  text-align: center;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .drawer__backdrop {
+    animation: drawer-fade 0.2s ease;
+  }
+  .drawer__panel {
+    animation: drawer-in 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+@keyframes drawer-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes drawer-in {
+  from {
+    translate: -100% 0;
+  }
+}
+
+/* Booking form, kept simple: the trip-type switch is a light pill, and a chosen place shows just its name. */
+.bf-journey.tabs .tab.is-active,
+.bf-journey.tabs .tab[aria-selected='true'] {
+  background: var(--surface, #fff);
+  color: var(--brand-ink);
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.14);
+}
+.bf-field .bf-addr {
+  display: none;
+}
+
+/* The Book Now bar always sits at the bottom edge of the screen, even when the page above it is short. */
+@media (max-width: 999.98px) {
+  .flow-bar {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 120;
+    margin: 0;
+  }
+  main :has(> .flow-bar) {
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+}
+@media (max-width: 999.98px) {
+  .shell--flow .floating-call-btn {
+    bottom: calc(92px + env(safe-area-inset-bottom, 0px));
+  }
+  .shell--flow .floating-ai-launcher {
+    bottom: calc(158px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+/* Phone home: the booking form, then services, routes, fleet, how it works, reviews and FAQs.
+   Offers, destinations, safety and the catalogue stay in the side menu. */
+@media (max-width: 767.98px) {
+  .home .band--strip,
+  .home .band--dest,
+  .home #sec-safe-band,
+  .home .band[aria-label='Offers and help'],
+  .home .catalog-band {
+    display: none;
+  }
+}

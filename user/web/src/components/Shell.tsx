@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/CustomerData';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { useInbox } from '@/state/Inbox';
@@ -12,6 +12,7 @@ import { PageLoader } from './ui';
 import { Icon } from './Icon';
 import { RouteErrorBoundary } from './RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
+import { SideDrawer } from './SideDrawer';
 import { AiChatbot } from './AiChatbot';
 
 export function Brand({ light = false, to = '/book' }: { light?: boolean; to?: string }) {
@@ -212,7 +213,9 @@ export function Shell() {
   const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The menu closes whenever the page changes.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
   const flow = FLOW.some((re) => re.test(location.pathname));
   const bookActive = location.pathname === '/book' || location.pathname.startsWith('/book/');
   const accountActive = ACCOUNT_PATHS.test(location.pathname) && !location.pathname.startsWith('/notifications') && !location.pathname.startsWith('/support');
@@ -255,6 +258,11 @@ export function Shell() {
 
       <header className="topbar">
         <div className="topbar__inner">
+          <button type="button" className="menu-btn" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
           <Brand />
           <nav className="topbar__nav" aria-label="Main">
             <Link to="/book" className={`topbar__book ${bookActive ? 'is-active' : ''}`} aria-current={bookActive ? 'page' : undefined}>
@@ -282,9 +290,6 @@ export function Shell() {
           </div>
           <div className="topbar__mobile">
             <NotificationsLink compact />
-            <button type="button" className="head-action head-action--icon" aria-label="Help and support" onClick={() => navigate('/support')}>
-              <Icon name="support" size={22} />
-            </button>
           </div>
         </div>
       </header>
@@ -299,6 +304,7 @@ export function Shell() {
 
       <Footer />
       {!flow ? <BottomNav /> : null}
+      <SideDrawer open={menuOpen} onClose={() => setMenuOpen(false)} brand={<Brand />} />
       <FloatingCallButton />
       <AiChatbot />
     </div>

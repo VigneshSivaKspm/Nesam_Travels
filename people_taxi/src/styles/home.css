@@ -1782,16 +1782,9 @@
 .jd .jd-submit:hover:not(:disabled) {
   transform: none;
 }
-.jd-trust {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 4px 8px;
-  color: var(--muted);
-  font-size: var(--fs-sm);
-  line-height: 1.5;
-  text-align: center;
+.jd-trust,
+.bf-trust {
+  display: none !important;
 }
 .jd-trust .icon {
   flex: none;

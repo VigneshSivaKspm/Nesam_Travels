@@ -1,0 +1,265 @@
+/* People Taxi — "Friendly and rounded" theme. Loaded last.
+   Bright blue with soft sky tints, pill-shaped buttons, big gentle corners, bubbly shadows and gradient
+   highlights. Behaviour and layout stay the same as the other two customer sites. */
+
+:root {
+  --shadow-1: 0 3px 10px rgb(22 101 232 / 0.08);
+  --shadow-2: 0 10px 28px rgb(22 101 232 / 0.14);
+}
+
+/* ── Headlines: round and heavy ──────────────────────────────────────────────────────────────────── */
+h1,
+h2,
+.display-h,
+.hx-head h2,
+.sec-heading h2 {
+  font-weight: 800;
+  letter-spacing: -0.015em;
+}
+.hx-head h2::after,
+.sec-heading h2::after,
+.routes__head .display-h::after,
+.why__intro .display-h::after,
+.faq__intro .display-h::after {
+  content: '';
+  display: block;
+  width: 44px;
+  height: 6px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: var(--brand);
+}
+
+/* ── Buttons: pills with a gradient ──────────────────────────────────────────────────────────────── */
+.btn {
+  border-radius: 999px;
+  font-weight: 800;
+}
+.btn--primary {
+  border-color: transparent;
+  background: var(--brand);
+  box-shadow: 0 10px 22px -10px rgb(22 101 232 / 0.75);
+}
+.btn--primary:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+.btn--secondary {
+  border-color: var(--brand-line);
+  color: var(--brand-ink);
+}
+
+/* ── Hero: a soft sky wash with bubbles ──────────────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .home-hero::after {
+    background: rgb(244 249 255 / 0.82);
+  }
+  .hero-copy h1 {
+    font-size: clamp(2rem, 1.3rem + 2.4vw, 3.4rem);
+  }
+  .bf {
+    border: 0;
+    border-radius: var(--r-xl);
+    box-shadow: 0 2px 6px rgb(15 23 42 / 0.12), 0 20px 44px -26px rgb(15 23 42 / 0.4);
+  }
+}
+
+/* ── Booking form: pill tabs with a gradient when chosen ─────────────────────────────────────────── */
+.bf-services {
+  gap: 6px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+}
+.bf-service {
+  border-radius: 999px;
+  font-weight: 700;
+}
+.bf-service.is-active {
+  border-color: transparent;
+  background: var(--brand);
+  color: #fff;
+  box-shadow: 0 8px 18px -8px rgb(22 101 232 / 0.8);
+}
+.bf-service.is-active .icon {
+  color: #fff;
+}
+.bf-journey.tabs {
+  border-radius: 999px;
+}
+.bf-journey.tabs .tab {
+  border-radius: 999px;
+}
+.bf-submit {
+  min-height: 54px;
+  border-radius: 999px;
+  font-size: 1rem;
+}
+.bf-add-city {
+  border-radius: 999px;
+}
+
+/* ── Cards: soft and floating ────────────────────────────────────────────────────────────────────── */
+.hx-service,
+.hx-photo,
+.review-card,
+.catalog-item,
+.faq__item,
+.why__list > li {
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-1);
+}
+
+/* ── Phone bar, floating buttons, menu ───────────────────────────────────────────────────────────── */
+.tabbar,
+.bottom-nav {
+  border-top: 0;
+  box-shadow: 0 -1px 0 var(--line);
+}
+.floating-ai-launcher--people {
+  background: var(--brand);
+}
+.drawer__panel {
+  border-radius: 0 var(--r-lg) var(--r-lg) 0;
+}
+.drawer__call {
+  border-radius: 999px;
+  background: var(--brand);
+}
+.drawer__quick a {
+  border-radius: 999px;
+}
+
+/* Crystal clear: a flat white page, solid buttons, no glow, no moving decoration. */
+.home {
+  background: var(--surface, #fff);
+}
+.home::before,
+.home::after,
+.home__wrap::before {
+  display: none;
+}
+.bf-submit {
+  background-image: none;
+  background: var(--brand);
+  box-shadow: none;
+  animation: none;
+}
+.bf-submit::after {
+  display: none;
+}
+.bf-submit:hover:not(:disabled) {
+  background: var(--brand-hover);
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+.btn--primary,
+.btn--primary:hover:not(:disabled) {
+  box-shadow: none;
+}
+.bf {
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.1), 0 12px 28px -16px rgb(15 23 42 / 0.28);
+}
+.bf:focus-within {
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.1), 0 12px 28px -16px rgb(15 23 42 / 0.28);
+}
+.floating-call-btn,
+.floating-call-btn__icon,
+.floating-ai-launcher,
+.floating-ai-launcher__pulse {
+  animation: none;
+}
+.floating-call-btn {
+  background: #1f7a4d;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+}
+.floating-call-btn:hover {
+  background: #186540;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+  transform: none;
+}
+.floating-ai-launcher {
+  background-image: none;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+}
+.floating-ai-launcher:hover {
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+  transform: none;
+}
+.floating-ai-launcher__pulse {
+  display: none;
+}
+.floating-ai-launcher--people,
+.ai-chat-window--people .ai-chat-head {
+  background: var(--brand);
+}
+
+/* ── Phone hero: the same photo, centred logo and bold headline as the desktop ───────────────────── */
+@media (max-width: 767.98px) {
+  .home__wrap {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .home-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    gap: 14px;
+    width: auto;
+    max-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: 28px var(--gutter) 36px;
+  }
+  .home-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: url('/website-images/web/heroes/hero-desktop.webp') 58% 50% / cover no-repeat;
+  }
+  .home-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgb(244 249 255 / 0.84);
+  }
+  .hero-logo {
+    display: flex;
+    order: -1;
+    justify-content: center;
+    margin: 0 auto 2px;
+  }
+  .hero-logo img {
+    width: auto;
+    height: 44px;
+  }
+  .topbar .brand {
+    transition: opacity 0.3s ease, visibility 0.3s;
+  }
+  html[data-hero-logo='in'] .topbar .brand {
+    opacity: 0;
+    visibility: hidden;
+  }
+  .hero-copy h1 {
+    font-size: clamp(1.6rem, 7.4vw, 2.1rem);
+    font-weight: 800;
+    line-height: 1.1;
+    text-align: center;
+  }
+}
+
+/* The header keeps its logo at all times; the hero logo is larger. */
+html[data-hero-logo='in'] .topbar .brand {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+.hero-logo img {
+  width: auto;
+  height: clamp(68px, 6.2vw, 96px);
+}
+@media (max-width: 767.98px) {
+  .hero-logo img {
+    height: 62px;
+  }
+}

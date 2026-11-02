@@ -21,6 +21,7 @@ import './styles/forms.css';
 import './styles/mobile.css';
 import './styles/bookform.css';
 import './styles/compact.css';
+import './styles/theme.css';
 import { keepHomeBehindEveryScreen } from './lib/homeNav';
 import { installStaleVersionReload, installVersionCheck } from '../../user/web/src/components/RouteErrorBoundary';
 import { App } from './App';

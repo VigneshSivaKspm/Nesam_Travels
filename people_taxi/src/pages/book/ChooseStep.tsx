@@ -275,7 +275,7 @@ export function ChooseStep() {
                   </div>
 
                   <p className="sel-card__fine">
-                    * Exact transparent fare. You pay your driver directly via Cash or UPI at the destination.
+                    
                   </p>
 
                   <Button

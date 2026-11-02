@@ -304,7 +304,7 @@ export function BookingForm({
                   setErrors((e) => ({ ...e, pickup: '', drop: '' }));
                 }}
               >
-                <Icon name="swap" size={16} />
+                <Icon name="swap-vertical" size={16} />
               </button>
             ) : null}
             {service !== 'rental' ? (

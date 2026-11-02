@@ -432,15 +432,7 @@
 .bf-submit {
   margin-top: 6px;
 }
-.bf-trust {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  margin-top: -2px;
-  color: var(--muted);
-  font-size: var(--fs-2xs);
-}
+.bf-trust { display: none !important; }
 .bf-offline-service {
   display: grid;
   justify-items: center;

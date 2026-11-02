@@ -313,9 +313,22 @@
     </script>
 
     <style>
-      /* Progressive hydration style: Hides the static fallback seamlessly once React mounts into #root */
-      #root:not(:empty) ~ #seo-prerender {
-        display: none !important;
+      /* Available before the app bundle; React replaces this root content on its first render. */
+      #app-startup {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 12px;
+        text-align: center;
+        background: #fff;
+        color: #475569;
+        font: 16px/1.5 system-ui, sans-serif;
+      }
+      #app-startup strong {
+        color: #a31621;
+        font-size: 24px;
+        letter-spacing: 0.08em;
       }
       .seo-static-container {
         max-width: 1140px;
@@ -421,6 +434,7 @@
   <body>
     <!-- Accessible noscript message for non-JS clients -->
     <noscript>
+      <style>#app-startup { display: none; }</style>
       <div style="background: #fff3cd; color: #856404; padding: 16px; text-align: center; font-weight: 500;">
         NESAM Cabs works best with JavaScript enabled for live booking &amp; interactive route maps. You can also book by calling our 24/7 team directly at
         <a href="tel:+919025099990" style="color: #e31e24; font-weight: 700; text-decoration: underline;">+91 90250 99990</a>.
@@ -428,9 +442,11 @@
     </noscript>
 
     <!-- React root container -->
-    <div id="root"></div>
+    <div id="root"><div id="app-startup" role="status"><strong>NESAM</strong><span>Loading…</span></div></div>
 
-    <!-- Semantic pre-render / crawlable content for search engines & accessibility -->
+    <!-- Plain-HTML overview for visitors and crawlers without JavaScript. With JavaScript the app shows this
+         content itself, so it is never shown on top of (or before) the app. -->
+    <noscript>
     <section id="seo-prerender" class="seo-static-container" aria-label="NESAM Cabs Service Overview">
       <header>
         <p style="text-transform: uppercase; letter-spacing: 0.1em; color: #e31e24; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px;">
@@ -562,6 +578,7 @@
         </footer>
       </main>
     </section>
+    </noscript>
 
     <!-- reCAPTCHA container for phone auth -->
     <div id="recaptcha-container"></div>

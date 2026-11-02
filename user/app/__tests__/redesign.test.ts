@@ -31,8 +31,8 @@ describe('booking step 3: WhatsApp contact (same rules as the server)', () => {
 describe('booking step 2: what the package includes', () => {
   const cat = (fare: Record<string, unknown>) => mapCategory('c', { name: 'Sedan', status: 'Active', fare: { perKmRate: 14, ...fare } })!;
   it('uses the category’s own included km and extra-km rate', () => {
-    expect(inclusionLine(cat({ baseKm: 200, extraKmCharge: 15 }), true)).toBe('200 km included · Extra km ₹15');
-    expect(inclusionLine(cat({ baseKm: 0 }), false)).toBe('Extra km ₹14');
+    expect(inclusionLine(cat({ baseKm: 200, extraKmCharge: 15 }), true)).toBe('200 km included · ₹15/km extra');
+    expect(inclusionLine(cat({ baseKm: 0 }), false)).toBe('₹14/km extra');
   });
 });
 

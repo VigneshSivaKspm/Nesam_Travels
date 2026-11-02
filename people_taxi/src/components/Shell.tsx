@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useRef, useState } from 'react';
-import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@core/context/CustomerData';
 import { formatPhone } from '@core/utils/format';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
@@ -13,6 +13,7 @@ import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
 import { RouteErrorBoundary } from '../../../user/web/src/components/RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
+import { SideDrawer } from './SideDrawer';
 import { AiChatbot } from './AiChatbot';
 import { ALL_ROUTES } from '@/pages/routes/routesData';
 
@@ -340,7 +341,9 @@ export function Shell() {
   const { openLoginModal } = useAuth();
   const { online, recovered } = useOnline();
   const location = useLocation();
-  const navigate = useNavigate();
+  const [menuOpen, setMenuOpen] = useState(false);
+  // The menu closes whenever the page changes.
+  useEffect(() => setMenuOpen(false), [location.pathname]);
   const isFlow = FLOW.some((re) => re.test(location.pathname));
   const isImmersive = IMMERSIVE.some((re) => re.test(location.pathname));
 
@@ -373,6 +376,11 @@ export function Shell() {
 
       <header className="topbar">
         <div className="topbar__inner">
+          <button type="button" className="menu-btn" aria-label="Open menu" aria-haspopup="dialog" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true" focusable="false">
+              <path d="M4 7h16M4 12h16M4 17h16" />
+            </svg>
+          </button>
           <Brand />
           <nav className="topnav" aria-label="Main">
             {TOP_NAV.map((n) => (
@@ -429,9 +437,6 @@ export function Shell() {
                 </NavLink>
               </>
             )}
-            <button type="button" className="icon-btn" aria-label="Help and support" onClick={() => navigate('/support')}>
-              <Icon name="help" size={20} />
-            </button>
           </div>
         </div>
       </header>
@@ -453,6 +458,7 @@ export function Shell() {
       </Suspense>
 
       {!isFlow ? <BottomNav /> : null}
+      <SideDrawer open={menuOpen} onClose={() => setMenuOpen(false)} brand={<Brand />} />
       <FloatingCallButton />
       <AiChatbot />
     </div>

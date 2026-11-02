@@ -13,6 +13,7 @@ import './styles/polish.css';
 import './styles/forms.css';
 import './styles/mobile.css';
 import './styles/compact.css';
+import './styles/theme.css';
 import { App } from './App';
 import { installStaleVersionReload, installVersionCheck } from './components/RouteErrorBoundary';
 

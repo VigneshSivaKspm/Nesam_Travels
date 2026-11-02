@@ -1,0 +1,422 @@
+/* NESAM Cabs — "Executive" theme. Loaded last, so it sets the look of the whole site:
+   charcoal and warm ivory, a deep crimson for action, thin gold rules, a serif display face for headlines and
+   sharp, precise corners. Behaviour and layout stay the same as the other two customer sites. */
+@font-face {
+  font-family: 'Playfair Display';
+  font-style: normal;
+  font-weight: 400 900;
+  font-display: swap;
+  src: url('../assets/fonts/playfair-600.woff2') format('woff2');
+}
+
+:root {
+  --red: #a31621;
+  --red-hover: #8b111b;
+  --red-press: #760e17;
+  --red-ink: #9b1a24;
+  --red-soft: #fbeff0;
+  --red-wash: #fbf3f3;
+  --red-line: #e8cdd0;
+  --red-ring: rgb(163 22 33 / 0.2);
+
+  --gold: #b08d57;
+  --gold-soft: #f4ecdc;
+  --gold-line: #e3d3b4;
+
+  --ink: #14171c;
+  --heading: #14171c;
+  --text: #22262d;
+  --body: #3a3f48;
+  --muted: #66615a;
+  --page: #f7f5f2;
+  --sunken: #f3f0ec;
+  --chip: #f1ede7;
+  --line: #e8e3dc;
+  --line-soft: #efebe5;
+  --line-strong: #d9d2c8;
+  --navy: #14171c;
+
+  --font-head: 'Playfair Display', 'Nesam UI', Georgia, 'Times New Roman', serif;
+
+  --r-xs: 3px;
+  --r-btn: 4px;
+  --r-field: 4px;
+  --r-card: 6px;
+  --r-panel: 6px;
+  --r-lg: 6px;
+  --r-md: 4px;
+  --r-xl: 8px;
+
+  --shadow-1: 0 1px 2px rgb(20 23 28 / 0.06);
+  --shadow-2: 0 6px 20px -6px rgb(20 23 28 / 0.12);
+  --shadow-3: 0 24px 60px -20px rgb(20 23 28 / 0.28);
+}
+
+body {
+  background: var(--page);
+}
+
+/* ── Headlines ───────────────────────────────────────────────────────────────────────────────────── */
+h1,
+h2,
+.display-h,
+.page-head h1,
+.hx-head h2,
+.sec-heading h2 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+.hx-head h2::after,
+.sec-heading h2::after,
+.routes__head .display-h::after,
+.why__intro .display-h::after,
+.faq__intro .display-h::after,
+.get-app__copy .display-h::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  margin-top: 10px;
+  background: var(--gold);
+}
+
+/* ── Header ──────────────────────────────────────────────────────────────────────────────────────── */
+.topbar {
+  border-bottom: 1px solid var(--line);
+  background: #fff;
+  box-shadow: 0 1px 0 var(--gold-line);
+  backdrop-filter: none;
+}
+.topbar__book,
+.topbar__link {
+  border-radius: var(--r-btn);
+  letter-spacing: 0.01em;
+}
+.topbar__book {
+  background: var(--red-soft);
+  color: var(--red-ink);
+  font-weight: 600;
+}
+.head-action {
+  letter-spacing: 0.01em;
+}
+.head-action--account {
+  border-color: var(--ink);
+  border-radius: var(--r-btn);
+  background: var(--ink);
+  color: #fff;
+}
+.head-action--account:hover {
+  background: #000;
+  color: #fff;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────────────────────────────── */
+.btn {
+  letter-spacing: 0.02em;
+}
+.btn--primary {
+  background: var(--red);
+  border-color: var(--red);
+}
+.btn--secondary {
+  border-color: var(--line-strong);
+  background: #fff;
+}
+
+/* ── Hero (tablet and wider): dark and cinematic ─────────────────────────────────────────────────── */
+@media (min-width: 768px) {
+  .home-hero::after {
+    background: rgb(14 16 20 / 0.66);
+  }
+  .hero-route,
+  .hero-pin {
+    display: none;
+  }
+  .hero-copy {
+    align-items: flex-start;
+    text-align: left;
+  }
+  .hero-copy h1 {
+    color: #fff;
+    font-family: var(--font-head);
+    font-size: clamp(2rem, 1.3rem + 2.6vw, 3.5rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    background: none;
+    }
+  .hero-copy h1::after {
+    content: '';
+    display: block;
+    width: 56px;
+    height: 2px;
+    margin-top: 16px;
+    background: var(--gold);
+  }
+  .hero-copy h1 .hero-accent,
+  .hero-copy h1 .hero-accent:not(#x) {
+    background: none;
+    background-image: none;
+    color: #e9cf9d;
+    -webkit-text-fill-color: #e9cf9d;
+    animation: none;
+  }
+
+  /* The booking card: white, square-edged, with a thin gold rule along the top. */
+  .bf {
+    border: 0;
+    border-top: 3px solid var(--gold);
+    border-radius: var(--r-lg);
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.2), 0 24px 48px -24px rgb(0 0 0 / 0.5);
+  }
+}
+
+/* ── Booking form ────────────────────────────────────────────────────────────────────────────────── */
+.bf-services {
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+}
+.bf-service {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: none;
+  letter-spacing: 0.01em;
+}
+.bf-service.is-active {
+  margin-bottom: -1px;
+  border-color: transparent;
+  border-bottom-color: var(--red);
+  background: none;
+  box-shadow: none;
+  color: var(--red-ink);
+}
+.bf-journey.tabs {
+  border-radius: var(--r-btn);
+}
+.bf-journey.tabs .tab {
+  letter-spacing: 0.01em;
+}
+.bf-field,
+.bf-input,
+.bf-time {
+  border-color: var(--line-strong);
+  border-radius: var(--r-field);
+  background: #fff;
+}
+.bf-field:focus-within,
+.bf-input:focus,
+.bf-time:focus-visible {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 3px var(--red-ring);
+}
+.bf-label {
+  letter-spacing: 0.01em;
+}
+.bf-submit {
+  min-height: 52px;
+  background: var(--red);
+  background-image: none;
+  letter-spacing: 0.03em;
+}
+.bf-add-city {
+  border-color: var(--gold-line);
+  color: var(--red-ink);
+}
+
+/* ── Sections and cards ──────────────────────────────────────────────────────────────────────────── */
+.hx-service,
+.hx-photo,
+.review-card,
+.catalog-item,
+.faq__item {
+  border-radius: var(--r-card);
+}
+.hx-how {
+  background: var(--ink);
+}
+.hx-how h2::after {
+  background: var(--gold);
+}
+
+/* ── Footer ──────────────────────────────────────────────────────────────────────────────────────── */
+.footer {
+  border-top: 3px solid var(--gold);
+  background: var(--navy);
+  color: #a9aeb7;
+}
+.footer h2 {
+  color: #fff;
+  font-family: var(--font-head);
+  font-weight: 600;
+}
+.footer a {
+  color: #cfd3da;
+}
+.footer a:hover {
+  color: #e9cf9d;
+}
+.footer__tag,
+.footer address {
+  color: #a9aeb7;
+}
+.footer__bottom {
+  border-color: rgb(255 255 255 / 0.12);
+  color: #8d929b;
+}
+
+/* ── Phone bar, floating buttons, chat and menu ─────────────────────────────────────────────────── */
+.bottom-nav {
+  border-top: 1px solid var(--line);
+  background: #fff;
+}
+.bottom-nav__item.is-active {
+  color: var(--red-ink);
+}
+.floating-ai-launcher--nesam {
+  border-color: rgb(176 141 87 / 0.7);
+  background: #14171c;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+}
+.ai-chat-window--nesam .ai-chat-head {
+  border-bottom: 2px solid var(--gold);
+  background: #14171c;
+}
+.ai-chat-window--nesam .chat-bubble--user .chat-bubble__content {
+  background: var(--ink);
+}
+.drawer__head {
+  border-bottom-color: var(--gold-line);
+}
+.drawer__group summary {
+  font-family: var(--font-head);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+}
+.drawer__call {
+  background: var(--ink);
+}
+
+/* Crystal clear: a flat white page, solid buttons, no glow, no moving decoration. */
+.home {
+  background: var(--surface, #fff);
+}
+.home::before,
+.home::after,
+.home__wrap::before {
+  display: none;
+}
+.bf-submit {
+  background-image: none;
+  background: var(--red);
+  box-shadow: none;
+  animation: none;
+}
+.bf-submit::after {
+  display: none;
+}
+.bf-submit:hover:not(:disabled) {
+  background: var(--red-hover);
+  box-shadow: none;
+  filter: none;
+  transform: none;
+}
+.btn--primary,
+.btn--primary:hover:not(:disabled) {
+  box-shadow: none;
+}
+.bf {
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.1), 0 12px 28px -16px rgb(15 23 42 / 0.28);
+}
+.bf:focus-within {
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.1), 0 12px 28px -16px rgb(15 23 42 / 0.28);
+}
+.floating-call-btn,
+.floating-call-btn__icon,
+.floating-ai-launcher,
+.floating-ai-launcher__pulse {
+  animation: none;
+}
+.floating-call-btn {
+  background: #1f7a4d;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+}
+.floating-call-btn:hover {
+  background: #186540;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+  transform: none;
+}
+.floating-ai-launcher {
+  background-image: none;
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+}
+.floating-ai-launcher:hover {
+  box-shadow: 0 2px 8px rgb(15 23 42 / 0.28);
+  transform: none;
+}
+.floating-ai-launcher__pulse {
+  display: none;
+}
+
+/* ── Phone hero: the same photo and headline as the desktop ──────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .home__wrap {
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  .home-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    gap: 14px;
+    width: auto;
+    max-width: none;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: 34px var(--gutter) 40px;
+  }
+  .home-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    background: url('/website-images/web/heroes/hero-family.webp') 62% 40% / cover no-repeat;
+  }
+  .home-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background: rgb(14 16 20 / 0.66);
+  }
+  .hero-copy h1 {
+    color: #fff;
+    font-family: var(--font-head);
+    font-size: clamp(1.7rem, 7.6vw, 2.2rem);
+    font-weight: 600;
+    line-height: 1.12;
+    text-align: center;
+  }
+  .hero-copy h1::after {
+    content: '';
+    display: block;
+    width: 48px;
+    height: 2px;
+    margin: 12px auto 0;
+    background: var(--gold);
+  }
+  .hero-copy h1 .hero-accent {
+    background: none;
+    background-image: none;
+    color: #e9cf9d;
+    -webkit-text-fill-color: #e9cf9d;
+    animation: none;
+  }
+  .bf {
+    border-top: 3px solid var(--gold);
+  }
+}

@@ -336,10 +336,6 @@ export function ReviewStep() {
                   Confirm Booking Request
                 </Button>
               </div>
-
-              <p className="bf-trust" style={{ marginTop: 12 }}>
-                <Icon name="shield-check" size={14} /> Pay ₹0 now. Pay driver in cash or UPI.
-              </p>
             </div>
           </aside>
         </div>

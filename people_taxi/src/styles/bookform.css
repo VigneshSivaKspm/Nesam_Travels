@@ -294,15 +294,7 @@
 .bf-submit {
   margin-top: 4px;
 }
-.bf-trust {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  color: var(--muted);
-  font-size: var(--fs-xs);
-  text-align: center;
-}
+.bf-trust { display: none !important; }
 .bf-offline-service {
   display: grid;
   justify-items: center;
