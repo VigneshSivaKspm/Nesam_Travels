@@ -426,9 +426,7 @@ export function ReviewStep() {
       </div>
 
       <FlowBar
-        onBack={() => navigate('/book/ride')}
         onNext={submit}
-        backLabel="Change Cab"
         nextLabel={profile ? 'Confirm & Book' : 'Sign in & Book'}
         nextDisabled={submitting}
         nextLoading={submitting}

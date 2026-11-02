@@ -42,9 +42,7 @@ export function NotificationsPage() {
   if (state.status !== 'ready') {
     return (
       <AccountLayout>
-        <PageHead backTo="/account" title="Notifications">
-          Booking, driver and payment updates.
-        </PageHead>
+        <PageHead backTo="/account" title="Notifications" />
         <SignInPrompt title="Sign in to view notifications" text="Sign in with your mobile number to view updates about your bookings." />
       </AccountLayout>
     );
@@ -79,21 +77,15 @@ export function NotificationsPage() {
     <AccountLayout>
       <PageHead
         backTo="/account"
-        title={
-          <>
-            Notifications {unread.length > 0 ? <span className="count count--soft" aria-label={`${unread.length} unread`}>{unread.length}</span> : null}
-          </>
-        }
+        title="Notifications"
         actions={
           unread.length > 0 ? (
-            <Button variant="secondary" size="sm" icon="check-check" loading={busy} onClick={() => void markAll()}>
+            <Button variant="ghost" size="sm" icon="check-check" loading={busy} onClick={() => void markAll()}>
               Mark all as read
             </Button>
           ) : undefined
         }
-      >
-        {unread.length > 0 ? `You have ${unread.length} unread ${unread.length === 1 ? 'update' : 'updates'}.` : 'Booking, driver and payment updates.'}
-      </PageHead>
+      />
 
       <div className="notif-page">
         {error ? <Notice tone="error">{error}</Notice> : null}
@@ -115,7 +107,6 @@ export function NotificationsPage() {
                 </LinkButton>
               }
             >
-              Booking updates, driver details and offers from NESAM will appear here as they happen.
             </EmptyState>
           </div>
         ) : (
@@ -139,7 +130,6 @@ export function NotificationsPage() {
                       </Button>
                     }
                   >
-                    {filter === 'unread' ? 'You’ve read everything.' : 'No notifications in this category yet.'}
                   </EmptyState>
                 </div>
               ) : (
@@ -157,8 +147,6 @@ export function NotificationsPage() {
                           </span>
                           {n.message ? <span className="notif__msg">{n.message}</span> : null}
                           <span className="notif__meta">
-                            <span className="badge">{CATEGORY_LABEL[n.category]}</span>
-                            {n.bookingCode ? <span className="muted small">Booking {n.bookingCode}</span> : null}
                             {n.ctaLabel && n.ctaPage !== 'notifications' ? <span className="notif__cta">{n.ctaLabel} →</span> : null}
                           </span>
                         </span>

@@ -8,7 +8,7 @@ import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '@core/utils/format';
-import { Badge, Button, EmptyState, FlowSteps, Notice, PageHead } from '@/components/ui';
+import { BackButton, Badge, Button, EmptyState, Notice } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useCustomerData } from '@/state/CustomerData';
@@ -73,29 +73,28 @@ export function ChooseStep() {
       <div className="wrap flow-page__wrap">
         <div className="choose">
           <div className="choose__main">
-            <PageHead backTo="/book" title="Choose your cab">
-              Your journey. Your choice of comfort.
-            </PageHead>
-            <FlowSteps current={2} />
-
             <section className="trip-sum" aria-label="Your trip">
               <div className="trip-sum__top">
-                <Badge tone="green">{tripTypeLabel(tripType)}</Badge>
+                <div className="trip-sum__lead">
+                  <BackButton to="/book" />
+                  <h1 className="trip-sum__title">Choose your cab</h1>
+                </div>
                 <Link to="/book" className="link-btn">
                   <Icon name="edit" size={14} /> Edit
                 </Link>
               </div>
-              <div className="trip-sum__route">
-                <p className="route-title">
-                  <span>{pickup.name}</span>
-                  <Icon name="arrow-right" size={16} />
-                  <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
-                </p>
-                <p className="trip-sum__when">{when}</p>
-              </div>
+              <p className="route-title">
+                <span>{pickup.name}</span>
+                <Icon name="arrow-right" size={14} />
+                <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
+              </p>
               <p className="trip-sum__meta">
-                {route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Route distance unavailable' : 'Calculating distance…'}
-                {tripType === 'Round Trip' && tripEndAt ? ` · Return ${formatDate(tripEndAt)}, ${formatTime(tripEndAt)}` : ''}
+                <span>
+                  <Badge tone="green">{tripTypeLabel(tripType)}</Badge>
+                </span>
+                <span className="trip-sum__when">{when}</span>
+                <span>{route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
+                {tripType === 'Round Trip' && tripEndAt ? <span>Return {formatDate(tripEndAt)}, {formatTime(tripEndAt)}</span> : null}
               </p>
             </section>
 
@@ -194,7 +193,6 @@ export function ChooseStep() {
               </div>
             ) : (
               <>
-                <p className="choose__intro">Fares are confirmed by NESAM’s booking server for this exact trip and include GST.</p>
                 {guest && !q.authoritative && !q.quoteLoading ? (
                   <Notice>These are estimates. Sign in on the next step and NESAM’s booking server confirms the exact fare before you submit.</Notice>
                 ) : q.quoteError ? (
@@ -209,29 +207,6 @@ export function ChooseStep() {
                     We couldn’t confirm fares with NESAM. The amounts below are estimates; you can continue once the fare is confirmed.
                   </Notice>
                 ) : null}
-                {groups.length > 1 || categories.length > 2 ? (
-                  <div className="cab-tools">
-                    <div className="cab-tools__filters" role="group" aria-label="Filter cabs">
-                      {(['All', ...groups] as const).map((g) => (
-                        <button key={g} type="button" className={`chip ${group === g ? 'is-active' : ''}`} aria-pressed={group === g} onClick={() => setGroup(g)}>
-                          {g === 'All' ? 'All cabs' : g}
-                        </button>
-                      ))}
-                    </div>
-                    <label className="cab-tools__sort">
-                      <span>Sort by</span>
-                      <select className="select" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-                        <option value="recommended">Recommended</option>
-                        <option value="low">Price: low to high</option>
-                        <option value="high">Price: high to low</option>
-                      </select>
-                    </label>
-                  </div>
-                ) : null}
-                <p className="choose__count" aria-live="polite">
-                  {shown.length} cab option{shown.length === 1 ? '' : 's'} for your journey
-                  {selectedHidden ? ` · your selection (${categoryName(selected!)}) is hidden by this filter` : ''}
-                </p>
                 <h2 className="sr-only" id="cabs-h">
                   Available cabs
                 </h2>
@@ -263,7 +238,6 @@ export function ChooseStep() {
                                 <Icon name="air-conditioning" size={13} /> AC
                               </span>
                             </span>
-                            {fare?.distanceKm ? <span className="cab__incl">{formatDistance(fare.distanceKm)} trip distance</span> : null}
                           </span>
                           <span className="cab__price">
                             {reason ? (
@@ -354,7 +328,7 @@ export function ChooseStep() {
               <p className="sel-card__fine">Toll, parking &amp; state tax are extra, paid separately against receipts.</p>
               <PromoControl />
               <Button block size="lg" icon="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
-                Continue
+                Book Now
               </Button>
               {selected && breakupFor(selected) ? (
                 <button type="button" className="link-btn sel-card__fare" onClick={() => setFareFor(selected)}>
@@ -373,7 +347,7 @@ export function ChooseStep() {
             <strong className="num">{summaryFare != null ? formatINR(summaryFare) : q.quoteLoading ? '…' : '—'}</strong>
           </div>
           <Button size="lg" icon="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
-            Continue
+            Book Now
           </Button>
         </div>
       </FlowBar>

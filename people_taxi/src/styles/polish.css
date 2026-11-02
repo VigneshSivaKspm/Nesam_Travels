@@ -91,31 +91,30 @@
     z-index: -2;
     background: url('/website-images/web/heroes/hero-desktop.webp') 58% 50% / cover no-repeat;
   }
-  /* A blue wash: deep at the top left where the headline sits, lighter over the rest of the photo. */
+  /* A pale wash over the photo, so the form and the dark headline read cleanly. */
   .home-hero::after {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
     background:
-      linear-gradient(100deg, rgb(8 24 66 / 0.9) 0%, rgb(13 58 168 / 0.58) 46%, rgb(13 58 168 / 0.12) 82%),
-      linear-gradient(0deg, rgb(8 24 66 / 0.45), rgb(8 24 66 / 0.1) 55%, transparent);
+      linear-gradient(180deg, rgb(238 244 255 / 0.9) 0%, rgb(238 244 255 / 0.74) 55%, rgb(238 244 255 / 0.55) 100%);
   }
   .hero-copy h1 {
     position: relative;
     z-index: 1;
-    color: #fff;
+    color: var(--ink);
     font-size: clamp(1.75rem, 1.2rem + 1.7vw, 2.6rem);
     line-height: 1.12;
-    text-shadow: 0 2px 22px rgb(0 0 0 / 0.3);
   }
   .hero-copy h1 .hero-accent {
-    color: var(--sun);
+    color: var(--brand);
   }
   /* The booking card floats over the photo. */
   .jd {
     position: relative;
     z-index: 2;
+    border: 1px solid rgb(22 101 232 / 0.16);
     gap: 10px;
     padding: 14px 18px 12px;
     border-radius: var(--r-lg);
@@ -175,7 +174,7 @@
     z-index: 0;
     width: 18px;
     height: 18px;
-    border: 4px solid var(--sun);
+    border: 4px solid var(--brand);
     border-radius: 50%;
     background: #fff;
     pointer-events: none;
@@ -193,19 +192,19 @@
 }
 .hero-route__line {
   fill: none;
-  stroke: rgb(255 255 255 / 0.62);
+  stroke: rgb(22 101 232 / 0.45);
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 5 16;
 }
 .hero-route__comet {
   fill: none;
-  stroke: var(--sun);
+  stroke: var(--brand);
   stroke-width: 6;
   stroke-linecap: round;
   stroke-dasharray: 11 89;
   stroke-dashoffset: 0;
-  filter: drop-shadow(0 0 8px rgb(255 197 61 / 0.95));
+  filter: drop-shadow(0 0 6px rgb(22 101 232 / 0.6));
 }
 
 /* ── Booking card ────────────────────────────────────────────────────────────────────────────────── */
@@ -274,7 +273,7 @@
     /* On the photo the accent is yellow. */
     @media (min-width: 768px) {
       .hero-copy h1 .hero-accent {
-        background-image: linear-gradient(90deg, #ffc53d 0%, #fff0b8 40%, #ffc53d 80%);
+        background-image: linear-gradient(90deg, #0f52c4 0%, #4c9bff 40%, #0f52c4 80%);
       }
     }
   }

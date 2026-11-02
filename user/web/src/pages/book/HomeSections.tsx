@@ -28,24 +28,16 @@ import {
 export function HeroCopy() {
   return (
     <div className="hero-copy">
-      <p className="hero-eyebrow">
-        <span className="hero-eyebrow__dash" aria-hidden="true" />
-        <Icon name="route" size={16} /> PREMIUM OUTSTATION &amp; INTERCITY CABS
-      </p>
       <h1>
-        Outstation rides,{' '}<br />
-        <span className="hero-accent">priced before you book.</span>
+        Dependable cabs, <span className="hero-accent">for every journey.</span>
       </h1>
-      <p className="hero-copy__sub">
-        Verified chauffeurs, clean air-conditioned cars, and upfront transparent fares with no hidden costs across South India.
-      </p>
-      <hr className="hero-divider" />
-      <div className="hero-trust-simple">
-        <span><Icon name="check" size={15} /> Upfront Fares</span>
-        <span><Icon name="shield-check" size={15} /> Verified Drivers</span>
-        <span><Icon name="snowflake" size={15} /> 100% AC</span>
-        <span><Icon name="phone" size={15} /> 24/7 Helpline</span>
-      </div>
+      {/* Decoration for tablets and wider: a route that runs around the booking card, pickup to drop. */}
+      <svg className="hero-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+        <path className="hero-route__line" d="M640 120 C 800 60, 960 110, 968 330 S 975 800, 930 940 S 800 962, 600 955 S 250 975, 40 955" />
+        <path className="hero-route__comet" pathLength="100" d="M640 120 C 800 60, 960 110, 968 330 S 975 800, 930 940 S 800 962, 600 955 S 250 975, 40 955" />
+      </svg>
+      <span className="hero-pin hero-pin--a" aria-hidden="true" />
+      <span className="hero-pin hero-pin--b" aria-hidden="true" />
     </div>
   );
 }

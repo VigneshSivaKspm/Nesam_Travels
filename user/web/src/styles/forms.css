@@ -100,3 +100,106 @@
   background: var(--danger-soft);
   color: var(--danger);
 }
+
+/* Bottom bar: Outstation, the main service, is the raised filled button in the middle. */
+@media (max-width: 999.98px) {
+  .bottom-nav__item--main {
+    font-weight: 700;
+  }
+  .bottom-nav__item--main .bottom-nav__symbol {
+    width: 50px;
+    height: 50px;
+    margin-top: -26px;
+    border: 4px solid #fff;
+    border-radius: 50%;
+    background: var(--red);
+    color: #fff;
+    box-shadow: 0 8px 18px -6px rgb(198 40 40 / 0.7);
+    transition: transform var(--dur) var(--ease);
+  }
+  .bottom-nav__item--main:active .bottom-nav__symbol {
+    transform: scale(0.94);
+  }
+  .bottom-nav__item--main.is-active::before {
+    display: none;
+  }
+}
+
+/* Floating call and AI buttons: a little larger than before, and larger again on big screens. */
+.floating-call-btn {
+  gap: 12px;
+  padding: 11px 20px 11px 13px;
+}
+.floating-call-btn__icon {
+  width: 40px;
+  height: 40px;
+}
+.floating-call-btn__icon svg {
+  width: 21px;
+  height: 21px;
+}
+.floating-call-btn__label-main {
+  font-size: 14.5px;
+}
+.floating-call-btn__label-sub {
+  font-size: 12px;
+}
+.floating-ai-launcher {
+  gap: 9px;
+  padding: 11px 19px 11px 15px;
+  font-size: 14.5px;
+}
+.floating-ai-launcher__sparkle {
+  font-size: 18px;
+}
+@media (min-width: 1000px) {
+  .floating-ai-launcher {
+    bottom: 100px;
+  }
+}
+@media (min-width: 1600px) {
+  .floating-call-btn {
+    bottom: 32px;
+  }
+  .floating-ai-launcher {
+    bottom: 116px;
+  }
+}
+@media (min-width: 1600px) {
+  .floating-call-btn {
+    right: 32px;
+    gap: 14px;
+    padding: 14px 25px 14px 15px;
+  }
+  .floating-call-btn__icon {
+    width: 46px;
+    height: 46px;
+  }
+  .floating-call-btn__icon svg {
+    width: 24px;
+    height: 24px;
+  }
+  .floating-call-btn__label-main {
+    font-size: 16px;
+  }
+  .floating-call-btn__label-sub {
+    font-size: 13px;
+  }
+  .floating-ai-launcher {
+    right: 32px;
+    gap: 10px;
+    padding: 13px 23px 13px 17px;
+    font-size: 16px;
+  }
+  .floating-ai-launcher__sparkle {
+    font-size: 20px;
+  }
+}
+@media (min-width: 768px) and (max-width: 999.98px) {
+  .floating-ai-launcher {
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px) + 84px);
+  }
+  .shell--flow .floating-ai-launcher {
+    bottom: calc(20px + env(safe-area-inset-bottom, 0px) + 78px);
+  }
+}

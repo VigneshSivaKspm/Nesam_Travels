@@ -149,11 +149,12 @@ export function FlowBar({
   onBack,
   onNext,
   backLabel = 'Back',
-  nextLabel = 'Continue',
+  nextLabel = 'Book Now',
   nextDisabled = false,
   nextLoading = false,
   total,
   secondary,
+  showBack = false,
 }: {
   onBack?: () => void;
   onNext?: () => void;
@@ -163,6 +164,7 @@ export function FlowBar({
   nextLoading?: boolean;
   total?: number;
   secondary?: React.ReactNode;
+  showBack?: boolean;
 }) {
   return (
     <div className="flow-bar">
@@ -185,26 +187,28 @@ export function FlowBar({
         </div>
       ) : null}
 
-      <div className="flow-bar__nav">
-        {onBack ? (
-          <Button variant="secondary" size="md" onClick={onBack} icon="arrow-left">
-            {backLabel}
-          </Button>
-        ) : null}
-        {secondary}
-        {total === undefined && onNext ? (
-          <Button
-            variant="primary"
-            size="md"
-            disabled={nextDisabled}
-            loading={nextLoading}
-            onClick={onNext}
-            iconTrailing="arrow-right"
-          >
-            {nextLabel}
-          </Button>
-        ) : null}
-      </div>
+      {(showBack && onBack) || (total === undefined && onBack) || secondary ? (
+        <div className="flow-bar__nav">
+          {onBack ? (
+            <Button variant="secondary" size="md" onClick={onBack} icon="arrow-left">
+              {backLabel}
+            </Button>
+          ) : null}
+          {secondary}
+          {total === undefined && onNext ? (
+            <Button
+              variant="primary"
+              size="md"
+              disabled={nextDisabled}
+              loading={nextLoading}
+              onClick={onNext}
+              iconTrailing="arrow-right"
+            >
+              {nextLabel}
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

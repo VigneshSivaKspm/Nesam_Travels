@@ -6,7 +6,7 @@ import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { formatDate, formatDistance, formatDuration, formatINR, formatTime } from '@core/utils/format';
-import { Badge, Button, EmptyState, FlowSteps, Notice, PageHead } from '@/components/ui';
+import { BackButton, Badge, Button, EmptyState, Notice } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
@@ -58,46 +58,31 @@ export function ChooseStep() {
   return (
     <div className="flow-page flow-page--choose">
       <div className="wrap flow-page__wrap">
-        <PageHead
-          back={<Button variant="secondary" size="sm" onClick={() => navigate('/book')} icon="arrow-left">Back to Route</Button>}
-          eyebrow="Step 2 of 3 · Choose Vehicle"
-          title="Choose your vehicle"
-        >
-          Compare vehicle categories and upfront fares with transparent pricing.
-        </PageHead>
-
-        <FlowSteps total={3} current={2} />
-
         <div className="choose">
           <div className="choose__main">
             <section className="trip-sum" aria-label="Trip summary">
               <div className="trip-sum__top">
-                <div className="trip-sum__badges">
-                  <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
-                  {scheduledAt ? (
-                    <span className="trip-sum__when">
-                      <Icon name="calendar" size={14} /> {formatDate(scheduledAt)}, {formatTime(scheduledAt)}
-                      {tripEndAt ? ` → Return: ${formatDate(tripEndAt)}` : ''}
-                    </span>
-                  ) : null}
+                <div className="trip-sum__lead">
+                  <BackButton to="/book" />
+                  <h1 className="trip-sum__title">Choose your vehicle</h1>
                 </div>
                 <Link to="/book" className="btn-edit-trip" title="Modify route or schedule">
-                  <Icon name="edit" size={14} /> Edit Route
+                  <Icon name="edit" size={14} /> Edit
                 </Link>
               </div>
-              <div className="trip-sum__route">
-                <div className="route-title">
-                  <span>{pickup.name}</span>
-                  <Icon name="arrow-right" size={18} />
-                  <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
-                </div>
-                {route ? (
-                  <div className="trip-sum__meta">
-                    <Icon name="route" size={14} />
-                    <span>{formatDistance(route.distanceKm)} · approx. {formatDuration(route.durationMin)}</span>
-                  </div>
-                ) : null}
-              </div>
+              <p className="route-title">
+                <span>{pickup.name}</span>
+                <Icon name="arrow-right" size={14} />
+                <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
+              </p>
+              <p className="trip-sum__meta">
+                <span>
+                  <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
+                </span>
+                {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
+                {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
+                {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
+              </p>
             </section>
 
             <div className="choose__notices">
@@ -129,40 +114,6 @@ export function ChooseStep() {
               ) : null}
             </div>
 
-            <div className="cab-tools">
-              <div className="cab-tools__filters" role="tablist" aria-label="Filter vehicle categories">
-                <button
-                  type="button"
-                  className={`chip ${group === 'All' ? 'is-active' : ''}`}
-                  onClick={() => setGroup('All')}
-                >
-                  All Vehicles ({categories.length})
-                </button>
-                {groups.map((g) => (
-                  <button
-                    key={g}
-                    type="button"
-                    className={`chip ${group === g ? 'is-active' : ''}`}
-                    onClick={() => setGroup(g)}
-                  >
-                    {g}
-                  </button>
-                ))}
-              </div>
-
-              <label className="cab-tools__sort">
-                <span>Sort by:</span>
-                <select className="select select--sm" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-                  <option value="recommended">Recommended</option>
-                  <option value="low">Price: Low to High</option>
-                  <option value="high">Price: High to Low</option>
-                </select>
-              </label>
-            </div>
-
-            <p className="choose__count">
-              Showing {shown.length} available {shown.length === 1 ? 'vehicle' : 'vehicles'}
-            </p>
 
             <div className="cabs" role="radiogroup" aria-label="Available cabs">
               {categoryStatus === 'loading' && categories.length === 0 ? (
@@ -353,7 +304,7 @@ export function ChooseStep() {
                     onClick={handleNext}
                     iconTrailing="arrow-right"
                   >
-                    Proceed to Review
+                    Book Now
                   </Button>
                 </>
               ) : (
@@ -367,10 +318,8 @@ export function ChooseStep() {
       </div>
 
       <FlowBar
-        onBack={() => navigate('/book')}
         onNext={handleNext}
-        backLabel="Back"
-        nextLabel="Review Booking"
+        nextLabel="Book Now"
         nextDisabled={!canContinue}
         total={quote?.total}
       />

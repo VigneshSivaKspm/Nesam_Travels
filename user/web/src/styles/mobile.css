@@ -310,23 +310,30 @@
     margin-top: 16px;
   }
 
-  /* ── Floating buttons: smaller, so they cover less of the form ─────────── */
+  /* ── Floating buttons: round, easy to tap, kept clear of the bar and of each other ───── */
   .floating-call-btn,
   .floating-ai-launcher {
-    width: 44px;
-    height: 44px;
+    width: 54px;
+    height: 54px;
     right: 12px;
+  }
+  .floating-call-btn__icon svg {
+    width: 25px;
+    height: 25px;
+  }
+  .floating-ai-launcher__sparkle {
+    font-size: 22px;
   }
   .floating-call-btn {
     bottom: calc(72px + env(safe-area-inset-bottom, 0px));
   }
   .floating-ai-launcher {
-    bottom: calc(124px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(138px + env(safe-area-inset-bottom, 0px));
   }
   .shell--flow .floating-call-btn {
     bottom: calc(16px + env(safe-area-inset-bottom, 0px));
   }
   .shell--flow .floating-ai-launcher {
-    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+    bottom: calc(80px + env(safe-area-inset-bottom, 0px));
   }
 }

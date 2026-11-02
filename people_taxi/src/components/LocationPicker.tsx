@@ -156,7 +156,6 @@ export function LocationPicker({
           </span>
         </button>
       ) : null}
-      {config.allowCurrent ? <PolicyLinks lead="Location is optional and used for your pickup." ids={['privacy']} newTab className="picker__privacy" /> : null}
 
       <div className="picker__lists" aria-live="polite">
         {q.length >= 3 ? (

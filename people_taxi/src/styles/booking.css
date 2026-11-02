@@ -1185,7 +1185,12 @@
     color: var(--brand);
   }
   .flow-bar__total .btn {
-    flex: 0 1 240px;
+    flex: 0 1 220px;
+    min-height: 48px;
+    font-size: var(--fs-md);
+    font-weight: 700;
+    white-space: nowrap;
+    box-shadow: 0 4px 14px rgb(22 70 160 / 0.28);
   }
   .done {
     grid-template-columns: minmax(0, 1fr);

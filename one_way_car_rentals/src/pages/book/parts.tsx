@@ -140,19 +140,21 @@ export function FareDialog({ title, lines, total, estimated, note, onClose }: { 
 }
 
 /** Bottom flow action bar for mobile or sidebar action container */
-export function FlowBar({ children, back, className = '' }: { children?: ReactNode; back?: () => void; className?: string }) {
+export function FlowBar({ children, back, showNav = false, className = '' }: { children?: ReactNode; back?: () => void; showNav?: boolean; className?: string }) {
   const navigate = useNavigate();
   return (
     <div className={`flow-bar ${className}`}>
       {children}
-      <div className="flow-bar__nav">
-        <Button variant="secondary" icon="arrow-left" onClick={back ?? (() => navigate(-1))}>
-          Back
-        </Button>
-        <Button variant="secondary" icon="home" onClick={() => navigate('/book')}>
-          Home
-        </Button>
-      </div>
+      {showNav ? (
+        <div className="flow-bar__nav">
+          <Button variant="secondary" icon="arrow-left" onClick={back ?? (() => navigate(-1))}>
+            Back
+          </Button>
+          <Button variant="secondary" icon="home" onClick={() => navigate('/book')}>
+            Home
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

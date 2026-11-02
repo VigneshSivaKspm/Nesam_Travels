@@ -332,7 +332,8 @@ export function MulticityForm() {
           <span className="bf-pin" aria-hidden="true" />
           <div className="bf-field__main">
             <span className="bf-label" id="mc-pickup-label">
-Pickup location            </span>
+              Pickup location
+            </span>
             <button
               id="mc-pickup-btn"
               type="button"
@@ -388,7 +389,8 @@ Pickup location            </span>
           <span className="bf-pin bf-pin--drop" aria-hidden="true" />
           <div className="bf-field__main">
             <span className="bf-label" id="mc-drop-label">
-Drop location            </span>
+              Drop location
+            </span>
             <button
               id="mc-drop-btn"
               type="button"

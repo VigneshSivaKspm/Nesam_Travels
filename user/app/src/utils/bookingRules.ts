@@ -25,12 +25,12 @@ export function whatsappProblem(same: boolean, code: string, number: string): st
   return digits.length >= 6 && digits.length <= 14 ? '' : 'Enter a valid WhatsApp number for that country code.';
 }
 
-/** "200 km included · Extra km ₹15" from the category's own configuration. */
+/** "200 km included · ₹15/km extra" from the category's own configuration. */
 export function inclusionLine(c: RideCategory, outstation: boolean): string {
   const parts: string[] = [];
   if (c.fare.baseKm > 0) parts.push(`${c.fare.baseKm} km included`);
   const extra = c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
-  if (extra > 0) parts.push(`Extra km ${formatINR(extra)}`);
+  if (extra > 0) parts.push(`${formatINR(extra)}/km extra`);
   return parts.join(' · ');
 }
 
@@ -43,7 +43,7 @@ export function quotedInclusionLine(q: { ok: boolean; includedKm?: number; extra
   const parts: string[] = [];
   if (q.rentalHours) parts.push(`${q.rentalHours} hours`);
   if (q.includedKm && q.includedKm > 0) parts.push(`${q.includedKm} km included`);
-  if (q.extraKmRate && q.extraKmRate > 0) parts.push(`Extra km ${formatINR(q.extraKmRate)}`);
+  if (q.extraKmRate && q.extraKmRate > 0) parts.push(`${formatINR(q.extraKmRate)}/km extra`);
   return parts.join(' · ');
 }
 

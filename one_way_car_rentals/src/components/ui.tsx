@@ -390,7 +390,8 @@ export function PageHead({
       <div className="page-head__text">
         {eyebrow && /^Step \d/.test(eyebrow) ? <p className="eyebrow eyebrow--muted">{eyebrow}</p> : null}
         <h1>{title}</h1>
-        {children ? <p className="page-head__sub">{children}</p> : null}
+        {/* Plain-text subtitles are left out for a cleaner page; links and buttons passed in still show. */}
+        {children && typeof children !== 'string' ? <div className="page-head__sub">{children}</div> : null}
       </div>
       {actions ? <div className="page-head__actions">{actions}</div> : null}
     </header>
