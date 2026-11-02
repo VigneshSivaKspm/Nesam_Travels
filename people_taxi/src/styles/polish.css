@@ -1,0 +1,254 @@
+/* People Taxi home: atmosphere, entrance and scroll animations.
+   Decoration only, and built so nothing can stay hidden:
+   - Motion is switched on only for visitors who have not asked for reduced motion.
+   - Scroll effects use the browser's scroll-driven animations (no script). A browser without them
+     shows every section normally, and phones (where cards are swipe rows) skip them. */
+
+/* ── Atmosphere: a sky-blue glow fading to white, with two soft colour orbs ──────────────────────── */
+.home {
+  position: relative;
+  isolation: isolate;
+  overflow-x: clip;
+  background: linear-gradient(180deg, var(--paper) 0, #fff 560px);
+}
+.home::before,
+.home::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 50%;
+  filter: blur(64px);
+  pointer-events: none;
+}
+.home::before {
+  top: -140px;
+  right: -120px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle, rgb(76 155 255 / 0.4), transparent 70%);
+}
+.home::after {
+  top: 220px;
+  left: -180px;
+  width: 440px;
+  height: 440px;
+  background: radial-gradient(circle, rgb(255 197 61 / 0.3), transparent 70%);
+}
+
+/* ── Booking card ─────────────────────────────────────────────────────────────────────────────────── */
+.jd {
+  transition: box-shadow var(--dur) var(--ease-out), border-color var(--dur) var(--ease-out);
+}
+.jd:hover {
+  border-color: var(--brand-line, var(--line-strong));
+  box-shadow: 0 24px 60px -14px rgb(22 101 232 / 0.28), 0 4px 18px rgb(0 0 0 / 0.05);
+}
+.jd-tab .icon {
+  transition: transform var(--dur) var(--ease);
+}
+.jd-tab:hover .icon {
+  transform: translateY(-2px) scale(1.12);
+}
+
+/* The main button: a blue gradient with a light sweep. */
+.jd-submit {
+  position: relative;
+  overflow: hidden;
+  background-image: var(--brand-gradient);
+  box-shadow: 0 12px 28px -8px rgb(22 101 232 / 0.55);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease), filter var(--dur) var(--ease);
+}
+.jd-submit::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.38) 50%, transparent 70%);
+  transform: translateX(-130%);
+  pointer-events: none;
+}
+.jd-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 18px 34px -8px rgb(22 101 232 / 0.6);
+}
+.jd-submit:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Sections sit as clean cards with a faint blue edge. */
+.band--paper {
+  border: 1px solid rgb(22 101 232 / 0.07);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* ── On load ──────────────────────────────────────────────────────────────────────────────────── */
+  .hero-copy h1 {
+    animation: pt-rise 0.75s var(--ease-out) backwards;
+  }
+  /* The accent line fades in, then its blue slowly shimmers (only where gradient text is supported). */
+  .hero-copy h1 .hero-accent {
+    animation: pt-fade 0.9s 0.2s var(--ease-out) backwards;
+  }
+  @supports ((-webkit-background-clip: text) or (background-clip: text)) {
+    .hero-copy h1 .hero-accent {
+      background-image: linear-gradient(90deg, #1665e8 0%, #4c9bff 40%, #1665e8 80%);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: pt-fade 0.9s 0.2s var(--ease-out) backwards, pt-shimmer 7s linear 1.2s infinite;
+    }
+  }
+  .jd {
+    animation: pt-rise 0.85s 0.18s var(--ease-out) backwards;
+  }
+  .main > .home,
+  .main > .page {
+    animation: pt-fade 0.4s var(--ease-out) backwards;
+  }
+
+  /* The orbs drift slowly. */
+  .home::before {
+    animation: pt-drift 14s ease-in-out infinite alternate;
+  }
+  .home::after {
+    animation: pt-drift 18s ease-in-out -6s infinite alternate-reverse;
+  }
+
+  /* The sweep crosses the button every few seconds, and on hover. */
+  .jd-submit::after {
+    animation: pt-sheen 5s ease-in-out 2.4s infinite;
+  }
+  .jd-submit:hover:not(:disabled)::after {
+    animation: pt-sheen 1.1s ease-in-out;
+  }
+
+  /* Small illustrations bob gently. (The `translate` property composes with hover transforms.) */
+  .strip__item img,
+  .how__card img {
+    animation: pt-bob 4.5s ease-in-out infinite;
+  }
+  .strip__item:nth-child(2) img,
+  .how__steps li:nth-child(2) .how__card img {
+    animation-delay: -1.1s;
+  }
+  .strip__item:nth-child(3) img,
+  .how__steps li:nth-child(3) .how__card img {
+    animation-delay: -2.2s;
+  }
+  .strip__item:nth-child(4) img {
+    animation-delay: -3.3s;
+  }
+  .floating-ai-launcher {
+    animation: pt-bob 3.6s ease-in-out infinite;
+  }
+}
+
+/* ── While scrolling (desktop, browsers with scroll-driven animations) ─────────────────────────────── */
+@media (prefers-reduced-motion: no-preference) and (min-width: 768px) {
+  @supports (animation-timeline: view()) {
+    .sec-head,
+    .strip__item,
+    .svc,
+    .routes > li,
+    .destinations > li,
+    .fleet > li,
+    .how__steps > li,
+    .assure__list > li,
+    .banners > *,
+    .review-card,
+    .catalog-item,
+    .faq-band__intro {
+      animation: pt-reveal linear backwards;
+      animation-timeline: view();
+      animation-range: entry 0% entry 38%;
+    }
+    /* A slight stagger across each row. */
+    .svc:nth-child(4n + 2),
+    .routes > li:nth-child(4n + 2),
+    .destinations > li:nth-child(6n + 2),
+    .fleet > li:nth-child(4n + 2),
+    .strip__item:nth-child(2) {
+      animation-range: entry 6% entry 44%;
+    }
+    .svc:nth-child(4n + 3),
+    .routes > li:nth-child(4n + 3),
+    .destinations > li:nth-child(6n + 3),
+    .fleet > li:nth-child(4n + 3),
+    .strip__item:nth-child(3) {
+      animation-range: entry 12% entry 50%;
+    }
+    .svc:nth-child(4n + 4),
+    .routes > li:nth-child(4n + 4),
+    .destinations > li:nth-child(6n + 4),
+    .fleet > li:nth-child(4n + 4),
+    .strip__item:nth-child(4) {
+      animation-range: entry 18% entry 56%;
+    }
+
+    /* A thin progress bar across the top of the page. */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0 0 auto 0;
+      z-index: 120;
+      height: 3px;
+      background: linear-gradient(90deg, #1665e8, #4c9bff, #ffc53d);
+      transform-origin: 0 50%;
+      pointer-events: none;
+      animation: pt-progress linear both;
+      animation-timeline: scroll(root block);
+    }
+  }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────────────────────────────── */
+@keyframes pt-rise {
+  from {
+    opacity: 0;
+    transform: translateY(26px);
+  }
+}
+@keyframes pt-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pt-shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+@keyframes pt-drift {
+  to {
+    transform: translate(40px, 30px) scale(1.12);
+  }
+}
+@keyframes pt-sheen {
+  0%,
+  60% {
+    transform: translateX(-130%);
+  }
+  100% {
+    transform: translateX(130%);
+  }
+}
+@keyframes pt-bob {
+  50% {
+    translate: 0 -5px;
+  }
+}
+@keyframes pt-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(34px) scale(0.97);
+  }
+}
+@keyframes pt-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
