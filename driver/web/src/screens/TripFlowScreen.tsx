@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { GoogleMapPreview } from '../../../../user/web/src/components/GoogleMapPreview';
 import { CancellationStatus } from '../components/nx/Cancellation';
 import { acknowledgeAssignment, type DriverCancellation } from '../services/partnerRequests';
 import type { TollReceipt, TripDetails } from '../types';
@@ -279,6 +280,7 @@ export const TripFlowScreen: React.FC<TripFlowProps> = ({ trip, now, rules, onBa
           <small>{caption}</small>
         </div>
       </div>
+      <GoogleMapPreview pickup={{ lat: loc.lat, lng: loc.lng, label: loc.address }} height={180} />
       <a className="nx-button primary" href={mapsLink(loc)} target="_blank" rel="noopener noreferrer">
         <Icon name="pin" />
         {label}

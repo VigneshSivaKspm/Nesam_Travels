@@ -195,6 +195,8 @@ export function mapVendorTrip(id: string, d: Data): VendorTrip {
   const breakup = (d.fareBreakup && typeof d.fareBreakup === 'object' ? d.fareBreakup : {}) as { lines?: unknown };
   const response = d.driverResponse && typeof d.driverResponse === 'object' ? (d.driverResponse as Data) : null;
   const cancel = d.cancellationRequest && typeof d.cancellationRequest === 'object' ? (d.cancellationRequest as Data) : null;
+  const pickupPoint = (d.pickupPoint && typeof d.pickupPoint === 'object' ? d.pickupPoint : d.pickup && typeof d.pickup === 'object' ? d.pickup : {}) as Data;
+  const dropPoint = (d.dropPoint && typeof d.dropPoint === 'object' ? d.dropPoint : d.drop && typeof d.drop === 'object' ? d.drop : {}) as Data;
   return {
     id,
     bookingId: str(d.bookingId) || id,
@@ -203,6 +205,10 @@ export function mapVendorTrip(id: string, d: Data): VendorTrip {
     customerPhoneMasked: str(d.phoneMasked) || str(d.customerPhoneMasked) || maskPhoneStr(str(d.phone) || str(d.customerPhone)),
     pickupAddress: str(d.pickupAddress) || str(d.pickup),
     dropAddress: str(d.dropAddress) || str(d.drop),
+    pickupLat: num(pickupPoint.lat),
+    pickupLng: num(pickupPoint.lng),
+    dropLat: num(dropPoint.lat),
+    dropLng: num(dropPoint.lng),
     scheduledTime: schedule,
     vehicleId: str(d.assignedVehicleId),
     vehicleNumber: str(d.assignedVehicleNumber),

@@ -3,6 +3,23 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { DEFAULT_CENTER, MAP_ATTRIBUTION, MAP_TILE_URL, inIndia, placeDetail, placeLabel, reverseGeocode, searchPlaces, type LatLng, type PlaceResult } from "../services/geoService";
 
+declare global { interface Window { google?: any; __nesamGoogleMapsPromise?: Promise<any>; } }
+const googleMapsKey = (import.meta.env.VITE_GOOGLE_MAPS_API_KEY as string | undefined)?.trim() ?? "";
+const loadGoogleMaps = () => {
+  if (window.google?.maps) return Promise.resolve(window.google.maps);
+  if (window.__nesamGoogleMapsPromise) return window.__nesamGoogleMapsPromise;
+  window.__nesamGoogleMapsPromise = new Promise((resolve, reject) => {
+    const callback = `__nesamAdminMaps_${Date.now()}`;
+    (window as any)[callback] = () => { delete (window as any)[callback]; resolve(window.google.maps); };
+    const script = document.createElement("script");
+    script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsKey)}&v=weekly&callback=${callback}`;
+    script.async = true;
+    script.onerror = () => reject(new Error("Google Maps failed to load"));
+    document.head.appendChild(script);
+  });
+  return window.__nesamGoogleMapsPromise;
+};
+
 /** A point on the map the admin has chosen. `confirmed` is true once they press "Confirm location". */
 export interface PickedPoint extends LatLng {
   name: string;
@@ -39,6 +56,8 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
   const mapEl = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
+  const googleMapRef = useRef<any>(null);
+  const googleMarkerRef = useRef<any>(null);
   const valueRef = useRef(value);
   valueRef.current = value;
   const onChangeRef = useRef(onChange);
@@ -53,6 +72,7 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
   const [searchError, setSearchError] = useState<string | null>(null);
   const [resolving, setResolving] = useState(false);
   const [open, setOpen] = useState(false);
+  const [googleFailed, setGoogleFailed] = useState(false);
 
   /** Move the marker, then look up the address for where it landed. */
   const place = useCallback(async (p: LatLng, known?: { name: string; address: string; type: "airport" | "other" }, pan = false) => {
@@ -62,7 +82,9 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
     }
     setSearchError(null);
     markerRef.current?.setLatLng([p.lat, p.lng]);
-    if (pan) mapRef.current?.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 16));
+    if (pan && mapRef.current) mapRef.current.setView([p.lat, p.lng], Math.max(mapRef.current.getZoom(), 16));
+    if (googleMarkerRef.current) { googleMarkerRef.current.setPosition(p); googleMarkerRef.current.setVisible(true); }
+    if (pan && googleMapRef.current) { googleMapRef.current.setCenter(p); googleMapRef.current.setZoom(Math.max(googleMapRef.current.getZoom() ?? 0, 16)); }
     if (known) {
       onChangeRef.current({ ...p, ...known, confirmed: false });
       return;
@@ -85,8 +107,21 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
 
   // Create the map once.
   useEffect(() => {
-    if (!mapEl.current || mapRef.current) return;
+    if (!mapEl.current || mapRef.current || googleMapRef.current) return;
     const start = valueRef.current ?? startNear ?? DEFAULT_CENTER;
+    if (googleMapsKey && !googleFailed) {
+      let alive = true;
+      loadGoogleMaps().then((maps) => {
+        if (!alive || !mapEl.current) return;
+        const map = new maps.Map(mapEl.current, { center: start, zoom: valueRef.current ? 16 : startNear ? 12 : 7, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false });
+        const marker = new maps.Marker({ map, position: start, draggable: !disabledRef.current, visible: Boolean(valueRef.current), icon: { path: maps.SymbolPath.CIRCLE, fillColor: tone === "pickup" ? "#16a34a" : "#e8344c", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 3, scale: 10 } });
+        marker.addListener("dragend", () => { if (disabledRef.current) return; const p = marker.getPosition(); void place({ lat: p.lat(), lng: p.lng() }); });
+        map.addListener("click", (e: any) => { if (disabledRef.current || !e.latLng) return; marker.setVisible(true); void place({ lat: e.latLng.lat(), lng: e.latLng.lng() }); });
+        googleMapRef.current = map;
+        googleMarkerRef.current = marker;
+      }).catch(() => { if (alive) { setSearchError("Google Maps could not load. Using the fallback map."); setGoogleFailed(true); } });
+      return () => { alive = false; googleMarkerRef.current?.setMap(null); googleMarkerRef.current = null; googleMapRef.current = null; geoAbort.current?.abort(); };
+    }
     const map = L.map(mapEl.current, { zoomControl: true, attributionControl: true, maxBounds: [[5, 66], [37, 99]], minZoom: 4 }).setView([start.lat, start.lng], valueRef.current ? 16 : startNear ? 12 : 7);
     L.tileLayer(MAP_TILE_URL, { attribution: MAP_ATTRIBUTION, maxZoom: 19 }).addTo(map);
     const marker = L.marker([start.lat, start.lng], { draggable: true, icon: pinIcon(tone), opacity: valueRef.current ? 1 : 0 }).addTo(map);
@@ -111,12 +146,19 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
       markerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [googleFailed]);
 
   // Reflect a value set from outside (a saved location was chosen, or the form was reset).
   useEffect(() => {
     const m = markerRef.current;
     const map = mapRef.current;
+    const gm = googleMarkerRef.current;
+    const gmap = googleMapRef.current;
+    if (gm && gmap) {
+      if (value) { gm.setPosition(value); gm.setVisible(true); gmap.setCenter(value); gmap.setZoom(Math.max(gmap.getZoom() ?? 0, 16)); }
+      else gm.setVisible(false);
+      return;
+    }
     if (!m || !map) return;
     if (value) {
       const cur = m.getLatLng();
@@ -161,6 +203,7 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
     setResults([]);
     setOpen(false);
     markerRef.current?.setOpacity(1);
+    googleMarkerRef.current?.setVisible(true);
     void place({ lat: r.lat, lng: r.lng }, { name: r.name, address: r.address, type: r.type }, true);
   };
 

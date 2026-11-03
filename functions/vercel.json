@@ -37,6 +37,18 @@
         {
           "key": "Cache-Control",
           "value": "no-store"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "POST, GET, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Authorization, Content-Type, X-Client-Request-Id, x-client-request-id"
+        },
+        {
+          "key": "Access-Control-Max-Age",
+          "value": "600"
         }
       ]
     }

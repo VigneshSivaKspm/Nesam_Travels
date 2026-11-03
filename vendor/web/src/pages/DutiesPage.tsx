@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { GoogleMapPreview } from '../../../../user/web/src/components/GoogleMapPreview';
 import type { BidProposal, FleetDriver, FleetVehicle, OpenTrip, VendorTrip } from '../types';
 import { canDispatch, isCompleted, isLive, isUpcoming, usePartner } from '../state/Partner';
 import { dispatchableDriver, dispatchableVehicle } from '../services/vendorMappers';
@@ -594,6 +595,7 @@ const DutyDetailsDialog: React.FC<{
               </div>
             </div>
           </div>
+          <GoogleMapPreview pickup={{ lat: trip.pickupLat, lng: trip.pickupLng, label: trip.pickupAddress }} drop={{ lat: trip.dropLat, lng: trip.dropLng, label: trip.dropAddress }} height={200} />
         </div>
 
         {trip.driverId && (

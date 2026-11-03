@@ -56,7 +56,10 @@ export function applyCors(req: IncomingMessage, res: ApiResponse): void {
   if (origin && originAllowed(origin, list)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Client-Request-Id');
+    // Include both casing variants — browsers normalise to lowercase but some CDN/proxy
+    // layers do a case-sensitive header comparison during preflight.
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Client-Request-Id, x-client-request-id');
+    res.setHeader('Access-Control-Expose-Headers', 'X-Request-Id');
     res.setHeader('Access-Control-Max-Age', '600');
   }
 }
