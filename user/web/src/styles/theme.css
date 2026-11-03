@@ -1920,3 +1920,96 @@ h2,
     right: 10px;
   }
 }
+
+/* Desktop form card: wider, larger text, and the four services in one row (icon above, name below). */
+@media (min-width: 1000px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr) 540px;
+  }
+  .home-hero > .bf {
+    justify-self: end;
+    width: 100%;
+    max-width: 540px;
+    margin: 0;
+    padding: 22px;
+  }
+  .home-hero > .bf .bf-services {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 4px;
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--brand, var(--red)) 9%, #fff);
+    box-shadow: none;
+  }
+  .home-hero > .bf .bf-service {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    min-height: 64px;
+    padding: 7px 4px 6px;
+    border: 0;
+    border-radius: 13px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .home-hero > .bf .bf-service > span:not(.bf-service__icon) {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .home-hero > .bf .bf-service__icon {
+    width: 30px;
+    height: 30px;
+    margin: 0;
+    border-radius: 10px;
+    background: #fff;
+    color: var(--brand, var(--red));
+  }
+  .home-hero > .bf .bf-service.is-active {
+    background: var(--brand, var(--red));
+    color: #fff;
+  }
+  .home-hero > .bf .bf-service.is-active .bf-service__icon {
+    background: rgb(255 255 255 / 0.2);
+    color: #fff;
+  }
+  .home-hero > .bf .bf-journey.tabs .tab {
+    min-height: 50px;
+    font-size: 1.25rem;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-field {
+    min-height: 74px;
+    padding: 11px 18px 11px 20px;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-label,
+  .home-hero > .bf .bf-form .bf-label--out {
+    font-size: 0.875rem;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-trigger {
+    font-size: 1.3125rem;
+  }
+  .home-hero > .bf .bf-form .bf-route::before {
+    top: 37px;
+    bottom: 37px;
+  }
+  .home-hero > .bf .bf-datewrap .bf-input,
+  .home-hero > .bf .bf-form .bf-row .bf-time {
+    min-height: 56px;
+    font-size: 1.1875rem;
+  }
+  .home-hero > .bf .bf-chip {
+    font-size: 0.75rem;
+  }
+  .home-hero > .bf .bf-submit {
+    min-height: 58px;
+    font-size: 1.25rem;
+  }
+}
