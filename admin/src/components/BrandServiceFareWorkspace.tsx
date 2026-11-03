@@ -896,8 +896,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
         {(selectedService === "One Way" || selectedService === "Round Trip") && (
           <FareGroup title="CNG vehicles" hint="Optional. Fill all four rate boxes to offer CNG." defaultOpen={[form.cngCustomerRate, form.cngCustomerBata, form.cngPartnerRate, form.cngPartnerBata, form.cngExtraKmRate].some((v) => v.trim() !== "")}>
             <p className="text-[12px] text-muted">
-              Optional. Fill the customer rate, customer allowance, partner rate and partner allowance to offer a CNG option for this cab type; customers then pick CNG or Diesel on the vehicle card. Leave them blank for no CNG option. The extra kilometre charge falls back to the CNG customer rate.
-            </p>
+              Customers then choose CNG or Diesel on the vehicle card. Leave all boxes blank for no CNG option. The extra km price falls back to the CNG price per km.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <RateField
               label="CNG price per km"

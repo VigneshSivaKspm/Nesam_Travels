@@ -1171,3 +1171,12 @@ html { scroll-padding-top: 96px; }
 .fs-shell, .fs-main, .fs-nav { overflow-anchor: auto; }
 .fs-main > * { min-width: 0; }
 .fs-pill, .fs-nav__item, .ds-btn { -webkit-tap-highlight-color: transparent; }
+
+/* Inside a group, a block of fields takes the whole row and lays its boxes out evenly. */
+.ds-fare-group__body > .grid {
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+}
+.ds-fare-group__body > p {
+  max-width: 70ch;
+}

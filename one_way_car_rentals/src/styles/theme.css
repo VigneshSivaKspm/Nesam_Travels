@@ -1613,3 +1613,13 @@ html[data-hero-logo='in'] .topbar .brand {
     font-size: 1.25rem;
   }
 }
+
+/* Local Rental has a single place field and no dotted line: the green dot sits inside the card, before the text. */
+.bf .bf-form .bf-route.bf-route--single .bf-pin {
+  position: relative;
+  top: auto;
+  left: auto;
+  flex: none;
+  margin: 0 6px 0 4px;
+  translate: none;
+}
