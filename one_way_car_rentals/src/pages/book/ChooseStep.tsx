@@ -71,9 +71,6 @@ export function ChooseStep() {
                   <BackButton to="/book" />
                   <h1 className="trip-sum__title">Choose your vehicle</h1>
                 </div>
-                <Link to="/book" className="link-btn">
-                  <Icon name="edit" size={14} /> Edit
-                </Link>
               </div>
               <p className="route-title">
                 <span>{pickup.name}</span>

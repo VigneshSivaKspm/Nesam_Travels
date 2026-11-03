@@ -1,6 +1,6 @@
 // Step 2 — choose your cab: every vehicle category priced with the server's authoritative fare.
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { RideCategory } from '@core/types';
 import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
@@ -66,9 +66,6 @@ export function ChooseStep() {
                   <BackButton to="/book" />
                   <h1 className="trip-sum__title">Choose your vehicle</h1>
                 </div>
-                <Link to="/book" className="btn-edit-trip" title="Modify route or schedule">
-                  <Icon name="edit" size={14} /> Edit
-                </Link>
               </div>
               <p className="route-title">
                 <span>{pickup.name}</span>

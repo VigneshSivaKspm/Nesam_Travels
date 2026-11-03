@@ -7,6 +7,7 @@ import { formatDate, formatTime } from '@core/utils/format';
 import { Button, Dialog, LinkButton, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import type { TripRecord, TripType } from '@core/types';
+import { SuccessBurst } from '../../../../user/web/src/components/SuccessBurst';
 
 function JourneyArt({ done }: { done: boolean }) {
   return (
@@ -131,7 +132,7 @@ export function DonePage() {
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">
-            <JourneyArt done={h.tone === 'ok'} />
+            {h.tone === 'bad' ? <JourneyArt done={false} /> : <SuccessBurst label={h.title} />}
             <h1>{h.title}</h1>
             <p>{h.text}</p>
             <p className="done__saved">

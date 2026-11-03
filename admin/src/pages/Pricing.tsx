@@ -297,10 +297,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
 
       {tab !== "Brand & service fares" && tab !== "GST calculation" && (
         <section className="ds-panel ds-panel-pad mb-5">
-          <span className="ds-eyebrow">LOCATION</span>
-          <h2 className="text-[17px] font-bold text-ink" style={{ fontFamily: "var(--font-display)" }}>Which location are you managing?</h2>
-          <Ta>எந்த இடத்திற்கான setting?</Ta>
-          <div className="ds-filterbar mt-3">
+          <div className="ds-filterbar">
             <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}{otherStates.map(state => <option key={state} value={state}>{state}</option>)}</select></label>
             <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} disabled={locationsLoaded && !cities.length} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">{locationsLoaded && !cities.length ? "No cities listed for this state" : "All cities"}</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
             <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} disabled={locationsLoaded && !areas.length} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">{locationsLoaded && !areas.length ? (sel.city ? "No zones listed for this city" : "Choose a city first") : "All areas"}</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
@@ -310,18 +307,11 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
             // The city and area lists come only from the saved locations (Office → Locations).
             : !locations.length ? (
               <div className="ds-note mt-3 flex flex-wrap items-center justify-between gap-3" role="status">
-                <span>Showing the built-in list of cities and zones. Add your own cities, areas and zones in Locations and they appear here straight away.</span>
+                <span>These are the built-in cities and zones. Add your own in Locations and they show here.</span>
                 <Button size="sm" variant="primary" icon="map-pin" onClick={() => onNavigate("locations")}>Open Locations</Button>
               </div>
             )
-            : <p className="text-[11px] text-muted mt-3">Built-in cities and zones plus your saved locations (including inactive ones) are listed. {cities.length} {cities.length === 1 ? "city" : "cities"} · {areas.length} {areas.length === 1 ? "area / zone" : "areas / zones"} match this selection.</p>}
-          <p className="text-[11px] text-faint">Existing confirmed fares and accepted partner payouts are retained.</p>
-          <div className="ds-kpi-grid mt-4" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", marginBottom: 0 }}>
-            <div className="ds-kpi"><span className="ds-kpi-label">Booking controls</span><span className="text-[14px] font-semibold text-ink">{activeOf("availability")[0]?.availability ?? "Available by default"}</span><span className="ds-kpi-note">{activeOf("availability").length ? activeOf("availability")[0].name : "No active availability restriction"}</span></div>
-            <div className="ds-kpi"><span className="ds-kpi-label">Configured cabs</span><span className="text-[14px] font-semibold text-ink">{activeOf("categories")[0]?.categories?.join(", ") || "All active cab types"}</span><span className="ds-kpi-note">{activeOf("categories").length} active category rule{activeOf("categories").length === 1 ? "" : "s"}</span></div>
-            <div className="ds-kpi"><span className="ds-kpi-label">Scheduled Pricing</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing").length} active</span><span className="ds-kpi-note">{scoped.filter((r) => r.kind === "pricing" && phaseOf(r) === "Scheduled").length} scheduled</span></div>
-          </div>
-          <p className="text-[11px] text-muted mt-3">Rules active now · IST · {where}. Exact availability and fare depend on the route, cab type and pickup time.</p>
+            : null}
         </section>
       )}
 

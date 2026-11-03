@@ -2,7 +2,7 @@
 // exact trip; while the server is answering, the cards wait (no invented prices). Filters and
 // sorting only change what is shown, never the fare.
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { RideCategory } from '@core/types';
 import { quotedInclusionLine } from '@core/utils/bookingRules';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
@@ -79,9 +79,6 @@ export function ChooseStep() {
                   <BackButton to="/book" />
                   <h1 className="trip-sum__title">Choose your cab</h1>
                 </div>
-                <Link to="/book" className="link-btn">
-                  <Icon name="edit" size={14} /> Edit
-                </Link>
               </div>
               <p className="route-title">
                 <span>{pickup.name}</span>

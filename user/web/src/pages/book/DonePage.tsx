@@ -12,6 +12,7 @@ import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
 import { useBooking } from '@/state/Booking';
 import { tripTypeLabel } from '@/lib/services';
+import { SuccessBurst } from '@/components/SuccessBurst';
 
 function headline(t: TripRecord): { title: string; text: string; tone: 'pending' | 'ok' | 'bad' } {
   if (t.status === 'Rejected') return { title: 'Booking not accepted', text: 'NESAM could not accept this booking request. Nothing has been charged.', tone: 'bad' };
@@ -111,7 +112,7 @@ export function DonePage() {
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">
-            <JourneyArt done={h.tone === 'ok'} />
+            {h.tone === 'bad' ? <JourneyArt done={false} /> : <SuccessBurst label={h.title} />}
             <h1>{h.title}</h1>
             <p>{pending ? 'Sending your request…' : h.text}</p>
             <p className="done__saved">
