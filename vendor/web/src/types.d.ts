@@ -126,10 +126,10 @@ export interface VendorTrip {
   customerPhoneMasked?: string;
   pickupAddress: string;
   dropAddress: string;
-  pickupLat: number | null;
-  pickupLng: number | null;
-  dropLat: number | null;
-  dropLng: number | null;
+  pickupLat?: number | null;
+  pickupLng?: number | null;
+  dropLat?: number | null;
+  dropLng?: number | null;
   scheduledTime: string;
   vehicleId: string;
   vehicleNumber: string;

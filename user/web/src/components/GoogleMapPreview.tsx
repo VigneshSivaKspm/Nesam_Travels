@@ -33,7 +33,7 @@ export function GoogleMapPreview({ pickup, drop, height = 190 }: { pickup?: Goog
       const first = valid(pickup) ? pickup : drop as Required<Pick<GoogleMapPoint, 'lat' | 'lng'>>;
       const map = new maps.Map(host.current, { center: first, zoom: 13, mapTypeControl: false, streetViewControl: false, fullscreenControl: false, clickableIcons: false, gestureHandling: 'cooperative' });
       const bounds = new maps.LatLngBounds();
-      const add = (p: GoogleMapPoint, color: string, fallback: string) => {
+      const add = (p: GoogleMapPoint | null | undefined, color: string, fallback: string) => {
         if (!valid(p)) return;
         bounds.extend(p);
         overlays.push(new maps.Marker({ map, position: p, title: p.label || fallback, icon: { path: maps.SymbolPath.CIRCLE, fillColor: color, fillOpacity: 1, strokeColor: '#fff', strokeWeight: 3, scale: 9 } }));
