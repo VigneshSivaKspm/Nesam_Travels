@@ -14,7 +14,7 @@ import { db } from './admin';
 import { auditInTx } from './audit';
 import { DutyClass, dutyClassOf } from './domain/eligibility';
 import { buildFareBreakup, buildTariffFareBreakup, FareBreakup, withExtraChargeLines } from './domain/fareBreakup';
-import { extraChargesSnapshot } from './domain/extraCharges';
+import { scopedExtraChargesSnapshot } from './domain/scopedExtraCharges';
 import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, serviceName } from './domain/pricing';
 import {
   CONFIRMED_TARIFF_V2, FixedRouteFare, completeAirportRates, defaultRentalHours, quoteAirport, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
@@ -140,34 +140,7 @@ export function priceBooking(i: PriceInput): PriceResult {
     const outstation = ['rental_package', 'local_pickup_drop', 'airport_transfer'].includes(r.pricing.model) ? false : r.outstation;
     r.breakup = r.pricing.source === 'tariff_v2' ? buildTariffFareBreakup(i.category, r.fare, outstation, r.pricing) : buildFareBreakup(i.category, r.fare, outstation);
   }
-  const klass = tariffClassOf(i.category);
-  const serviceKey = fareServiceKey(i.tripType);
-  const shared = klass ? i.tariff?.brandOverrides?.common?.[serviceKey]?.[klass] : undefined;
-  const branded = klass && i.brand ? i.tariff?.brandOverrides?.[i.brand]?.[serviceKey]?.[klass] : undefined;
-  const ov = { ...shared, ...branded };
-  const cfg = i.tariff?.extraCharges;
-  const baseRow = cfg?.categories[i.category.id];
-  const hasScopedExtras = ['waitingPerHour','hillCharge','carrierCharge','partnerWaitingPerHour','partnerHillCharge','partnerCarrierCharge','freeWaitingMinutes','waitingRoundingMinutes','waitingRoundingScope','taxTreatment'].some(key => ov[key as keyof typeof ov] !== undefined);
-  const effectiveExtras = hasScopedExtras ? {
-    ...cfg, version: cfg?.version ?? 0,
-    ...(ov.freeWaitingMinutes !== undefined ? { freeWaitingMinutes: ov.freeWaitingMinutes } : {}),
-    ...(ov.waitingRoundingMinutes !== undefined ? { waitingRoundingMinutes: ov.waitingRoundingMinutes } : {}),
-    ...(ov.waitingRoundingScope !== undefined ? { waitingRoundingScope: ov.waitingRoundingScope } : {}),
-    ...(ov.taxTreatment !== undefined ? { taxTreatment: ov.taxTreatment } : {}),
-    categories: { ...cfg?.categories, [i.category.id]: {
-      customer: { ...baseRow?.customer,
-        ...(ov.waitingPerHour !== undefined ? { waitingPerHour: ov.waitingPerHour } : {}),
-        ...(ov.hillCharge !== undefined ? { hill: ov.hillCharge } : {}),
-        ...(ov.carrierCharge !== undefined ? { carrier: ov.carrierCharge } : {}),
-      }, partner: { ...baseRow?.partner,
-        ...(ov.partnerWaitingPerHour !== undefined ? { waitingPerHour: ov.partnerWaitingPerHour } : {}),
-        ...(ov.partnerHillCharge !== undefined ? { hill: ov.partnerHillCharge } : {}),
-        ...(ov.partnerCarrierCharge !== undefined ? { carrier: ov.partnerCarrierCharge } : {}),
-      },
-    } },
-  } : cfg;
-  // Unconfigured timing/tax policies stay null in the snapshot and require review; never invent them.
-  const extra = extraChargesSnapshot(effectiveExtras, i.tariff?.version ?? 0, i.category.id);
+  const extra = scopedExtraChargesSnapshot(i.tariff, i.brand, i.tripType, tariffClassOf(i.category), i.category.id);
   return extra ? { ...r, pricing: { ...r.pricing, extraCharges: extra }, breakup: withExtraChargeLines(r.breakup, extra) } : r;
 }
 
@@ -420,6 +393,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   if (!uid && rateLimited(`quote:${requestIp(request)}`, 30)) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment.');
   const input = request.data ?? {};
   const brand = resolveAndValidateBrand(input, request);
+  if (input.tripType === 'Multicity') throw new HttpsError('failed-precondition', 'Plan Multicity through the itinerary enquiry and travel-desk quote flow.');
   const [pickup, drop] = await Promise.all([trustedCustomerPlace(placeOf(input.pickup, 'pickup'), input.pickup?.id), trustedCustomerPlace(placeOf(input.drop, 'drop'), input.drop?.id)]);
   const tripType: TripType =
     input.tripType === 'Round Trip'
@@ -522,3 +496,4 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
     quotes,
   };
 });
+

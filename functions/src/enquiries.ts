@@ -4,8 +4,10 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { FieldValue, Timestamp } from 'firebase-admin/firestore';
 import { db } from './admin';
 import { approved, inIndia, requireAction, requirePermission, routeFor, text } from './shared';
-import { loadTariffConfig, tariffClassOf } from './quote';
-import { calendarDays, multicityRatesFor, quoteMulticity } from './domain/tariff';
+import { loadTariffConfig, tariffClassOf, trustedCustomerPlace } from './quote';
+import { calendarDays, finalizeFare, multicityRatesFor, quoteMulticity } from './domain/tariff';
+import { adjustPartner, assertBookable, assertWithinLimits, evaluateRules, loadServiceRules } from './serviceRules';
+import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { GeoPlace } from './domain/types';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
@@ -13,8 +15,8 @@ import { createHash } from 'crypto';
 import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
 import { fareGstForScope } from './fareGstPricing';
 import { multicityBookingAmounts, multicityFingerprint } from './domain/multicitySnapshot';
-import { extraChargesSnapshot } from './domain/extraCharges';
-import { scopedTariffForBrand } from './domain/tariff';
+import { scopedExtraChargesSnapshot } from './domain/scopedExtraCharges';
+
 import { canSeePayouts } from './staffReads';
 
 export interface MulticityStop {
@@ -384,7 +386,7 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
 
   const rawPoints = [e.pickupPoint, ...(e.stops ?? []), e.dropPoint];
   if (rawPoints.length < 3 || rawPoints.some((p: any) => !p || !inIndia(p.lat, p.lng))) throw new HttpsError('failed-precondition', 'Every itinerary stop needs a valid map position. Review the route before pricing.');
-  const points: GeoPlace[] = rawPoints.map((p: any) => ({ id: text(p.id, 80) || 'pin', name: text(p.name, 120), address: text(p.address), lat: p.lat, lng: p.lng, type: 'other' as const }));
+  const points: GeoPlace[] = await Promise.all(rawPoints.map((p: any) => trustedCustomerPlace({ id: text(p.id, 80) || 'pin', name: text(p.name, 120), address: text(p.address), lat: p.lat, lng: p.lng, type: 'other' as const }, p.id)));
   const legs = await Promise.all(points.slice(1).map((p, n) => routeFor(points[n], p)));
   const totalKm = legs.reduce((s, l) => s + l.distanceKm, 0);
   const pickupMs = e.pickupAt?.toMillis?.();
@@ -392,6 +394,12 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   const endMs = e.tripEndAt?.toMillis?.() ?? pickupMs;
   const days = calendarDays(pickupMs, endMs);
   if (days === null) throw new HttpsError('failed-precondition', 'The tour end must be on or after pickup and within the supported tour duration.');
+  const [serviceRules, globalAdjustment] = await Promise.all([loadServiceRules(), loadFareAdjustment()]);
+  const when = new Date(pickupMs);
+  // Availability and category restrictions apply to every leg. Select the most specific
+  // itinerary pricing rule once, so visiting several stops never compounds a percentage.
+  for (let n = 1; n < points.length; n++) assertBookable(evaluateRules(serviceRules, points[n - 1], points[n], when, 'Multicity', brand, 'Multicity'), cat.name);
+  const rules = evaluateRules(serviceRules, points[0], points[points.length - 1], when, 'Multicity', brand, 'Multicity', points);
 
   const verifiedPickup = { ...points[0], id: text(input.pickupLocationId, 150) || points[0].id };
   const boardingState = await fareBoardingState(tariff, verifiedPickup);
@@ -400,7 +408,16 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   const q = quoteMulticity({ rates, totalKm, days, gstRate: tax ? tax.rate : tariff.gstRate, gstIncluded: tax?.mode === 'included' });
   const durationMin = legs.reduce((sum, leg) => sum + leg.durationMin, 0);
   const amounts = multicityBookingAmounts(q, { tariffVersion: tariff.version, tariffClass: cls, brand, pickupMs, endMs, durationMin, gst: tax });
-  const extras = extraChargesSnapshot(scopedTariffForBrand(tariff, brand, 'Multicity', cls).extraCharges, tariff.version, categoryId);
+  const adjustment = rules.customer ?? effectiveAdjustment(globalAdjustment, new Date());
+  if (adjustment) {
+    amounts.pricing.adjustmentPercent = adjustment.percent;
+    amounts.pricing.adjustmentDirection = adjustment.direction;
+    amounts.fare = { ...finalizeFare({ pricing: amounts.pricing, totalKm, endMs }).fare, durationMin };
+    if (amounts.fare.globalAdjustment) amounts.fare.globalAdjustment = { ...amounts.fare.globalAdjustment, id: adjustment.id, name: adjustment.name };
+  }
+  amounts.pricing = adjustPartner(amounts.pricing, rules);
+  assertWithinLimits(rules, { categoryName: cat.name, customerFare: amounts.fare.total, partnerPayout: amounts.pricing.partner ? amounts.pricing.partner.basePaise / 100 : null });
+  const extras = scopedExtraChargesSnapshot(tariff, brand, 'Multicity', cls, categoryId);
   if (extras) amounts.pricing.extraCharges = extras;
   const rs = (p: number) => Math.round(p) / 100;
   const pct = Math.round(q.gstRate * 10000) / 100;
@@ -409,9 +426,11 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
     { label: `Driver bata: ₹${rates.customerBata} × ${days} day${days === 1 ? '' : 's'}`, amount: rs(q.bataPaise) },
     { label: q.gstIncluded ? `GST (${pct}%), already included in the fare above` : `GST (${pct}%), added on top`, amount: rs(q.gstPaise) },
   ];
+  if (amounts.fare.globalAdjustment) breakup.splice(2, 0, { label: amounts.fare.globalAdjustment.name, amount: amounts.fare.globalAdjustment.amount });
+  breakup[breakup.length - 1].amount = amounts.fare.gst;
   const result = {
-    estimate: rs(q.totalPaise), breakup, gstRate: q.gstRate, gstIncluded: q.gstIncluded, includedKm: q.billableKm, extraKmRate: rates.extraKmRate,
-    days, totalKm: q.totalKm, categoryId, vehicle: text(cat.name, 100), payout: canSeePayouts(actor) ? rs(q.partnerPaise) : null,
+    estimate: amounts.fare.total, breakup, gstRate: q.gstRate, gstIncluded: q.gstIncluded, includedKm: q.billableKm, extraKmRate: rates.extraKmRate,
+    days, totalKm: q.totalKm, categoryId, vehicle: text(cat.name, 100), payout: canSeePayouts(actor) && amounts.pricing.partner ? rs(amounts.pricing.partner.basePaise) : null,
   };
   if (!save) return result;
   const validUntil = Timestamp.fromMillis(Date.now() + validDays * 86400000);
@@ -423,7 +442,7 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
     if (multicityFingerprint(now.data()!) !== fingerprint) throw new HttpsError('failed-precondition', 'The itinerary changed while pricing. Calculate it again.');
     const status = 'Draft';
     tx.create(privateQuote, { enquiryId, fingerprint, categoryId, brand, customerId: e.customerId || '', validUntil, pickupAt: e.pickupAt, tripEndAt: e.tripEndAt || e.pickupAt,
-      points: rawPoints, stops: e.stops || [], ...amounts, breakup, estimate: result.estimate, createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid });
+      points, stops: e.stops || [], ...amounts, breakup, estimate: result.estimate, createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid });
     tx.update(ref, {
       ...result, payout: FieldValue.delete(), status, validUntil, quoteRevision: privateQuote.id, acceptedQuoteRevision: FieldValue.delete(), acceptedAt: FieldValue.delete(), customerAcceptedEstimate: FieldValue.delete(), quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
       multicityPricing: { tariffVersion: tariff.version, tariffClass: cls, brand, legsKm: legs.map((l) => Math.round(l.distanceKm * 10) / 10) },
@@ -432,3 +451,4 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   });
   return { ...result, saved: true, validUntil: validUntil.toDate().toISOString() };
 });
+

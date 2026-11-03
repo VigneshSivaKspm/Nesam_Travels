@@ -46,6 +46,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (existing.data()!.customerId !== uid) throw new HttpsError('permission-denied', 'Request already used.');
     return { id: requestId, fare: existing.data()!.fare };
   }
+  if (input.tripType === 'Multicity') throw new HttpsError('failed-precondition', 'Book Multicity through an agreed itinerary quote. A direct One Way booking cannot preserve its stops.');
   // Customers must have accepted the current published Terms & Privacy Policy (none published → no block).
   await assertCashAllowed(input.paymentMethod);
   await assertLegalAccepted(uid, 'customer');

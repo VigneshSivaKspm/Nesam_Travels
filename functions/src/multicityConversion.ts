@@ -14,7 +14,7 @@ import { summarizePayments } from './domain/bookingFlow';
 import { assertCashAllowed } from './channelPolicy';
 import { formatDate, formatTime12 } from './domain/time';
 import { dutyClassOf } from './domain/eligibility';
-import { assertBookable, assertWithinLimits, evaluateRules, loadServiceRules } from './serviceRules';
+import { assertBookable, assertWithinLimits, availabilityFields, evaluateRules, loadServiceRules } from './serviceRules';
 import { mailNewBooking } from './commerce';
 import type { PricingSnapshot } from './domain/tariff';
 import { notifyInTx, pushAfterCommit, type NotifyInput } from './notify';
@@ -52,6 +52,8 @@ export const convertMulticityEnquiry = onCall(async request => {
     ]);
     const cat = category.data();
     if (!cat || cat.status !== 'Active' || cat.adminBookingEnabled === false) throw new HttpsError('failed-precondition', 'The quoted vehicle category is no longer bookable.');
+    const seats = cat.seats ?? cat.seatingCapacity;
+    if (!Number.isInteger(seats) || seats < 1) throw new HttpsError('failed-precondition', 'Set the quoted vehicle category’s passenger seating capacity before conversion.');
     if (customer && (!customer.exists || !approved(customer.data()!.status))) throw new HttpsError('failed-precondition', 'The customer account is not active.');
     const when = quote.pickupAt.toDate();
     const configuredWindow = bookingWindowFrom(config.data());
@@ -60,9 +62,11 @@ export const convertMulticityEnquiry = onCall(async request => {
     const pricing = quote.pricing as PricingSnapshot;
     if (tariffClassOf(cat) !== pricing.tariffClass) throw new HttpsError('failed-precondition', 'The category mapping changed. Save a fresh quote before conversion.');
     const points = quote.points as Array<{ id: string; name: string; address: string; lat: number; lng: number; type?: string }>;
+    const availability: Record<string, unknown> = {};
     for (let i = 1; i < points.length; i++) {
       const outcome = evaluateRules(rules, points[i - 1] as any, points[i] as any, when, 'Multicity', quote.brand, 'Multicity');
       assertBookable(outcome, cat.name);
+      Object.assign(availability, availabilityFields(outcome));
       assertWithinLimits(outcome, { categoryName: cat.name, customerFare: quote.fare.total, partnerPayout: pricing.partner ? pricing.partner.basePaise / 100 : null });
     }
     // Last read: the booking sequence is advanced together with the booking and enquiry.
@@ -76,13 +80,13 @@ export const convertMulticityEnquiry = onCall(async request => {
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type || 'other', dropSource: 'enquiry_quote',
       // Calendar-tour lifecycle/billing remains compatible with existing Round Trip dispatch and settlement.
       tripType: 'Round Trip', tourType: 'Multicity', service: 'Multicity', serviceId: 'multicity', itinerary: points, stops: quote.stops,
-      vehicle: cat.name, vehicleCategory: cat.name, vehicleCategoryId: quote.categoryId, passengerSeatsRequired: cat.seats,
+      vehicle: cat.name, vehicleCategory: cat.name, vehicleCategoryId: quote.categoryId, passengerSeatsRequired: seats,
       dutyClass: dutyClassOf(cat) || '', tariffClass: pricing.tariffClass || '',
       fare: quote.fare.total, fareBreakdown: quote.fare, fareBreakup: quote.breakup, pricing: publicPricing, fareVerified: true,
       distanceKm: quote.fare.distanceKm, durationMin: quote.fare.durationMin, billableDays: pricing.days,
       scheduledAt: quote.pickupAt, pickupAt: quote.pickupAt, tripEndAt: quote.tripEndAt, endDate: pricing.endDate,
       date: formatDate(when), time: formatTime12(when), rideTiming: 'scheduled', bookingType: 'advance', status: 'Pending', tripSubStatus: 'Not Started',
-      source: quote.brand === 'nesam' ? 'admin' : quote.brand, brand: quote.brand, bookingSource: quote.brand,
+      source: quote.brand === 'nesam' ? 'admin' : quote.brand, brand: quote.brand, bookingSource: quote.brand, ...availability,
       paymentMethod, payment: 'Pending', paymentStatus: paymentSummary.status, paymentSummary: { ...paymentSummary, updatedAt: Timestamp.now() },
       enquiryId, quoteRevision: revision, notes: ['Multicity itinerary: ' + points.map(p => p.name + (p.address !== p.name ? ` (${p.address})` : '')).join(' → '), text(e.note, 1000)].filter(Boolean).join('\n'),
       termsAcceptance: { acceptedBy: 'customer', recordedBy: actor.uid, recordedByName: actor.name, reference, quoteRevision: revision, at: Timestamp.now() },

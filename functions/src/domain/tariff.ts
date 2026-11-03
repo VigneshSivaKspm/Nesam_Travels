@@ -1055,8 +1055,12 @@ export function finalizeFare(i: FinalInput): FinalResult {
     // A rental package or fixed route fare pays the partner its agreed payout.
     partnerPaise = p.partner.basePaise;
   } else if (p.partner) {
-    const partnerKm = Math.max(totalKm, p.model === 'round_trip_calendar' ? p.partner.minKm * days : p.partner.minKm, p.quotedKm && p.model === 'one_way_standard' ? p.quotedKm : 0);
-    partnerPaise = kmAmountPaise(partnerKm, p.partner.ratePaise) + p.partner.bataPaise * days;
+    const quotedPartnerKm = Math.max(p.quotedKm, p.model === 'round_trip_calendar' ? p.partner.minKm * p.partner.days : p.partner.minKm);
+    const partnerKm = Math.max(totalKm, quotedPartnerKm, p.model === 'round_trip_calendar' ? p.partner.minKm * days : p.partner.minKm);
+    // The agreed payout can include a scoped percentage adjustment. Rebuilding it from
+    // rate + unchanged bata would lose that adjustment (and could reduce a shorter tour).
+    // Keep the agreed base and add only usage beyond its saved distance/calendar days.
+    partnerPaise = p.partner.basePaise + kmAmountPaise(partnerKm - quotedPartnerKm, p.partner.ratePaise) + p.partner.bataPaise * Math.max(0, days - p.partner.days);
   }
   const fare: FareBreakdown = {
     subtotalBeforeAdjustment: pre,

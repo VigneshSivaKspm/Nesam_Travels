@@ -52,6 +52,21 @@ test('partner adjustment preserves bata and original booking snapshot', () => {
   assert.equal(original.partner.basePaise, 205500);
 });
 
+test('final billing keeps the scoped partner payout and adds only extra usage', () => {
+  const { CONFIRMED_TARIFF_V2, quoteOneWay, quoteRoundTrip, finalizeFare } = require('../lib/domain/tariff');
+  const pickupMs = Date.parse('2026-11-10T08:00:00+05:30');
+  for (const direction of ['Increase','Decrease']) {
+    const outcome = evaluate([rule({ kind:'pricing', partner:{mode:direction,percent:10} })]);
+    for (const tour of [false,true]) {
+      const q = tour ? quoteRoundTrip({config:CONFIRMED_TARIFF_V2,tariffClass:'sedan',tripType:tour?'Round Trip':'One Way',routeKm:400,durationMin:90,pickupMs,endMs:pickupMs+8*3600000})
+        : quoteOneWay({config:CONFIRMED_TARIFF_V2,tariffClass:'sedan',tripType:tour?'Round Trip':'One Way',routeKm:400,durationMin:90,pickupMs});
+      const pricing=adjustPartner(q.pricing,outcome);
+      for(const totalKm of [pricing.quotedKm-100,pricing.quotedKm]) assert.equal(finalizeFare({pricing,totalKm,endMs:pickupMs+8*3600000}).partnerPaise,pricing.partner.basePaise);
+      assert.equal(finalizeFare({pricing,totalKm:pricing.quotedKm+10,endMs:pickupMs+8*3600000}).partnerPaise,pricing.partner.basePaise+10*pricing.partner.ratePaise);
+    }
+  }
+});
+
 test('local pickup fare uses city minimum without the outstation floor', () => {
   const config = T.parseTariffConfig({ ...T.CONFIRMED_TARIFF_V2, localPickupDrop: { chennai: { cityName: 'Chennai', classes: { sedan: { minKm: 10, customerRate: 20, partnerRate: 15, extraKmRate: 22, waitingPerHour: 60, enabled: true } } } } });
   const q = T.quoteLocalPickupDrop({ config, cityId: 'chennai', tariffClass: 'sedan', routeKm: 5, durationMin: 20, pickupMs: at.getTime(), tripType: 'One Way' });
@@ -82,3 +97,4 @@ test('fixed route honors direction, category, date and explicit peak exclusion',
   assert.equal(q.pricing.partner.basePaise, 80000);
   assert.equal(q.pricing.fixedRouteVersion, 2);
 });
+

@@ -121,8 +121,9 @@ const top = (rules: ServiceRule[]) =>
   [...rules].sort((a, b) => Number(!!b.brand) - Number(!!a.brand) || specificity(b) - specificity(a) || serviceSpecific(b) - serviceSpecific(a) || (b.priority ?? 0) - (a.priority ?? 0) || a.id.localeCompare(b.id))[0] ?? null;
 const adj = (a: ServiceRule['customer']) => (a && a.mode !== 'Normal' && a.percent > 0 && a.percent < 100 ? { direction: (a.mode === 'Increase' ? 'increase' : 'decrease') as 'increase' | 'decrease', percent: a.percent } : null);
 
-export function evaluateRules(rules: ServiceRule[], pickup: GeoPlace, drop: GeoPlace, at: Date, service: string, brand?: string, fareService?: string): RuleOutcome {
-  const hit = rules.filter((r) => (!r.brand || r.brand === brand) && (!r.fareService || r.fareService === fareService) && r.status === 'Enabled' && applies(r, pickup, drop, at, service));
+export function evaluateRules(rules: ServiceRule[], pickup: GeoPlace, drop: GeoPlace, at: Date, service: string, brand?: string, fareService?: string, itinerary?: GeoPlace[]): RuleOutcome {
+  const legs = itinerary && itinerary.length > 1 ? itinerary.slice(1).map((p, n) => [itinerary[n], p]) : [[pickup, drop]];
+  const hit = rules.filter((r) => (!r.brand || r.brand === brand) && (!r.fareService || r.fareService === fareService) && r.status === 'Enabled' && legs.some(([a, b]) => applies(r, a, b, at, service)));
   const av = top(hit.filter((r) => r.kind === 'availability'));
   const cats = top(hit.filter((r) => r.kind === 'categories'));
   const price = top(hit.filter((r) => r.kind === 'pricing'));
