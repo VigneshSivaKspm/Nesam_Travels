@@ -236,15 +236,14 @@ export function BookingForm({
 
   const stopField = (stop: GeoPlace, index: number) => (
     <div className="bf-field bf-stop-field" key={`${stop.id}-${index}`}>
-      <span className="bf-pin bf-pin--drop" aria-hidden="true" />
       <div className="bf-field__main">
         <span className="bf-label" id={`bf-stop-${index}-label`}>Stop {index + 1}</span>
         <button type="button" className="bf-trigger" aria-labelledby={`bf-stop-${index}-label bf-stop-${index}-value`} onClick={() => setStopPicker(index)}>
           <span id={`bf-stop-${index}-value`} className="bf-trigger__text">{stop.name}</span>
         </button>
       </div>
-      <button type="button" className="bf-stop-remove" aria-label={`Remove stop ${index + 1}`} onClick={() => update((d) => ({ stops: d.stops.filter((_, n) => n !== index) }))}>
-        <Icon name="trash-2" size={16} />
+      <button type="button" className="bf-stop-remove" aria-label={`Delete stop ${index + 1}`} title={`Delete stop ${index + 1}`} onClick={() => update((d) => ({ stops: d.stops.filter((_, n) => n !== index) }))}>
+        <Icon name="trash" size={17} />
       </button>
     </div>
   );

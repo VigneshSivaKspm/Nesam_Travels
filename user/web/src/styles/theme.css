@@ -2224,11 +2224,14 @@ h2,
 }
 
 /* Ordered intermediate stops on direct round-trip bookings. */
-.bf .bf-form .bf-route > .bf-stop-field { margin-left: 26px; }
+.bf .bf-form .bf-route > .bf-stop-field { margin-left: 26px; padding-left: 16px; }
+.bf .bf-form .bf-stop-field .bf-field__main { min-width: 0; }
 .bf .bf-form .bf-stop-field .bf-stop-remove {
-  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
-  border: 0; background: transparent; color: var(--muted, #697587); cursor: pointer;
+  display: grid; place-items: center; flex: 0 0 36px; width: 36px; height: 36px; padding: 0;
+  border: 1px solid color-mix(in srgb, var(--danger, #d92d20) 30%, transparent); border-radius: 50%;
+  background: color-mix(in srgb, var(--danger, #d92d20) 6%, white); color: var(--danger, #d92d20); cursor: pointer;
 }
+.bf .bf-form .bf-stop-field .bf-stop-remove:hover { background: color-mix(in srgb, var(--danger, #d92d20) 12%, white); }
 .bf .bf-form .bf-round-stop-add {
   min-height: 46px; margin-left: 26px; border: 1px dashed var(--bfx, #2563eb); border-radius: 18px;
   background: color-mix(in srgb, var(--bfx, #2563eb) 5%, white); color: var(--ink, #20252d);
