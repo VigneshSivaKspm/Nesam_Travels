@@ -1164,3 +1164,10 @@ html {
   border-color: var(--color-line);
   border-radius: 10px;
 }
+
+/* Keep the page still: focusing or clicking a control never scrolls it under the fixed top bar, and nothing is nudged. */
+html { scroll-padding-top: 96px; }
+.fs-nav__item, .fs-pill, .ds-fare-group > summary { scroll-margin-top: 100px; }
+.fs-shell, .fs-main, .fs-nav { overflow-anchor: auto; }
+.fs-main > * { min-width: 0; }
+.fs-pill, .fs-nav__item, .ds-btn { -webkit-tap-highlight-color: transparent; }

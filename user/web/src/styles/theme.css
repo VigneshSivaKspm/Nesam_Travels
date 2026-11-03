@@ -1835,3 +1835,88 @@ h2,
   right: 14px;
   translate: 0 -50%;
 }
+
+/* ── Booking form on wide screens: two even columns ──────────────────────────────────────────────────────────
+   When the card is wide, pickup and drop sit side by side with the swap button between them, and the date and time
+   sit directly under them, so every edge lines up. Narrow cards (phones, NESAM's side card) keep the stacked form. */
+.bf.bf {
+  container-type: inline-size;
+}
+@container (min-width: 760px) {
+  .bf .bf-form .bf-route {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 16px;
+    padding-left: 0;
+  }
+  .bf .bf-form .bf-route::before {
+    display: none;
+  }
+  .bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+    margin-left: 0;
+  }
+  .bf .bf-form .bf-route.bf-route--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The start dot and the drop pin sit inside their cards, before the text. */
+  .bf .bf-form .bf-route .bf-pin {
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: none;
+    margin-right: 6px;
+    translate: none;
+  }
+  .bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+    margin-right: 8px;
+    rotate: -45deg;
+  }
+  /* Swap: centred on the gap between the two cards. */
+  .bf .bf-form .bf-route .bf-swap {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    z-index: 3;
+    margin: 0;
+    transform: translate(-50%, -50%) !important;
+  }
+  .bf .bf-form .bf-route .bf-swap svg {
+    rotate: 90deg;
+  }
+  .bf .bf-form .bf-row {
+    gap: 16px;
+  }
+}
+
+/* Phones: the date and time boxes share the row evenly and never overlap; the icons stay inside the boxes. */
+.bf .bf-form .bf-row > .bf-cell,
+.bf .bf-datewrap {
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .bf .bf-datewrap .bf-input {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 10px 36px;
+    font-size: 0.9375rem;
+    letter-spacing: 0;
+  }
+  .bf .bf-datewrap::after {
+    right: 10px;
+    width: 22px;
+    height: 22px;
+  }
+  .bf .bf-form .bf-row .bf-time {
+    min-width: 0;
+    padding-inline: 10px 36px;
+    font-size: 0.9375rem;
+  }
+  .bf .bf-form .bf-row .bf-time svg {
+    right: 10px;
+    width: 22px;
+    height: 22px;
+  }
+  .bf .bf-chip {
+    right: 10px;
+  }
+}

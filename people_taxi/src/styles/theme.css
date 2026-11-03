@@ -1943,3 +1943,279 @@ html[data-hero-logo='in'] .topbar .brand {
   right: 14px;
   translate: 0 -50%;
 }
+
+/* Desktop hero: let the photo show. The pale wash is much lighter now, so the sea and hills keep their colour. */
+@media (min-width: 768px) {
+  .home-hero::after {
+    background: rgb(236 244 255 / 0.3);
+  }
+}
+
+/* ── Booking form on wide screens: two even columns ──────────────────────────────────────────────────────────
+   When the card is wide, pickup and drop sit side by side with the swap button between them, and the date and time
+   sit directly under them, so every edge lines up. Narrow cards (phones, NESAM's side card) keep the stacked form. */
+.bf.bf {
+  container-type: inline-size;
+}
+@container (min-width: 760px) {
+  .bf .bf-form .bf-route {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 16px;
+    padding-left: 0;
+  }
+  .bf .bf-form .bf-route::before {
+    display: none;
+  }
+  .bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+    margin-left: 0;
+  }
+  .bf .bf-form .bf-route.bf-route--single {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The start dot and the drop pin sit inside their cards, before the text. */
+  .bf .bf-form .bf-route .bf-pin {
+    position: relative;
+    top: auto;
+    left: auto;
+    flex: none;
+    margin-right: 6px;
+    translate: none;
+  }
+  .bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+    margin-right: 8px;
+    rotate: -45deg;
+  }
+  /* Swap: centred on the gap between the two cards. */
+  .bf .bf-form .bf-route .bf-swap {
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    z-index: 3;
+    margin: 0;
+    transform: translate(-50%, -50%) !important;
+  }
+  .bf .bf-form .bf-route .bf-swap svg {
+    rotate: 90deg;
+  }
+  .bf .bf-form .bf-row {
+    gap: 16px;
+  }
+}
+
+/* Phones: the date and time boxes share the row evenly and never overlap; the icons stay inside the boxes. */
+.bf .bf-form .bf-row > .bf-cell,
+.bf .bf-datewrap {
+  min-width: 0;
+}
+@media (max-width: 560px) {
+  .bf .bf-datewrap .bf-input {
+    width: 100%;
+    min-width: 0;
+    padding-inline: 10px 36px;
+    font-size: 0.9375rem;
+    letter-spacing: 0;
+  }
+  .bf .bf-datewrap::after {
+    right: 10px;
+    width: 22px;
+    height: 22px;
+  }
+  .bf .bf-form .bf-row .bf-time {
+    min-width: 0;
+    padding-inline: 10px 36px;
+    font-size: 0.9375rem;
+  }
+  .bf .bf-form .bf-row .bf-time svg {
+    right: 10px;
+    width: 22px;
+    height: 22px;
+  }
+  .bf .bf-chip {
+    right: 10px;
+  }
+}
+
+/* Desktop hero: a smaller logo and headline, and the booking form pulled up so it is seen without scrolling. */
+@media (min-width: 768px) {
+  .home-hero {
+    justify-content: flex-start;
+    min-height: 0;
+    gap: clamp(8px, 1vw, 14px);
+    padding-top: clamp(10px, 1.4vw, 18px);
+    padding-bottom: clamp(18px, 2vw, 28px);
+  }
+  .hero-logo {
+    margin-bottom: 0;
+  }
+  .hero-logo img {
+    height: clamp(40px, 3.6vw, 54px);
+  }
+  .hero-copy {
+    gap: 4px;
+  }
+  .hero-copy h1 {
+    font-size: clamp(1.5rem, 1rem + 1.3vw, 2.25rem);
+    line-height: 1.12;
+  }
+}
+
+/* Desktop (1000px and up): logo and headline on the left, the booking form on the right as one compact card. */
+@media (min-width: 1000px) {
+  .home-hero {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 420px;
+    align-items: center;
+    align-content: center;
+    justify-content: stretch;
+    column-gap: clamp(32px, 5vw, 88px);
+    row-gap: 0;
+    min-height: min(680px, calc(100svh - var(--nav-h)));
+    padding-inline: max(var(--gutter), calc((100% - 1216px) / 2));
+    padding-block: clamp(24px, 3vw, 44px);
+  }
+  .home-hero > .hero-copy {
+    width: auto;
+    max-width: none;
+    margin: 0;
+    align-items: flex-start;
+    text-align: left;
+  }
+  .hero-logo img {
+    height: clamp(52px, 4.4vw, 68px);
+  }
+  .hero-copy h1 {
+    font-size: clamp(2rem, 1.1rem + 2vw, 3rem);
+    line-height: 1.1;
+  }
+  .home-hero > .bf {
+    justify-self: end;
+    width: 100%;
+    max-width: 420px;
+    margin: 0;
+  }
+  /* In a narrow card the four services sit in two rows, so none is squeezed. */
+  .home-hero > .bf .bf-services {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+}
+
+/* Desktop form card: wider, with larger text. */
+@media (min-width: 1000px) {
+  .home-hero {
+    grid-template-columns: minmax(0, 1fr) 540px;
+  }
+  .home-hero > .bf {
+    max-width: 540px;
+    padding: 22px;
+  }
+  .home-hero > .bf .bf-service {
+    font-size: 1rem;
+  }
+  .home-hero > .bf .bf-journey.tabs .tab {
+    min-height: 50px;
+    font-size: 1.25rem;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-field {
+    min-height: 74px;
+    padding: 11px 18px 11px 20px;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-label,
+  .home-hero > .bf .bf-form .bf-label--out {
+    font-size: 0.875rem;
+  }
+  .home-hero > .bf .bf-form .bf-route .bf-trigger {
+    font-size: 1.3125rem;
+  }
+  .home-hero > .bf .bf-form .bf-route::before {
+    top: 37px;
+    bottom: 37px;
+  }
+  .home-hero > .bf .bf-datewrap .bf-input,
+  .home-hero > .bf .bf-form .bf-row .bf-time {
+    min-height: 56px;
+    font-size: 1.1875rem;
+  }
+  .home-hero > .bf .bf-chip {
+    font-size: 0.75rem;
+  }
+  .home-hero > .bf .bf-submit {
+    min-height: 58px;
+    font-size: 1.25rem;
+  }
+}
+
+/* Desktop form card: the four services in one row, each with the icon above and the name below. */
+@media (min-width: 1000px) {
+  .home-hero > .bf .bf-services {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6px;
+    padding: 6px;
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--brand) 9%, #fff);
+    box-shadow: none;
+  }
+  .home-hero > .bf .bf-service {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 82px;
+    padding: 10px 4px 9px;
+    border-radius: 16px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--ink);
+    font-size: 0.875rem;
+    font-weight: 700;
+    line-height: 1.15;
+    text-align: center;
+  }
+  .home-hero > .bf .bf-service > span:not(.bf-service__icon) {
+    display: block;
+    max-width: 100%;
+    white-space: normal;
+  }
+  .home-hero > .bf .bf-service__icon {
+    width: 38px;
+    height: 38px;
+    margin: 0;
+    border-radius: 12px;
+    background: #fff;
+    color: var(--brand);
+  }
+  .home-hero > .bf .bf-service.is-active {
+    background: var(--brand);
+    box-shadow: none;
+    color: #fff;
+  }
+  .home-hero > .bf .bf-service.is-active .bf-service__icon {
+    background: rgb(255 255 255 / 0.2);
+    color: #fff;
+  }
+}
+
+/* Desktop service bar: a more compact outer size. */
+@media (min-width: 1000px) {
+  .home-hero > .bf .bf-services {
+    gap: 4px;
+    padding: 4px;
+    border-radius: 16px;
+  }
+  .home-hero > .bf .bf-service {
+    min-height: 64px;
+    gap: 4px;
+    padding: 7px 4px 6px;
+    border-radius: 13px;
+    font-size: 0.8125rem;
+  }
+  .home-hero > .bf .bf-service__icon {
+    width: 30px;
+    height: 30px;
+    border-radius: 10px;
+  }
+}

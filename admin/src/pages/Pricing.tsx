@@ -265,6 +265,11 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     { title: "Vehicles", items: [
       { key: "cabs", label: "Cab types", hint: "Which cabs customers see, and the vehicle list", icon: "car-front", on: !inlineKind && tab === "Cab types", go: () => changeTab("Cab types") },
     ] },
+    { title: "Tools", items: [
+      { key: "history", label: "Change history", hint: "Who changed which rule, and when", icon: "history", on: inlineKind === "history", go: () => setSheet({ kind: "history" }) },
+      { key: "test", label: "Test fare", hint: "Try a trip and see the fare it gets", icon: "calculator", opens: true, go: () => setSheet({ kind: "test" }),
+        disabledReason: !canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to preview its effective fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk enquiry flow." : undefined },
+    ] },
   ];
   const pill = (key: string, label: string, on: boolean, onClick: () => void) => (
     <button key={key} type="button" className={`fs-pill ${on ? "is-on" : ""}`} aria-pressed={on} onClick={onClick}>{label}</button>
@@ -309,7 +314,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     <div className="ds-page-body fare-reference u27-settings-page u11-settings-page">
       <Toast toast={toast} />
       {loadError && <div className="ds-error mb-4" role="alert"><Icon name="circle-alert" />Saved settings could not be loaded: {loadError}. Check your pricing access and reload.</div>}
-      <PageHeader title="Service & Fare Settings" subtitle="Pick what you want to change on the left, then choose where it applies." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={!canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to preview its effective fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk enquiry flow." : undefined} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
+      <PageHeader title="Service & Fare Settings" subtitle="Pick what you want to change on the left, then choose where it applies." />
 
       <div className="fs-shell">
         <nav className="fs-nav" aria-label="Fare settings sections">
