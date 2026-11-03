@@ -741,3 +741,54 @@ h2,
     height: 36px;
   }
 }
+
+/* Wide screens, home hero: the big logo sits above the headline on a white plate. While it shows, the header
+   has no logo and "Book a cab" takes its place on the left; after scrolling the logo slides into the header
+   and the button moves to the right. */
+.hero-logo {
+  display: none;
+}
+@media (min-width: 1000px) {
+  .hero-logo {
+    position: relative;
+    z-index: 1;
+    display: inline-block;
+    margin: 0 0 24px;
+    padding: 14px 24px;
+    border-radius: var(--r-lg);
+    background: #fff;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 0.2), 0 18px 40px -20px rgb(0 0 0 / 0.5);
+  }
+  .hero-logo img {
+    display: block;
+    width: auto;
+    height: clamp(76px, 6.6vw, 104px);
+  }
+  .topbar .brand {
+    max-width: 260px;
+    overflow: hidden;
+    transition: max-width 0.4s ease, opacity 0.3s ease, visibility 0.4s;
+  }
+  html[data-hero-logo='in'] .topbar .brand {
+    max-width: 0;
+    opacity: 0;
+    visibility: hidden;
+  }
+  .topbar__nav {
+    justify-content: flex-start;
+  }
+  html:not([data-hero-logo='in']) .topbar__nav {
+    justify-content: flex-end;
+  }
+}
+@media (min-width: 1000px) and (prefers-reduced-motion: no-preference) {
+  html:not([data-hero-logo='in']) .topbar__book {
+    animation: nav-shift 0.4s ease both;
+  }
+}
+@keyframes nav-shift {
+  from {
+    opacity: 0;
+    translate: -28px 0;
+  }
+}

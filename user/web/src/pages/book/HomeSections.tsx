@@ -2,7 +2,7 @@
 // journeys, destinations, fleet, how it works, safety, offers), reviews, FAQ and the app. Nothing here
 // is a price, a rating or a review: fares come from the booking server and reviews are shown only
 // once NESAM publishes real ones (none are published yet).
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR } from '@core/utils/format';
@@ -26,8 +26,28 @@ import {
 } from './content';
 
 export function HeroCopy() {
+  // While the logo shows in the hero the header leaves its own out and puts "Book a cab" first; once the
+  // page scrolls past it, the logo slides into the header and the button moves to the right.
+  const logo = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = logo.current;
+    const root = document.documentElement;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([entry]) => {
+      if (entry) root.dataset.heroLogo = entry.isIntersecting ? 'in' : 'out';
+    }, { rootMargin: '-80px 0px 0px 0px' });
+    io.observe(el);
+    return () => {
+      io.disconnect();
+      delete root.dataset.heroLogo;
+    };
+  }, []);
+
   return (
     <div className="hero-copy">
+      <div className="hero-logo" ref={logo}>
+        <img src="/nesam/logo.webp" alt="NESAM Cabs" width={300} height={96} />
+      </div>
       <h1>
         Dependable cabs, <span className="hero-accent">for every journey.</span>
       </h1>
