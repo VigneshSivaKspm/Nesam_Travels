@@ -10,7 +10,8 @@ import { FAQS, SERVICES } from '../src/pages/book/content';
 import { ALL_ROUTES, type RouteGuide } from '../src/pages/routes/routesData';
 import { ALL_SERVICES, type ServiceDetail } from '../src/pages/services/servicesData';
 import { HOME_SEO, LEGAL_SEO, OFFERS_SEO, SUPPORT_SEO, routeSeo, serviceSeo } from '../src/seo/pages';
-import { SITE, absoluteUrl, escapeHtml as e, renderHeadTags, type SeoProps } from '../src/seo/site';
+import { SITE, escapeHtml as e, renderHeadTags, type SeoProps } from '../src/seo/site';
+import { buildSitemap, sitemapEntries } from './sitemap';
 
 interface Page {
   path: string;
@@ -119,21 +120,6 @@ function fill(html: string, page: Page): string {
     .replace(BODY, () => `<!--seo:body-->${page.body}<!--/seo:body-->`);
 }
 
-function sitemap(entries: Page[]): string {
-  const today = new Date().toISOString().slice(0, 10);
-  const urls = entries.map((p) => {
-    const images = p.images
-      .map((i) => `\n    <image:image>\n      <image:loc>${e(absoluteUrl(i.loc))}</image:loc>\n      <image:title>${e(i.title)}</image:title>\n    </image:image>`)
-      .join('');
-    return `  <url>\n    <loc>${e(absoluteUrl(p.path))}</loc>\n    <lastmod>${today}</lastmod>${images}\n  </url>`;
-  });
-  return (
-    '<?xml version="1.0" encoding="UTF-8"?>\n' +
-    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">\n' +
-    `${urls.join('\n')}\n</urlset>\n`
-  );
-}
-
 export function seoPrerender(): Plugin {
   let outDir = 'dist';
   const all = pages();
@@ -156,7 +142,7 @@ export function seoPrerender(): Plugin {
         fs.mkdirSync(path.dirname(file), { recursive: true });
         fs.writeFileSync(file, fill(template, page));
       }
-      fs.writeFileSync(path.join(outDir, 'sitemap.xml'), sitemap(all));
+      fs.writeFileSync(path.join(outDir, 'sitemap.xml'), buildSitemap(sitemapEntries()));
     },
   };
 }

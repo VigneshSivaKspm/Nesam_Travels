@@ -1,4 +1,5 @@
 export interface Booking {
+  itinerary?: { id: string; name: string; address: string; lat: number; lng: number }[];
   id: string;
   /** Human-facing booking code; `id` is the Firestore document id. */
   bookingId?: string;

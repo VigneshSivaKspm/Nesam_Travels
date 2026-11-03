@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Modal, Toast, useToast } from "../Feedback";
 import { Badge, Button, EmptyState, Icon, PageHeader, toneForStatus } from "../ui";
 import { StageBar } from "../ui/ListKit";
@@ -6,11 +6,12 @@ import { OFFICE_STAGES, refDateTime, rupee, type OfficeStage } from "../../domai
 import {
   ENQUIRY_STATUSES, assignEnquiryHandler, currentStaff, effectiveStatus, markEnquirySent, subscribeEnquiries, updateEnquiryStatus,
   type Enquiry, type EnquiryStatus,
-  multicityConversionBlocked, MULTICITY_CONVERSION_MESSAGE, priceMulticityEnquiry, type MulticityQuoteResult,
+  isMulticityEnquiry, priceMulticityEnquiry, convertMulticityEnquiry, type MulticityQuoteResult,
 } from "../../services/enquiryService";
-import { subscribeVehicleCategories } from "../../services/adminFirestoreService";
+import { subscribeLocations, subscribeVehicleCategories } from "../../services/adminFirestoreService";
 import { ActionError } from "../../services/callables";
-import type { VehicleCategory } from "../../types";
+import type { MasterLocation, VehicleCategory } from "../../types";
+import { useCanDo } from "../AccessContext";
 import { subscribeStaffAccounts } from "../../services/staffService";
 
 const SUPPORT_LINE = "+91 9025099990";
@@ -157,6 +158,11 @@ export default function Enquiries({ stageCounts, onStage, onBack, onNewBooking, 
 
 function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: Enquiry; onBack: () => void; onConvert: () => void; onCopy: () => void; onSent: () => void; onHandler: () => void }) {
   const status = effectiveStatus(e);
+  const [convertOpen, setConvertOpen] = useState(false);
+  const canCreate = useCanDo('Bookings', 'create');
+  const isMulticity = isMulticityEnquiry(e);
+  const convertReason = !canCreate ? 'Booking creation permission is required.' : status === 'Converted' ? `Converted to ${e.convertedBookingId || 'a booking'}.`
+    : ['Closed', 'Expired'].includes(status) ? 'Save a fresh, active quote before conversion.' : isMulticity && !e.quoteRevision ? 'Calculate and save a fresh Multicity quote first.' : undefined;
   const fact = (k: string, v: string) => (
     <div><dt>{k}</dt><dd>{v}</dd></div>
   );
@@ -200,13 +206,12 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
               {e.sentAt ? fact("Quote sent", refDateTime(e.sentAt)) : null}
             </dl>
             <div className="flex flex-wrap gap-2 mt-4">
-              <Button variant="primary" icon="calendar-check-2" onClick={onConvert} disabledReason={status === "Converted" ? `Converted to ${e.convertedBookingId || "a booking"}.` : multicityConversionBlocked(e) ? MULTICITY_CONVERSION_MESSAGE : undefined}>Convert to booking</Button>
-              {multicityConversionBlocked(e) && status !== 'Converted' ? <p className="text-[12px] text-muted mt-2">{MULTICITY_CONVERSION_MESSAGE}</p> : null}
+              <Button variant="primary" icon="calendar-check-2" onClick={() => isMulticity ? setConvertOpen(true) : onConvert()} disabledReason={convertReason}>Convert to booking</Button>
               <Button icon="copy" onClick={onCopy}>Copy quote</Button>
-              <Button variant="ghost" icon="send" onClick={onSent}>Mark as sent</Button>
+              <Button variant="ghost" icon="send" onClick={onSent} disabledReason={['Converted', 'Closed', 'Expired'].includes(status) ? 'This enquiry is closed or expired.' : !(Number(e.estimate) > 0) || (isMulticity && !e.quoteRevision) ? 'Save a priced quote first.' : undefined}>Mark as sent</Button>
             </div>
           </section>
-          {multicityConversionBlocked(e) && status !== "Converted" && status !== "Closed" ? <MulticityPricer e={e} /> : null}
+          {isMulticityEnquiry(e) && status !== "Converted" && status !== "Closed" ? <MulticityPricer e={e} /> : null}
           <section className="ds-panel ds-panel-pad">
             <h3 className="text-[15px] font-bold text-ink">Customer quote</h3>
             <p className="text-[12px] text-muted mb-3">Copy this after confirming the details. No message is sent automatically.</p>
@@ -229,6 +234,7 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
           </section>
         </div>
       </div>
+      {convertOpen && <MulticityConversionDialog e={e} onClose={() => setConvertOpen(false)} />}
     </>
   );
 }
@@ -237,6 +243,46 @@ function QuoteDetails({ e, onBack, onConvert, onCopy, onSent, onHandler }: { e: 
  * Prices a Multicity itinerary from the brand's saved Multicity rates (the server measures every leg and counts the
  * calendar days). Preview first; "Save quote" writes it to the enquiry (estimate, breakup, validity) for Copy quote and follow-up.
  */
+function MulticityConversionDialog({ e, onClose }: { e: Enquiry; onClose: () => void }) {
+  const revision = useRef(e.quoteRevision || '');
+  const [name, setName] = useState(e.customerName || '');
+  const [phone, setPhone] = useState(e.phone || '');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'UPI'>('Cash');
+  const [accepted, setAccepted] = useState(false);
+  const [reference, setReference] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submitting = useRef(false);
+  const [error, setError] = useState('');
+  const [created, setCreated] = useState('');
+  const changed = e.quoteRevision !== revision.current;
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (submitting.current || changed || created) return;
+    if (name.trim().length < 2 || !accepted || reference.trim().length < 5) return setError('Record the customer name, fare/terms agreement and its reference.');
+    submitting.current = true; setBusy(true); setError('');
+    try {
+      const result = await convertMulticityEnquiry({ enquiryId: e.id, expectedRevision: revision.current, customerName: name.trim(), phone, paymentMethod, customerAccepted: accepted, acceptanceReference: reference.trim() });
+      setCreated(result.bookingId);
+    } catch (err) { setError(err instanceof Error ? err.message : 'Conversion could not be completed. Refresh the enquiry before retrying.'); }
+    finally { submitting.current = false; setBusy(false); }
+  };
+  return <Modal title="Convert Multicity quote to booking" onClose={onClose} busy={busy} size="lg" footer={created ? <Button onClick={onClose}>Done</Button> : <Button variant="primary" type="submit" form="multicity-convert" loading={busy} disabled={changed || !accepted}>Create booking</Button>}>
+    {created ? <p role="status">Booking {created} created for review. Approval and publication remain separate.</p> : <form id="multicity-convert" onSubmit={submit} className="grid gap-4">
+      {error && <p className="ds-error" role="alert">{error}</p>}
+      {changed && <p className="ds-error" role="alert">This quote changed. Close this window and review the new quote.</p>}
+      <p className="ds-note">{e.pickup} → {(e.stops || []).map(stop => stop.name).join(' → ')} → {e.drop}<br />{e.vehicle} · {rupee(e.estimate || 0)} · {e.pickupAt ? refDateTime(e.pickupAt) : ''}</p>
+      <fieldset disabled={busy || changed} className="ds-form-grid">
+        <label className="ds-field"><span>Customer name</span><input className="ds-input" value={name} onChange={event => setName(event.target.value)} maxLength={80} /></label>
+        <label className="ds-field"><span>Customer mobile</span><input className="ds-input" type="tel" value={phone} onChange={event => setPhone(event.target.value)} /></label>
+        <label className="ds-field"><span>Pay driver by</span><select className="ds-select" value={paymentMethod} onChange={event => setPaymentMethod(event.target.value as 'Cash' | 'UPI')}><option>Cash</option><option>UPI</option></select></label>
+        <label className="ds-field"><span>Customer agreement reference</span><input className="ds-input" value={reference} onChange={event => setReference(event.target.value)} maxLength={300} placeholder="Call / message reference" /></label>
+        <label className="ds-check" data-span="2"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} />Customer agreed to this itinerary, quoted fare and booking terms.</label>
+      </fieldset>
+      <p className="text-[12px] text-muted">Every stop and the saved quote are preserved. No new fare is calculated during conversion.</p>
+    </form>}
+  </Modal>;
+}
+
 function MulticityPricer({ e }: { e: Enquiry }) {
   const [categories, setCategories] = useState<VehicleCategory[]>([]);
   const [categoryId, setCategoryId] = useState(e.categoryId ?? "");
@@ -245,12 +291,16 @@ function MulticityPricer({ e }: { e: Enquiry }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [locations, setLocations] = useState<MasterLocation[]>([]);
+  const [pickupLocationId, setPickupLocationId] = useState(e.pickupPoint?.id || '');
+  useEffect(() => subscribeLocations(setLocations), []);
+  const matchingPickups = locations.filter(l => l.status === 'Active' && e.pickupPoint && Number.isFinite(l.lat) && Number.isFinite(l.lng) && Math.abs(l.lat! - e.pickupPoint.lat) <= 0.0001 && Math.abs(l.lng! - e.pickupPoint.lng) <= 0.0001);
   useEffect(() => subscribeVehicleCategories((list) => setCategories(list.filter((c) => c.status === "Active"))), []);
   const run = async (save: boolean) => {
     if (!categoryId) return setError("Choose the vehicle category to quote.");
     setBusy(true); setError(null); setSaved(false);
     try {
-      const r = await priceMulticityEnquiry(e.id, categoryId, save, Math.min(30, Math.max(1, Number(validDays) || 7)));
+      const r = await priceMulticityEnquiry(e.id, categoryId, save, Math.min(30, Math.max(1, Number(validDays) || 7)), pickupLocationId);
       setPreview(r);
       if (save) setSaved(true);
     } catch (err) {
@@ -263,6 +313,7 @@ function MulticityPricer({ e }: { e: Enquiry }) {
       <p className="text-[12px] text-muted mb-3">Uses the {e.brand === "onewaycarrentals" ? "One Way Car Rentals" : e.brand === "people_taxi" ? "People Taxi" : "NESAM"} Multicity rates in Service &amp; Fare Settings: road distance of every leg, daily minimum KM, daily driver bata and the brand GST setting.</p>
       {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
       <div className="flex flex-wrap items-end gap-3">
+        <label className="ds-field"><span>Verified pickup master · GST state</span><select className="ds-select" value={matchingPickups.some(l => l.id === pickupLocationId) ? pickupLocationId : ''} onChange={event => { setPickupLocationId(event.target.value); setPreview(null); setSaved(false); }}><option value="">Use pickup's saved master reference</option>{matchingPickups.map(location => <option key={location.id} value={location.id}>{location.name} · {location.state}</option>)}</select><small className="text-muted">Only master locations matching the pickup coordinates can verify its state. State-specific GST requires a verified pickup.</small></label>
         <label className="ds-field"><span>Vehicle category</span>
           <select className="ds-select" value={categoryId} onChange={(ev) => { setCategoryId(ev.target.value); setPreview(null); }}>
             <option value="">Choose…</option>

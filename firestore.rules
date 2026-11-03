@@ -954,9 +954,11 @@ service cloud.firestore {
       allow read, write: if can('people');
     }
     // Office phone enquiries & quotes (Master Admin → Bookings → Enquiries & quotes). Staff-only;
-    // a quote never becomes a booking here — conversion goes through createAdminBooking.
+    // Conversion is server-only: createAdminBooking or convertMulticityEnquiry.
     match /enquiries/{enquiryId} {
-      allow read: if can('operations') || (isSignedIn() && resource.data.customerId == uid());
+      // Customers use getCustomerEnquiries, which returns only the customer-facing fields.
+      // Old enquiry records may contain partner pricing; document-level reads cannot redact it.
+      allow read: if can('operations');
       allow create: if can('operations')
                      && request.resource.data.keys().hasAll(['code', 'status', 'pickup', 'drop', 'createdBy'])
                      && request.resource.data.createdBy == uid()
@@ -966,6 +968,9 @@ service cloud.firestore {
                      && request.resource.data.code == resource.data.code
                      && request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if false;
+    }
+    match /multicity_quote_snapshots/{revision} {
+      allow read, write: if false;
     }
     match /support_tickets/{ticketId} {
       allow create: if isSignedIn()

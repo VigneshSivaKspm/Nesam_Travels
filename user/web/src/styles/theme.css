@@ -720,3 +720,24 @@ h2,
     transform: translateY(14px);
   }
 }
+
+/* The NESAM logo (one image: emblem and wordmark) in the header, side menu, sign-in screen and footer. */
+.brand__img {
+  display: block;
+  width: auto;
+  height: 42px;
+}
+.drawer__head .brand__img {
+  height: 38px;
+}
+.footer__logo {
+  display: block;
+  width: auto;
+  height: 56px;
+  margin-bottom: 6px;
+}
+@media (max-width: 767.98px) {
+  .brand__img {
+    height: 36px;
+  }
+}

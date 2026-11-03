@@ -183,6 +183,8 @@ export interface DriverLocation extends LatLng {
 }
 
 export interface TripRecord {
+  /** Complete ordered route for a travel-desk Multicity booking. */
+  itinerary?: GeoPlace[];
   id: string;
   bookingId: string;
   customerId: string;

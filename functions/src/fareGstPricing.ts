@@ -5,7 +5,12 @@ import { gstOn, istDate, matchFixedRoute, paise, r2, scopedTariffForBrand, taxab
 import type { PriceInput, PriceResult } from './quote';
 
 export function fareGstFor(i: PriceInput): GstSnapshot | null {
-  const service = fareServiceKey(i.tripType);
+  return fareGstForScope({ ...i, service: fareServiceKey(i.tripType) });
+}
+
+/** Shared by ordinary bookings and travel-desk Multicity quotes. */
+export function fareGstForScope(i: { tariff: PriceInput['tariff']; brand?: string; service: string; boardingState?: string; recipientState?: string; recipientAddressState?: string }): GstSnapshot | null {
+  const service = i.service;
   const common = i.tariff?.fareGst?.common?.[service], brand = i.brand ? i.tariff?.fareGst?.[i.brand]?.[service] : undefined;
   if (!common && !brand) return null;
   const boardingState = gstState(i.boardingState);

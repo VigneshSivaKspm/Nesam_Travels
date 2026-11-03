@@ -39,6 +39,6 @@ describe('SEO routesData', () => {
     expect(schema['@type']).toBe('BreadcrumbList');
     expect(schema.itemListElement).toHaveLength(2);
     expect(schema.itemListElement[0].position).toBe(1);
-    expect(schema.itemListElement[1].item).toBe('https://peopletaxi.in/routes/chennai-to-pondicherry');
+    expect(schema.itemListElement[1].item).toBe('https://www.peopletaxi.in/routes/chennai-to-pondicherry');
   });
 });

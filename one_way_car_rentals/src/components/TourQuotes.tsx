@@ -20,6 +20,7 @@ interface CustomerEnquiry {
   estimate: number | null;
   validUntil: string | null;
   convertedBookingId: string | null;
+  quoteRevision?: string | null;
 }
 
 type Tone = 'green' | 'amber' | 'blue' | 'neutral';
@@ -34,7 +35,7 @@ function stageOf(e: CustomerEnquiry): { label: string; tone: Tone; text: string;
     case 'Customer accepted':
       return { label: 'Accepted', tone: 'blue', text: 'You accepted this quote. The travel desk is assigning your vehicle and will confirm the booking.', priced: true };
     case 'Converted':
-      return { label: 'Booked', tone: 'green', text: 'Confirmed as a booking. You can follow it under your upcoming trips.', priced: true };
+      return { label: 'Booked', tone: 'green', text: 'Booking created for office review. Follow its status in My trips.', priced: true };
     case 'Closed':
       return { label: 'Closed', tone: 'neutral', text: 'This request was closed. Call us if you would like to plan it again.', priced: false };
     default:
@@ -62,7 +63,7 @@ export function TourQuotes({ brand }: { brand: string }) {
     setError('');
     setDone('');
     try {
-      const res = await callFunction<{ enquiryId: string; expectedEstimate: number }, { message?: string }>('acceptEnquiryQuote', { enquiryId: e.id, expectedEstimate: e.estimate });
+      const res = await callFunction<{ enquiryId: string; expectedEstimate: number; expectedRevision?: string | null }, { message?: string }>('acceptEnquiryQuote', { enquiryId: e.id, expectedEstimate: e.estimate, expectedRevision: e.quoteRevision });
       setDone(res?.message || 'Quote accepted. The travel desk will confirm your booking.');
       load();
     } catch (err) {

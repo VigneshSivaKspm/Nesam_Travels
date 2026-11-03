@@ -10,6 +10,12 @@ import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './do
 import { GeoPlace } from './domain/types';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 import { createHash } from 'crypto';
+import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
+import { fareGstForScope } from './fareGstPricing';
+import { multicityBookingAmounts, multicityFingerprint } from './domain/multicitySnapshot';
+import { extraChargesSnapshot } from './domain/extraCharges';
+import { scopedTariffForBrand } from './domain/tariff';
+import { canSeePayouts } from './staffReads';
 
 export interface MulticityStop {
   id: string;
@@ -267,8 +273,16 @@ export const acceptEnquiryQuote = onCall({ timeoutSeconds: 60 }, async (request)
       throw new HttpsError('failed-precondition', 'This quote has expired. Please contact support to refresh your quote.');
     }
 
-    if (expectedEstimate != null && Math.abs(expectedEstimate - estimate) > 1) {
+    if (expectedEstimate == null || expectedEstimate !== estimate) {
       throw new HttpsError('failed-precondition', 'The quote estimate has changed. Please review the updated fare before accepting.');
+    }
+
+    if (data.tripType === 'Multicity' || data.serviceId === 'multicity') {
+      if (!['Quote sent', 'Customer accepted'].includes(data.status)) throw new HttpsError('failed-precondition', 'The travel desk has not sent this quote yet.');
+      const revision = text(data.quoteRevision, 100);
+      if (!/^[A-Za-z0-9_-]{1,100}$/.test(revision) || input.expectedRevision !== revision) throw new HttpsError('failed-precondition', 'This quote changed. Refresh it before accepting.');
+      const saved = (await tx.get(db.doc(`multicity_quote_snapshots/${revision}`))).data();
+      if (!saved || saved.enquiryId !== enquiryId || saved.categoryId !== data.categoryId || saved.estimate !== estimate || saved.fingerprint !== multicityFingerprint(data) || saved.validUntil.toMillis() <= Date.now()) throw new HttpsError('failed-precondition', 'This quote needs to be refreshed by the travel desk.');
     }
 
     const custSnap = await tx.get(db.doc(`customers/${uid}`));
@@ -278,6 +292,7 @@ export const acceptEnquiryQuote = onCall({ timeoutSeconds: 60 }, async (request)
       status: 'Customer accepted',
       acceptedAt: FieldValue.serverTimestamp(),
       customerAcceptedEstimate: estimate,
+      ...(data.quoteRevision ? { acceptedQuoteRevision: data.quoteRevision } : {}),
       history: FieldValue.arrayUnion({
         status: 'Customer accepted',
         note: `Customer accepted the upfront quote of ₹${estimate.toLocaleString('en-IN')}. Ready for vehicle dispatch and booking creation.`,
@@ -331,6 +346,7 @@ export const getCustomerEnquiries = onCall({ timeoutSeconds: 30 }, async (reques
       validUntil: data.validUntil?.toDate?.()?.toISOString?.() || null,
       createdAt: data.createdAt?.toDate?.()?.toISOString?.() || null,
       convertedBookingId: data.convertedBookingId || null,
+      quoteRevision: data.quoteRevision || null,
     };
   });
 });
@@ -366,19 +382,26 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   const rates = multicityRatesFor(tariff, brand, cls);
   if (!rates) throw new HttpsError('failed-precondition', `Multicity rates for ${text(cat.name)} are not complete. Set them in Service & Fare Settings → Multicity (or the Round Trip rates they inherit).`);
 
-  const points: GeoPlace[] = (Array.isArray(e.itinerary) && e.itinerary.length >= 2 ? e.itinerary : [e.pickupPoint, ...(e.stops ?? []), e.dropPoint])
-    .filter((p: any) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng))
-    .map((p: any) => ({ id: 'pin', name: text(p.name, 120), address: text(p.address), lat: p.lat, lng: p.lng, type: 'other' as const }));
-  if (points.length < 2) throw new HttpsError('failed-precondition', 'The itinerary has no map positions to measure.');
+  const rawPoints = [e.pickupPoint, ...(e.stops ?? []), e.dropPoint];
+  if (rawPoints.length < 3 || rawPoints.some((p: any) => !p || !inIndia(p.lat, p.lng))) throw new HttpsError('failed-precondition', 'Every itinerary stop needs a valid map position. Review the route before pricing.');
+  const points: GeoPlace[] = rawPoints.map((p: any) => ({ id: text(p.id, 80) || 'pin', name: text(p.name, 120), address: text(p.address), lat: p.lat, lng: p.lng, type: 'other' as const }));
   const legs = await Promise.all(points.slice(1).map((p, n) => routeFor(points[n], p)));
   const totalKm = legs.reduce((s, l) => s + l.distanceKm, 0);
-  const pickupMs = e.pickupAt?.toMillis?.() ?? Date.now();
+  const pickupMs = e.pickupAt?.toMillis?.();
+  if (!Number.isFinite(pickupMs)) throw new HttpsError('failed-precondition', 'Choose the pickup date before pricing.');
   const endMs = e.tripEndAt?.toMillis?.() ?? pickupMs;
-  const days = calendarDays(pickupMs, endMs) ?? 1;
+  const days = calendarDays(pickupMs, endMs);
+  if (days === null) throw new HttpsError('failed-precondition', 'The tour end must be on or after pickup and within the supported tour duration.');
 
-  // GST: the brand's Multicity policy (pickup-state rules need a verified state, so only the default applies here).
-  const rule = tariff.fareGst?.[brand]?.Multicity?.default ?? tariff.fareGst?.common?.Multicity?.default;
-  const q = quoteMulticity({ rates, totalKm, days, gstRate: rule ? rule.rate : tariff.gstRate, gstIncluded: rule?.mode === 'included' });
+  const verifiedPickup = { ...points[0], id: text(input.pickupLocationId, 150) || points[0].id };
+  const boardingState = await fareBoardingState(tariff, verifiedPickup);
+  const customer = e.customerId ? (await db.doc(`customers/${e.customerId}`).get()).data() : undefined;
+  const tax = fareGstForScope({ tariff, brand, service: 'Multicity', boardingState, recipientState: recipientGstState(customer), recipientAddressState: recipientAddressState(customer) });
+  const q = quoteMulticity({ rates, totalKm, days, gstRate: tax ? tax.rate : tariff.gstRate, gstIncluded: tax?.mode === 'included' });
+  const durationMin = legs.reduce((sum, leg) => sum + leg.durationMin, 0);
+  const amounts = multicityBookingAmounts(q, { tariffVersion: tariff.version, tariffClass: cls, brand, pickupMs, endMs, durationMin, gst: tax });
+  const extras = extraChargesSnapshot(scopedTariffForBrand(tariff, brand, 'Multicity', cls).extraCharges, tariff.version, categoryId);
+  if (extras) amounts.pricing.extraCharges = extras;
   const rs = (p: number) => Math.round(p) / 100;
   const pct = Math.round(q.gstRate * 10000) / 100;
   const breakup = [
@@ -388,18 +411,22 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   ];
   const result = {
     estimate: rs(q.totalPaise), breakup, gstRate: q.gstRate, gstIncluded: q.gstIncluded, includedKm: q.billableKm, extraKmRate: rates.extraKmRate,
-    days, totalKm: q.totalKm, categoryId, vehicle: text(cat.name, 100), payout: rs(q.partnerPaise),
+    days, totalKm: q.totalKm, categoryId, vehicle: text(cat.name, 100), payout: canSeePayouts(actor) ? rs(q.partnerPaise) : null,
   };
   if (!save) return result;
   const validUntil = Timestamp.fromMillis(Date.now() + validDays * 86400000);
+  const privateQuote = db.collection('multicity_quote_snapshots').doc();
+  const fingerprint = multicityFingerprint(e);
   await db.runTransaction(async (tx) => {
     const now = await tx.get(ref);
     if (!now.exists || ['Converted', 'Closed'].includes(now.data()!.status)) throw new HttpsError('failed-precondition', 'This enquiry is closed.');
-    // Pricing is not sending: the status changes only from New / Expired to Draft; "Mark as sent" records the send.
-    const status = ['New', 'Expired'].includes(now.data()!.status) ? 'Draft' : now.data()!.status;
+    if (multicityFingerprint(now.data()!) !== fingerprint) throw new HttpsError('failed-precondition', 'The itinerary changed while pricing. Calculate it again.');
+    const status = 'Draft';
+    tx.create(privateQuote, { enquiryId, fingerprint, categoryId, brand, customerId: e.customerId || '', validUntil, pickupAt: e.pickupAt, tripEndAt: e.tripEndAt || e.pickupAt,
+      points: rawPoints, stops: e.stops || [], ...amounts, breakup, estimate: result.estimate, createdAt: FieldValue.serverTimestamp(), createdBy: actor.uid });
     tx.update(ref, {
-      ...result, status, validUntil, quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
-      multicityPricing: { tariffVersion: tariff.version, tariffClass: cls, brand, rates, legsKm: legs.map((l) => Math.round(l.distanceKm * 10) / 10) },
+      ...result, payout: FieldValue.delete(), status, validUntil, quoteRevision: privateQuote.id, acceptedQuoteRevision: FieldValue.delete(), acceptedAt: FieldValue.delete(), customerAcceptedEstimate: FieldValue.delete(), quotedAt: FieldValue.serverTimestamp(), quotedBy: actor.uid, quotedByName: actor.name,
+      multicityPricing: { tariffVersion: tariff.version, tariffClass: cls, brand, legsKm: legs.map((l) => Math.round(l.distanceKm * 10) / 10) },
       history: FieldValue.arrayUnion({ status, note: `Multicity quote ₹${result.estimate.toLocaleString('en-IN')} for ${result.vehicle} (${q.billableKm} KM, ${days} day${days === 1 ? '' : 's'}), valid ${validDays} days.`, at: Timestamp.now(), byName: actor.name }),
     });
   });

@@ -258,6 +258,7 @@ export default function BookingDetails({ bookingId, onBack, onNavigate }: { book
             ]} />
           </section>
           <div className="grid gap-5 lg:grid-cols-2">
+            {booking.itinerary && booking.itinerary.length > 2 && <Card title="Multicity itinerary"><ol className="list-decimal list-inside grid gap-2">{booking.itinerary.map((point, index) => <li key={index}><strong>{point.name}</strong><small className="block text-muted">{point.address}</small></li>)}</ol></Card>}
             <Card title="Customer & passenger" sub={`${booking.customerId ? `NSM-CU-${booking.customerId.slice(0, 6).toUpperCase()}` : "Office booking"} · ${canFinance || canOps ? "Master access" : "Limited access"} · Views logged`} right={<Button size="sm" variant="ghost" icon="shield-check" onClick={() => setSheet("access")}>Access history</Button>}>
               <Facts items={[
                 ["Full name", booking.customer || booking.customerName || "Not supplied"],

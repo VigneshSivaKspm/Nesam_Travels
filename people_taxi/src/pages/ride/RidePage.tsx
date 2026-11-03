@@ -1,3 +1,4 @@
+import { TripItinerary } from '../../../../user/web/src/components/TripItinerary';
 // Live ride and trip details: map, status timeline, driver and vehicle, boarding code,
 // what to pay, support — then the receipt and rating once the trip is done. Everything
 // shown comes from the booking document and the driver's own live location; nothing is
@@ -178,11 +179,11 @@ export function RidePage() {
   }, [id, subKey]);
 
   // The whole pickup → destination route, for the map (same cached lookup the booking used).
-  const routeKey = trip && isValidLatLng(trip.pickup) && isValidLatLng(trip.drop) ? `${trip.pickup.lat},${trip.pickup.lng}>${trip.drop.lat},${trip.drop.lng}` : '';
+  const routeKey = trip && isValidLatLng(trip.pickup) && isValidLatLng(trip.drop) ? (trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop]).map(p => p.lat + ',' + p.lng).join('>') : '';
   useEffect(() => {
     if (!trip || !routeKey) return undefined;
     const controller = new AbortController();
-    getRoute(trip.pickup, trip.drop, controller.signal)
+    Promise.all((trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop]).slice(1).map((point, index) => getRoute((trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop])[index], point, controller.signal))).then(legs => ({ distanceKm: legs.reduce((n, leg) => n + leg.distanceKm, 0), durationMin: legs.reduce((n, leg) => n + leg.durationMin, 0), estimated: legs.some(leg => leg.estimated), path: legs.flatMap(leg => leg.path) }))
       .then((info) => !controller.signal.aborted && setTripRoute({ key: routeKey, info }))
       .catch(() => undefined);
     return () => controller.abort();
@@ -336,6 +337,7 @@ export function RidePage() {
         <h2 id="trip-h">Trip details</h2>
       </header>
       <RoutePoints pickup={trip.pickup.name} drop={trip.drop.name} pickupAddress={trip.pickup.address} dropAddress={trip.drop.address} />
+      <TripItinerary trip={trip} />
       <div className="mini-ride">
         <img src={vehicleArtUrl({ name: trip.categoryName, seats: 4 })} alt="" width={96} height={63} />
         <div className="mini-ride__info">

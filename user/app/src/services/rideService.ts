@@ -181,6 +181,7 @@ export function mapBooking(id: string, d: Record<string, unknown>): TripRecord {
     pickup: place('pickup', d),
     drop: place('drop', d),
     service: str(d.service) || 'Local',
+    ...(Array.isArray(d.itinerary) ? { itinerary: d.itinerary.filter((p: any) => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)).map((p: any) => ({ id: str(p.id), name: str(p.name), address: str(p.address), lat: p.lat, lng: p.lng, type: 'other' as const })) } : {}),
     tripType: (d.tripType === 'Round Trip' || d.tripType === 'Local Rental' || d.tripType === 'Airport Taxi' ? d.tripType : 'One Way') as TripType,
     categoryId: str(d.vehicleCategoryId),
     categoryName: str(d.vehicleCategory || d.vehicle) || 'Cab',

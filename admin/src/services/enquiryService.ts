@@ -21,9 +21,9 @@ export interface EnquiryStop {
   lng: number;
 }
 
-export const multicityConversionBlocked = (enquiry: Enquiry) => enquiry.serviceId === 'multicity'
+export const isMulticityEnquiry = (enquiry: Enquiry) => enquiry.serviceId === 'multicity'
   || enquiry.service === 'Multicity' || enquiry.tripType === 'Multicity' || !!enquiry.stops?.length;
-export const MULTICITY_CONVERSION_MESSAGE = 'This itinerary needs a reviewed tour quote and a booking flow that preserves every stop. Standard pickup/drop conversion is unavailable for this enquiry.';
+export const MULTICITY_CONVERSION_MESSAGE = 'Use Convert to booking on the enquiry details after saving and reviewing its Multicity quote. The standard pickup/drop form cannot preserve this tour.';
 
 export interface Enquiry {
   id: string;
@@ -38,7 +38,7 @@ export interface Enquiry {
   submissionId?: string;
   customerId?: string;
   customerAcceptedEstimate?: number;
-  pickupPoint?: { lat: number; lng: number; name?: string; address: string; type?: string } | null;
+  pickupPoint?: { id?: string; lat: number; lng: number; name?: string; address: string; type?: string } | null;
   dropPoint?: { lat: number; lng: number; name?: string; address: string; type?: string } | null;
   pickupAt?: Timestamp | null;
   serviceId?: string;
@@ -68,6 +68,7 @@ export interface Enquiry {
   due?: Timestamp | null;
   handoverNote?: string;
   convertedBookingId?: string;
+  quoteRevision?: string;
   history?: { status: string; note?: string; byName?: string; at?: Timestamp }[];
   createdAt?: Timestamp;
   createdBy: string;
@@ -125,7 +126,13 @@ export async function updateEnquiryStatus(id: string, status: EnquiryStatus, not
 
 export async function markEnquirySent(id: string) {
   const who = me();
-  await updateDoc(doc(db, COL, id), { status: "Quote sent", sentAt: Timestamp.now(), history: arrayUnion({ status: "Quote sent", byName: who.name, at: Timestamp.now() }) });
+  const ref = doc(db, COL, id);
+  await runTransaction(db, async tx => {
+    const snap = await tx.get(ref), row = snap.data() as Enquiry | undefined;
+    if (!row || ['Converted', 'Closed', 'Expired'].includes(effectiveStatus(row))) throw new Error('This enquiry is closed or expired. Refresh its quote before sending.');
+    if (!(Number(row.estimate) > 0) || (isMulticityEnquiry(row) && !row.quoteRevision)) throw new Error('Save a priced quote before marking it as sent.');
+    tx.update(ref, { status: "Quote sent", sentAt: Timestamp.now(), history: arrayUnion({ status: "Quote sent", byName: who.name, at: Timestamp.now() }) });
+  });
 }
 
 export async function assignEnquiryHandler(id: string, patch: { handler: { uid: string; name: string } | null; nextAction: string; due: Date | null; handoverNote: string }) {
@@ -141,9 +148,12 @@ export const currentStaff = me;
 
 export interface MulticityQuoteResult {
   estimate: number; breakup: EnquiryBreakupLine[]; gstRate: number; gstIncluded: boolean; includedKm: number; extraKmRate: number;
-  days: number; totalKm: number; categoryId: string; vehicle: string; payout: number; saved?: boolean; validUntil?: string;
+  days: number; totalKm: number; categoryId: string; vehicle: string; payout: number | null; saved?: boolean; validUntil?: string;
 }
 
 /** Prices a Multicity enquiry on the server from the brand's saved Multicity rates; `save` writes it as the customer's quote. */
-export const priceMulticityEnquiry = (enquiryId: string, categoryId: string, save: boolean, validDays = 7) =>
-  callFunction<{ enquiryId: string; categoryId: string; save: boolean; validDays: number }, MulticityQuoteResult>("priceMulticityEnquiry", { enquiryId, categoryId, save, validDays });
+export const priceMulticityEnquiry = (enquiryId: string, categoryId: string, save: boolean, validDays = 7, pickupLocationId = "") =>
+  callFunction<unknown, MulticityQuoteResult>("priceMulticityEnquiry", { enquiryId, categoryId, save, validDays, pickupLocationId });
+
+export const convertMulticityEnquiry = (input: { enquiryId: string; expectedRevision: string; customerName: string; phone: string; paymentMethod: 'Cash' | 'UPI'; customerAccepted: boolean; acceptanceReference: string }) =>
+  callFunction<typeof input, { id: string; bookingId: string }>('convertMulticityEnquiry', input);

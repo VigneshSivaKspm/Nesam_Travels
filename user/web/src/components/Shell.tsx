@@ -17,14 +17,8 @@ import { AiChatbot } from './AiChatbot';
 
 export function Brand({ light = false, to = '/book' }: { light?: boolean; to?: string }) {
   return (
-    <Link to={to} className={`brand ${light ? 'brand--light' : ''}`} aria-label="NESAM Cabs & Car Rentals — booking home">
-      <span className="brand__logo">
-        <img src="/nesam/emblem.webp" alt="" width={40} height={40} />
-      </span>
-      <span className="brand__text">
-        <span className="brand__word">NESAM</span>
-        <span className="brand__sub">Cabs &amp; Car Rentals</span>
-      </span>
+    <Link to={to} className={`brand ${light ? 'brand--light' : ''}`} aria-label="NESAM Cabs — booking home">
+      <img className="brand__img" src="/nesam/logo-sm.webp" alt="NESAM Cabs" width={130} height={42} />
     </Link>
   );
 }
@@ -146,9 +140,7 @@ function Footer() {
       <div className="footer__inner wrap">
         <div className="footer__grid">
           <div className="footer__brand">
-            <span className="footer__word">
-              NESAM<span aria-hidden="true" />
-            </span>
+            <img className="footer__logo" src="/nesam/logo.webp" alt="NESAM Cabs" width={180} height={58} loading="lazy" />
             <p className="footer__tag">Cabs &amp; Car Rentals</p>
             <address>
               {COMPANY_LEGAL_NAME}

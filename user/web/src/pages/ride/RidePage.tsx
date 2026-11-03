@@ -1,3 +1,4 @@
+import { TripItinerary } from '@/components/TripItinerary';
 // Booking details (/trips/:id and /ride/:id): status, the five milestones, driver and boarding OTP,
 // live map while the driver is on the way or the trip is running, fare, payment, receipt, rating and
 // the trip's help actions. Everything shown comes from the booking document and the driver's live
@@ -113,11 +114,11 @@ export function RidePage() {
     );
   }, [id, subKey]);
 
-  const routeKey = trip && isValidLatLng(trip.pickup) && isValidLatLng(trip.drop) ? `${trip.pickup.lat},${trip.pickup.lng}>${trip.drop.lat},${trip.drop.lng}` : '';
+  const routeKey = trip && isValidLatLng(trip.pickup) && isValidLatLng(trip.drop) ? (trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop]).map(p => p.lat + ',' + p.lng).join('>') : '';
   useEffect(() => {
     if (!trip || !routeKey) return undefined;
     const controller = new AbortController();
-    getRoute(trip.pickup, trip.drop, controller.signal)
+    Promise.all((trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop]).slice(1).map((point, index) => getRoute((trip.itinerary?.length ? trip.itinerary : [trip.pickup, trip.drop])[index], point, controller.signal))).then(legs => ({ distanceKm: legs.reduce((n, leg) => n + leg.distanceKm, 0), durationMin: legs.reduce((n, leg) => n + leg.durationMin, 0), estimated: legs.some(leg => leg.estimated), path: legs.flatMap(leg => leg.path) }))
       .then((info) => !controller.signal.aborted && setTripRoute({ key: routeKey, info }))
       .catch(() => undefined);
     return () => controller.abort();
@@ -245,7 +246,7 @@ export function RidePage() {
         </PageHead>
 
         <div className="bd-badges">
-          <Badge tone="green">{tripTypeLabel(trip.tripType)}</Badge>
+          <Badge tone="green">{trip.service === 'Multicity' ? 'Multicity' : tripTypeLabel(trip.tripType)}</Badge>
           <Badge tone={TONE[chip.fg] ?? 'blue'}>{chip.label}</Badge>
         </div>
         <p className="route-title route-title--xl">
@@ -258,6 +259,7 @@ export function RidePage() {
           {trip.distanceKm ? ` · ${formatDistance(trip.distanceKm)}` : ''}
         </p>
 
+        <TripItinerary trip={trip} />
         <div className="bd">
           <div className="bd__main">
             {phase === 'awaiting_review' || phase === 'arranging' || phase === 'partner_confirmed' || rejected ? (
@@ -325,7 +327,7 @@ export function RidePage() {
                 <div>
                   <dt>Service</dt>
                   <dd>
-                    {tripTypeLabel(trip.tripType)}
+                    {trip.service === 'Multicity' ? 'Multicity' : tripTypeLabel(trip.tripType)}
                     {trip.service ? ` · ${trip.service}` : ''}
                   </dd>
                 </div>

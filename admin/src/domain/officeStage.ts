@@ -58,8 +58,8 @@ const has = (re: RegExp, ...v: unknown[]) => v.some((x) => typeof x === "string"
 /** "One Way" · "Round Trip" · "Multi-stop" · "Local Rental" · "Package" (reference Trip type column). */
 export function tripTypeOf(b: Pick<Booking, "service" | "serviceType" | "tripType">): string {
   const s = [b.tripType, b.serviceType, b.service];
-  if (has(/round/i, ...s)) return "Round Trip";
   if (has(/multi|stop/i, ...s)) return "Multi-stop";
+  if (has(/round/i, ...s)) return "Round Trip";
   if (has(/package|tour/i, ...s)) return "Package";
   if (has(/rental|hour|local\s*rent/i, ...s)) return "Local Rental";
   if (has(/drop|pickup\s*&|local/i, ...s) && !has(/airport/i, ...s)) return "Local Pickup & Drop";

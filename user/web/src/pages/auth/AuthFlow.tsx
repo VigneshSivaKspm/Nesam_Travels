@@ -20,13 +20,7 @@ function AuthLayout({ title, subtitle, children }: { art?: string; title: string
     <div className="auth">
       <header className="auth__top">
         <span className="brand">
-          <span className="brand__logo">
-            <img src="/nesam/emblem.webp" alt="" width={40} height={40} />
-          </span>
-          <span className="brand__text">
-            <span className="brand__word">NESAM</span>
-            <span className="brand__sub">Cabs &amp; Car Rentals</span>
-          </span>
+          <img className="brand__img" src="/nesam/logo-sm.webp" alt="NESAM Cabs" width={130} height={42} />
         </span>
       </header>
       <main className="auth__main" id="main">
