@@ -81,12 +81,13 @@ test('CORS: allowed origins only, preflight answered', async () => {
 
 test('CORS: admin/customer preflight for getLegalStatus / quoteBooking / approveBooking, errors stay readable', async () => {
   const origin = 'https://customer.example.com'; // stands in for the exact Admin origin in ALLOWED_ORIGINS
-  const preflight = { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization,content-type' } };
+  const preflight = { method: 'OPTIONS', headers: { origin, 'access-control-request-method': 'POST', 'access-control-request-headers': 'authorization,content-type,x-client-request-id' } };
   for (const name of ['getLegalStatus', 'quoteBooking', 'approveBooking']) {
     // Preflight never needs a token.
     const p = await run(call, { ...preflight, query: { name } });
     assert.equal(p.status, 204, name);
     assert.equal(p.headers['access-control-allow-origin'], origin, name);
+    assert.match(p.headers['access-control-allow-headers'], /X-Client-Request-Id/i, name);
     assert.equal(p.headers['vary'], 'Origin', name);
     assert.match(p.headers['access-control-allow-methods'], /POST/, name);
     assert.match(p.headers['access-control-allow-headers'], /Authorization/i, name);

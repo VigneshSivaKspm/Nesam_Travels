@@ -282,6 +282,7 @@ h2,
 }
 .ai-chat-window--nesam .chat-bubble--user .chat-bubble__content {
   background: var(--ink);
+  color: #fff;
 }
 .drawer__head {
   border-bottom-color: var(--gold-line);

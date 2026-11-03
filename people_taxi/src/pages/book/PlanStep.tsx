@@ -216,7 +216,7 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
       ? 'You’re offline. Reconnect to see fares.'
       : !pickup || !targetDrop
         ? currentBlocker
-        : haversineKm(pickup, targetDrop) < 0.2 && !isLocalRental
+        : haversineKm(pickup, targetDrop) < 0.2 && !isLocalRental && tripType !== 'Round Trip'
           ? 'Pickup and destination are too close together.'
           : scheduleProblem(scheduledAt) || (tripType === 'Round Trip' && (!tripEndAt || endIssue) ? endIssue || 'Choose when your round trip returns.' : '');
     setProblem(reason);

@@ -56,7 +56,7 @@ export function applyCors(req: IncomingMessage, res: ApiResponse): void {
   if (origin && originAllowed(origin, list)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');
+    res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type, X-Client-Request-Id');
     res.setHeader('Access-Control-Max-Age', '600');
   }
 }

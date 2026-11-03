@@ -162,7 +162,7 @@ export function BookingForm({
       const ap = airportField === 'pickup' ? pickup : drop;
       if (ap && !isAirportPlace(ap)) e[airportField] = 'Choose an airport for this transfer.';
     }
-    if (pickup && drop && service !== 'rental' && haversineKm(pickup, drop) < 0.2) e.drop = 'Pickup and drop are too close together.';
+    if (pickup && drop && service !== 'rental' && !(service === 'outstation' && tripType === 'Round Trip') && haversineKm(pickup, drop) < 0.2) e.drop = 'Pickup and drop are too close together.';
     if (tripType === 'Round Trip' && service === 'outstation') {
       const points = [pickup, ...draft.stops, drop].filter((p): p is GeoPlace => p !== null);
       if (points.some((p, index) => index > 0 && haversineKm(points[index - 1]!, p) < 0.2)) e.stops = 'Consecutive itinerary locations cannot be the same.';

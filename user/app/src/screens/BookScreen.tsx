@@ -221,7 +221,7 @@ export function BookScreen() {
     if (!targetDrop) errs.drop = airportField === 'drop' ? 'Choose the airport.' : 'Choose your drop location.';
     if (isAirport && airportField === 'drop' && drop && drop.type !== 'airport') errs.drop = 'Choose an airport for an airport drop.';
     if (isAirport && airportField === 'pickup' && pickup && pickup.type !== 'airport') errs.pickup = 'Choose the airport you are arriving at.';
-    if (pickup && targetDrop && !isRental && haversineKm(pickup, targetDrop) < 0.2) errs.drop = 'Pickup and drop cannot be the same place.';
+    if (pickup && targetDrop && !isRental && !isRound && haversineKm(pickup, targetDrop) < 0.2) errs.drop = 'Pickup and drop cannot be the same place.';
     if (!pickupDay) errs.date = 'Choose the pickup date.';
     const sched = scheduleProblem(scheduledAt);
     if (pickupDay && sched) errs.time = sched;
