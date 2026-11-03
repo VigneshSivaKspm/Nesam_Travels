@@ -213,6 +213,7 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
       return;
     }
     setLoading(true);
+    console.info('[AI Chat] Sending message', { brand: brand.id, language: lang, historyLength: history.length });
     try {
       const res = await callFunction<
         { brand: string; language: ChatLang; messages: Array<{ role: 'user' | 'assistant'; content: string }> },
@@ -224,9 +225,11 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
         messages: history.filter((m) => m.id !== 'welcome' && !m.localOnly).slice(-20).map((m) => ({ role: m.role, content: m.content })),
       });
       setProvider(res?.provider ?? '');
+      console.info('[AI Chat] Response received', { brand: brand.id, provider: res?.provider ?? 'unknown' });
       reply(res?.message || t.fail!, `a_${Date.now()}`, res?.provider !== 'groq');
     } catch (err) {
       const code = (err as { code?: string })?.code ?? '';
+      console.error('[AI Chat] Request failed', { brand: brand.id, code, message: (err as Error)?.message });
       setProvider('fallback_error');
       reply(code.includes('resource-exhausted') ? t.busy! : t.fail!, `err_${Date.now()}`, true);
     } finally {

@@ -27,6 +27,8 @@ interface ChatRequestInput {
   };
 }
 
+type ConversationLanguage = 'en' | 'ta' | 'tanglish';
+
 const SUPPORT_PHONE = '+91 90250 99990';
 const SUPPORT_PHONE_TEL = '+919025099990';
 
@@ -95,11 +97,13 @@ const SHARED_FACTS = `Booking facts (state only these; never invent fares, offer
 - Multicity: riders can send a multi-stop itinerary from the Multicity tab; the travel desk prices it and sends a quote to accept.
 - Support: ${SUPPORT_PHONE} (24/7), WhatsApp available.`;
 
-const LANGUAGE_RULES = (lang: 'en' | 'ta') => lang === 'ta'
-  ? 'Reply in Tamil (தமிழ்) using Tamil script, in simple everyday words. Keep brand names, place names, phone numbers, ₹ amounts and car model names as they are. If the rider writes in English or Tanglish, still reply in Tamil because Tamil is selected.'
-  : 'Reply in clear, simple English. If the rider writes in Tamil script, reply in Tamil script; if they write Tamil in English letters (Tanglish), reply in Tamil script as well.';
+const LANGUAGE_RULES = (lang: ConversationLanguage) => lang === 'ta'
+  ? 'Reply in natural spoken Tamil using Tamil script. Keep brand names, place names, phone numbers, ₹ amounts and car model names unchanged. Tamil is explicitly selected, so continue in Tamil unless the rider clearly asks for English.'
+  : lang === 'tanglish'
+    ? 'Reply in natural Tanglish: conversational Tamil written with English letters, matching the rider’s simple spelling and tone. Example: “Naan epdi book pannurathu?” → “Home page-la pickup, drop, date, time select pannunga. Appuram car choose panni confirm pannunga.” Do not switch to Tamil script or formal English unless asked.'
+    : 'Reply in clear, simple English. If the rider changes to Tamil script or Tanglish, naturally answer in that same language and writing style.';
 
-function getSystemPrompt(brand: string, lang: 'en' | 'ta', context?: { pickup?: string; drop?: string; service?: string }): string {
+function getSystemPrompt(brand: string, lang: ConversationLanguage, context?: { pickup?: string; drop?: string; service?: string }): string {
   const b = (brand || '').toLowerCase();
   let base = NESAM_SYSTEM_PROMPT;
   if (b.includes('people')) base = PEOPLE_TAXI_SYSTEM_PROMPT;
@@ -109,16 +113,21 @@ function getSystemPrompt(brand: string, lang: 'en' | 'ta', context?: { pickup?: 
 
 Conversation rules:
 - Respond directly to the latest message using the conversation history. Never repeat the welcome message or service menu after each turn.
-- Handle greetings and small talk naturally in one short sentence, then offer relevant help.
+- Understand informal spelling, abbreviations, code-switching, Tamil script and Tanglish. Infer the intended meaning instead of correcting grammar.
+- Handle greetings, jokes, emotions and small talk naturally. Do not restart the conversation or force every reply into a sales pitch.
 - Remember places, passenger count and preferences already supplied. Ask only for missing details, one question at a time.
+- Answer reasonable general conversation and travel questions helpfully. For current facts you cannot verify (live traffic, weather, availability, news), say that clearly instead of guessing.
+- If a message is ambiguous, state your best interpretation and ask one short clarification. Never respond with only a generic menu when a useful answer is possible.
 - Help plan routes, stops, luggage and vehicle choices. Label travel times as approximate; you have no live traffic, fare, booking or availability tools.
 - Vehicle seating and luggage space depend on the specific vehicle. With all seats occupied, never promise large bags will fit; ask the travel desk to confirm luggage capacity or suggest a larger vehicle.
+- Never claim a specific number of bags will fit. For 5 or more people with several large bags, suggest comparing a Prime SUV or a larger vehicle and ask the travel desk to confirm the exact vehicle's luggage space.
 - Exact fares are shown before confirming; driver details appear only after assignment. Keep these separate.
+- Describe only controls that really exist in the booking flow: service or trip type, pickup, drop/stops, date/time, vehicle/fare choice, mobile sign-in and confirmation. Do not claim the app collects passenger/luggage counts, automatically recommends a vehicle, books through chat, or shows the boarding code before a booking exists.
 - In Tamil, translate cash as ரொக்கம் or பணம், never காசோலை (cheque).
 - Never claim to have booked, changed or cancelled a ride. Guide the rider through the app instead.
 - The booking facts below override any conflicting brand marketing claims above. Do not promise savings percentages, vehicle availability, online payments or unverified inclusions.
 ${SHARED_FACTS}
-Style: short answers (under 120 words), bullets for lists, no markdown headings, plain **bold** only. ${LANGUAGE_RULES(lang)}`;
+Style: conversational answers, usually under 160 words; use bullets only when they make steps easier to follow; no markdown headings; plain **bold** only. ${LANGUAGE_RULES(lang)}`;
   if (context?.pickup || context?.drop || context?.service) {
     base += `\n\nCurrent User Session Context:\n- Selected Service: ${context.service || 'Not chosen yet'}\n- Pickup: ${context.pickup || 'Not selected'}\n- Drop: ${context.drop || 'Not selected'}`;
   }
@@ -129,7 +138,20 @@ Style: short answers (under 120 words), bullets for lists, no markdown headings,
 // Real facts only (see SHARED_FACTS). English and Tamil, picked from what the rider asked.
 
 const TAMIL = /[஀-௿]/;
-const detectLanguage = (chosen: unknown, lastUserText: string): 'en' | 'ta' => (chosen === 'ta' || TAMIL.test(lastUserText) ? 'ta' : 'en');
+const TANGLISH_WORDS = /\b(naan|na|enakku|enaku|enga|engae|enge|epdi|eppadi|enna|ennoda|unga|ungalukku|neenga|nee|irukku|iruku|irukka|iruka|iruken|venum|vendaam|vendam|pannanum|pannunga|pannurathu|pannradhu|pogalam|poganum|polam|polaam|poren|varen|varanum|aama|ama|illa|illai|romba|konjam|ippo|apram|inga|anga|sollu|sollunga|theriyum|therila|kudunga|edunga|bookingku|tripku|caru|kaasu|evlo|evalo|pothum|pothuma|kedaikuma|mudiyuma|aaguma|seri|sari|thala|thaal|machi|bro)\b/i;
+const TANGLISH_ENDINGS = /\b\w+(?:nga|num|la|ku|oda|lam|uma|athu|radhu|ren|inga)\b/i;
+const isTanglish = (value: string): boolean => TANGLISH_WORDS.test(value) || (TANGLISH_ENDINGS.test(value) && /\b(book|cab|car|trip|pickup|drop|airport|fare|pay|cancel)\b/i.test(value));
+const detectLanguage = (chosen: unknown, lastUserText: string, history: ChatMessage[]): ConversationLanguage => {
+  if (chosen === 'ta' || TAMIL.test(lastUserText)) return 'ta';
+  if (isTanglish(lastUserText)) return 'tanglish';
+  const words = lastUserText.trim().split(/\s+/).filter(Boolean);
+  if (words.length <= 3) {
+    const priorUser = history.slice(0, -1).reverse().find((message) => message.role === 'user')?.content ?? '';
+    if (TAMIL.test(priorUser)) return 'ta';
+    if (isTanglish(priorUser)) return 'tanglish';
+  }
+  return 'en';
+};
 
 type Intent = 'greeting' | 'wellbeing' | 'thanks' | 'cancel' | 'payment' | 'fare' | 'toll' | 'vehicle' | 'airport' | 'rental' | 'multicity' | 'oneway' | 'boarding' | 'driver' | 'book' | 'contact';
 
@@ -154,12 +176,35 @@ const INTENT_WORDS: Array<[Intent, RegExp]> = [
 function intentOf(q: string): Intent | null {
   const t = q.trim().toLowerCase();
   if (/(how (are|r) (you|u)|how.?s it going|eppadi iruk|எப்படி இருக்க)/.test(t)) return 'wellbeing';
-  if (/^(?:(?:hi+|hell?o+w?|hey+|hai+|hlo|vanakkam|good (?:morning|afternoon|evening)|வணக்கம்|ஹாய்|ஹலோ)[\s!.,?]*)+$/.test(t)) return 'greeting';
+  if (/^(?:(?:hi+|hell?o+w?|hey+|hai+|hlo|vanakkam|good (?:morning|afternoon|evening)|வணக்கம்|ஹாய்|ஹலோ|thala|thaal|machi|bro)[\s!.,?]*)+$/.test(t)) return 'greeting';
+  if (/^(?:hi+|hai+|hey+|hlo|hello+)\b/.test(t) && t.split(/\s+/).length <= 4) return 'greeting';
   for (const [intent, re] of INTENT_WORDS) if (re.test(t)) return intent;
   return null;
 }
 
-function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta', history: ChatMessage[] = []): string {
+function offlineTanglishAnswer(intent: Intent | null, name: string, call: string): string {
+  switch (intent) {
+    case 'greeting': return `Hai! 😊 **${name}** travel assistant naan. Enga irundhu enga poganum?`;
+    case 'wellbeing': return 'Naan super-ah iruken, help panna ready! 😊 Neenga epdi irukeenga? Enna trip plan panreenga?';
+    case 'thanks': return `Welcome! Vera edhavadhu help venuma? 24/7 support: ${call}.`;
+    case 'book': return '**Book pannurathu easy:**\n1. Home page-la service select pannunga.\n2. Pickup, drop, date, time fill pannunga.\n3. Car-um fare-um choose pannitu mobile number-la login panni confirm pannunga.\nBooking time-la payment edukka maatom.';
+    case 'fare': return `Exact fare paaka home page-la **pickup, drop, date, time** enter panni **Let's Go** press pannunga. Ovvoru car-ukkum fare booking-ku munnadiye kaatum. Toll, parking, state permit actual cost separate-ah add aagum.`;
+    case 'vehicle': return '**Car options:**\n• Sedan – 4 passengers\n• SUV / MPV – 6–7 passengers\n• Innova / Crysta – long trip-ku comfortable\n• Periya group-ku van / Tempo Traveller\nPassengers-um luggage-um evlo nu sonna suitable option suggest panren.';
+    case 'payment': return 'Booking pannumbodhu payment illa. Trip mudinja apram driver-kitta **Cash illa UPI**-la pay pannalaam. Toll, parking, permit actual amount final receipt-la varum.';
+    case 'cancel': return 'Pickup-ku **1 hour munnadi varaikkum free cancellation**. Adhukku apram ₹100 fee. **My Trips**-la booking open panni cancel pannalaam.';
+    case 'toll': return 'Quoted fare-la toll, parking, state permit include aagadhu. Driver pay panna actual amount receipt-oda final bill-la add aagum.';
+    case 'boarding': return 'Booking-ku 4-digit boarding code varum. Car-la erina apram mattum driver-kitta share pannunga. Driver assign aana name, number, vehicle details **My Trips**-la theriyum.';
+    case 'driver': return 'Driver assign aana udane avar name, phone number, vehicle number **My Trips**-la varum. Pickup-ku munnaadi adha check pannalaam.';
+    case 'airport': return 'Home page-la **Airport** select panni, “To airport” illa “From airport” choose pannunga. Location, date, time enter panna car options-um fare-um kaatum.';
+    case 'rental': return 'Local Rental-la 4, 6, 8, 10, 12 hours package irukku; included KM-um irukkum. Home page-la **Local Rental** select panni pickup location kudunga.';
+    case 'multicity': return 'Home page-la **Multicity** open panni pickup, intermediate stops, final drop, date, time add pannunga. Travel desk itinerary check panni quote anuppuvanga; accept panna booking confirm aagum.';
+    case 'oneway': return '**One Way**-na neenga travel panra direction-ku mattum fare. **Round Trip**-na return date/time-um add pannanum; multiple stops-um add pannalaam.';
+    case 'contact': return `24/7 help-ku [${SUPPORT_PHONE}](tel:${SUPPORT_PHONE_TEL}) call pannunga illa [WhatsApp](https://wa.me/919025099990)-la message pannunga.`;
+    default: return `Purinjuka try panren 😊 Konjam detail-ah sollunga — trip enga irundhu enga, date, passengers evlo? Booking help, fare, car, route, cancellation, payment ellame kekkalaam. Support: ${call}.`;
+  }
+}
+
+function offlineAnswer(brand: string, userQuery: string, lang: ConversationLanguage, history: ChatMessage[] = []): string {
   const b = brand.toLowerCase();
   const name = b.includes('people') ? 'People Taxi' : b.includes('oneway') || b.includes('one_way') ? 'One Way Car Rentals' : 'NESAM Cabs';
   const call = `**${SUPPORT_PHONE}**`;
@@ -169,6 +214,7 @@ function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta', hist
   if (!intent && /^(and |what about |how about |அது|மேலும்)/i.test(userQuery.trim())) {
     intent = history.slice(0, -1).reverse().filter((m) => m.role === 'user').map((m) => intentOf(m.content)).find((i) => i && i !== 'greeting' && i !== 'thanks') ?? null;
   }
+  if (lang === 'tanglish') return offlineTanglishAnswer(intent, name, call);
 
   switch (intent) {
     case 'wellbeing':
@@ -248,15 +294,17 @@ async function askGroq(apiKey: string, model: string, system: string, history: C
     const response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...history], temperature: 0.4, max_tokens: 700, top_p: 0.95, stream: false }),
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...history], temperature: 0.55, max_tokens: 900, top_p: 0.95, stream: false }),
       signal: controller.signal,
     });
     if (!response.ok) {
-      console.warn('[groqChat] Groq API returned status:', response.status, model);
+      const providerRequestId = response.headers?.get?.('x-request-id') || response.headers?.get?.('cf-ray') || undefined;
+      console.warn('[groqChat] Groq API error', { status: response.status, model, providerRequestId });
       return { reason: response.status === 401 || response.status === 403 ? 'authentication' : response.status === 429 ? 'rate_limit' : 'provider_error' };
     }
     const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
     const answer = json?.choices?.[0]?.message?.content?.trim();
+    console.info('[groqChat] Groq response', { model, status: response.status, hasAnswer: Boolean(answer) });
     return answer ? { answer } : { reason: 'empty_response' };
   } catch (err) {
     console.warn('[groqChat] Groq call failed:', model, err instanceof Error ? err.message : err);
@@ -295,9 +343,10 @@ export const chatWithBot = onCall(
   }
 
   const lastUserMessage = [...validMessages].reverse().find((m) => m.role === 'user')?.content || '';
-  const lang = detectLanguage(input.language, lastUserMessage);
+  const lang = detectLanguage(input.language, lastUserMessage, validMessages);
 
   const apiKey = (process.env.GROQ_API_KEY ?? '').trim();
+  console.info('[groqChat] request accepted', { brand, language: lang, messageCount: validMessages.length, keyConfigured: Boolean(apiKey) });
   const offline = (provider: string, reason: string) => ({ message: offlineAnswer(brand, lastUserMessage, lang, validMessages), provider, reason, language: lang });
 
   // No Groq key: answer from the built-in knowledge instead.

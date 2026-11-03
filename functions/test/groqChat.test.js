@@ -24,6 +24,16 @@ test('chat validates requests, answers basic questions and preserves Groq conver
     assert.notEqual(fare.message, hello.message);
     const tamil = await chatWithBot.run(request([user('hello')], { language: 'ta' }));
     assert.match(tamil.message, /வணக்கம்/);
+    const tanglishBooking = await chatWithBot.run(request([user('naan epdi book pannurathu')]));
+    assert.equal(tanglishBooking.language, 'tanglish');
+    assert.match(tanglishBooking.message, /Home page-la service select pannunga/);
+    const tanglishGreeting = await chatWithBot.run(request([user('hai thaal')]));
+    assert.equal(tanglishGreeting.language, 'tanglish');
+    assert.match(tanglishGreeting.message, /Enga irundhu enga poganum/);
+    const tanglishFollowup = await chatWithBot.run(request([user('enaku booking help venum'), { role: 'assistant', content: 'Sure, sollunga.' }, user('aama')]));
+    assert.equal(tanglishFollowup.language, 'tanglish');
+    const luggageFollowup = await chatWithBot.run(request([user('naan chennai to madurai 5 peru porom'), { role: 'assistant', content: 'Luggage evlo?' }, user('3 bag iruku, ippo sollu')]));
+    assert.equal(luggageFollowup.language, 'tanglish');
 
     process.env.GROQ_API_KEY = 'test-key';
     const messages = [user('Chennai to Madurai, 6 passengers'), { role: 'assistant', content: 'Do you have luggage?' }, user('Yes, three bags')];
@@ -36,6 +46,12 @@ test('chat validates requests, answers basic questions and preserves Groq conver
     assert.equal(live.provider, 'groq');
     assert.deepEqual(calls[0].messages.slice(1), messages);
     assert.match(calls[0].messages[0].content, /Never repeat the welcome/);
+
+    calls = [];
+    await chatWithBot.run(request([user('naan epdi book pannurathu')]));
+    assert.match(calls[0].messages[0].content, /Reply in natural Tanglish/);
+    assert.match(calls[0].messages[0].content, /Infer the intended meaning/);
+    assert.match(calls[0].messages[0].content, /Do not claim the app collects passenger\/luggage counts/);
 
     calls = [];
     global.fetch = async () => {

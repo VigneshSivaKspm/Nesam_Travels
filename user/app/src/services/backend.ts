@@ -33,8 +33,17 @@ class BackendError extends Error {
 }
 
 export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs = 60000): Promise<Res> {
+  const requestId = `${name}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
   if (!usesHttpApi) {
-    return (await httpsCallable<Req, Res>(callableFunctions(), name, { timeout: timeoutMs })(data)).data;
+    console.info('[NESAM API]', { requestId, name, transport: 'firebase-callable' });
+    try {
+      const result = (await httpsCallable<Req, Res>(callableFunctions(), name, { timeout: timeoutMs })(data)).data;
+      console.info('[NESAM API success]', { requestId, name, transport: 'firebase-callable' });
+      return result;
+    } catch (error) {
+      console.error('[NESAM API error]', { requestId, name, transport: 'firebase-callable', code: (error as { code?: string })?.code, message: (error as Error)?.message });
+      throw error;
+    }
   }
 
   // Signed out: sent without a token; the server only answers its public (read-only) functions.
@@ -44,14 +53,17 @@ export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs =
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   let response: Response;
+  const endpoint = `${API_URL}/api/call/${encodeURIComponent(name)}`;
+  console.info('[NESAM API]', { requestId, name, transport: 'vercel-http', endpoint, signedIn: Boolean(user) });
   try {
-    response = await fetch(`${API_URL}/api/call/${encodeURIComponent(name)}`, {
+    response = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      headers: { 'Content-Type': 'application/json', 'X-Client-Request-Id': requestId, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify({ data }),
       signal: controller.signal,
     });
   } catch (err) {
+    console.error('[NESAM API network error]', { requestId, name, endpoint, error: (err as Error)?.message });
     if ((err as { name?: string }).name === 'AbortError') throw new BackendError('deadline-exceeded', 'The server took too long to respond.');
     throw new BackendError('unavailable', 'Could not reach the server. Check your connection and try again.');
   } finally {
@@ -66,8 +78,10 @@ export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs =
   }
   if (!response.ok || payload.error) {
     const code = payload.error?.code ?? (response.status === 401 ? 'unauthenticated' : response.status === 504 ? 'deadline-exceeded' : 'internal');
+    console.error('[NESAM API response error]', { requestId, name, endpoint, status: response.status, code, message: payload.error?.message });
     throw new BackendError(code, payload.error?.message ?? 'The server could not complete the request.', payload.error?.details);
   }
+  console.info('[NESAM API success]', { requestId, name, endpoint, status: response.status });
   return payload.data as Res;
 }
 

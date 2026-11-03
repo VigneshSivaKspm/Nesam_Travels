@@ -44,7 +44,11 @@ function collectIds(...sources: unknown[]): string[] {
 }
 
 export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> {
+  const incomingRequestId = header(req, 'x-client-request-id');
+  const requestId = /^[A-Za-z0-9_-]{1,128}$/.test(incomingRequestId) ? incomingRequestId : `server-${Date.now().toString(36)}`;
+  const startedAt = Date.now();
   apiHeaders(res);
+  res.setHeader('X-Request-Id', requestId);
   applyCors(req, res);
   if (req.method === 'OPTIONS') {
     res.statusCode = 204;
@@ -54,6 +58,7 @@ export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> 
   if (req.method !== 'POST') return sendError(res, 405, 'method-not-allowed', 'Use POST.');
 
   const name = String(Array.isArray(req.query.name) ? req.query.name[0] : req.query.name ?? '');
+  if (name === 'chatWithBot') console.info('[api/chat] request', { requestId, origin: header(req, 'origin') || 'none' });
   const fn = Object.prototype.hasOwnProperty.call(CALLABLES, name) ? CALLABLES[name] : undefined;
   if (!fn) return sendError(res, 404, 'not-found', 'Unknown function.');
 
@@ -89,6 +94,11 @@ export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> 
       acceptsStreaming: false,
     });
 
+    if (name === 'chatWithBot') {
+      const diagnostic = (result ?? {}) as { provider?: string; model?: string; reason?: string; language?: string };
+      console.info('[api/chat] success', { requestId, durationMs: Date.now() - startedAt, provider: diagnostic.provider, model: diagnostic.model, reason: diagnostic.reason, language: diagnostic.language });
+    }
+
     // Firestore triggers do not exist off Firebase: settle derived money state right away.
     // (Best effort: the callable already succeeded, and the cron sweep repeats this.)
     try {
@@ -101,11 +111,12 @@ export async function handler(req: ApiRequest, res: ApiResponse): Promise<void> 
     sendJson(res, 200, { data: result ?? null });
   } catch (err) {
     if (err instanceof HttpsError) {
+      if (name === 'chatWithBot') console.warn('[api/chat] callable error', { requestId, durationMs: Date.now() - startedAt, code: err.code, message: err.message });
       sendError(res, statusOf(err.code), err.code, err.message, err.details);
       return;
     }
     // Never leak internals; the stack goes to the server log only.
-    console.error(`[api] ${name} failed`, err);
+    console.error(`[api] ${name} failed`, { requestId, durationMs: Date.now() - startedAt, error: err });
     sendError(res, 500, 'internal', 'The server could not complete the request.');
   }
 }
