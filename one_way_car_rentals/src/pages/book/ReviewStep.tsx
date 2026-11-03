@@ -18,7 +18,7 @@ import { composeNotes, notesRoom } from '@/lib/notes';
 import { setPendingReturn } from '@/lib/pendingReturn';
 import { FREE_CANCEL_WINDOW, PolicyLinks } from '@/pages/PolicySections';
 import { categoryName, categoryPhoto } from '@/lib/categories';
-import { FareDialog, FlowBar, PromoControl } from './parts';
+import { BarIconButton, FareDialog, FlowBar, PromoControl } from './parts';
 
 export function ReviewStep() {
   const navigate = useNavigate();
@@ -291,7 +291,7 @@ export function ReviewStep() {
               <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
                 I accept the fare breakdown and that tolls, parking and permits are paid separately. Cancellation is free while the booking is pending or more than {FREE_CANCEL_WINDOW} before pickup; after that a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
               </Checkbox>
-              <PolicyLinks ids={['terms', 'payment', 'cancellation', 'refund']} newTab />
+              <PolicyLinks ids={['terms']} newTab />
               {termsError ? <p className="field__error" role="alert" style={{ marginTop: 8 }}>{termsError}</p> : null}
             </div>
 
@@ -331,10 +331,12 @@ export function ReviewStep() {
         </div>
 
         <FlowBar className="only-narrow">
-          <div className="flow-bar__summary">
-            <Button size="lg" loading={submitting} trailing="arrow-right" onClick={() => void submit()}>
-              Confirm Booking
+          <div className="flow-bar__summary flow-bar__summary--icons">
+            <BarIconButton icon="arrow-left" label="Back to vehicles" onClick={() => navigate('/book/ride')} />
+            <Button size="lg" loading={submitting} onClick={() => void submit()}>
+              Book &amp; Confirm
             </Button>
+            <BarIconButton icon="home" label="Home" onClick={() => navigate('/book')} />
           </div>
         </FlowBar>
       </div>

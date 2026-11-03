@@ -136,6 +136,7 @@ export function FlowBar({
   secondary,
   showBack = false,
   hideFare = false,
+  onHome,
 }: {
   onBack?: () => void;
   onNext?: () => void;
@@ -148,11 +149,18 @@ export function FlowBar({
   showBack?: boolean;
   /** Keep the button, drop the fare text: used where each card already shows its own price. */
   hideFare?: boolean;
+  /** Adds a Home icon button to the right of the main button (with onBack, a Back icon button to its left). */
+  onHome?: () => void;
 }) {
   return (
     <div className="flow-bar">
       {total !== undefined && onNext ? (
-        <div className={`flow-bar__total ${hideFare ? 'flow-bar__total--solo' : ''}`}>
+        <div className={`flow-bar__total ${hideFare ? 'flow-bar__total--solo' : ''} ${hideFare && (onBack || onHome) ? 'flow-bar__total--with-icons' : ''}`}>
+          {hideFare && onBack ? (
+            <button type="button" className="flow-bar__icon" aria-label={backLabel} title={backLabel} onClick={onBack}>
+              <Icon name="arrow-left" size={20} />
+            </button>
+          ) : null}
           {hideFare ? null : (
             <div>
               <small>Estimated Fare</small>
@@ -165,10 +173,14 @@ export function FlowBar({
             disabled={nextDisabled}
             loading={nextLoading}
             onClick={onNext}
-            iconTrailing="arrow-right"
           >
             {nextLabel}
           </Button>
+          {hideFare && onHome ? (
+            <button type="button" className="flow-bar__icon" aria-label="Home" title="Home" onClick={onHome}>
+              <Icon name="home" size={20} />
+            </button>
+          ) : null}
         </div>
       ) : null}
 

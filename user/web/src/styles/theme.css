@@ -1103,3 +1103,78 @@ h2,
   display: grid;
   gap: 4px;
 }
+
+/* Bottom bar: Back and Home icon buttons around one clear, bold main button. */
+.flow-bar .flow-bar__total--icons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.flow-bar .flow-bar__total--icons .btn {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  box-shadow: none;
+}
+
+.flow-bar__icon {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border: 1px solid var(--line-strong, var(--line));
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+}
+.flow-bar__icon:hover {
+  border-color: var(--brand, var(--red));
+  color: var(--brand, var(--red));
+}
+.flow-bar__icon:active {
+  background: var(--sunken, #f1f2f5);
+}
+
+/* The trip card has no back button now (Back is in the bottom bar). */
+.trip-sum.trip-sum--compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* Review summary: three aligned detail rows (date, distance, cab), each with a small icon. */
+.rv-sum .rv-meta {
+  display: grid;
+  gap: 8px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.rv-sum .rv-meta li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 0.9375rem;
+  line-height: 1.35;
+}
+.rv-sum .rv-meta .icon {
+  flex: none;
+  color: var(--brand, var(--red));
+}
+.rv-sum .rv-meta strong {
+  font-weight: 700;
+}
+
+/* Phones and tablets: the Book & Confirm button is in the bottom bar, so the terms card does not repeat it. */
+@media (max-width: 999.98px) {
+  .rv-act__submit {
+    display: none;
+  }
+}

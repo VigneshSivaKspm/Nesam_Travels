@@ -208,19 +208,31 @@ export function ReviewStep() {
                 </h2>
               </div>
 
-              {scheduledAt || route ? (
-                <p className="rv-sum__when">
-                  <Icon name="calendar" size={15} />
-                  {scheduledAt ? <span>{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
-                  {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
-                  {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
-                </p>
-              ) : null}
-
-              <p className="rv-sum__car">
-                <strong>{categoryName(category)}</strong>
-                <span>{category.seats} seats</span>
-              </p>
+              <ul className="rv-meta">
+                {scheduledAt ? (
+                  <li>
+                    <Icon name="calendar" size={16} />
+                    <span>
+                      <strong>{formatDate(scheduledAt)}</strong>, {formatTime(scheduledAt)}
+                      {tripEndAt ? ` · Return ${formatDate(tripEndAt)}` : ''}
+                    </span>
+                  </li>
+                ) : null}
+                {route ? (
+                  <li>
+                    <Icon name="route" size={16} />
+                    <span>
+                      {formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}
+                    </span>
+                  </li>
+                ) : null}
+                <li>
+                  <Icon name="car" size={16} />
+                  <span>
+                    <strong>{categoryName(category)}</strong> · {category.seats} seats
+                  </span>
+                </li>
+              </ul>
 
               <div className="rv-sum__total">
                 <div className="rv-sum__row">
@@ -297,11 +309,11 @@ export function ReviewStep() {
 
             <section className="card rv-policy" ref={termsRef}>
               <Checkbox
-                label="I agree to the Fare and Cancellation Terms"
+                label="I accept the fare, extra charges and cancellation policy."
                 checked={termsAccepted}
                 onChange={setTermsAccepted}
               />
-              <PolicyLinks ids={['terms', 'payment', 'cancellation', 'refund']} newTab />
+              <PolicyLinks ids={['terms']} newTab />
               {termsError ? <p className="bf-error">{termsError}</p> : null}
             </section>
 
@@ -359,11 +371,14 @@ export function ReviewStep() {
 
       <FlowBar
         onNext={submit}
-        nextLabel={profile ? 'Confirm & Book' : 'Sign in & Book'}
+        nextLabel={profile ? 'Book & Confirm' : 'Sign in & Book'}
         nextDisabled={submitting}
         nextLoading={submitting}
         total={quote.total}
         hideFare
+        onBack={() => navigate('/book/ride')}
+        backLabel="Back to vehicles"
+        onHome={() => navigate('/')}
       />
 
       {showFare ? <FareDialog fare={breakup} onClose={() => setShowFare(false)} /> : null}

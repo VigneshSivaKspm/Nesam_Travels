@@ -185,3 +185,12 @@ export function FlowBar({ children, back, showNav = false, className = '' }: { c
     </div>
   );
 }
+
+/** A square icon button for the bottom bar: Back on the left, Home on the right. */
+export function BarIconButton({ icon, label, onClick }: { icon: 'arrow-left' | 'home'; label: string; onClick: () => void }) {
+  return (
+    <button type="button" className="flow-bar__icon" aria-label={label} title={label} onClick={onClick}>
+      <Icon name={icon} size={20} />
+    </button>
+  );
+}

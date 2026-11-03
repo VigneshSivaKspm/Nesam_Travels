@@ -10,7 +10,7 @@ import { BackButton, Badge, Button, EmptyState, Notice } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
-import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
+import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
 import { FareDialog, FlowBar, PromoControl } from './parts';
 
@@ -62,7 +62,6 @@ export function ChooseStep() {
           <div className="choose__main">
             <section className="trip-sum trip-sum--compact" aria-label="Trip summary">
               <h1 className="sr-only">Choose your vehicle</h1>
-              <BackButton to="/book" />
               <div className="trip-sum__body">
                 <p className="route-title">
                   <span>{pickup.name}</span>
@@ -155,6 +154,7 @@ export function ChooseStep() {
                     <div className="cab__info">
                       <div className="cab__header">
                         <h3 className="cab__name">{name}</h3>
+                        {categoryModels(c) ? <p className="cab__model">{categoryModels(c)}</p> : null}
                         <div className="cab__specs">
                           <span><Icon name="user" size={12} /> {c.seats} Seats</span>
                           <span className="cab__dot">·</span>
@@ -295,10 +295,13 @@ export function ChooseStep() {
 
       <FlowBar
         onNext={handleNext}
-        nextLabel="Book Now"
+        nextLabel="Continue"
         nextDisabled={!canContinue}
         total={quote?.total}
         hideFare
+        onBack={() => navigate('/book')}
+        backLabel="Back to trip details"
+        onHome={() => navigate('/')}
       />
 
       {fareFor && breakupFor(fareFor) ? (

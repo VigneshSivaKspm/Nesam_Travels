@@ -13,9 +13,9 @@ import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useCustomerData } from '@/state/CustomerData';
 import { useOnline } from '@/lib/hooks';
-import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
+import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
-import { FareDialog, FlowBar, PromoControl } from './parts';
+import { BarIconButton, FareDialog, FlowBar, PromoControl } from './parts';
 
 const TOO_FAR_KM = 1500;
 type Sort = 'recommended' | 'low' | 'high';
@@ -75,7 +75,6 @@ export function ChooseStep() {
           <div className="choose__main">
             <section className="trip-sum trip-sum--compact" aria-label="Your trip">
               <h1 className="sr-only">Choose your cab</h1>
-              <BackButton to="/book" />
               <div className="trip-sum__body">
                 <p className="route-title">
                   <span>{pickup.name}</span>
@@ -224,6 +223,7 @@ export function ChooseStep() {
                           </span>
                           <span className="cab__info">
                             <strong className="cab__name">{categoryName(c)}</strong>
+                            {categoryModels(c) ? <span className="cab__model">{categoryModels(c)}</span> : null}
                             <span className="cab__badges">
                               <span className="feat feat--seats">
                                 <Icon name="passengers" size={13} /> {c.seats} passengers
@@ -333,10 +333,12 @@ export function ChooseStep() {
       </div>
 
       <FlowBar back={() => navigate('/book')} className="flow-bar--choose">
-        <div className="flow-bar__total flow-bar__total--solo">
-          <Button size="lg" trailing="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
-            Book Now
+        <div className="flow-bar__total flow-bar__total--solo flow-bar__total--icons">
+          <BarIconButton icon="arrow-left" label="Back to trip details" onClick={() => navigate('/book')} />
+          <Button size="lg" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
+            Continue
           </Button>
+          <BarIconButton icon="home" label="Home" onClick={() => navigate('/book')} />
         </div>
       </FlowBar>
 

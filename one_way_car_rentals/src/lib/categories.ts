@@ -19,3 +19,14 @@ export function categoryPhoto(c: Pick<RideCategory, 'name' | 'seats'> & { imageU
 }
 
 export const categoryName = (c: Pick<RideCategory, 'name'>) => c.name.replace(/\s*\d+\s*\+\s*\d+\s*$/, '').trim() || c.name;
+
+/** The example cars shown under a category name: "Dzire / Etios or similar". Only the Crysta is named exactly. */
+export function categoryModels(c: Pick<RideCategory, 'name' | 'seats'>): string {
+  const n = c.name.toLowerCase();
+  if (/crysta/.test(n)) return 'Toyota Innova Crysta';
+  if (/innova|hycross/.test(n)) return 'Toyota Innova or similar';
+  const group = categoryGroup(c);
+  if (group === 'SUV') return 'Ertiga or similar';
+  if (group === 'Sedan') return 'Dzire / Etios or similar';
+  return '';
+}

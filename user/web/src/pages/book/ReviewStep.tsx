@@ -18,7 +18,7 @@ import { useAuth } from '@/state/Auth';
 import { useOnline } from '@/lib/hooks';
 import { composeNotes, notesRoom } from '@/lib/notes';
 import { categoryName } from '@/lib/categories';
-import { FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
+import { BarIconButton, FareDialog, FlowBar, PaymentChoice, PromoControl } from './parts';
 
 export function ReviewStep() {
   const navigate = useNavigate();
@@ -155,14 +155,27 @@ export function ReviewStep() {
         <Icon name="arrow-right" size={17} />
         <span>{dropName}</span>
       </p>
-      <p className="rv-sum__when">{when}</p>
-      {tripType === 'Round Trip' && tripEndAt ? <p className="rv-sum__when">Return {`${formatDate(tripEndAt)} · ${formatTime(tripEndAt)}`}</p> : null}
-      <div className="rv-sum__car">
-        <span>
-          {categoryName(category)} · {category.seats} passengers
-        </span>
-        <small>{route ? formatDistance(route.distanceKm) : ''}</small>
-      </div>
+      <ul className="rv-meta">
+        <li>
+          <Icon name="calendar" size={16} />
+          <span>
+            {when}
+            {tripType === 'Round Trip' && tripEndAt ? ` · Return ${formatDate(tripEndAt)}, ${formatTime(tripEndAt)}` : ''}
+          </span>
+        </li>
+        {route ? (
+          <li>
+            <Icon name="route" size={16} />
+            <span>{formatDistance(route.distanceKm)}</span>
+          </li>
+        ) : null}
+        <li>
+          <Icon name="car" size={16} />
+          <span>
+            <strong>{categoryName(category)}</strong> · {category.seats} passengers
+          </span>
+        </li>
+      </ul>
       <div className="rv-sum__total">
         <div>
           <strong>{q.authoritative ? 'Total fare' : 'Estimated fare'}</strong>
@@ -191,7 +204,7 @@ export function ReviewStep() {
       </div>
       {justSignedIn && !submitError ? <Notice tone="success">You’re signed in. Check the details and submit your booking request.</Notice> : null}
       {submitError ? <Notice tone="error">{submitError}</Notice> : blocker && tried ? <Notice tone="warning">{blocker}</Notice> : null}
-      <Button block size="lg" loading={submitting} disabled={submitting || (!!blocker && termsAccepted && tried)} onClick={() => void submit()}>
+      <Button className="rv-act__submit" block size="lg" loading={submitting} disabled={submitting || (!!blocker && termsAccepted && tried)} onClick={() => void submit()}>
         {submitting ? 'Sending request…' : profile ? 'Submit booking request' : 'Sign in & continue'}
       </Button>
       <p className="rv-act__note">
@@ -314,7 +327,15 @@ export function ReviewStep() {
         </div>
       </div>
 
-      <FlowBar back={() => navigate('/book/ride')} />
+      <FlowBar className="flow-bar--review">
+        <div className="flow-bar__total flow-bar__total--solo flow-bar__total--icons">
+          <BarIconButton icon="arrow-left" label="Back to vehicles" onClick={() => navigate('/book/ride')} />
+          <Button size="lg" loading={submitting} disabled={submitting || (!!blocker && termsAccepted && tried)} onClick={() => void submit()}>
+            {profile ? 'Book & Confirm' : 'Sign in & continue'}
+          </Button>
+          <BarIconButton icon="home" label="Home" onClick={() => navigate('/book')} />
+        </div>
+      </FlowBar>
 
       {showFare ? <FareDialog title={`${categoryName(category)} · fare details`} lines={breakup.lines} total={quote.total} estimated={!q.authoritative} onClose={() => setShowFare(false)} /> : null}
     </div>
