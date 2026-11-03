@@ -226,7 +226,6 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                     <span className="vehicle__seats">
                       <Icon name="passengers" size={16} /> {c.seats} seats
                     </span>
-                    {c.description ? <p>{c.description}</p> : null}
                   </div>
                 </li>
               ))
@@ -235,7 +234,6 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                   <img src={`/vehicles/${v.art}.webp`} alt={`One Way Car Rentals ${v.name} rental`} width={320} height={210} loading="lazy" />
                   <div className="vehicle__body">
                     <strong>{v.name}</strong>
-                    <p>{v.text}</p>
                   </div>
                 </li>
               ))}

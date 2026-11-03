@@ -4,6 +4,7 @@ import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/customer';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { useExitGuard } from '@/lib/exitGuard';
 import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { HOME_SEO } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
@@ -241,6 +242,7 @@ function Home() {
 }
 
 export function BookPage({ step }: { step: BookStep }) {
+  useExitGuard(step === 'plan');
   useSeo(
     step === 'plan'
       ? HOME_SEO

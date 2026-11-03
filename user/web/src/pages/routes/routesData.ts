@@ -102,7 +102,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
     faqs: [
       {
         q: 'How much is the one-way drop taxi fare from Chennai to Pondicherry?',
-        a: 'The one-way drop taxi fare starts from approx ₹2,783 for an AC Sedan (including 150 km distance charge at ₹15/km, ₹400 driver bata, and 5% GST). Toll charges are payable at actuals against fastag receipts.',
+        a: 'The one-way drop taxi fare starts from approx ₹2,783 for an AC Sedan (including 150 km distance charge at ₹15/km, ₹400 driver allowance, and 5% GST). Toll charges are payable at actuals against fastag receipts.',
       },
       {
         q: 'Do I have to pay return fare for a one-way trip to Pondicherry?',
@@ -173,7 +173,7 @@ export const ALL_ROUTES: RouteCorridorDetail[] = [
       },
       {
         q: 'How are state permits and highway tolls handled?',
-        a: 'Highway tolls and Karnataka state border permits are paid at actual cost against receipts. The core distance charge and driver bata are included in your quote.',
+        a: 'Highway tolls and Karnataka state border permits are paid at actual cost against receipts. The core distance charge and driver allowance are included in your quote.',
       },
       {
         q: 'Can I pay the driver at the end of the trip?',

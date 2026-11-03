@@ -603,3 +603,65 @@ html[data-hero-logo='in'] .topbar .brand {
     transform: translateY(14px);
   }
 }
+
+/* Booking review: the back arrow alone at the top (the page heading is hidden text). */
+.flow-back {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+/* Choose-vehicle trip summary: one compact row. Back arrow left; the route in bold; type, date and distance in one small line. */
+.trip-sum.trip-sum--compact {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+}
+.trip-sum--compact .back-btn {
+  width: 36px;
+  height: 36px;
+}
+.trip-sum--compact .trip-sum__body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.trip-sum.trip-sum--compact .route-title {
+  gap: 1px 6px;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.trip-sum.trip-sum--compact .trip-sum__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px 0;
+  padding: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 0.78125rem;
+  font-weight: 500;
+}
+.trip-sum--compact .trip-sum__meta .badge {
+  padding: 1px 8px;
+  font-size: 0.6875rem;
+}
+.trip-sum--compact .trip-sum__meta > span + span::before {
+  content: '';
+  display: inline-block;
+  width: 1px;
+  height: 10px;
+  margin: 0 8px;
+  background: var(--line-strong, var(--line));
+  vertical-align: -1px;
+}
+.trip-sum--compact .trip-sum__when {
+  color: var(--ink);
+  font-weight: 600;
+}

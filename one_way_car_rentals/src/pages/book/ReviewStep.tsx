@@ -9,7 +9,7 @@ import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
 import { SCHEDULED_CANCELLATION_FEE, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
-import { Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
+import { BackButton, Button, Checkbox, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
@@ -154,10 +154,10 @@ export function ReviewStep() {
       <div className="wrap flow-page__wrap">
         <div className="choose">
           <div className="choose__main">
-            <PageHead backTo="/book/ride" title="Review & confirm">
-              Check trip itinerary and contact information before submitting. You pay your driver after the trip.
-            </PageHead>
-            <FlowSteps current={3} />
+            <div className="flow-back">
+              <BackButton to="/book/ride" label="Back to vehicles" />
+              <h1 className="sr-only">Review and confirm booking</h1>
+            </div>
 
             {justSignedIn ? (
               <Notice tone="success">You’re signed in as {profile?.name}. Tap Confirm Booking to submit your ride request.</Notice>
@@ -197,8 +197,9 @@ export function ReviewStep() {
                   <strong>{categoryName(category)}</strong>
                   <p className="muted small">{category.seats} passengers · AC · Driver driven</p>
                   <p className="review-car__price num">
-                    <strong>{formatINR(quote.total)}</strong> <small>all-inclusive</small>
+                    <strong>{formatINR(quote.total)}</strong>
                   </p>
+                  <p className="muted small">Fuel, toll, state tax and parking are separate</p>
                 </div>
               </div>
             </section>
@@ -283,17 +284,6 @@ export function ReviewStep() {
                     />
                   </div>
                 ) : null}
-
-                <div style={{ marginTop: 14 }}>
-                  <TextArea
-                    label="Pickup notes or instructions (optional)"
-                    hint={`${room} characters left`}
-                    maxLength={room}
-                    value={notes}
-                    placeholder="Landmark, building gate, or special luggage details"
-                    onChange={(e) => update({ notes: e.target.value })}
-                  />
-                </div>
               </div>
             </section>
 
@@ -342,10 +332,6 @@ export function ReviewStep() {
 
         <FlowBar className="only-narrow">
           <div className="flow-bar__summary">
-            <div>
-              <span className="muted small">Total</span>
-              <strong className="num">{formatINR(quote.total)}</strong>
-            </div>
             <Button size="lg" loading={submitting} trailing="arrow-right" onClick={() => void submit()}>
               Confirm Booking
             </Button>

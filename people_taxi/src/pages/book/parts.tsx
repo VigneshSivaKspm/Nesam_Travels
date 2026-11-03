@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type { FareBreakdown as Fare, FareLine, PaymentMethod } from '@core/types';
 import type { FareBreakup } from '@core/utils/fareBreakup';
 import { formatINR } from '@core/utils/format';
@@ -6,6 +6,7 @@ import { Button, Dialog } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { FareBreakdown } from '@/components/FareBreakdown';
 
+/** One way to pay: book now, pay the driver at the end of the trip. Recorded as Cash, whatever an older draft held. */
 export function PaymentChoice({
   value,
   onChange,
@@ -15,38 +16,18 @@ export function PaymentChoice({
   onChange: (m: PaymentMethod) => void;
   disabled?: boolean;
 }) {
+  useEffect(() => {
+    if (value !== 'Cash') onChange('Cash');
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="pay-opts" role="radiogroup" aria-label="Payment mode">
-      <label className={`pay-opt ${value === 'Cash' ? 'is-selected' : ''}`}>
-        <input
-          type="radio"
-          name="pay"
-          value="Cash"
-          checked={value === 'Cash'}
-          disabled={disabled}
-          onChange={() => onChange('Cash')}
-        />
+      <label className="pay-opt is-selected">
+        <input type="radio" name="pay" value="Cash" checked readOnly disabled={disabled} />
         <div className="pay-opt__text">
-          <strong>Pay Cash to Driver</strong>
-          <small>Pay your driver in cash when your journey finishes.</small>
+          <strong>Book now, pay later</strong>
+          <small>Pay your driver at the end of the trip.</small>
         </div>
         <Icon name="wallet" size={20} />
-      </label>
-
-      <label className={`pay-opt ${value === 'UPI' ? 'is-selected' : ''}`}>
-        <input
-          type="radio"
-          name="pay"
-          value="UPI"
-          checked={value === 'UPI'}
-          disabled={disabled}
-          onChange={() => onChange('UPI')}
-        />
-        <div className="pay-opt__text">
-          <strong>Pay Driver via UPI / QR</strong>
-          <small>Scan and pay your driver's UPI QR code (GPay, PhonePe, Paytm) at destination.</small>
-        </div>
-        <Icon name="sparkles" size={20} />
       </label>
     </div>
   );
@@ -117,10 +98,8 @@ export function PromoControl({
   );
 }
 
-const CATEGORY_NOTE = 'Category images are illustrative. The assigned model may vary within the booked category.';
-
 export function FareDialog({
-  title = 'Fare Breakup & Inclusions',
+  title = 'Fare Breakup & Exclusions',
   lines,
   total,
   fare,
@@ -139,9 +118,9 @@ export function FareDialog({
   const finalLines: FareLine[] = lines ?? ((fare as any)?.lines ?? []);
   const finalTotal: number = total ?? ((fare as any)?.packageTotal ?? (fare as any)?.total ?? 0);
   return (
-    <Dialog title={title} subtitle={estimated ? 'Estimate — confirmed upfront before dispatch.' : 'Confirmed upfront fare for this trip.'} onClose={onClose} variant="sheet">
+    <Dialog title={title} onClose={onClose} variant="sheet">
       {note ? <p className="fare-note">{note}</p> : null}
-      <FareBreakdown lines={finalLines} total={finalTotal} estimated={estimated} footnote={CATEGORY_NOTE} />
+      <FareBreakdown lines={finalLines} total={finalTotal} estimated={estimated} />
     </Dialog>
   );
 }

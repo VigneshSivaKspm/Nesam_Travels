@@ -6,6 +6,7 @@ import { useCustomerData } from '@core/context/CustomerData';
 import { useAuth } from '@/state/Auth';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { useExitGuard } from '@/lib/exitGuard';
 import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { HOME_SEO } from '@/seo/pages';
 import { Icon } from '@/components/Icon';
@@ -244,6 +245,7 @@ function Home() {
 }
 
 export function BookPage({ step }: { step: BookStep }) {
+  useExitGuard(step === 'plan');
   useSeo(
     step === 'plan'
       ? HOME_SEO

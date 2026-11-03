@@ -67,14 +67,13 @@ const ICONS: Record<string, ReactNode> = {
 
 const iconFor = (key: string) => ICONS[key] ?? ICONS.stateTax;
 
-/** "₹15 per KM beyond the 333.9 KM included" → { value: "₹15", sub: "Beyond 333.9 km included" } */
+/** "₹15 per KM beyond the 333.9 KM included" → { value: "₹15", unit: "/ km" }. Only the rate is shown. */
 function rateTile(l: FareLine): { value: string; unit: string; sub: string } | null {
   const unit = l.key === 'extraKm' ? '/ km' : '/ hour';
-  if (l.amount !== null) return { value: money(l.amount), unit: '', sub: l.detail ?? '' };
+  if (l.amount !== null) return { value: money(l.amount), unit: '', sub: '' };
   const rate = l.detail ? RATE.exec(l.detail)?.[0].replace(/\s/g, '') : null;
   if (!rate) return null;
-  const beyond = l.key === 'extraKm' && l.detail ? /beyond the ([\d.,]+)\s*km included/i.exec(l.detail) : null;
-  return { value: rate, unit, sub: beyond ? `Beyond ${beyond[1]} km included` : '' };
+  return { value: rate, unit, sub: '' };
 }
 
 export function AdditionalCharges({ lines, policy, footnote }: { lines: FareLine[]; policy?: ReactNode; footnote?: string }) {

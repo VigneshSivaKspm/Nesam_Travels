@@ -327,7 +327,6 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                   <span className="hx-vehicle__seats">
                     <Icon name="passengers" size={15} /> {c.seats} seats
                   </span>
-                  {c.description ? <p>{c.description}</p> : null}
                 </div>
               </li>
             ))
@@ -336,7 +335,6 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
                 <img src={`/vehicles/${v.art}.webp`} alt={`NESAM ${v.name}`} width={320} height={210} loading="lazy" />
                 <div className="hx-vehicle__body">
                   <strong>{v.name}</strong>
-                  <p>{v.text}</p>
                 </div>
               </li>
             ))}

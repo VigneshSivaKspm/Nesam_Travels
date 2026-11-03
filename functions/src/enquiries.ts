@@ -420,11 +420,10 @@ export const priceMulticityEnquiry = onCall({ timeoutSeconds: 60 }, async (reque
   const extras = scopedExtraChargesSnapshot(tariff, brand, 'Multicity', cls, categoryId);
   if (extras) amounts.pricing.extraCharges = extras;
   const rs = (p: number) => Math.round(p) / 100;
-  const pct = Math.round(q.gstRate * 10000) / 100;
   const breakup = [
     { label: `Distance: ${q.billableKm} KM billable (itinerary ${q.totalKm} KM, minimum ${rates.minKmPerDay} KM/day × ${days} day${days === 1 ? '' : 's'}) at ₹${rates.customerRate}/KM`, amount: rs(q.distancePaise) },
-    { label: `Driver bata: ₹${rates.customerBata} × ${days} day${days === 1 ? '' : 's'}`, amount: rs(q.bataPaise) },
-    { label: q.gstIncluded ? `GST (${pct}%), already included in the fare above` : `GST (${pct}%), added on top`, amount: rs(q.gstPaise) },
+    { label: `Driver allowance: ₹${rates.customerBata} × ${days} day${days === 1 ? '' : 's'}`, amount: rs(q.bataPaise) },
+    { label: q.gstIncluded ? 'GST, already included in the fare above' : 'GST, added on top', amount: rs(q.gstPaise) },
   ];
   if (amounts.fare.globalAdjustment) breakup.splice(2, 0, { label: amounts.fare.globalAdjustment.name, amount: amounts.fare.globalAdjustment.amount });
   breakup[breakup.length - 1].amount = amounts.fare.gst;

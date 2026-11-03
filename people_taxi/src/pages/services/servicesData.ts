@@ -32,7 +32,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
       'Pay only for the distance you travel between cities. Zero return charges, fares shown before you book, and commercial drivers who know the highways.',
     features: [
       { title: 'Zero Return Fare', text: 'You only pay for the one-way distance from pickup to drop city. Never pay for the car’s return journey.' },
-      { title: 'Fares Shown Upfront', text: 'View exact distance fare, driver bata, and GST before confirming. No hidden night fees.' },
+      { title: 'Fares Shown Upfront', text: 'View exact distance fare, driver allowance, and GST before confirming. No hidden night fees.' },
       { title: 'Pay Cash or UPI', text: 'Nothing charged upfront when you book. Pay your driver comfortably at the end of the ride.' },
       { title: 'Boarding Security', text: '4-digit OTP boarding code ensures your trip only begins once you are seated inside the vehicle.' },
     ],
@@ -42,10 +42,10 @@ export const ALL_SERVICES: ServiceDetail[] = [
       'From solo travellers and working executives to vacationing families, choose our air-conditioned Sedans (Dzire, Etios), versatile 6-seater/7-seater SUVs (Ertiga), or spacious Innova Crysta cabs.',
     ],
     pricingRules: [
-      { title: 'Sedan (4 Seater)', detail: '₹15 / KM + ₹400 driver bata (minimum billing 130 KM)' },
-      { title: 'SUV 6+1 (6 Seater)', detail: '₹20 / KM + ₹400 driver bata (minimum billing 130 KM)' },
-      { title: 'SUV 7+1 / Innova (7 Seater)', detail: '₹20 / KM + ₹400 driver bata (minimum billing 130 KM)' },
-      { title: 'Innova Crysta (7 Seater)', detail: '₹26 / KM + ₹600 driver bata (minimum billing 130 KM)' },
+      { title: 'Sedan (4 Seater)', detail: '₹15 / KM + ₹400 driver allowance (minimum billing 130 KM)' },
+      { title: 'SUV 6+1 (6 Seater)', detail: '₹20 / KM + ₹400 driver allowance (minimum billing 130 KM)' },
+      { title: 'SUV 7+1 / Innova (7 Seater)', detail: '₹20 / KM + ₹400 driver allowance (minimum billing 130 KM)' },
+      { title: 'Innova Crysta (7 Seater)', detail: '₹26 / KM + ₹600 driver allowance (minimum billing 130 KM)' },
       { title: 'Tolls & Permits', detail: 'Tolls, parking fees, and state border permits paid at actuals with receipts' },
       { title: 'Taxes', detail: 'Standard 5% GST included in the final invoice' },
     ],
@@ -79,7 +79,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
       'Out and back over one day or multiple days with your dedicated driver. Transparent calendar-day billing, generous daily km limits, and complete flexibility.',
     features: [
       { title: 'Dedicated Driver', text: 'The same professional driver and vehicle stays with your group throughout the journey.' },
-      { title: 'Calendar Day Billing', text: 'Simple, transparent billing based on calendar days with clear daily driver bata.' },
+      { title: 'Calendar Day Billing', text: 'Simple, transparent billing based on calendar days with clear daily driver allowance.' },
       { title: 'Sightseeing Freedom', text: 'Stop at viewpoint spots, heritage monuments, and restaurants on your own schedule.' },
       { title: 'All-Inclusive Quotes', text: 'See your complete minimum km package and daily allowance before you confirm.' },
     ],
@@ -88,10 +88,10 @@ export const ALL_SERVICES: ServiceDetail[] = [
       'Our round trips are billed by calendar day with fair daily minimum kilometre allowances (250 km/day for Sedans & SUVs, 300 km/day for Innova Crysta). Any extra kilometres travelled are charged at low standard per-km rates with zero surcharge.',
     ],
     pricingRules: [
-      { title: 'Sedan (4 Seater)', detail: '₹14 / KM + ₹400 driver bata/day (minimum 250 KM per calendar day)' },
-      { title: 'SUV 6+1 (6 Seater)', detail: '₹19 / KM + ₹400 driver bata/day (minimum 250 KM per calendar day)' },
-      { title: 'SUV 7+1 / Innova (7 Seater)', detail: '₹19 / KM + ₹400 driver bata/day (minimum 250 KM per calendar day)' },
-      { title: 'Innova Crysta (7 Seater)', detail: '₹22 / KM + ₹500 driver bata/day (minimum 300 KM per calendar day)' },
+      { title: 'Sedan (4 Seater)', detail: '₹14 / KM + ₹400 driver allowance/day (minimum 250 KM per calendar day)' },
+      { title: 'SUV 6+1 (6 Seater)', detail: '₹19 / KM + ₹400 driver allowance/day (minimum 250 KM per calendar day)' },
+      { title: 'SUV 7+1 / Innova (7 Seater)', detail: '₹19 / KM + ₹400 driver allowance/day (minimum 250 KM per calendar day)' },
+      { title: 'Innova Crysta (7 Seater)', detail: '₹22 / KM + ₹500 driver allowance/day (minimum 300 KM per calendar day)' },
       { title: 'Driver Accommodation', detail: 'Driver arranges their own lodging and food; you only pay the fixed daily bata' },
     ],
     faqs: [
@@ -101,7 +101,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
       },
       {
         q: 'Do I have to arrange hotel accommodation for the driver?',
-        a: 'No. The daily driver bata (₹400/day for Sedan/SUV, ₹500/day for Crysta) covers the driver’s personal expenses and night stay.',
+        a: 'No. The daily driver allowance (₹400/day for Sedan/SUV, ₹500/day for Crysta) covers the driver’s personal expenses and night stay.',
       },
     ],
   },
@@ -208,7 +208,7 @@ export const ALL_SERVICES: ServiceDetail[] = [
     pricingRules: [
       { title: 'Round-Trip Outstation Rates', detail: 'Sedan at ₹14/km, SUV at ₹19/km, Crysta at ₹22/km' },
       { title: 'Daily Minimum', detail: '250 KM per day (300 KM for Crysta)' },
-      { title: 'Driver Bata', detail: '₹400/day (₹500/day for Crysta) covers driver day & night stay' },
+      { title: 'Driver Allowance', detail: '₹400/day (₹500/day for Crysta) covers driver day & night stay' },
     ],
     faqs: [
       {

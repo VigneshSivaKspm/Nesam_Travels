@@ -122,7 +122,7 @@ export function RouteLandingPage() {
                   <th>Popular Models</th>
                   <th>Seating</th>
                   <th>Rate / KM</th>
-                  <th>Driver Bata</th>
+                  <th>Driver Allowance</th>
                   <th>Est. One-Way Fare*</th>
                   <th className="lp-table__end">Action</th>
                 </tr>
@@ -147,7 +147,7 @@ export function RouteLandingPage() {
             </table>
           </div>
           <p className="small muted lp-note">
-            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
+            *Estimated fare includes distance charges ({route.distanceKm} km), driver allowance and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
           </p>
         </div>
       </section>

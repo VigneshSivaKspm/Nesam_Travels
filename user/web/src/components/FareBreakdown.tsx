@@ -15,13 +15,12 @@ export function FareBreakdown({ lines, total, tolls = 0, estimated = false, foot
   const na = lines.filter((l) => l.treatment === 'not_applicable');
   return (
     <div className="fare">
-      <p className="eyebrow">Included in the {estimated ? 'estimate' : 'fare'}</p>
       <ul className="fare__rows">
         {included.map((l) => (
           <li key={l.key} className="fare__row">
             <div>
               <span className="fare__label">{l.label}</span>
-              {l.detail ? <small>{l.detail}</small> : null}
+              {l.detail && !/^included in the fare$/i.test(l.detail.trim()) ? <small>{l.detail}</small> : null}
             </div>
             <span className={`fare__value num ${(l.amount ?? 0) < 0 ? 'is-saving' : ''}`}>{l.amount === null ? 'Included' : money(l.amount)}</span>
           </li>

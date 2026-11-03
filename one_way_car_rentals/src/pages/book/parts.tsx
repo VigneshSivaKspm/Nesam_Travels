@@ -131,9 +131,9 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
 /** The full fare breakup in a dialog ("View fare"). */
 export function FareDialog({ title, lines, total, estimated, note, onClose }: { title: string; lines: FareLine[]; total: number; estimated?: boolean; note?: ReactNode; onClose: () => void }) {
   return (
-    <Dialog title={title} subtitle={estimated ? 'Estimate — the booking server confirms the final fare.' : 'Confirmed upfront fare for this trip.'} onClose={onClose}>
+    <Dialog title={title} onClose={onClose}>
       {note ? <p className="fare-note">{note}</p> : null}
-      <FareBreakdown lines={lines} total={total} estimated={estimated} footnote="Category images are illustrative. The assigned model may vary within the booked category." />
+      <FareBreakdown lines={lines} total={total} estimated={estimated} />
     </Dialog>
   );
 }

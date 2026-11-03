@@ -73,26 +73,24 @@ export function ChooseStep() {
       <div className="wrap flow-page__wrap">
         <div className="choose">
           <div className="choose__main">
-            <section className="trip-sum" aria-label="Your trip">
-              <div className="trip-sum__top">
-                <div className="trip-sum__lead">
-                  <BackButton to="/book" />
-                  <h1 className="trip-sum__title">Choose your cab</h1>
-                </div>
+            <section className="trip-sum trip-sum--compact" aria-label="Your trip">
+              <h1 className="sr-only">Choose your cab</h1>
+              <BackButton to="/book" />
+              <div className="trip-sum__body">
+                <p className="route-title">
+                  <span>{pickup.name}</span>
+                  <Icon name="arrow-right" size={14} />
+                  <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
+                </p>
+                <p className="trip-sum__meta">
+                  <span>
+                    <Badge tone="green">{tripTypeLabel(tripType)}</Badge>
+                  </span>
+                  <span className="trip-sum__when">{when}</span>
+                  <span>{route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
+                  {tripType === 'Round Trip' && tripEndAt ? <span>Return {formatDate(tripEndAt)}, {formatTime(tripEndAt)}</span> : null}
+                </p>
               </div>
-              <p className="route-title">
-                <span>{pickup.name}</span>
-                <Icon name="arrow-right" size={14} />
-                <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
-              </p>
-              <p className="trip-sum__meta">
-                <span>
-                  <Badge tone="green">{tripTypeLabel(tripType)}</Badge>
-                </span>
-                <span className="trip-sum__when">{when}</span>
-                <span>{route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
-                {tripType === 'Round Trip' && tripEndAt ? <span>Return {formatDate(tripEndAt)}, {formatTime(tripEndAt)}</span> : null}
-              </p>
             </section>
 
             <div className="choose__notices">
@@ -226,7 +224,6 @@ export function ChooseStep() {
                           </span>
                           <span className="cab__info">
                             <strong className="cab__name">{categoryName(c)}</strong>
-                            {c.description ? <span className="cab__model">{c.description}</span> : null}
                             <span className="cab__badges">
                               <span className="feat feat--seats">
                                 <Icon name="passengers" size={13} /> {c.seats} passengers
@@ -271,7 +268,6 @@ export function ChooseStep() {
                     );
                   })}
                 </ul>
-                <p className="choose__fine">Category images are illustrative. The assigned model may vary within the booked category.</p>
                 <Notice tone="warning">Toll, parking and state permits are paid separately, against receipts.</Notice>
               </>
             )}
@@ -288,7 +284,6 @@ export function ChooseStep() {
                   <div className="sel-card__car">
                     <div>
                       <strong>{categoryName(selected)}</strong>
-                      {selected.description ? <small>{selected.description}</small> : null}
                     </div>
                     <img src={categoryPhoto(selected)} alt="" width={180} height={110} />
                   </div>

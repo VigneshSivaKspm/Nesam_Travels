@@ -1,5 +1,5 @@
 // Pieces shared by the booking steps, the confirmation and trip details.
-import { useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { FareLine, PaymentMethod } from '@core/types';
 import { isCouponLive } from '@core/services/pricingService';
@@ -10,17 +10,19 @@ import { FareBreakdown } from '@/components/FareBreakdown';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 
 const PAYMENTS: { id: PaymentMethod; label: string; hint: string }[] = [
-  { id: 'Cash', label: 'Book now, pay cash later', hint: 'Pay your driver in cash at the end of the trip' },
-  { id: 'UPI', label: 'Book now, pay by UPI later', hint: 'Pay your driver by UPI at the end of the trip' },
+  { id: 'Cash', label: 'Book now, pay later', hint: 'Pay your driver at the end of the trip' },
 ];
 
-/** The booking server records Cash or UPI, collected by the driver, so nothing else is offered. */
+/** One way to pay: nothing now, the driver collects at the end of the trip. Recorded as Cash, whatever an older draft held. */
 export function PaymentChoice({ value, onChange }: { value: PaymentMethod; onChange: (m: PaymentMethod) => void }) {
+  useEffect(() => {
+    if (value !== 'Cash') onChange('Cash');
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="pay-opts" role="radiogroup" aria-label="Payment">
       {PAYMENTS.map((p) => (
-        <label key={p.id} className={`pay-opt ${value === p.id ? 'is-selected' : ''}`}>
-          <input type="radio" name="payment" checked={value === p.id} onChange={() => onChange(p.id)} />
+        <label key={p.id} className="pay-opt is-selected">
+          <input type="radio" name="payment" checked readOnly />
           <span className="pay-opt__text">
             <strong>{p.label}</strong>
             <small>{p.hint}</small>
@@ -157,9 +159,9 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
 /** The full fare breakup in a dialog ("View fare"). */
 export function FareDialog({ title, lines, total, estimated, note, onClose }: { title: string; lines: FareLine[]; total: number; estimated?: boolean; note?: ReactNode; onClose: () => void }) {
   return (
-    <Dialog title={title} subtitle={estimated ? 'Estimate — NESAM’s booking server confirms the final fare.' : 'Fare from NESAM’s booking server for this trip.'} onClose={onClose}>
+    <Dialog title={title} onClose={onClose}>
       {note ? <p className="fare-note">{note}</p> : null}
-      <FareBreakdown lines={lines} total={total} estimated={estimated} footnote="Category images are illustrative. The assigned model may vary within the booked category." />
+      <FareBreakdown lines={lines} total={total} estimated={estimated} />
     </Dialog>
   );
 }

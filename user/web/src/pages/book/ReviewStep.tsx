@@ -11,7 +11,7 @@ import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
 import { CUSTOMER_PAYMENTS_ENABLED, SCHEDULED_CANCELLATION_FEE, SCHEDULED_FREE_CANCEL_BEFORE_MS, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
-import { Button, Checkbox, Notice, PageHead, TextArea, TextField } from '@/components/ui';
+import { BackButton, Button, Checkbox, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
@@ -167,6 +167,7 @@ export function ReviewStep() {
         <div>
           <strong>{q.authoritative ? 'Total fare' : 'Estimated fare'}</strong>
           <small>{q.authoritative ? '' : profile ? 'Confirming with NESAM · ' : 'Confirmed after you sign in · '}GST included{q.coupon ? ` · ${q.coupon.code} −${formatINR(q.coupon.discount)}` : ''}</small>
+          <small>Fuel, toll, state tax and parking are separate</small>
           <button type="button" className="link-btn" onClick={() => setShowFare(true)}>
             View fare details
           </button>
@@ -202,7 +203,10 @@ export function ReviewStep() {
   return (
     <div className="flow-page">
       <div className="wrap flow-page__wrap">
-        <PageHead backTo="/book/ride" title="Review & book" />
+        <div className="flow-back">
+          <BackButton to="/book/ride" label="Back to vehicles" />
+          <h1 className="sr-only">Review and book</h1>
+        </div>
         <div className="review">
           <div className="review__main">
             <div className="only-narrow">{summary}</div>
@@ -274,17 +278,6 @@ export function ReviewStep() {
                 error={emailError}
               />
               {airport ? <TextField label="Flight number (optional)" value={flight} onChange={(e) => update({ flight: e.target.value.toUpperCase().slice(0, 12) })} autoComplete="off" placeholder="e.g. 6E 2041" hint="Shared with NESAM and your driver." /> : null}
-
-              <details className="rv-fold" open={!!notes}>
-                <summary>Pickup landmark / instructions</summary>
-                <TextArea
-                  label="Note for the driver (optional)"
-                  value={notes}
-                  onChange={(e) => update({ notes: e.target.value.slice(0, room) })}
-                  placeholder="Gate number, building name, luggage…"
-                  hint={`${notes.length}/${room}`}
-                />
-              </details>
             </section>
 
             <section className="card" aria-labelledby="rv-pay">

@@ -9,7 +9,7 @@ import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
-import { BackButton, Button, Checkbox, FlowSteps, Notice, PageHead, TextArea, TextField } from '@/components/ui';
+import { BackButton, Button, Checkbox, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useAuth } from '@/state/Auth';
@@ -195,20 +195,12 @@ export function ReviewStep() {
   return (
     <div className="flow-page flow-page--review">
       <div className="wrap flow-page__wrap">
-        <PageHead
-          back={<BackButton to="/book/ride" label="Back to vehicles" />}
-          eyebrow="Step 3 of 3 · Final Review"
-          title="Review &amp; Confirm Booking"
-        >
-          Verify your itinerary, passenger details and payment mode before confirmation.
-        </PageHead>
-
-        <FlowSteps total={3} current={3} />
+        <h1 className="sr-only">Review and confirm booking</h1>
 
         <div className="review">
           <div className="review__main">
             <section className="card rv-sum" aria-labelledby="rv-trip-head">
-              <div className="trip-sum__top">
+              <div className="rv-sum__head">
                 <h2 id="rv-trip-head" className="route-title route-title--lg">
                   <span>{pickup.name}</span>
                   <Icon name="arrow-right" size={18} />
@@ -216,32 +208,29 @@ export function ReviewStep() {
                 </h2>
               </div>
 
-              {scheduledAt ? (
+              {scheduledAt || route ? (
                 <p className="rv-sum__when">
-                  <Icon name="calendar" size={15} /> <strong>Pickup:</strong> {formatDate(scheduledAt)}, {formatTime(scheduledAt)}
-                  {tripEndAt ? ` · Return: ${formatDate(tripEndAt)}` : ''}
+                  <Icon name="calendar" size={15} />
+                  {scheduledAt ? <span>{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
+                  {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
+                  {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
                 </p>
               ) : null}
 
-              {route ? (
-                <p className="trip-sum__meta">
-                  Distance: {formatDistance(route.distanceKm)} · Approx. {formatDuration(route.durationMin)} drive
-                </p>
-              ) : null}
-
-              <div className="rv-sum__car">
-                <div>
-                  <strong>{categoryName(category)}</strong>
-                  <small className="muted">{category.description || `${category.seats} seats · AC fleet`}</small>
-                </div>
-              </div>
+              <p className="rv-sum__car">
+                <strong>{categoryName(category)}</strong>
+                <span>{category.seats} seats</span>
+              </p>
 
               <div className="rv-sum__total">
-                <div>
-                  <strong>Total fare</strong>
-                  <small className="muted">All charges and discounts are included</small>
+                <div className="rv-sum__row">
+                  <span className="rv-sum__label">Total fare</span>
+                  <strong className="rv-sum__amount num">{formatINR(quote.total)}</strong>
                 </div>
-                <strong className="rv-sum__amount num">{formatINR(quote.total)}</strong>
+                <ul className="rv-sum__notes">
+                  <li>All charges and discounts are included</li>
+                  <li>Fuel, toll, state tax and parking are separate</li>
+                </ul>
               </div>
             </section>
 
@@ -304,16 +293,6 @@ export function ReviewStep() {
                 </div>
               ) : null}
 
-              <div className="rv-fold">
-                <TextArea
-                  label="Note for the driver"
-                  placeholder="e.g. Apartment gate number, landmark near house, luggage count…"
-                  value={notes}
-                  rows={2}
-                  hint={`${room} characters left`}
-                  onChange={(e) => update({ notes: e.target.value.slice(0, 300) })}
-                />
-              </div>
             </section>
 
             <section className="card rv-policy" ref={termsRef}>
@@ -336,39 +315,26 @@ export function ReviewStep() {
           <aside className="review__sticky">
             <section className="card" aria-labelledby="rv-pay-head">
               <h2 id="rv-pay-head">Payment Method</h2>
-              <p className="muted small" style={{ marginBottom: 12 }}>
-                Nothing to pay now. Pay your driver at the end of the trip.
-              </p>
               <PaymentChoice value={payment} onChange={(p) => update({ payment: p })} />
             </section>
 
-            <div className="card sel-card">
-              <span className="sel-card__eyebrow">Fare</span>
-
+            <div className="card sel-card sel-card--sum">
               <div className="sel-card__total">
-                <div>
-                  <span>Total to pay</span>
-                  <small className="muted">Pay the driver directly</small>
-                </div>
+                <span>Total to pay</span>
                 <strong className="num">{formatINR(quote.total)}</strong>
               </div>
 
-              <PromoControl
-                code={draft.promoCode}
-                applied={quote.discount > 0}
-                onApply={(code) => update({ promoCode: code })}
-                onRemove={() => update({ promoCode: '' })}
-              />
-
-              <Button
-                variant="secondary"
-                size="sm"
-                block
-                icon="info"
-                onClick={() => setShowFare(true)}
-              >
-                See fare details
-              </Button>
+              <div className="rv-links">
+                <PromoControl
+                  code={draft.promoCode}
+                  applied={quote.discount > 0}
+                  onApply={(code) => update({ promoCode: code })}
+                  onRemove={() => update({ promoCode: '' })}
+                />
+                <button type="button" className="link-btn" onClick={() => setShowFare(true)}>
+                  <Icon name="info" size={14} /> Fare details
+                </button>
+              </div>
 
               <div className="rv-act">
                 <Button
@@ -383,11 +349,7 @@ export function ReviewStep() {
                   {profile ? 'Confirm & Book Ride' : 'Sign in to Confirm'}
                 </Button>
                 <p className="rv-act__note">
-                  <Icon name="shield-check" size={16} />
-                  <span>We send your request right away</span>
-                  <span>
-                    24/7 Support: <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>
-                  </span>
+                  24/7 support: <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>
                 </p>
               </div>
             </div>
@@ -401,6 +363,7 @@ export function ReviewStep() {
         nextDisabled={submitting}
         nextLoading={submitting}
         total={quote.total}
+        hideFare
       />
 
       {showFare ? <FareDialog fare={breakup} onClose={() => setShowFare(false)} /> : null}

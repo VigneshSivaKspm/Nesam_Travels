@@ -251,7 +251,7 @@ export function RouteLandingPage() {
                   <th style={{ padding: '16px' }}>Popular Models</th>
                   <th style={{ padding: '16px' }}>Seating</th>
                   <th style={{ padding: '16px' }}>Rate / KM</th>
-                  <th style={{ padding: '16px' }}>Driver Bata</th>
+                  <th style={{ padding: '16px' }}>Driver Allowance</th>
                   <th style={{ padding: '16px' }}>Est. One-Way Fare*</th>
                   <th style={{ padding: '16px', textAlign: 'right' }}>Action</th>
                 </tr>
@@ -282,7 +282,7 @@ export function RouteLandingPage() {
             </table>
           </div>
           <p className="small muted" style={{ marginTop: '8px' }}>
-            *Estimated fare includes distance charges ({route.distanceKm} km), driver bata and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
+            *Estimated fare includes distance charges ({route.distanceKm} km), driver allowance and applicable GST. State permits, tolls, and parking paid at actuals with receipts.
           </p>
         </div>
       </section>

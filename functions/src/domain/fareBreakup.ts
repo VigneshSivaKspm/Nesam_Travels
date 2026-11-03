@@ -69,14 +69,13 @@ export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, ou
     });
   }
   const tax = fare.gstDetails;
-  const ratePercent = Math.round(fare.gstRate * 10000) / 100;
   if (tax && tax.split !== 'Pending verification') {
     for (const key of ['cgst','sgst','utgst','igst'] as const) {
       if ((key === 'igst' && tax.split === 'IGST') || (key === 'cgst' && tax.split.startsWith('CGST')) || (key === 'sgst' && tax.split === 'CGST + SGST') || (key === 'utgst' && tax.split === 'CGST + UTGST')) {
-        add({ key, label: key.toUpperCase() + ' (' + (key === 'igst' ? ratePercent : ratePercent / 2) + '%)', amount: tax[key], treatment: 'included', detail: tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP });
+        add({ key, label: key.toUpperCase(), amount: tax[key], treatment: 'included', detail: tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP });
       }
     }
-  } else add({ key: 'gst', label: 'GST (' + ratePercent + '%)', amount: fare.gst, treatment: 'included', detail: tax ? `${tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP}; state split pending verified place of supply` : GST_ON_TOP });
+  } else add({ key: 'gst', label: 'GST', amount: fare.gst, treatment: 'included', detail: tax ? `${tax.mode === 'included' ? GST_IN_FARE : GST_ON_TOP}; state split pending verified place of supply` : GST_ON_TOP });
 
   // Charges outside the package.
   add({
@@ -167,7 +166,7 @@ export function buildTariffFareBreakup(category: RideCategory, fare: FareBreakdo
         : `${pricing.includedKm} KM included (minimum ${pricing.minKmPerDay} KM) at ${rate}/KM`,
     },
     {
-      key: 'driverAllowance', label: roundTrip ? 'Driver bata (per day)' : 'Driver bata', amount: fare.driverAllowance, treatment: 'included',
+      key: 'driverAllowance', label: roundTrip ? 'Driver allowance (per day)' : 'Driver allowance', amount: fare.driverAllowance, treatment: 'included',
       detail: roundTrip ? `${num2(pricing.customerBataPaise)} × ${pricing.days} day${pricing.days === 1 ? '' : 's'} (${pricing.pickupDate}${pricing.endDate ? ` → ${pricing.endDate}` : ''})` : 'Included in the fare',
     },
   ];

@@ -77,12 +77,8 @@ export async function sendOtpToPhone(phoneE164: string): Promise<ConfirmationRes
         };
       };
     };
-    console.error('[Firebase Phone Auth Error]', {
-      code: err?.code,
-      message: err?.message,
-      serverMessage: err?.customData?.serverResponse?.error?.message,
-      raw: error,
-    });
+    // One readable line (the code and the server's reason), so the cause shows without opening the object.
+    console.error(`[Firebase Phone Auth Error] ${err?.code ?? 'unknown'} · ${err?.customData?.serverResponse?.error?.message ?? err?.message ?? ''} · ${typeof location !== 'undefined' ? location.host : ''}`, error);
     throw error;
   }
 }

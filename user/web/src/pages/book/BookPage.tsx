@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { useCustomerData } from '@/state/CustomerData';
 import { useBooking } from '@/state/Booking';
 import { useSeo } from '@/lib/seo';
+import { useExitGuard } from '@/lib/exitGuard';
 import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { Icon } from '@/components/Icon';
 import { parseService, serviceOfTrip, type ServiceId } from '@/lib/services';
@@ -180,6 +181,7 @@ function Home() {
 }
 
 export function BookPage({ step }: { step: BookStep }) {
+  useExitGuard(step === 'plan');
   useSeo(
     step === 'plan'
       ? {

@@ -31,12 +31,14 @@ export const PUBLIC_CALLABLE_ORIGINS: string[] = [
   'https://www.peopletaxi.in',
   'https://peopletaxi.in',
 
-  // ── Local development (Vite dev server defaults, and the two sites' own ports) ──
+  // ── Local development (Vite dev server defaults, and the three sites' own ports) ──
   'http://localhost:5173',
   'http://localhost:5174',
   'http://localhost:5175',
   'http://localhost:5176',
   'http://localhost:4173',
+  // A site's dev server moves to the next free port when its own is busy (8084, 8086 → 8085, 8087 …), so the whole range is allowed.
+  ...Array.from({ length: 16 }, (_, i) => `http://localhost:${8080 + i}`).filter((o) => o !== 'http://localhost:8084' && o !== 'http://localhost:8086'),
   'http://localhost:8084',
   'http://localhost:8086',
 ];

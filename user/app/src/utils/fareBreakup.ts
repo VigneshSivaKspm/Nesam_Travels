@@ -44,7 +44,7 @@ export function buildFareBreakup(category: RideCategory, fare: FareBreakdown, ou
       detail: d?.type === 'percentage' ? `${d.value}% discount` : d?.type === 'fixed' ? `Flat ${rupees(d.value)} discount` : 'Promo discount',
     });
   }
-  add({ key: 'gst', label: `GST (${Math.round(fare.gstRate * 100)}%)`, amount: fare.gst, treatment: 'included', detail: 'Included in the total payable' });
+  add({ key: 'gst', label: 'GST', amount: fare.gst, treatment: 'included', detail: 'Included in the total payable' });
 
   // Charges outside the package.
   add({
@@ -84,6 +84,6 @@ export function linesFromBreakdown(fare: FareBreakdown): FareLine[] {
   if (fare.globalAdjustment) add('adjustment', fare.globalAdjustment.name || 'Fare adjustment', fare.globalAdjustment.amount);
   add('agreed', 'Agreed fare adjustment', fare.adminAdjustment ?? 0);
   add('discount', 'Discount', -fare.discount);
-  lines.push({ key: 'gst', label: `GST (${Math.round(fare.gstRate * 100)}%)`, amount: fare.gst, treatment: 'included', detail: '' });
+  lines.push({ key: 'gst', label: 'GST', amount: fare.gst, treatment: 'included', detail: '' });
   return lines;
 }

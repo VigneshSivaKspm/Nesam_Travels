@@ -60,26 +60,24 @@ export function ChooseStep() {
       <div className="wrap flow-page__wrap">
         <div className="choose">
           <div className="choose__main">
-            <section className="trip-sum" aria-label="Trip summary">
-              <div className="trip-sum__top">
-                <div className="trip-sum__lead">
-                  <BackButton to="/book" />
-                  <h1 className="trip-sum__title">Choose your vehicle</h1>
-                </div>
+            <section className="trip-sum trip-sum--compact" aria-label="Trip summary">
+              <h1 className="sr-only">Choose your vehicle</h1>
+              <BackButton to="/book" />
+              <div className="trip-sum__body">
+                <p className="route-title">
+                  <span>{pickup.name}</span>
+                  <Icon name="arrow-right" size={14} />
+                  <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
+                </p>
+                <p className="trip-sum__meta">
+                  <span>
+                    <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
+                  </span>
+                  {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
+                  {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
+                  {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
+                </p>
               </div>
-              <p className="route-title">
-                <span>{pickup.name}</span>
-                <Icon name="arrow-right" size={14} />
-                <span>{drop.id === 'place-local-disposal' ? 'Local City Disposal' : drop.name}</span>
-              </p>
-              <p className="trip-sum__meta">
-                <span>
-                  <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
-                </span>
-                {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
-                {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
-                {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
-              </p>
             </section>
 
             <div className="choose__notices">

@@ -65,7 +65,7 @@ function routeBody(r: RouteCorridorDetail): string {
     `<h1>${e(r.h1)}</h1><p>${e(r.summary)}</p>` +
       list([`Distance: about ${r.distanceKm} km`, `Driving time: about ${e(r.duration)}`, `Route: ${e(r.highway)}`]) +
       `<h2>Fare chart: ${e(r.origin)} to ${e(r.destination)}</h2>` +
-      list(r.estimates.map((x) => `<strong>${e(x.category)}</strong> (${e(x.model)}, ${e(x.seats)}) — ₹${x.perKm}/km, driver bata ₹${x.driverBata}, estimated one-way fare ₹${x.estimatedOneWay}`)) +
+      list(r.estimates.map((x) => `<strong>${e(x.category)}</strong> (${e(x.model)}, ${e(x.seats)}) — ₹${x.perKm}/km, driver allowance ₹${x.driverBata}, estimated one-way fare ₹${x.estimatedOneWay}`)) +
       `<h2>Travelling from ${e(r.origin)} to ${e(r.destination)}</h2>${r.overview.map((p) => `<p>${e(p)}</p>`).join('')}` +
       `<h2>Stops along the way</h2>${list(r.keyStops.map((s) => `<strong>${e(s.name)}</strong> — ${e(s.description)}`))}` +
       `<h2>${e(r.origin)} to ${e(r.destination)} taxi FAQs</h2>${faqHtml(r.faqs)}` +
