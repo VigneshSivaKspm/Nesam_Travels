@@ -117,6 +117,8 @@ export function PromoControl({
   );
 }
 
+const CATEGORY_NOTE = 'Category images are illustrative. The assigned model may vary within the booked category.';
+
 export function FareDialog({
   title = 'Fare Breakup & Inclusions',
   lines,
@@ -138,9 +140,8 @@ export function FareDialog({
   const finalTotal: number = total ?? ((fare as any)?.packageTotal ?? (fare as any)?.total ?? 0);
   return (
     <Dialog title={title} subtitle={estimated ? 'Estimate — confirmed upfront before dispatch.' : 'Confirmed upfront fare for this trip.'} onClose={onClose} variant="sheet">
-      <FareBreakdown lines={finalLines} total={finalTotal} estimated={estimated} />
       {note ? <p className="fare-note">{note}</p> : null}
-      <p className="fare-note">Category images are illustrative. The assigned model may vary within the booked category.</p>
+      <FareBreakdown lines={finalLines} total={finalTotal} estimated={estimated} footnote={CATEGORY_NOTE} />
     </Dialog>
   );
 }

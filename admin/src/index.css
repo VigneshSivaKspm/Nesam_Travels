@@ -804,6 +804,12 @@ details.ds-disclosure > summary { cursor: pointer; font-size: 12px; font-weight:
 .ds-quick-action .ds-btn { min-height: 40px; }
 .ds-time { display: flex; align-items: center; gap: 4px; max-width: 230px; color: var(--color-muted); font-weight: 600; }
 .ds-time .ds-select { flex: 1 1 0; min-width: 0; padding-inline: 8px; font-variant-numeric: tabular-nums; }
+/* Date + 12-hour time on one row; the time wraps under the date when the field is narrow. */
+.ds-dt12 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+.ds-dt12 > .ds-input { flex: 1 1 150px; min-width: 0; width: auto; }
+.ds-dt12 > .ds-time { flex: 0 0 auto; width: 220px; max-width: 100%; }
+.ds-dt12[data-invalid='true'] .ds-input, .ds-dt12[data-invalid='true'] .ds-select { border-color: var(--color-bad); }
+.ds-dt12 .ds-select:disabled, .ds-dt12 .ds-input:disabled { background: #f3f5f8; color: var(--color-faint); }
 .ds-combo { position: relative; }
 .ds-combo .ds-input { width: 100%; padding-right: 30px; }
 .ds-combo-clear { position: absolute; top: 50%; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--color-faint); cursor: pointer; transform: translateY(-50%); }

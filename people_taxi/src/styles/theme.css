@@ -832,3 +832,10 @@ html[data-hero-logo='in'] .topbar .brand {
     transform: translateY(14px);
   }
 }
+
+/* Phones: the bottom bar already switches between Outstation, Airport Taxi, Local Rental and Multicity, so the same choices are not repeated above the form. */
+@media (max-width: 899.98px) {
+  .bf-services {
+    display: none;
+  }
+}

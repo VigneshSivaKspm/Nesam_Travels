@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { collection, doc, increment, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db } from "../../services/firebase";
@@ -308,7 +309,7 @@ function CampaignSheet({ m, canSend, onEdit, onClose, onDone }: { m: Campaign; c
             <div className="flex flex-wrap gap-2"><Button size="sm" icon="pencil" onClick={onEdit}>Edit draft</Button><Button size="sm" variant="ghost" icon="x" loading={busy} onClick={() => run(() => cancelCampaign(m, "Draft cancelled"), "Draft cancelled.")}>Cancel draft</Button></div>
             <form onSubmit={send} className="grid gap-3" noValidate>
               <label className="ds-field"><span>Send</span><select className="ds-select" value={delivery} onChange={(e) => setDelivery(e.target.value as "Now" | "Schedule")}><option>Now</option><option>Schedule</option></select></label>
-              {delivery === "Schedule" && <label className="ds-field"><span>Send at · IST</span><input type="datetime-local" className="ds-input" value={at} onChange={(e) => setAt(e.target.value)} /></label>}
+              {delivery === "Schedule" && <label className="ds-field"><span>Send at · IST</span><DateTime12Input value={at} onChange={setAt} /></label>}
               <p className="text-[11px] text-faint">Every recipient gets the in-app notice in their NESAM app. Push, WhatsApp, SMS and email go only on the channels chosen; each attempt is recorded in the delivery log.</p>
               <div><Button variant="primary" type="submit" icon={delivery === "Schedule" ? "calendar-clock" : "send"} loading={busy}>{delivery === "Schedule" ? "Schedule notification" : `Send to ${m.recipients.length} recipients`}</Button></div>
             </form>

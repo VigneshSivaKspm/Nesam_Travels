@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { collection, onSnapshot, orderBy, query } from "firebase/firestore";
 import type { Booking, Driver, MarketplaceTrip, Vehicle, Vendor } from "../../types";
@@ -157,7 +158,7 @@ export function PublishDutyDrawer({ booking, market, edit, canSetPayout, onClose
             </p>
             <label className="ds-field mb-1">
               <span>Bidding closes · IST</span>
-              <input className="ds-input" type="datetime-local" value={closes} onChange={(e) => setCloses(e.target.value)} />
+              <DateTime12Input value={closes} onChange={setCloses} />
             </label>
             <div className="flex gap-3 mb-3 text-[11px]">
               <button type="button" className="ds-link" onClick={() => setCloses(localInput(new Date(Date.parse(`${isoDateIST(new Date())}T${closes.slice(11) || "08:00"}:00Z`) - 330 * 60000)))}>Today</button>

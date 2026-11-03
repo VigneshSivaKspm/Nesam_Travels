@@ -260,6 +260,15 @@ export function Shell() {
             <Link to="/book" className={`topbar__book ${bookActive ? 'is-active' : ''}`} aria-current={bookActive ? 'page' : undefined}>
               <Icon name="car" size={16} /> Book a cab
             </Link>
+            <NavLink to="/trips" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
+              My bookings
+            </NavLink>
+            <NavLink to="/offers" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
+              Offers
+            </NavLink>
+            <NavLink to="/about" className={({ isActive }) => `topbar__link ${isActive ? 'is-active' : ''}`}>
+              About
+            </NavLink>
           </nav>
           <div className="topbar__actions">
             <AppDownload />

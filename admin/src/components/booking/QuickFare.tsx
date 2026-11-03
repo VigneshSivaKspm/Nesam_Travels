@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { MasterLocation, TravelService, VehicleCategory } from "../../types";
 import { subscribeLocations, subscribeServices, subscribeVehicleCategories } from "../../services/adminFirestoreService";
@@ -583,7 +584,7 @@ export function SaveEnquiryDialog({ trip, estimate, serviceName, onClose, onSave
         <label className="ds-field"><span>Customer name · optional</span><input className="ds-input" maxLength={80} value={name} onChange={(e) => setName(e.target.value)} /></label>
         <label className="ds-field">
           <span>Callback time · optional</span>
-          <input className="ds-input" type="datetime-local" value={callback} onChange={(e) => setCallback(e.target.value)} />
+          <DateTime12Input value={callback} onChange={setCallback} />
           <span className="flex gap-3 text-[10px]">
             <button type="button" className="ds-link" style={{ fontSize: 10 }} onClick={() => setCallback(`${today}T${(callback.slice(11) || "11:00")}`)}>Today</button>
             <button type="button" className="ds-link" style={{ fontSize: 10 }} onClick={() => setCallback(`${isoDateIST(new Date(Date.now() + 86400000))}T${(callback.slice(11) || "11:00")}`)}>Tomorrow</button>

@@ -792,3 +792,246 @@ h2,
     translate: -28px 0;
   }
 }
+
+/* ── Corporate layout ─────────────────────────────────────────────────────────────────────────────────
+   Desktop: one 1216px grid for the header and the hero, a header with real links, a hero with a clear
+   headline, one line of copy and three commitments. Phones: a neat, left-aligned booking form.
+   Flat colours only. ───────────────────────────────────────────────────────────────────────────────── */
+.hero-lead,
+.hero-points {
+  display: none;
+}
+@media (min-width: 1000px) {
+  /* Header: the logo (or, while the big hero logo shows, nothing), then the links, then the actions. */
+  .topbar {
+    box-shadow: none;
+    border-bottom: 1px solid var(--line);
+  }
+  .topbar__inner {
+    gap: 28px;
+    max-width: calc(1216px + 2 * var(--gutter));
+  }
+  .topbar__nav,
+  html:not([data-hero-logo='in']) .topbar__nav {
+    flex: 1;
+    justify-content: flex-start;
+    gap: 4px;
+  }
+  html:not([data-hero-logo='in']) .topbar__book {
+    animation: none;
+  }
+  .topbar__book {
+    min-height: 44px;
+    margin-right: 10px;
+    padding: 8px 18px;
+    border: 0;
+    border-radius: var(--r-btn);
+    background: var(--red);
+    color: #fff;
+    font-size: 0.9375rem;
+    font-weight: 600;
+  }
+  .topbar__book:hover,
+  .topbar__book.is-active {
+    background: var(--red-hover, var(--red));
+    color: #fff;
+  }
+  .topbar__link {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 14px;
+    border-radius: 0;
+    color: var(--ink);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    text-decoration: none;
+  }
+  .topbar__link::after {
+    content: '';
+    position: absolute;
+    right: 14px;
+    bottom: 4px;
+    left: 14px;
+    height: 2px;
+    background: transparent;
+  }
+  .topbar__link:hover {
+    color: var(--red-ink);
+  }
+  .topbar__link.is-active {
+    color: var(--red-ink);
+    font-weight: 600;
+  }
+  .topbar__link.is-active::after {
+    background: var(--gold);
+  }
+
+  /* Hero: content on the same grid as the header, vertically centred in a calm, tall band. */
+  .home-hero {
+    min-height: clamp(600px, calc(100vh - var(--header-h, 76px)), 760px);
+    padding-block: 72px;
+  }
+  .hero-logo {
+    margin-bottom: 30px;
+    padding: 12px 20px;
+    border-radius: 10px;
+    box-shadow: none;
+  }
+  .hero-logo img {
+    height: clamp(60px, 5vw, 78px);
+  }
+  .hero-copy h1 {
+    max-width: 14ch;
+    font-size: clamp(2.5rem, 1.2rem + 2.5vw, 3.6rem);
+    line-height: 1.1;
+  }
+  .hero-lead {
+    display: block;
+    max-width: 34rem;
+    margin: 22px 0 0;
+    color: rgb(255 255 255 / 0.88);
+    font-size: 1.125rem;
+    line-height: 1.6;
+  }
+  .hero-points {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+    max-width: 36rem;
+    margin: 30px 0 0;
+    padding: 22px 0 0;
+    border-top: 1px solid rgb(255 255 255 / 0.2);
+    list-style: none;
+  }
+  .hero-points li {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #fff;
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+  .hero-points li::before {
+    content: '';
+    width: 8px;
+    height: 8px;
+    background: var(--gold);
+  }
+
+  /* The booking panel: more air inside, and a clear step between the fields. */
+  .bf {
+    padding: 24px;
+  }
+  .bf-form {
+    gap: 16px;
+  }
+}
+
+/* ── Phones: a clean, left-aligned booking form ──────────────────────────────────────────────────── */
+@media (max-width: 767.98px) {
+  .home-hero .bf {
+    padding: 16px;
+    border: 1px solid var(--line);
+    border-top: 3px solid var(--gold);
+    border-radius: 16px;
+    background: #fff;
+    text-align: left;
+  }
+  .home-hero .bf-form {
+    gap: 14px;
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  /* One Way / Round Trip: a segmented control, the chosen side lifted on white. */
+  .home-hero .bf-journey.tabs {
+    gap: 4px;
+    margin-top: 0;
+    padding: 4px;
+    border-radius: 12px;
+    background: var(--sunken, #f1f2f5);
+  }
+  .home-hero .bf-journey.tabs .tab {
+    min-height: 44px;
+    border-radius: 9px;
+    font-size: 0.9375rem;
+  }
+  .home-hero .bf-journey.tabs .tab.is-active,
+  .home-hero .bf-journey.tabs .tab[aria-selected='true'] {
+    background: #fff;
+    color: var(--red-ink);
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.16);
+  }
+
+  /* Pickup and drop: two equal boxes, text on the left, the swap button on the right between them. */
+  .home-hero .bf-route {
+    gap: 10px;
+  }
+  .home-hero .bf-route .bf-field {
+    min-height: 58px;
+    padding: 8px 56px 8px 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: #fff;
+  }
+  .home-hero .bf-route .bf-route__cell + .bf-swap + .bf-route__cell .bf-field,
+  .home-hero .bf-route .bf-route__cell + .bf-route__cell .bf-field {
+    border-top: 1px solid var(--line-strong);
+  }
+  .home-hero .bf-route .bf-field__main {
+    padding: 0;
+    text-align: left;
+  }
+  .home-hero .bf-label,
+  .home-hero .bf-trigger {
+    text-align: left;
+  }
+  .home-hero .bf-chev {
+    display: none;
+  }
+  .home-hero .bf-swap {
+    top: 42px;
+    right: 12px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.16);
+  }
+
+  /* Date and time: label above each box, both the same height as the route boxes. */
+  .home-hero .bf-row {
+    gap: 12px;
+  }
+  .home-hero .bf-label--out {
+    margin-bottom: 6px;
+    color: var(--ink);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-align: left;
+  }
+  .home-hero .bf-input,
+  .home-hero .bf-time {
+    min-height: 52px;
+    padding: 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 12px;
+    background: #fff;
+    font-size: 0.9375rem;
+    text-align: left;
+  }
+  .home-hero .bf-input::-webkit-date-and-time-value {
+    text-align: left;
+  }
+  .home-hero .bf-submit {
+    width: 100%;
+    min-height: 54px;
+    margin-top: 2px;
+    border-radius: 12px;
+    font-size: 1rem;
+  }
+}

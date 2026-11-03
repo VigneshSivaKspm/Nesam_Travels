@@ -69,10 +69,10 @@ export function composeCustomerMessage(kind: CustomerMessageKind, b: DocumentDat
   });
   switch (kind) {
     case 'booking_received': {
-      const line = `${brand.name}: we received booking ${code} for ${when} (${route}). Our team will confirm it shortly.`;
-      return out(`Booking ${code} received`, line, {
-        title: 'We have received your booking',
-        paragraphs: [`Thank you for booking with ${brand.name}. Our team is checking your trip and will confirm it shortly. You will get another message once it is approved.`],
+      const line = `${brand.name}: your booking ${code} for ${when} (${route}) is confirmed. We will share the driver details before pickup.`;
+      return out(`Booking ${code} confirmed`, line, {
+        title: 'Your booking is confirmed',
+        paragraphs: [`Thank you for booking with ${brand.name}. Your booking is confirmed. We will share the driver details before pickup.`],
         rows: [...trip, ['Fare', rupees(b.fare)], ['Payment', String(b.paymentMethod ?? 'Cash')]],
         note: 'Nothing is charged until your trip. Tolls, parking and state permits are payable at actuals unless your fare says they are included.',
       });

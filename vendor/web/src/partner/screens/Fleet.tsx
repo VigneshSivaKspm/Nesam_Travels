@@ -12,7 +12,7 @@ import {
 import { uploadVendorFile } from '../../services/storageService';
 import type { UploadCategory } from '../../config/onboarding';
 import { Icon } from '../Icon';
-import { Badge, Btn, Check, Dialog, Empty, ErrorLine, Field, KV, Notice, PageHeading, Tabs } from '../ui';
+import { Badge, Btn, Check, DateTime12, Dialog, Empty, ErrorLine, Field, KV, Notice, PageHeading, Tabs } from '../ui';
 import { carCode, dayTime, driverCode, initials, maskPhone, plate } from '../format';
 import {
   VEHICLE_DOCS, carImage, docKind, driverDocState, dutyLine, shortDate, stageOf, vehicleDocState, vehicleValidUntil, type DocState,
@@ -344,7 +344,7 @@ const AvailabilitySheet: React.FC<{ vehicle: FleetVehicle; onClose: () => void }
       <p className="v-small v-muted">{current ? `${stageOf(current) === 'On Trip' ? 'On duty' : 'Assigned'} · ${current.bookingId}` : 'Available for new duties'}</p>
       <form onSubmit={submit}>
         <Field label="Vehicle location"><input type="text" maxLength={120} value={location} onChange={(e) => setLocation(e.target.value)} placeholder="e.g. Theni bus stand" /></Field>
-        <Field label="Available from / unavailable until"><input type="datetime-local" required value={from} onChange={(e) => setFrom(e.target.value)} /></Field>
+        <Field label="Available from / unavailable until"><DateTime12 value={from} onChange={setFrom} label="Available from" /></Field>
         <p className="v-small v-muted">Available for new duties from this time.</p>
         <ErrorLine message={error} />
         <Btn submit full busy={busy}>Update availability</Btn>

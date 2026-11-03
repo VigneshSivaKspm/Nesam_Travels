@@ -1,6 +1,7 @@
 // Small, dependency-free helpers shared by the HTTP (Vercel) entry points.
 import type { IncomingMessage, ServerResponse } from 'http';
 import { timingSafeEqual } from 'crypto';
+import { PUBLIC_CALLABLE_ORIGINS } from '../corsOrigins';
 
 /** The parts of Vercel's Node request helpers these handlers use. */
 export interface ApiRequest extends IncomingMessage {
@@ -48,9 +49,11 @@ function originAllowed(origin: string, list: string[]): boolean {
  */
 export function applyCors(req: IncomingMessage, res: ApiResponse): void {
   const origin = header(req, 'origin');
-  const list = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  // The public customer domains are always allowed, so a site added there never depends on the env var being updated.
+  const fromEnv = (process.env.ALLOWED_ORIGINS ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  const list = [...PUBLIC_CALLABLE_ORIGINS, ...fromEnv];
   res.setHeader('Vary', 'Origin');
-  if (origin && list.length && originAllowed(origin, list)) {
+  if (origin && originAllowed(origin, list)) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Authorization, Content-Type');

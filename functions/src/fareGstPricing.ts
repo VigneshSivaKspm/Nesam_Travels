@@ -12,18 +12,29 @@ export function fareGstFor(i: PriceInput): GstSnapshot | null {
 export function fareGstForScope(i: { tariff: PriceInput['tariff']; brand?: string; service: string; boardingState?: string; recipientState?: string; recipientAddressState?: string }): GstSnapshot | null {
   const service = i.service;
   const common = i.tariff?.fareGst?.common?.[service], brand = i.brand ? i.tariff?.fareGst?.[i.brand]?.[service] : undefined;
-  if (!common && !brand) return null;
+  if (!common && !brand) return defaultFareGst(i.tariff);
   const boardingState = gstState(i.boardingState);
   if (!boardingState && (Object.keys(common?.states ?? {}).length || Object.keys(brand?.states ?? {}).length)) {
     throw new HttpsError('failed-precondition', 'State-specific GST requires a verified pickup state. Select a master location or contact the booking desk.');
   }
   const rule = brand?.states?.[boardingState] ?? brand?.default ?? common?.states?.[boardingState] ?? common?.default;
-  if (!rule) return null;
+  if (!rule) return defaultFareGst(i.tariff);
   // Passenger transport: registered recipient's state, otherwise embarkation. Rental: recipient
   // location on record, otherwise supplier location (domestic general place-of-supply rule).
   const placeOfSupply = gstState(i.recipientState) || (rule.classification === 'rental' ? gstState(i.recipientAddressState) || rule.supplierState : boardingState);
   const { reference: _internalReference, ...publicRule } = rule;
   return { ...publicRule, boardingState, placeOfSupply, split: gstSplit(rule.supplierState, placeOfSupply) };
+}
+
+/**
+ * With no GST rule saved for a service, the tariff's own rate (5%) is still INCLUDED in the fare: the amount worked out
+ * from the rates is what the customer pays, and the GST inside it is shown, never added on top. A rule saved in the admin
+ * Fare GST settings (included or excluded, per state) always wins over this. Only for tariff pricing; the old category
+ * engine used while no tariff is saved keeps its own arithmetic.
+ */
+function defaultFareGst(tariff: PriceInput['tariff']): GstSnapshot | null {
+  if (!tariff) return null;
+  return { rate: tariff.gstRate > 0 ? tariff.gstRate : 0.05, mode: 'included', classification: 'passenger', supplierState: '', boardingState: '', placeOfSupply: '', split: 'Pending verification' };
 }
 
 /** Calculate the entered amounts once, then extract included tax. Never change partner payouts. */

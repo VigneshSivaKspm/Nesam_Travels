@@ -9,6 +9,8 @@ import { Icon } from '@/components/Icon';
 import type { TripRecord, TripType } from '@core/types';
 import { BookingCelebration } from '../../../../user/web/src/components/BookingCelebration';
 
+const BRAND_LOGO = { src: '/brand/peopletaxi-logo.png', alt: 'People Taxi' };
+
 function JourneyArt({ done }: { done: boolean }) {
   return (
     <div className={`journey-art ${done ? 'is-done' : ''}`} aria-hidden="true">
@@ -49,8 +51,8 @@ const headline = (t: TripRecord): { title: string; text: string; tone: 'pending'
     };
   }
   return {
-    title: 'Booking Request Received',
-    text: 'Our dispatch team is assigning your driver. You will receive updates shortly.',
+    title: 'Booking confirmed',
+    text: 'Your booking is confirmed. We will share the driver details before pickup.',
     tone: 'pending',
   };
 };
@@ -77,8 +79,8 @@ function BookedDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void
       }
     >
       <div className="booked">
-        <BookingCelebration label="Booking request saved" />
-        <p className="booked__lead">Your ride request is saved. Our dispatch team will assign your driver and keep you updated.</p>
+        <BookingCelebration label="Booking confirmed" logo={BRAND_LOGO} />
+        <p className="booked__lead">Your booking is confirmed. We will share the driver details before pickup.</p>
         <div className="booked__id">
           <span>Booking ID</span>
           <strong className="num">{bookingRef(trip)}</strong>
@@ -129,7 +131,7 @@ export function DonePage() {
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">
-            {h.tone === 'bad' || booked ? <JourneyArt done={h.tone === 'ok'} /> : <BookingCelebration label={h.title} />}
+            {h.tone === 'bad' || booked ? <JourneyArt done={h.tone === 'ok'} /> : <BookingCelebration label={h.title} logo={BRAND_LOGO} />}
             <h1>{h.title}</h1>
             <p>{h.text}</p>
             <p className="done__saved">

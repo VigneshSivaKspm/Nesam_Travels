@@ -1,3 +1,4 @@
+import DateTime12Input from "../components/DateTime12Input";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { db, auth } from "../services/firebase";
@@ -592,7 +593,7 @@ function HandlerSheet({ bookingId, current, onClose, onDone }: { bookingId: stri
         {error && <div className="ds-error" role="alert">{error}</div>}
         <label className="ds-field"><span>Responsible staff</span><select className="ds-select" value={uid} onChange={(e) => setUid(e.target.value)}>{staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}</select></label>
         <label className="ds-field"><span>Next action</span><input className="ds-input" maxLength={160} value={next} onChange={(e) => setNext(e.target.value)} /></label>
-        <label className="ds-field"><span>Due</span><input className="ds-input" type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></label>
+        <label className="ds-field"><span>Due</span><DateTime12Input value={due} onChange={setDue} /></label>
         <label className="ds-field"><span>Handover note</span><textarea className="ds-input" rows={3} maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></label>
       </form>
     </Modal>

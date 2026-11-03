@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { ref as storageRef, uploadBytes } from "firebase/storage";
@@ -580,7 +581,7 @@ function AccountSheet({ row, initial, duties, onClose, onDone }: { row: PartnerR
         {action === "Suspend ID" && (
           <div className="ds-field"><span>Duration</span>
             <div className="ds-seg" style={{ "--ds-seg": 4 } as React.CSSProperties}>{DURATIONS.map(([l, d]) => <button type="button" key={l} aria-pressed={days === d} onClick={() => setDays(d)}>{l}</button>)}</div>
-            {days === 0 && <input className="ds-input mt-2" type="datetime-local" value={custom} onChange={(e) => setCustom(e.target.value)} />}
+            {days === 0 && <DateTime12Input value={custom} onChange={setCustom} />}
             {until && <span className="text-[11px] text-muted mt-1">Review after {refDateTime(until)} · Manual reactivation required.</span>}
           </div>
         )}

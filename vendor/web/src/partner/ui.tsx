@@ -97,6 +97,39 @@ export const Field: React.FC<{ label: string; children: React.ReactNode; classNa
   <label className={className}><span>{label}</span>{children}</label>
 );
 
+/**
+ * Date and time with a 12-hour clock (hour, minute, AM / PM). The browser's own datetime-local field follows the
+ * computer's language and can show 24-hour time. The value stays a local "YYYY-MM-DDTHH:mm" string.
+ */
+export const DateTime12: React.FC<{ value: string; onChange: (v: string) => void; label?: string }> = ({ value, onChange, label = 'Date and time' }) => {
+  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})/.exec(value || '');
+  const date = m ? m[1]! : '';
+  const h24 = m ? Number(m[2]) : 10;
+  const minute = m ? Number(m[3]) : 0;
+  const hour12 = h24 % 12 === 0 ? 12 : h24 % 12;
+  const pm = h24 >= 12;
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const emit = (d: string, h: number, mi: number, isPm: boolean) => onChange(d ? `${d}T${pad((h % 12) + (isPm ? 12 : 0))}:${pad(mi)}` : '');
+  return (
+    <div className="v-dt12" role="group" aria-label={label}>
+      <input type="date" required aria-label={`${label} · date`} value={date} onChange={(e) => emit(e.target.value, hour12, minute, pm)} />
+      <div className="v-dt12__time">
+        <select aria-label={`${label} · hour`} value={hour12} disabled={!date} onChange={(e) => emit(date, Number(e.target.value), minute, pm)}>
+          {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => <option key={h} value={h}>{pad(h)}</option>)}
+        </select>
+        <span aria-hidden="true">:</span>
+        <select aria-label={`${label} · minute`} value={minute} disabled={!date} onChange={(e) => emit(date, hour12, Number(e.target.value), pm)}>
+          {Array.from({ length: 60 }, (_, i) => i).map((x) => <option key={x} value={x}>{pad(x)}</option>)}
+        </select>
+        <select aria-label={`${label} · AM or PM`} value={pm ? 'PM' : 'AM'} disabled={!date} onChange={(e) => emit(date, hour12, minute, e.target.value === 'PM')}>
+          <option>AM</option>
+          <option>PM</option>
+        </select>
+      </div>
+    </div>
+  );
+};
+
 export const Check: React.FC<{ checked: boolean; onChange: (v: boolean) => void; children: React.ReactNode }> = ({ checked, onChange, children }) => (
   <label className="v-check"><input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} required /><span>{children}</span></label>
 );

@@ -17,7 +17,7 @@ import { BookingCelebration } from '@/components/BookingCelebration';
 function headline(t: TripRecord): { title: string; text: string; tone: 'pending' | 'ok' | 'bad' } {
   if (t.status === 'Rejected') return { title: 'Booking not accepted', text: 'NESAM could not accept this booking request. Nothing has been charged.', tone: 'bad' };
   if (t.status === 'Cancelled') return { title: 'Booking cancelled', text: 'This booking has been cancelled.', tone: 'bad' };
-  if (t.status === 'Pending') return { title: 'Booking request received', text: 'NESAM is reviewing your request. We’ll confirm it here and by message once it is approved.', tone: 'pending' };
+  if (t.status === 'Pending') return { title: 'Booking confirmed', text: 'Your booking is confirmed. We will share the driver details before pickup.', tone: 'pending' };
   return { title: 'Booking Confirmed', text: 'Your trip is confirmed. We will arrange your cab.', tone: 'ok' };
 }
 
@@ -112,7 +112,7 @@ export function DonePage() {
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">
-            {h.tone === 'bad' ? <JourneyArt done={false} /> : <BookingCelebration label={h.title} />}
+            {h.tone === 'bad' ? <JourneyArt done={false} /> : <BookingCelebration label={h.title} logo={{ src: '/nesam/logo.webp', alt: 'NESAM Cabs' }} />}
             <h1>{h.title}</h1>
             <p>{pending ? 'Sending your request…' : h.text}</p>
             <p className="done__saved">

@@ -1,3 +1,4 @@
+import DateTime12Input from "../components/DateTime12Input";
 import FareGstSettings from '../components/FareGstSettings';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { MasterLocation, TravelService, VehicleCategory } from "../types";
@@ -534,7 +535,7 @@ function RuleSheet({ kind, rule, fareScope, sel, locations, categories, services
             <div className="ds-field"><span>Applicable pickup dates</span><Ta>எந்த pickup தேதிகளுக்குப் பொருந்தும்?</Ta>
               <div className="ds-seg mt-1">{(["Always", "Range"] as const).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>{m === "Always" ? "Always" : "Specific dates & times"}</button>)}</div>
             </div>
-            {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><input className="ds-input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label className="ds-field"><span>To · IST</span><input className="ds-input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label><p className="text-[11px] text-faint" data-span="2">Matched on the pickup time in IST. The start time is included; the end time is not.</p></div>}
+            {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><DateTime12Input value={from} onChange={setFrom} /></label><label className="ds-field"><span>To · IST</span><DateTime12Input value={to} onChange={setTo} /></label><p className="text-[11px] text-faint" data-span="2">Matched on the pickup time in IST. The start time is included; the end time is not.</p></div>}
             <details className="u27-more-options" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
               <summary>More options · Location, service, pickup / drop &amp; priority</summary>
               <div className="ds-form-grid">

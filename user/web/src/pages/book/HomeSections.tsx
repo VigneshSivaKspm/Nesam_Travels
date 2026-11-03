@@ -51,6 +51,13 @@ export function HeroCopy() {
       <h1>
         Dependable cabs, <span className="hero-accent">for every journey.</span>
       </h1>
+      {/* Wide screens only: one line of what NESAM does, then three plain commitments. Hidden on phones, where the form comes first. */}
+      <p className="hero-lead">Outstation, airport and local rental cabs. See the fare before you book, and travel with a professional driver.</p>
+      <ul className="hero-points">
+        <li>Fare shown before you book</li>
+        <li>Professional drivers</li>
+        <li>24/7 booking support</li>
+      </ul>
       {/* Decoration for tablets and wider: a route that runs around the booking card, pickup to drop. */}
       <svg className="hero-route" viewBox="0 0 1000 1000" preserveAspectRatio="none" aria-hidden="true" focusable="false">
         <path className="hero-route__line" d="M640 120 C 800 60, 960 110, 968 330 S 975 800, 930 940 S 800 962, 600 955 S 250 975, 40 955" />

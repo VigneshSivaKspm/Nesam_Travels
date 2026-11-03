@@ -1,3 +1,4 @@
+import DateTime12Input from "./DateTime12Input";
 import { useMemo, useState } from "react";
 import type { VehicleCategory } from "../types";
 import { calculateBookingFare, isOutstation, OUTSTATION_THRESHOLD_KM, toEngineCategory } from "../services/bookingFareEngine";
@@ -125,7 +126,7 @@ export default function AppFarePreview({ categories }: { categories: VehicleCate
             </label>
             <label className="block">
               <span className="block text-[10px] font-semibold text-muted mb-1">Pickup (IST)</span>
-              <input type="datetime-local" value={pickup} onChange={(ev) => setPickup(ev.target.value)} className={cls} />
+              <DateTime12Input value={pickup} onChange={setPickup} />
             </label>
             <label className="block">
               <span className="block text-[10px] font-semibold text-muted mb-1">Coupon discount (₹)</span>

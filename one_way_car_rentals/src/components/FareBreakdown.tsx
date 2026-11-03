@@ -1,7 +1,7 @@
 import type { FareLine } from '@core/types';
 import { formatINR } from '@core/utils/format';
 import { PolicyLinks, type PolicyId } from '@/pages/PolicySections';
-import { Badge } from './ui';
+import { AdditionalCharges } from '../../../user/web/src/components/AdditionalCharges';
 
 const money = (n: number) => (n < 0 ? `−${formatINR(-n)}` : formatINR(n));
 
@@ -10,7 +10,7 @@ const money = (n: number) => (n < 0 ? `−${formatINR(-n)}` : formatINR(n));
  * payable separately (at a rate or at actuals) and what does not apply. The total is
  * always the package total — extras are never silently added to it.
  */
-export function FareBreakdown({ lines, total, tolls = 0, estimated = false, policies = ['payment'] }: { lines: FareLine[]; total: number; tolls?: number; estimated?: boolean; policies?: PolicyId[] }) {
+export function FareBreakdown({ lines, total, tolls = 0, estimated = false, policies = ['payment'], footnote }: { lines: FareLine[]; total: number; tolls?: number; estimated?: boolean; policies?: PolicyId[]; footnote?: string }) {
   const included = lines.filter((l) => l.treatment === 'included');
   const extra = lines.filter((l) => l.treatment === 'extra');
   const na = lines.filter((l) => l.treatment === 'not_applicable');
@@ -42,26 +42,14 @@ export function FareBreakdown({ lines, total, tolls = 0, estimated = false, poli
         <span className="num">{formatINR(total + tolls)}</span>
       </div>
 
-      {extra.length ? (
-        <>
-          <p className="eyebrow fare__sep">Payable separately — not in the total</p>
-          <ul className="fare__rows">
-            {extra.map((l) => (
-              <li key={l.key} className="fare__row">
-                <div>
-                  <span className="fare__label">
-                    {l.label} <Badge tone="amber">Extra</Badge>
-                  </span>
-                  {l.detail ? <small>{l.detail}</small> : null}
-                </div>
-                <span className="fare__value num">{l.amount === null ? 'At actuals' : money(l.amount)}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : null}
+      {extra.length ? <AdditionalCharges lines={extra} policy={<PolicyLinks ids={policies} newTab />} footnote={footnote} /> : null}
       {na.length ? <p className="fare__na">Not applicable: {na.map((l) => l.label).join(', ')}.</p> : null}
-      <PolicyLinks lead={tolls > 0 ? undefined : 'Tolls, parking and permits are not included.'} ids={policies} newTab />
+      {extra.length ? null : (
+        <>
+          <PolicyLinks lead={tolls > 0 ? undefined : 'Tolls, parking and permits are not included.'} ids={policies} newTab />
+          {footnote ? <p className="fare-note">{footnote}</p> : null}
+        </>
+      )}
     </div>
   );
 }

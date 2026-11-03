@@ -644,3 +644,8 @@ body.q-vendor{height:100dvh;overflow:hidden}#nesam-complete-ux[data-vendor=true]
 
 @media(pointer:coarse){#nesam-complete-ux .nx-icon-button{width:44px;height:44px}#nesam-complete-ux .nx-text-button{min-height:44px}#nesam-complete-ux .nx-language button{min-height:40px;min-width:40px}#nesam-complete-ux .nx-role-picker button{min-height:44px}}
 
+
+/* Date + 12-hour time (hour : minute AM/PM) on two rows, used where the browser clock would show 24-hour time. */
+.v-dt12{display:grid;gap:8px;width:100%}
+.v-dt12__time{display:grid;grid-template-columns:1fr auto 1fr 1fr;gap:6px;align-items:center;color:#61758d;font-weight:600}
+.v-dt12 select,.v-dt12 input{width:100%;min-width:0}

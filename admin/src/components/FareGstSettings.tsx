@@ -5,7 +5,7 @@ import { saveTariffSection } from '../services/bookingOpsService';
 import { Button } from './ui';
 import { useCan, useCanDo } from './AccessContext';
 
-const empty = (): FareGstRule => ({ supplierState: '', rate: 0.05, mode: 'excluded', classification: 'passenger', reference: '' });
+const empty = (): FareGstRule => ({ supplierState: '', rate: 0.05, mode: 'included', classification: 'passenger', reference: '' });
 export default function FareGstSettings({ scope, onDirtyChange, onBusyChange }: {
   scope: FareWorkspaceScope; onDirtyChange: (value: boolean) => void; onBusyChange: (value: boolean) => void;
 }) {

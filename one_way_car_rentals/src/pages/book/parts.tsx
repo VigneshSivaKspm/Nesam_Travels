@@ -132,9 +132,8 @@ function PromoDialog({ onClose }: { onClose: () => void }) {
 export function FareDialog({ title, lines, total, estimated, note, onClose }: { title: string; lines: FareLine[]; total: number; estimated?: boolean; note?: ReactNode; onClose: () => void }) {
   return (
     <Dialog title={title} subtitle={estimated ? 'Estimate — the booking server confirms the final fare.' : 'Confirmed upfront fare for this trip.'} onClose={onClose}>
-      <FareBreakdown lines={lines} total={total} estimated={estimated} />
       {note ? <p className="fare-note">{note}</p> : null}
-      <p className="fare-note">Category images are illustrative. The assigned model may vary within the booked category.</p>
+      <FareBreakdown lines={lines} total={total} estimated={estimated} footnote="Category images are illustrative. The assigned model may vary within the booked category." />
     </Dialog>
   );
 }

@@ -244,6 +244,14 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       bookingId: requestId, bookingCode, cta: { label: 'Review booking', page: 'booking-detail', bookingId: requestId }, push: true, sentBy: uid,
     };
     pushes.push({ id: notifyInTx(tx, n), input: n });
+    // The customer gets the same "Booking confirmed" in their own inbox (and as a phone push) the moment they book, on every site.
+    const toCustomer: NotifyInput = {
+      recipientType: 'customer', brand: bookingSource, recipientId: uid, category: 'bookings', severity: 'success', sound: 'approval',
+      title: 'Booking confirmed',
+      message: `Your booking ${bookingCode} for ${formatDateTime12(when)} (${pickup.name} → ${drop.name}) is confirmed. Fare ₹${fare.total.toLocaleString('en-IN')}. We will share the driver details before pickup.`,
+      bookingId: requestId, bookingCode, cta: { label: 'View trip', page: 'trips', bookingId: requestId }, push: true, sentBy: uid,
+    };
+    pushes.push({ id: notifyInTx(tx, toCustomer), input: toCustomer });
     return { id: requestId, fare: fare.total, created: true as const };
   });
   await pushAfterCommit(pushes);

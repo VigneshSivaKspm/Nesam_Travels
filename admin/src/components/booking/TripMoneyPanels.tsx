@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useState } from "react";
 import type { Booking } from "../../types";
 import { Modal } from "../Feedback";
@@ -201,7 +202,7 @@ export function SettlementPanel({ booking, canFinance }: { booking: Booking; can
             <div className="space-y-2 rounded-lg border border-line p-3">
               <Field label="Reason" required><input value={reason} onChange={(e) => setReason(e.target.value)} className={inputCls} /></Field>
               <Field label="Owner" required><input value={owner} onChange={(e) => setOwner(e.target.value)} className={inputCls} /></Field>
-              <Field label="Resolve by" required><input type="datetime-local" value={deadline} onChange={(e) => setDeadline(e.target.value)} className={inputCls} /></Field>
+              <Field label="Resolve by" required><DateTime12Input value={deadline} onChange={setDeadline} /></Field>
               <button disabled={busy || reason.trim().length < 5 || !owner.trim() || !deadline} onClick={() => run({ bookingId: booking.id, action: "hold", reason: reason.trim(), holdOwner: owner.trim(), holdDeadline: new Date(deadline).toISOString() })} className={primaryBtn}>Put on hold</button>
             </div>
           )}

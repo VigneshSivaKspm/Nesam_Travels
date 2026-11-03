@@ -1,0 +1,194 @@
+/* "Additional charges" card of the fare breakup. Flat, one accent colour (each site's --brand), no gradients. */
+.addl {
+  --addl-accent: var(--brand, var(--red, #c62828));
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+  padding: 20px;
+  border: 1px solid var(--line, #e2e6ec);
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: 0 6px 20px rgb(15 23 42 / 0.06);
+  color: var(--ink, #20252d);
+}
+.addl__bar {
+  display: block;
+  width: 44px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--addl-accent);
+}
+.addl__title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink, #20252d);
+}
+.addl__sub {
+  margin: -8px 0 0;
+  font-size: 0.9rem;
+  color: var(--muted, #697587);
+}
+
+/* Extra KM and waiting: the rate is the first thing seen. */
+.addl__tiles {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.addl__tile {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+  padding: 14px 14px 13px;
+  border: 1px solid color-mix(in srgb, var(--addl-accent) 28%, #fff);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--addl-accent) 7%, #fff);
+}
+.addl__tile:only-child {
+  grid-column: 1 / -1;
+}
+.addl__tile-label {
+  padding-right: 30px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink, #20252d);
+}
+.addl__tile-icon {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  color: var(--ink, #20252d);
+}
+.addl__tile-icon svg,
+.addl__chip-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.addl__tile-value {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: clamp(1.7rem, 6.5vw, 2.1rem);
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--addl-accent);
+}
+.addl__tile-value small {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ink, #20252d);
+}
+.addl__tile-sub {
+  font-size: 0.8rem;
+  line-height: 1.35;
+  color: var(--muted, #697587);
+}
+
+/* Toll, parking, permit and the like: paid at actuals on the day. */
+.addl__group {
+  display: grid;
+  gap: 2px;
+  padding: 14px;
+  border-radius: 14px;
+  background: #f2f4f8;
+}
+.addl__group-title {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--ink, #20252d);
+}
+.addl__group-sub {
+  font-size: 0.82rem;
+  color: var(--muted, #697587);
+}
+.addl__chips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(128px, 1fr));
+  gap: 10px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.addl__chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  padding: 11px 12px;
+  border: 1px solid var(--line, #dde3ec);
+  border-radius: 12px;
+  background: #fff;
+}
+.addl__chip-icon {
+  flex: none;
+  display: grid;
+  width: 24px;
+  height: 24px;
+  color: var(--ink, #20252d);
+}
+.addl__chip-text {
+  display: grid;
+  min-width: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--ink, #20252d);
+}
+.addl__chip-text small {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted, #697587);
+}
+
+/* Policy link: accent colour with an arrow, a rule under it, then the fine print. */
+.addl__policy-row {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line, #e2e6ec);
+}
+.addl__policy-row .policy-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 22px;
+  margin: 0;
+  font-size: 0; /* hides the " · " separators between links */
+}
+.addl__policy-row a {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--addl-accent);
+  text-decoration: none;
+}
+.addl__policy-row a::after {
+  content: '→';
+  font-weight: 600;
+}
+.addl__policy-row a:hover {
+  text-decoration: underline;
+}
+.addl__foot {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--muted, #697587);
+}
+@media (max-width: 420px) {
+  .addl {
+    padding: 16px;
+  }
+  .addl__tiles {
+    gap: 10px;
+  }
+}

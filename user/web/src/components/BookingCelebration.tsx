@@ -1,11 +1,23 @@
 import { SuccessBurst } from './SuccessBurst';
 import './bookingCelebration.css';
 
-/** Decorative only: rendered after the booking API succeeds, never while submitting. */
-export function BookingCelebration({ label }: { label: string }) {
+/**
+ * Decorative only: rendered after the booking API succeeds, never while submitting.
+ * Shared by all three customer sites; each passes its own logo, so the brand is the first thing seen on a confirmed booking.
+ */
+export function BookingCelebration({ label, logo }: { label: string; logo?: { src: string; alt: string } }) {
   return (
     <div className="booking-celebration" role="img" aria-label={label}>
       <div aria-hidden="true">
+        {logo ? (
+          <div className="booking-celebration__brand">
+            <span className="booking-celebration__logo">
+              <img src={logo.src} alt="" height={44} />
+            </span>
+            <span className="booking-celebration__rule" />
+            <span className="booking-celebration__caption">Booking confirmed</span>
+          </div>
+        ) : null}
         <SuccessBurst label="" />
         <div className="booking-celebration__journey">
           <span className="booking-celebration__pin" />

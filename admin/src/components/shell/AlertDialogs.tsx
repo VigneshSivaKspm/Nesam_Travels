@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import type { Booking } from "../../types";
 import { Modal } from "../Feedback";
@@ -148,7 +149,7 @@ export function PartnerCallDialog({ booking, onClose }: { booking: Booking; onCl
           <select className="ds-select" value={outcome} onChange={(e) => setOutcome(e.target.value)}>{CALL_OUTCOMES.map((o) => <option key={o}>{o}</option>)}</select>
         </label>
         <label className="ds-field"><span>Call note / action taken</span><input className="ds-input" maxLength={300} value={note} onChange={(e) => setNote(e.target.value)} /></label>
-        {outcome === "Call back" && <label className="ds-field"><span>Callback date / time · IST</span><input className="ds-input" type="datetime-local" value={due} onChange={(e) => setDue(e.target.value)} /></label>}
+        {outcome === "Call back" && <label className="ds-field"><span>Callback date / time · IST</span><DateTime12Input value={due} onChange={setDue} /></label>}
       </form>
     </Modal>
   );

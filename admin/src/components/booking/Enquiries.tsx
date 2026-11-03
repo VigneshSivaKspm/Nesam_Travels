@@ -1,3 +1,4 @@
+import DateTime12Input from "../DateTime12Input";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Modal, Toast, useToast } from "../Feedback";
 import { Badge, Button, EmptyState, Icon, PageHeader, toneForStatus } from "../ui";
@@ -443,7 +444,7 @@ function HandlerDialog({ e, onClose, onSaved }: { e: Enquiry; onClose: () => voi
           <select className="ds-select" value={uid} onChange={(x) => setUid(x.target.value)}>{staff.map((s) => <option key={s.uid} value={s.uid}>{s.name}</option>)}</select>
         </label>
         <label className="ds-field"><span>Next action</span><input className="ds-input" maxLength={160} value={nextAction} onChange={(x) => setNextAction(x.target.value)} /></label>
-        <label className="ds-field"><span>Due</span><input className="ds-input" type="datetime-local" value={due} onChange={(x) => setDue(x.target.value)} /></label>
+        <label className="ds-field"><span>Due</span><DateTime12Input value={due} onChange={setDue} /></label>
         <label className="ds-field"><span>Handover note</span><textarea className="ds-input" rows={3} maxLength={300} value={note} onChange={(x) => setNote(x.target.value)} /></label>
       </form>
     </Modal>

@@ -102,6 +102,10 @@
   .footer {
     display: none;
   }
+  /* With no footer to carry the clearance, the page itself leaves room so its last item scrolls fully above the floating tab bar. */
+  .shell--dock .main {
+    padding-bottom: calc(var(--tabbar-occupied) + 16px);
+  }
 }
 
 /* ── Trip summary card: type and Edit on top, the route, then date and distance on one line ─────────── */
