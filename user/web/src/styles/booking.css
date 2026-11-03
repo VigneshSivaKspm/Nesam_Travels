@@ -1332,3 +1332,22 @@
     font-size: 18px;
   }
 }
+
+/* Choose-vehicle bar: each card shows its own price, so the bar is one clear Book Now button across the full width. */
+.flow-bar .flow-bar__total--solo {
+  display: block;
+}
+.flow-bar .flow-bar__total--solo .btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 20px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: none;
+}

@@ -300,14 +300,6 @@ export function ChooseStep() {
 
         <FlowBar className="only-narrow">
           <div className="flow-bar__summary">
-            {summaryFare && selected ? (
-              <div>
-                <span className="muted small">{categoryName(selected)}</span>
-                <strong className="num">{formatINR(summaryFare)}</strong>
-              </div>
-            ) : (
-              <span className="muted small">Choose a vehicle</span>
-            )}
             <Button size="lg" trailing="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
               Book Now
             </Button>

@@ -300,6 +300,7 @@ export function ChooseStep() {
         nextLabel="Book Now"
         nextDisabled={!canContinue}
         total={quote?.total}
+        hideFare
       />
 
       {fareFor && breakupFor(fareFor) ? (

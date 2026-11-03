@@ -156,6 +156,7 @@ export function FlowBar({
   total,
   secondary,
   showBack = false,
+  hideFare = false,
 }: {
   onBack?: () => void;
   onNext?: () => void;
@@ -166,15 +167,19 @@ export function FlowBar({
   total?: number;
   secondary?: React.ReactNode;
   showBack?: boolean;
+  /** Keep the button, drop the fare text: used where each card already shows its own price. */
+  hideFare?: boolean;
 }) {
   return (
     <div className="flow-bar">
       {total !== undefined && onNext ? (
-        <div className="flow-bar__total">
-          <div>
-            <small>Estimated Fare</small>
-            <strong>{formatINR(total)}</strong>
-          </div>
+        <div className={`flow-bar__total ${hideFare ? 'flow-bar__total--solo' : ''}`}>
+          {hideFare ? null : (
+            <div>
+              <small>Estimated Fare</small>
+              <strong>{formatINR(total)}</strong>
+            </div>
+          )}
           <Button
             variant="primary"
             size="lg"

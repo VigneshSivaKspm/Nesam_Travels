@@ -98,7 +98,7 @@ export function AdditionalCharges({ lines, policy, footnote }: { lines: FareLine
                   {t.value}
                   {t.unit ? <small>{t.unit}</small> : null}
                 </strong>
-                {t.sub ? <span className="addl__tile-sub">{t.sub}</span> : null}
+                <span className="addl__tile-sub">{t.sub}</span>
               </div>
             );
           })}

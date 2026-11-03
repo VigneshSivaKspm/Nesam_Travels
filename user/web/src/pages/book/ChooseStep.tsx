@@ -338,12 +338,8 @@ export function ChooseStep() {
       </div>
 
       <FlowBar back={() => navigate('/book')} className="flow-bar--choose">
-        <div className="flow-bar__total">
-          <div>
-            <small>{summaryLabel}</small>
-            <strong className="num">{summaryFare != null ? formatINR(summaryFare) : q.quoteLoading ? '…' : '—'}</strong>
-          </div>
-          <Button size="lg" icon="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
+        <div className="flow-bar__total flow-bar__total--solo">
+          <Button size="lg" trailing="arrow-right" disabled={!canContinue} onClick={() => navigate('/book/confirm')}>
             Book Now
           </Button>
         </div>

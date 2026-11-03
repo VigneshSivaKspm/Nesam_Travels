@@ -1,4 +1,4 @@
-import { matchMainCities } from "../../../user/app/src/services/mainCities";
+import { matchMainCities } from "./mainCities";
 
 /**
  * Place search (autocomplete) and reverse geocoding for the admin map picker.
