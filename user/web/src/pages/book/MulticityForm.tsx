@@ -363,7 +363,7 @@ export function MulticityForm() {
             <span className="bf-pin bf-pin--stop" aria-hidden="true" />
             <div className="bf-field__main">
               <span className="bf-label" id={`mc-city-${index}-label`}>
-                City {index + 1}
+                Stop {index + 1}
               </span>
               <button
                 type="button"
@@ -377,7 +377,7 @@ export function MulticityForm() {
               </button>
               {stop.place?.address && stop.place.address !== stop.place.name ? <small className="bf-addr">{stop.place.address}</small> : null}
             </div>
-            <button type="button" className="bf-stop-remove" aria-label={`Remove City ${index + 1}`} onClick={() => removeStop(stop.id)}>
+            <button type="button" className="bf-stop-remove" aria-label={`Remove stop ${index + 1}`} onClick={() => removeStop(stop.id)}>
               <Icon name="trash-2" size={16} />
             </button>
           </div>
