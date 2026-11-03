@@ -2,6 +2,7 @@ import { callBackend } from './backend';
 
 /** Error whose message is safe to show to the driver. */
 export class ActionError extends Error {
+  code?: string;
   details?: unknown;
   constructor(message: string, details?: unknown) {
     super(message);
@@ -22,7 +23,9 @@ export async function callFunction<Req, Res>(name: string, data: Req, timeout = 
   try {
     return await callBackend<Req, Res>(name, data, timeout);
   } catch (err) {
-    throw new ActionError(describeCallError(err), (err as { details?: unknown }).details);
+    const error = new ActionError(describeCallError(err), (err as { details?: unknown }).details);
+    error.code = (err as { code?: string }).code;
+    throw error;
   }
 }
 

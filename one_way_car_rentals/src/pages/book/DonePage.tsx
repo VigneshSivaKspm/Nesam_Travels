@@ -8,6 +8,7 @@ import { Button, Dialog, LinkButton, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import type { TripRecord, TripType } from '@core/types';
 import { BookingCelebration } from '../../../../user/web/src/components/BookingCelebration';
+import { BookingConfirmedOverlay } from '@/components/BookingConfirmedOverlay';
 
 const BRAND_LOGO = { src: '/brand/one-way-car-rentals-logo.png', alt: 'One Way Car Rentals' };
 
@@ -202,7 +203,17 @@ export function DonePage() {
           <Icon name="arrow-right" size={16} /> View Booking
         </Link>
       </div>
-      {booked && h.tone !== 'bad' ? <BookedDialog trip={trip} onClose={() => setBooked(false)} /> : null}
+      {booked && h.tone !== 'bad' ? (
+        <BookingConfirmedOverlay
+          logo={BRAND_LOGO}
+          code={bookingRef(trip)}
+          message="We will share the driver details before pickup."
+          primaryLabel="View booking"
+          onPrimary={() => navigate(`/trips/${trip.id}`)}
+          secondaryLabel="Done"
+          onClose={() => setBooked(false)}
+        />
+      ) : null}
     </div>
   );
 }

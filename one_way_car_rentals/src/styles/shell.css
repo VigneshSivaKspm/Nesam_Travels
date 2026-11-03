@@ -288,7 +288,7 @@
     }
   }
 
-  /* 320–359px: logo, My Trips, notifications and support share one row without overflowing. */
+  /* 320–359px: keep the logo and My Trips row compact without overflowing. */
   @media (max-width: 359.98px) {
     .topbar__inner {
       gap: 8px;

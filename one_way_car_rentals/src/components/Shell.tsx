@@ -11,6 +11,7 @@ import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
+import { RideBanner } from './RideBanner';
 import { RouteErrorBoundary } from '../../../user/web/src/components/RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
 import { SideDrawer } from './SideDrawer';
@@ -330,6 +331,7 @@ export function Shell() {
               <Icon name="offers" size={17} /> Offers
             </NavLink>
           </nav>
+          <RideBanner />
 
           <div className="topbar__actions">
             <MyTripsLink />
@@ -343,7 +345,6 @@ export function Shell() {
 
           <div className="topbar__mobile">
             <MyTripsLink compact />
-            <NotificationsLink compact />
           </div>
         </div>
       </header>

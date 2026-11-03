@@ -24,14 +24,17 @@ interface Message {
   role: 'user' | 'assistant';
   content: string;
   time: string;
+  localOnly?: boolean;
 }
 
 /** The chat window's own words, per language. */
 const UI: Record<ChatLang, Record<string, string>> = {
   en: {
-    online: 'Online',
+    online: 'Travel help',
     groq: 'Powered by Groq AI',
-    quick: 'Instant answers',
+    quick: 'Basic answers · AI unavailable',
+    ready: 'Ask about your journey',
+    limited: 'AI is unavailable right now. These are basic travel answers; detailed follow-ups may need our support team.',
     open: 'Open AI Travel Assistant',
     close: 'Close AI Travel Assistant',
     closeChat: 'Close chat',
@@ -44,9 +47,11 @@ const UI: Record<ChatLang, Record<string, string>> = {
     busy: 'You are sending messages too quickly. Please wait a moment.',
   },
   ta: {
-    online: 'ஆன்லைன்',
+    online: 'பயண உதவி',
     groq: 'Groq AI இயக்கம்',
-    quick: 'உடனடி பதில்கள்',
+    quick: 'அடிப்படை பதில்கள் · AI கிடைக்கவில்லை',
+    ready: 'உங்கள் பயணம் பற்றிக் கேளுங்கள்',
+    limited: 'AI இப்போது கிடைக்கவில்லை. இவை அடிப்படை பயண பதில்கள்; கூடுதல் உதவிக்கு எங்கள் குழுவைத் தொடர்புகொள்ளுங்கள்.',
     open: 'AI பயண உதவியாளரைத் திறக்க',
     close: 'AI பயண உதவியாளரை மூட',
     closeChat: 'அரட்டையை மூடு',
@@ -193,7 +198,7 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
     setMessages((cur) => (cur.length === 1 && cur[0]!.id === 'welcome' ? [{ ...cur[0]!, content: brand.welcome[next] }] : cur));
   };
 
-  const reply = (content: string, id: string) => setMessages((prev) => [...prev, { id, role: 'assistant', content, time: formatTime() }]);
+  const reply = (content: string, id: string, localOnly = false) => setMessages((prev) => [...prev, { id, role: 'assistant', content, time: formatTime(), localOnly }]);
 
   const send = async (textToSend?: string) => {
     const q = (textToSend ?? input).trim();
@@ -203,7 +208,8 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
     setInput('');
 
     if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-      reply(t.offline!, `err_${Date.now()}`);
+      setProvider('fallback_error');
+      reply(t.offline!, `err_${Date.now()}`, true);
       return;
     }
     setLoading(true);
@@ -215,13 +221,14 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
         brand: brand.id,
         language: lang,
         // The greeting is scripted, not part of the conversation.
-        messages: history.filter((m) => m.id !== 'welcome').map((m) => ({ role: m.role, content: m.content })),
+        messages: history.filter((m) => m.id !== 'welcome' && !m.localOnly).slice(-20).map((m) => ({ role: m.role, content: m.content })),
       });
       setProvider(res?.provider ?? '');
-      reply(res?.message || t.fail!, `a_${Date.now()}`);
+      reply(res?.message || t.fail!, `a_${Date.now()}`, res?.provider !== 'groq');
     } catch (err) {
       const code = (err as { code?: string })?.code ?? '';
-      reply(code.includes('resource-exhausted') ? t.busy! : t.fail!, `err_${Date.now()}`);
+      setProvider('fallback_error');
+      reply(code.includes('resource-exhausted') ? t.busy! : t.fail!, `err_${Date.now()}`, true);
     } finally {
       setLoading(false);
     }
@@ -259,7 +266,7 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
               <div>
                 <strong>{brand.assistantName}</strong>
                 <span className="ai-status">
-                  <span className="ai-status-dot" /> {t.online} · {provider === 'groq' ? t.groq : t.quick}
+                  <span className="ai-status-dot" /> {t.online} · {provider === 'groq' ? t.groq : provider ? t.quick : t.ready}
                 </span>
               </div>
             </div>
@@ -286,6 +293,7 @@ export function AiChatWidget({ brand, Icon, closeIcon = 'close' }: { brand: Chat
           </div>
 
           <div className="ai-chat-body" role="log" aria-live="polite" aria-relevant="additions">
+            {provider && provider !== 'groq' && <p role="status" className="chat-paragraph">{t.limited}</p>}
             {messages.map((m) => (
               <div key={m.id} className={`chat-bubble chat-bubble--${m.role}`} lang={lang === 'ta' && m.role === 'assistant' ? 'ta' : undefined}>
                 <div className="chat-bubble__content">{renderChat(m.content)}</div>

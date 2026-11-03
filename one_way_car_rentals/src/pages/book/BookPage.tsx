@@ -45,35 +45,6 @@ const writeOutstation = (t: 'One Way' | 'Round Trip') => {
   }
 };
 
-/** A ride in progress or one awaiting rating. */
-function RideBanner() {
-  const { liveRide, unratedTrip } = useCustomerData();
-  const trip = liveRide ?? unratedTrip;
-  if (!trip) return null;
-  const live = !!liveRide;
-  return (
-    <div className={`ride-banner ${live ? '' : 'ride-banner--soft'}`}>
-      <div className="wrap">
-        <div className="ride-banner__inner">
-          <span className="ride-banner__icon" aria-hidden="true">
-            <Icon name={live ? 'car' : 'star'} size={18} />
-          </span>
-          <p>
-            <strong>{live ? (trip.status === 'Ongoing' ? 'Trip in progress' : 'Upcoming booking') : 'How was your journey?'}</strong>
-            <span className="truncate">
-              {' '}
-              · {trip.pickup.name} → {trip.drop.name}
-            </span>
-          </p>
-          <Link className="ride-banner__link btn btn--sm btn--primary" to={`/ride/${trip.id}`}>
-            {live ? 'View booking' : 'Rate trip'} <Icon name="arrow-right" size={14} />
-          </Link>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function HeroCopy() {
   // While the logo shows in the hero the header leaves its own logo out; once the page scrolls past it, the header takes over.
   const logo = useRef<HTMLDivElement>(null);
@@ -211,7 +182,6 @@ function Home() {
 
   return (
     <div className="home">
-      <RideBanner />
       <div className="wrap home__wrap">
         <div className="home-hero">
           <HeroCopy />

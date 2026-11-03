@@ -1,6 +1,6 @@
 // Groq AI Chatbot for Nesam Cabs, People Taxi, and One Way Car Rentals.
 //
-// Powered by Groq AI high-speed inference (llama-3.3-70b-versatile / llama-3.1-8b-instant).
+// Powered by Groq AI high-speed inference (openai/gpt-oss-120b / openai/gpt-oss-20b).
 // API key is held securely on the server via GROQ_API_KEY env variable; visitors and signed-in
 // users are served safely through this endpoint.
 
@@ -11,7 +11,7 @@ import { text } from './shared';
 import { PUBLIC_CALLABLE_ORIGINS } from './corsOrigins';
 
 interface ChatMessage {
-  role: 'user' | 'assistant' | 'system';
+  role: 'user' | 'assistant';
   content: string;
 }
 
@@ -107,8 +107,17 @@ function getSystemPrompt(brand: string, lang: 'en' | 'ta', context?: { pickup?: 
 
   base += `
 
+Conversation rules:
+- Respond directly to the latest message using the conversation history. Never repeat the welcome message or service menu after each turn.
+- Handle greetings and small talk naturally in one short sentence, then offer relevant help.
+- Remember places, passenger count and preferences already supplied. Ask only for missing details, one question at a time.
+- Help plan routes, stops, luggage and vehicle choices. Label travel times as approximate; you have no live traffic, fare, booking or availability tools.
+- Vehicle seating and luggage space depend on the specific vehicle. With all seats occupied, never promise large bags will fit; ask the travel desk to confirm luggage capacity or suggest a larger vehicle.
+- Exact fares are shown before confirming; driver details appear only after assignment. Keep these separate.
+- In Tamil, translate cash as ரொக்கம் or பணம், never காசோலை (cheque).
+- Never claim to have booked, changed or cancelled a ride. Guide the rider through the app instead.
+- The booking facts below override any conflicting brand marketing claims above. Do not promise savings percentages, vehicle availability, online payments or unverified inclusions.
 ${SHARED_FACTS}
-
 Style: short answers (under 120 words), bullets for lists, no markdown headings, plain **bold** only. ${LANGUAGE_RULES(lang)}`;
   if (context?.pickup || context?.drop || context?.service) {
     base += `\n\nCurrent User Session Context:\n- Selected Service: ${context.service || 'Not chosen yet'}\n- Pickup: ${context.pickup || 'Not selected'}\n- Drop: ${context.drop || 'Not selected'}`;
@@ -122,7 +131,7 @@ Style: short answers (under 120 words), bullets for lists, no markdown headings,
 const TAMIL = /[஀-௿]/;
 const detectLanguage = (chosen: unknown, lastUserText: string): 'en' | 'ta' => (chosen === 'ta' || TAMIL.test(lastUserText) ? 'ta' : 'en');
 
-type Intent = 'greeting' | 'thanks' | 'cancel' | 'payment' | 'fare' | 'toll' | 'vehicle' | 'airport' | 'rental' | 'multicity' | 'oneway' | 'boarding' | 'driver' | 'book' | 'contact';
+type Intent = 'greeting' | 'wellbeing' | 'thanks' | 'cancel' | 'payment' | 'fare' | 'toll' | 'vehicle' | 'airport' | 'rental' | 'multicity' | 'oneway' | 'boarding' | 'driver' | 'book' | 'contact';
 
 // Matched in order, against the lower-cased question. Tanglish spellings are included.
 const INTENT_WORDS: Array<[Intent, RegExp]> = [
@@ -144,23 +153,30 @@ const INTENT_WORDS: Array<[Intent, RegExp]> = [
 
 function intentOf(q: string): Intent | null {
   const t = q.trim().toLowerCase();
-  if (/^(hi+|hello+|hey+|hai+|hlo|vanakkam|good (morning|afternoon|evening)|வணக்கம்|ஹாய்|ஹலோ)[\s!.,?]*$/.test(t)) return 'greeting';
+  if (/(how (are|r) (you|u)|how.?s it going|eppadi iruk|எப்படி இருக்க)/.test(t)) return 'wellbeing';
+  if (/^(?:(?:hi+|hell?o+w?|hey+|hai+|hlo|vanakkam|good (?:morning|afternoon|evening)|வணக்கம்|ஹாய்|ஹலோ)[\s!.,?]*)+$/.test(t)) return 'greeting';
   for (const [intent, re] of INTENT_WORDS) if (re.test(t)) return intent;
   return null;
 }
 
-function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta'): string {
+function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta', history: ChatMessage[] = []): string {
   const b = brand.toLowerCase();
   const name = b.includes('people') ? 'People Taxi' : b.includes('oneway') || b.includes('one_way') ? 'One Way Car Rentals' : 'NESAM Cabs';
   const call = `**${SUPPORT_PHONE}**`;
   const ta = lang === 'ta';
-  const intent = intentOf(userQuery);
+  let intent = intentOf(userQuery);
+  // Resolve short follow-ups against the last meaningful user topic, never the canned assistant text.
+  if (!intent && /^(and |what about |how about |அது|மேலும்)/i.test(userQuery.trim())) {
+    intent = history.slice(0, -1).reverse().filter((m) => m.role === 'user').map((m) => intentOf(m.content)).find((i) => i && i !== 'greeting' && i !== 'thanks') ?? null;
+  }
 
   switch (intent) {
+    case 'wellbeing':
+      return ta ? 'நான் உதவத் தயார்! 😊 உங்கள் பயணத்திற்கு என்ன உதவி வேண்டும்?' : "I'm here and ready to help! 😊 How are you, and what trip are you planning?";
     case 'greeting':
       return ta
         ? `வணக்கம்! **${name}** உதவியாளர் இங்கே. 😊\n\nநான் உதவக்கூடியவை:\n• **கட்டணம்** மற்றும் வாகன வகைகள்\n• **ஒருவழி டிராப்**, சுற்றுப் பயணம், விமான நிலையம், உள்ளூர் வாடகை\n• **ரத்து**, பணம் செலுத்தும் முறை, பாதுகாப்பு\n\nஎங்கே பயணம் செய்ய விரும்புகிறீர்கள்?`
-        : `Hello! I'm the **${name}** assistant. 😊\n\nI can help with:\n• **Fares** and car types\n• **One-way drops**, round trips, airport rides and local rentals\n• **Cancellation**, payment and safety\n\nWhere would you like to travel?`;
+        : `Hi! 😊 Where would you like to travel?`;
     case 'thanks':
       return ta ? `மகிழ்ச்சி! வேறு ஏதாவது உதவி வேண்டுமா? 24/7 எண்: ${call}.` : `You're welcome! Anything else I can help with? We're on ${call}, 24/7.`;
     case 'cancel':
@@ -224,8 +240,8 @@ function offlineAnswer(brand: string, userQuery: string, lang: 'en' | 'ta'): str
 
 // ── Groq call ────────────────────────────────────────────────────────────────
 
-/** One Groq request with a time limit; null when it fails so the next model (or the offline answer) is tried. */
-async function askGroq(apiKey: string, model: string, system: string, history: ChatMessage[]): Promise<string | null> {
+/** One timed Groq request, with a safe failure category for fallback and diagnostics. */
+async function askGroq(apiKey: string, model: string, system: string, history: ChatMessage[]): Promise<{ answer?: string; reason?: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 20_000);
   try {
@@ -237,13 +253,14 @@ async function askGroq(apiKey: string, model: string, system: string, history: C
     });
     if (!response.ok) {
       console.warn('[groqChat] Groq API returned status:', response.status, model);
-      return null;
+      return { reason: response.status === 401 || response.status === 403 ? 'authentication' : response.status === 429 ? 'rate_limit' : 'provider_error' };
     }
     const json = (await response.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    return json?.choices?.[0]?.message?.content?.trim() || null;
+    const answer = json?.choices?.[0]?.message?.content?.trim();
+    return answer ? { answer } : { reason: 'empty_response' };
   } catch (err) {
     console.warn('[groqChat] Groq call failed:', model, err instanceof Error ? err.message : err);
-    return null;
+    return { reason: controller.signal.aborted ? 'timeout' : 'network' };
   } finally {
     clearTimeout(timer);
   }
@@ -269,24 +286,36 @@ export const chatWithBot = onCall(
 
   const validMessages: ChatMessage[] = rawMessages
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .slice(-10)
-    .map((m) => ({ role: m.role, content: text(m.content, 2000) }));
+    .slice(-20)
+    .map((m) => ({ role: m.role, content: text(m.content, 2000) }))
+    .filter((m) => m.content.trim());
+
+  if (!validMessages.length || validMessages[validMessages.length - 1].role !== 'user') {
+    throw new HttpsError('invalid-argument', 'Please send a message to the assistant.');
+  }
 
   const lastUserMessage = [...validMessages].reverse().find((m) => m.role === 'user')?.content || '';
   const lang = detectLanguage(input.language, lastUserMessage);
 
   const apiKey = (process.env.GROQ_API_KEY ?? '').trim();
-  const offline = (provider: string) => ({ message: offlineAnswer(brand, lastUserMessage, lang), provider, language: lang });
+  const offline = (provider: string, reason: string) => ({ message: offlineAnswer(brand, lastUserMessage, lang, validMessages), provider, reason, language: lang });
 
   // No Groq key: answer from the built-in knowledge instead.
-  if (!apiKey) return offline('fallback');
-
-  const system = getSystemPrompt(brand, lang, input.context);
-  // The main model first; a smaller, faster one when it is busy or rate-limited.
-  const primary = (process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile').trim();
-  for (const model of [...new Set([primary, 'llama-3.1-8b-instant'])]) {
-    const answer = await askGroq(apiKey, model, system, validMessages);
-    if (answer) return { message: answer, provider: 'groq', model, language: lang };
+  if (!apiKey) {
+    console.warn('[groqChat] GROQ_API_KEY is not configured on the server.');
+    return offline('fallback', 'not_configured');
   }
-  return offline('fallback_error');
+
+  const context = input.context ? { pickup: text(input.context.pickup, 150), drop: text(input.context.drop, 150), service: text(input.context.service, 80) } : undefined;
+  const system = getSystemPrompt(brand, lang, context);
+  // The main model first; a smaller, faster one when it is busy or rate-limited.
+  const primary = (process.env.GROQ_MODEL ?? 'openai/gpt-oss-120b').trim();
+  let reason = 'provider_error';
+  for (const model of [...new Set([primary, 'openai/gpt-oss-20b'])]) {
+    const result = await askGroq(apiKey, model, system, validMessages);
+    if (result.answer) return { message: result.answer, provider: 'groq', model, language: lang };
+    reason = result.reason || reason;
+    if (reason === 'authentication') break;
+  }
+  return offline('fallback_error', reason);
 });

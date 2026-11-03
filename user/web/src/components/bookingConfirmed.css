@@ -1,0 +1,257 @@
+/* "Booking confirmed": a full-screen celebration in the site's own accent colour. Flat colours, no gradients. */
+.bcx {
+  --bcx-accent: var(--brand, var(--red, #1665e8));
+  --bcx-ink: var(--ink, #14213d);
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--bcx-accent) 6%, #fff);
+  color: var(--bcx-ink);
+}
+
+/* Confetti */
+.bcx__confetti {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.bcx__bit {
+  position: absolute;
+  top: -24px;
+  left: var(--x);
+  width: var(--s);
+  height: calc(var(--s) * 1.5);
+  border-radius: 2px;
+  opacity: 0;
+}
+.bcx__bit.is-round {
+  height: var(--s);
+  border-radius: 50%;
+}
+.bcx__bit--0 { background: var(--bcx-accent); }
+.bcx__bit--1 { background: #f5b301; }
+.bcx__bit--2 { background: #22a85a; }
+.bcx__bit--3 { background: #3b82f6; }
+.bcx__bit--4 { background: #ef476f; }
+
+/* Expanding rings behind the tick */
+.bcx__rings {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.bcx__rings span {
+  position: absolute;
+  top: -150px;
+  left: -150px;
+  width: 300px;
+  height: 300px;
+  border: 2px solid color-mix(in srgb, var(--bcx-accent) 35%, transparent);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.bcx__card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  width: min(100%, 420px);
+  padding: 28px 24px 24px;
+  border: 1px solid color-mix(in srgb, var(--bcx-accent) 18%, #dfe5ee);
+  border-radius: 24px;
+  background: #fff;
+  text-align: center;
+}
+.bcx__logo img {
+  display: block;
+  width: auto;
+  height: 56px;
+  max-width: 240px;
+  object-fit: contain;
+}
+
+/* The tick */
+.bcx__check {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 120px;
+  height: 120px;
+}
+.bcx__check svg {
+  position: relative;
+  width: 120px;
+  height: 120px;
+}
+.bcx__disc {
+  fill: var(--bcx-accent);
+  transform-origin: center;
+}
+.bcx__tick {
+  fill: none;
+  stroke: #fff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 0;
+}
+.bcx__pulse {
+  position: absolute;
+  inset: 4px;
+  border: 3px solid var(--bcx-accent);
+  border-radius: 50%;
+  opacity: 0;
+}
+
+.bcx__title {
+  margin: 4px 0 0;
+  font-size: clamp(1.625rem, 5vw, 2rem);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+.bcx__code {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bcx-accent) 10%, #fff);
+  font-size: 0.875rem;
+}
+.bcx__code span {
+  color: var(--muted, #5b6578);
+  font-weight: 600;
+}
+.bcx__code strong {
+  color: var(--bcx-accent);
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+.bcx__msg {
+  max-width: 32ch;
+  margin: 0;
+  color: var(--muted, #5b6578);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+.bcx__actions {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  margin-top: 6px;
+}
+.bcx__btn {
+  min-height: 50px;
+  border: 0;
+  border-radius: 14px;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bcx__btn--primary {
+  background: var(--bcx-accent);
+  color: #fff;
+}
+.bcx__btn--ghost {
+  background: transparent;
+  color: var(--bcx-accent);
+}
+.bcx__btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--bcx-accent) 40%, transparent);
+  outline-offset: 2px;
+}
+
+/* Motion */
+@media screen {
+  .bcx {
+    animation: bcx-fade 0.3s ease-out both;
+  }
+  .bcx__card {
+    animation: bcx-pop 0.55s 0.05s cubic-bezier(0.2, 1.3, 0.35, 1) both;
+  }
+  .bcx__logo {
+    animation: bcx-drop 0.7s 0.25s cubic-bezier(0.2, 1.4, 0.35, 1) both;
+  }
+  .bcx__disc {
+    animation: bcx-disc 0.55s 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+  }
+  .bcx__tick {
+    animation: bcx-draw 0.5s 1s ease-out both;
+  }
+  .bcx__pulse {
+    animation: bcx-pulse 1.1s 1.15s ease-out both;
+  }
+  .bcx__rings span {
+    animation: bcx-ring 2.4s 0.7s ease-out both;
+  }
+  .bcx__rings span:nth-child(2) {
+    animation-delay: 1s;
+  }
+  .bcx__rings span:nth-child(3) {
+    animation-delay: 1.3s;
+  }
+  .bcx__title {
+    animation: bcx-rise 0.55s 1.2s ease-out both;
+  }
+  .bcx__code {
+    animation: bcx-rise 0.55s 1.35s ease-out both;
+  }
+  .bcx__msg {
+    animation: bcx-rise 0.55s 1.5s ease-out both;
+  }
+  .bcx__actions {
+    animation: bcx-rise 0.55s 1.65s ease-out both;
+  }
+  .bcx__bit {
+    animation: bcx-fall var(--t) var(--d) cubic-bezier(0.3, 0.6, 0.6, 1) both;
+  }
+}
+@keyframes bcx-fade {
+  from { opacity: 0; }
+}
+@keyframes bcx-pop {
+  from { opacity: 0; transform: translateY(24px) scale(0.92); }
+}
+@keyframes bcx-drop {
+  from { opacity: 0; transform: translateY(-40px) scale(0.7); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bcx-disc {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+@keyframes bcx-draw {
+  from { stroke-dashoffset: 100; }
+  to { stroke-dashoffset: 0; }
+}
+@keyframes bcx-pulse {
+  from { opacity: 0.7; transform: scale(1); }
+  to { opacity: 0; transform: scale(1.7); }
+}
+@keyframes bcx-ring {
+  from { opacity: 0.8; transform: scale(0.3); }
+  to { opacity: 0; transform: scale(2.6); }
+}
+@keyframes bcx-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes bcx-fall {
+  0% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  85% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(110vh) rotate(var(--r)); }
+}

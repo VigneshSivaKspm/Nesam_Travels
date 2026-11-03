@@ -11,6 +11,7 @@ import { scrollToBookingForm } from '@/lib/scrollToForm';
 import { SERVICES, parseService, serviceHref, serviceOfTrip, type ServiceId } from '@/lib/services';
 import { Avatar, Button, Dialog, PageLoader } from './ui';
 import { Icon } from './Icon';
+import { RideBanner } from './RideBanner';
 import { RouteErrorBoundary } from '../../../user/web/src/components/RouteErrorBoundary';
 import { FloatingCallButton } from './FloatingCallButton';
 import { SideDrawer } from './SideDrawer';
@@ -401,6 +402,7 @@ export function Shell() {
               </NavLink>
             ))}
           </nav>
+          <RideBanner />
           <div className="topbar__right">
             <Link to="/support" className="help-link" aria-label="Help and support" title="Help">
               <Icon name="help" size={18} />

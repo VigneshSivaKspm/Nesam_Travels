@@ -432,8 +432,8 @@ export function BookingForm({
               {errors.form}
             </p>
           ) : null}
-          <Button type="submit" size="lg" block trailing="arrow-right" className="bf-submit">
-            View Cabs &amp; Fares
+          <Button type="submit" size="lg" block className="bf-submit">
+            Let&apos;s Go !
           </Button>
         </form>
       )}

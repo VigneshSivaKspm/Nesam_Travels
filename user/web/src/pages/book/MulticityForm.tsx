@@ -3,6 +3,7 @@
 // departure and return schedules.
 // Submits a validated itinerary enquiry (submitMulticityEnquiry) with a stable submissionId and the nesam brand.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { ClockIcon, PinIcon } from '@/components/CabParts';
 import { Link } from 'react-router-dom';
 import type { GeoPlace } from '@core/types';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
@@ -37,6 +38,16 @@ function saveStoredState(state: StoredMulticityState) {
     // Ignore storage write issues
   }
 }
+
+/** "Today", "Tomorrow" or the weekday, shown on the date field. */
+const dayHint = (iso: string): string => {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  return diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString('en-IN', { weekday: 'long' });
+};
 
 export function MulticityForm() {
   const { state: auth, openLoginModal } = useAuth();
@@ -373,7 +384,7 @@ export function MulticityForm() {
         ))}
         {cities.length < MAX_CITIES ? (
           <button type="button" className={`bf-add-city ${errors.stops ? 'is-invalid' : ''}`} onClick={() => setPickerTarget('new')}>
-            <Icon name="plus" size={16} /> Add city
+            <PinIcon size={20} /> Add stop
           </button>
         ) : null}
         {errors.stops ? <p className="bf-error">{errors.stops}</p> : null}
@@ -414,19 +425,22 @@ export function MulticityForm() {
             <label className="bf-label bf-label--out" htmlFor="mc-date">
               Departure date
             </label>
-            <input
-              id="mc-date"
-              type="date"
-              className="input bf-input"
-              min={todayStr}
-              max={maxDateStr}
-              value={state.date}
-              onChange={(e) => {
-                setState((s) => ({ ...s, date: e.target.value }));
-                setErrors((x) => ({ ...x, date: '', time: '' }));
-              }}
-              required
-            />
+            <div className="bf-datewrap">
+              <input
+                id="mc-date"
+                type="date"
+                className="input bf-input"
+                min={todayStr}
+                max={maxDateStr}
+                value={state.date}
+                onChange={(e) => {
+                  setState((s) => ({ ...s, date: e.target.value }));
+                  setErrors((x) => ({ ...x, date: '', time: '' }));
+                }}
+                required
+              />
+              {state.date ? <span className="bf-chip">{dayHint(state.date)}</span> : null}
+            </div>
             {errors.date ? <p className="bf-error">{errors.date}</p> : null}
           </div>
 
@@ -464,9 +478,8 @@ export function MulticityForm() {
           block
           loading={submitting}
           className="bf-submit"
-          trailing="arrow-right"
         >
-          View Cabs & Fares
+          Let&apos;s Go !
         </Button>
       </div>
 

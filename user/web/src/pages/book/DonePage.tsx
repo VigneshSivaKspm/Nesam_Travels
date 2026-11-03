@@ -13,6 +13,7 @@ import { useSeo } from '@/lib/seo';
 import { useBooking } from '@/state/Booking';
 import { tripTypeLabel } from '@/lib/services';
 import { BookingCelebration } from '@/components/BookingCelebration';
+import { BookingConfirmedOverlay } from '@/components/BookingConfirmedOverlay';
 
 function headline(t: TripRecord): { title: string; text: string; tone: 'pending' | 'ok' | 'bad' } {
   if (t.status === 'Rejected') return { title: 'Booking not accepted', text: 'NESAM could not accept this booking request. Nothing has been charged.', tone: 'bad' };
@@ -49,10 +50,15 @@ export function DonePage() {
   const [attempt, setAttempt] = useState(0);
   const location = useLocation();
   const { reset } = useBooking();
+  // Shown once, right after booking; a reload or a later visit goes straight to the page.
+  const [celebrate, setCelebrate] = useState(() => (location.state as { fresh?: boolean } | null)?.fresh === true);
 
   // Arriving straight from "Submit booking request": the draft has done its job.
   useEffect(() => {
-    if ((location.state as { fresh?: boolean } | null)?.fresh) reset();
+    if ((location.state as { fresh?: boolean } | null)?.fresh) {
+      reset();
+      navigate(location.pathname, { replace: true, state: null }); // used once: a reload does not celebrate again
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once, on arrival
 
   useEffect(() => {
@@ -109,6 +115,17 @@ export function DonePage() {
   const at = trip.scheduledAt;
   return (
     <div className="flow-page flow-page--done">
+      {celebrate && h.tone !== 'bad' ? (
+        <BookingConfirmedOverlay
+          logo={{ src: '/nesam/logo.webp', alt: 'NESAM Cabs' }}
+          code={trip.bookingId || trip.id}
+          message="We will share the driver details before pickup."
+          primaryLabel="View booking"
+          onPrimary={() => navigate(`/trips/${trip.id}`)}
+          secondaryLabel="Done"
+          onClose={() => setCelebrate(false)}
+        />
+      ) : null}
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">

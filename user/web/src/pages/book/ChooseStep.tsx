@@ -238,14 +238,29 @@ export function ChooseStep() {
                           <span className="cab__info">
                             <strong className="cab__name">{categoryName(c)}</strong>
                             {categoryModels(c) ? <span className="cab__model">{categoryModels(c)}</span> : null}
-                            <span className="cab__badges">
-                              <span className="feat feat--seats">
-                                <CabIcon kind="seat" size={18} /> {c.seats} passengers
-                              </span>
-                              <span className="feat feat--ac">
-                                <CabIcon kind="ac" size={18} /> AC
-                              </span>
+                            <span className="cabx-facts">
+                              <span><CabIcon kind="seat" size={20} /> {c.seats} seats</span>
+                              <span><CabIcon kind="ac" size={20} /> AC</span>
+                              <span><CabIcon kind="bag" size={20} /> {((c as any).luggage ?? (c.seats >= 6 ? 4 : 2))} bags</span>
                             </span>
+                            {incl ? (
+                              <span className="cabx-rows">
+                                <span><CabIcon kind="road" size={20} /> {incl}</span>
+                              </span>
+                            ) : null}
+                            {cngOf(c) && !blocked ? <FuelPick name={`fuel-${c.id}`} value={fuelOf(c)} onChange={(f) => chooseFuel(c, f)} /> : null}
+                            {fare ? (
+                              <button
+                                type="button"
+                                className="cab__details"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  setFareFor(c);
+                                }}
+                              >
+                                <Icon name="info" size={13} /> Fare details
+                              </button>
+                            ) : null}
                           </span>
                           <span className="cab__price">
                             {reason ? (
@@ -260,22 +275,6 @@ export function ChooseStep() {
                             ) : (
                               <small>Fare unavailable</small>
                             )}
-                          </span>
-                          {cngOf(c) && !blocked ? <FuelPick name={`fuel-${c.id}`} value={fuelOf(c)} onChange={(f) => chooseFuel(c, f)} /> : null}
-                          <span className="cab__foot">
-                            <span>{incl || 'Fare as per route distance'}</span>
-                            {fare ? (
-                              <button
-                                type="button"
-                                className="link-btn"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  setFareFor(c);
-                                }}
-                              >
-                                <Icon name="chevron-right" size={13} /> View fare
-                              </button>
-                            ) : null}
                           </span>
                         </label>
                       </li>
