@@ -279,7 +279,7 @@ export default function Locations() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleOpenCreate}
-            className="px-4 py-2 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-2"
+            className="px-4 py-2 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-all shadow-md flex items-center gap-2"
             style={{ background: "#c1232c" }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -366,7 +366,7 @@ export default function Locations() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button
               onClick={handleOpenCreate}
-              className="w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white rounded-xl hover:opacity-90 active:scale-95 transition-all shadow-md"
+              className="w-full sm:w-auto px-6 py-2.5 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-all shadow-md"
               style={{ background: "#c1232c" }}
             >
               Add Location
@@ -1100,7 +1100,7 @@ export default function Locations() {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                    className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 transition-all shadow-md flex items-center gap-1.5"
                     style={{ background: "#c1232c" }}
                   >
                     {isSubmitting && (

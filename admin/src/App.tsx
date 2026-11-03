@@ -470,7 +470,7 @@ export default function App() {
           </p>
           <button
             onClick={() => signOutAdmin()}
-            className="px-4 py-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 active:scale-95 transition-all"
+            className="px-4 py-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
             style={{ background: "#c1232c" }}
           >
             Sign Out
@@ -512,7 +512,7 @@ function StatusScreen({ title, message, email }: { title: string; message: strin
         </p>
         <button
           onClick={() => void endStaffSession()}
-          className="px-4 py-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 active:scale-95 transition-all"
+          className="px-4 py-2 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-all"
           style={{ background: "#c1232c" }}
         >
           Sign Out

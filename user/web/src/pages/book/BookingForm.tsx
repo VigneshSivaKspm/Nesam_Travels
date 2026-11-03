@@ -14,6 +14,7 @@ import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
 import { TimePicker, formatTime12 } from '@/components/TimePicker';
 import { useBooking } from '@/state/Booking';
 import { useDeviceLocation, useOnline } from '@/lib/hooks';
+import { ClockIcon, SwapIcon } from '@/components/CabParts';
 import { combineDateTime, latestPickup, toDateInput, toTimeInput } from '@/lib/schedule';
 import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
@@ -35,6 +36,16 @@ const disposalFor = (pickup: GeoPlace): GeoPlace => ({
 
 /** Airport direction follows the draft: whichever end is an airport. */
 const directionOf = (pickup: GeoPlace | null, drop: GeoPlace | null): AirportDirection => (isAirportPlace(pickup) && !isAirportPlace(drop) ? 'from' : 'to');
+
+/** "Today", "Tomorrow" or the weekday, shown on the date field so the chosen day is clear at a glance. */
+const dayHint = (iso: string): string => {
+  const d = new Date(`${iso}T00:00:00`);
+  if (Number.isNaN(d.getTime())) return '';
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
+  return diff === 0 ? 'Today' : diff === 1 ? 'Tomorrow' : d.toLocaleDateString('en-IN', { weekday: 'long' });
+};
 
 export function BookingForm({
   service,
@@ -321,23 +332,26 @@ export function BookingForm({
               <label className="bf-label bf-label--out" htmlFor="bf-date">
                 Pickup date
               </label>
-              <input
-                ref={(el) => {
-                  refs.current.date = el;
-                }}
-                id="bf-date"
-                className="input bf-input"
-                type="date"
-                value={date}
-                min={toDateInput(new Date())}
-                max={toDateInput(latestPickup())}
-                aria-invalid={!!errors.date || undefined}
-                aria-describedby={errors.date ? 'bf-date-err' : undefined}
-                onChange={(e) => {
-                  setDate(e.target.value);
-                  setErrors((x) => ({ ...x, date: '', time: '' }));
-                }}
-              />
+              <div className="bf-datewrap">
+                <input
+                  ref={(el) => {
+                    refs.current.date = el;
+                  }}
+                  id="bf-date"
+                  className="input bf-input"
+                  type="date"
+                  value={date}
+                  min={toDateInput(new Date())}
+                  max={toDateInput(latestPickup())}
+                  aria-invalid={!!errors.date || undefined}
+                  aria-describedby={errors.date ? 'bf-date-err' : undefined}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    setErrors((x) => ({ ...x, date: '', time: '' }));
+                  }}
+                />
+                {date ? <span className="bf-chip">{dayHint(date)}</span> : null}
+              </div>
               {fieldErr('date')}
             </div>
             <div className="bf-cell">
@@ -356,7 +370,7 @@ export function BookingForm({
                 onClick={() => setTimeFor('pickup')}
               >
                 <span id="bf-time-value">{time ? formatTime12(time) : ''}</span>
-                <Icon name="chevron-down" size={15} />
+                <ClockIcon size={26} />
               </button>
               {fieldErr('time')}
             </div>
@@ -368,23 +382,26 @@ export function BookingForm({
                 <label className="bf-label bf-label--out" htmlFor="bf-end-date">
                   Return date
                 </label>
-                <input
-                  ref={(el) => {
-                    refs.current.endDate = el;
-                  }}
-                  id="bf-end-date"
-                  className="input bf-input"
-                  type="date"
-                  value={endDate}
-                  min={date || toDateInput(new Date())}
-                  max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
-                  aria-invalid={!!errors.endDate || undefined}
-                  aria-describedby={errors.endDate ? 'bf-endDate-err' : undefined}
-                  onChange={(e) => {
-                    setEndDate(e.target.value);
-                    setErrors((x) => ({ ...x, endDate: '', endTime: '' }));
-                  }}
-                />
+                <div className="bf-datewrap">
+                  <input
+                    ref={(el) => {
+                      refs.current.endDate = el;
+                    }}
+                    id="bf-end-date"
+                    className="input bf-input"
+                    type="date"
+                    value={endDate}
+                    min={date || toDateInput(new Date())}
+                    max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
+                    aria-invalid={!!errors.endDate || undefined}
+                    aria-describedby={errors.endDate ? 'bf-endDate-err' : undefined}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setErrors((x) => ({ ...x, endDate: '', endTime: '' }));
+                    }}
+                  />
+                  {endDate ? <span className="bf-chip">{dayHint(endDate)}</span> : null}
+                </div>
                 {fieldErr('endDate')}
               </div>
               <div className="bf-cell">
@@ -403,7 +420,7 @@ export function BookingForm({
                   onClick={() => setTimeFor('return')}
                 >
                   <span id="bf-end-time-value">{endTime ? formatTime12(endTime) : ''}</span>
-                  <Icon name="chevron-down" size={15} />
+                  <ClockIcon size={26} />
                 </button>
                 {fieldErr('endTime')}
               </div>
@@ -416,7 +433,7 @@ export function BookingForm({
             </p>
           ) : null}
           <Button type="submit" size="lg" block trailing="arrow-right" className="bf-submit">
-            Search Cabs
+            View Cabs &amp; Fares
           </Button>
         </form>
       )}

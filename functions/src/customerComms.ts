@@ -62,7 +62,7 @@ export function composeCustomerMessage(kind: CustomerMessageKind, b: DocumentDat
   const greeting = `Hello ${name},`;
   const trip: [string, string][] = [
     ['Booking ID', code], ['Pickup', String(b.pickup ?? '')], ['Drop', b.tripType === 'Local Rental' ? 'Local rental' : String(b.drop ?? '')],
-    ['Pickup time', when], ['Trip type', String(b.tripType ?? b.service ?? '')], ['Vehicle', String(b.vehicleCategory ?? b.vehicle ?? '')],
+    ['Pickup time', when], ['Trip type', String(b.tripType ?? b.service ?? '')], ['Vehicle', String(b.vehicleCategory ?? b.vehicle ?? '') + (b.fuelType === 'cng' ? ' (CNG)' : '')],
   ];
   const out = (subject: string, line: string, email: Omit<EmailContent, 'greeting'>): Composed => ({
     subject, line, body: [greeting, '', ...email.paragraphs.flatMap((x) => [x, ''])].join('\n').trim(), email: { ...email, greeting },

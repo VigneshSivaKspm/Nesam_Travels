@@ -291,6 +291,7 @@ export function ReviewStep() {
               </div>
 
               <ul className="rv-sum__notes">
+                {draft.fuelType === 'cng' ? <li>Fuel type: CNG</li> : null}
                 <li>All charges and discounts are included</li>
                 <li>Fuel, toll, state tax and parking are separate</li>
               </ul>

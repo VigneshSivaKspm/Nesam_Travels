@@ -104,3 +104,22 @@ export function FuelPick({ name, value, onChange }: { name: string; value: FuelC
     </div>
   );
 }
+
+/** Up and down arrows side by side: the swap pickup / drop button. */
+export function SwapIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">
+      <path d="M8 20V5M4 9l4-4 4 4M16 4v15M12 15l4 4 4-4" />
+    </svg>
+  );
+}
+
+/** A solid clock, for the pickup time. */
+export function ClockIcon({ size = 24 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="10.5" fill="currentColor" />
+      <path d="M12 6.5V12l3.6 2.2" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

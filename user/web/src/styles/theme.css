@@ -1249,3 +1249,589 @@ h2,
 .cab__price .cab__saving {
   order: 2;
 }
+
+/* ── Booking form, soft raised style ─────────────────────────────────────────────────────────────────────────
+   A pill switch, a route with a dashed rail (green start, red pin), raised cards for pickup, drop and time,
+   a "Tomorrow" tag on the date, and a round swap button between the two places. Every colour comes from the
+   site's own accent (--brand, or --red on NESAM), so the same form looks right in each theme. Flat colours only. */
+.bf.bf {
+  --bfx: var(--brand, var(--red, #1665e8));
+  --bfx-raise: 8px 10px 20px -10px rgb(15 23 42 / 0.22), -6px -6px 14px rgb(255 255 255 / 0.95);
+  background: color-mix(in srgb, var(--bfx) 6%, #fff);
+}
+
+/* Pill switch */
+.bf .bf-journey.tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px;
+  width: min(100%, 380px);
+  margin: 0 auto;
+  padding: 6px;
+  border: 0;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bfx) 13%, #fff);
+  box-shadow: inset 3px 3px 8px rgb(15 23 42 / 0.1), inset -3px -3px 8px rgb(255 255 255 / 0.7);
+}
+.bf .bf-journey.tabs .tab {
+  min-height: 48px;
+  border-radius: 999px;
+  background: transparent;
+  box-shadow: none;
+  color: color-mix(in srgb, var(--bfx) 55%, var(--ink, #20252d));
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.bf .bf-journey.tabs .tab.is-active,
+.bf .bf-journey.tabs .tab[aria-selected='true'] {
+  background: var(--bfx);
+  box-shadow: 0 10px 18px -8px color-mix(in srgb, var(--bfx) 70%, transparent);
+  color: #fff;
+}
+
+/* Route: dashed rail on the left, raised cards, round swap button between them */
+.bf .bf-form .bf-route {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding-left: 34px;
+}
+.bf .bf-form .bf-route::before {
+  content: '';
+  position: absolute;
+  top: 40px;
+  bottom: 40px;
+  left: 9px;
+  border-left: 2px dashed color-mix(in srgb, var(--muted, #697587) 55%, transparent);
+}
+.bf .bf-form .bf-route.bf-route--single {
+  padding-left: 0;
+}
+.bf .bf-form .bf-route.bf-route--single::before {
+  display: none;
+}
+.bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+  margin-left: 20px;
+}
+.bf .bf-form .bf-route .bf-field {
+  position: relative;
+  min-height: 76px;
+  padding: 12px 16px 12px 20px;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--bfx-raise);
+}
+.bf .bf-form .bf-route .bf-field:focus-within {
+  box-shadow: var(--bfx-raise), 0 0 0 2px var(--bfx);
+}
+.bf .bf-form .bf-route .bf-field.is-invalid {
+  box-shadow: var(--bfx-raise), 0 0 0 2px var(--danger, #d92d20);
+}
+.bf .bf-form .bf-route .bf-field__main {
+  padding: 0;
+}
+.bf .bf-form .bf-route .bf-label {
+  color: var(--ink, #20252d);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.bf .bf-form .bf-route .bf-field:has(.bf-trigger.is-empty) .bf-label {
+  font-size: 0.875rem;
+}
+.bf .bf-form .bf-route .bf-trigger {
+  color: var(--ink, #20252d);
+  font-size: 1.1875rem;
+  font-weight: 800;
+}
+.bf .bf-form .bf-route .bf-chev {
+  position: static;
+  display: block;
+  color: var(--muted, #697587);
+}
+.bf .bf-form .bf-route .bf-pin {
+  position: absolute;
+  top: 50%;
+  left: -30px;
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 5px rgb(34 197 94 / 0.22);
+  translate: 0 -50%;
+}
+.bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+  width: 17px;
+  height: 17px;
+  border-radius: 50% 50% 50% 0;
+  background: #ef4444;
+  box-shadow: none;
+  rotate: -45deg;
+}
+.bf .bf-form .bf-route .bf-pin.bf-pin--drop::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border-radius: 50%;
+  background: #fff;
+}
+.bf .bf-form .bf-route .bf-swap {
+  position: relative !important;
+  inset: auto !important;
+  z-index: 3;
+  grid-column: 1;
+  width: 44px;
+  height: 44px;
+  margin: -22px 26px -22px 0;
+  justify-self: end;
+  border: 0;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: var(--bfx-raise);
+  color: var(--ink, #20252d);
+  transform: none !important;
+}
+.bf .bf-form .bf-route .bf-swap:hover:not(:disabled) {
+  color: var(--bfx);
+}
+
+/* Date, time */
+.bf .bf-form .bf-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.bf .bf-form .bf-row.bf-row--single {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bf .bf-form .bf-label--out {
+  margin-bottom: 8px;
+  color: var(--ink, #20252d);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.bf .bf-datewrap {
+  position: relative;
+}
+.bf .bf-datewrap .bf-input {
+  width: 100%;
+  min-height: 60px;
+  padding: 0 16px;
+  border: 1.5px solid color-mix(in srgb, var(--bfx) 22%, #cfd6e4);
+  border-radius: 20px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--ink, #20252d);
+  font-size: 1.0625rem;
+  font-weight: 700;
+}
+.bf .bf-datewrap .bf-input:focus {
+  border-color: var(--bfx);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--bfx) 18%, transparent);
+}
+.bf .bf-chip {
+  position: absolute;
+  top: -11px;
+  right: 16px;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--bfx) 14%, #fff);
+  color: var(--bfx);
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  pointer-events: none;
+}
+.bf .bf-form .bf-row .bf-time {
+  min-height: 60px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 20px;
+  background: #fff;
+  box-shadow: var(--bfx-raise);
+  color: var(--ink, #20252d);
+  font-size: 1.0625rem;
+  font-weight: 800;
+}
+.bf .bf-form .bf-row .bf-time .icon {
+  color: var(--ink, #20252d);
+}
+
+@media (max-width: 420px) {
+  .bf .bf-form .bf-route {
+    padding-left: 30px;
+  }
+  .bf .bf-form .bf-route .bf-pin {
+    left: -26px;
+  }
+  .bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+    margin-left: 12px;
+  }
+  .bf .bf-form .bf-row {
+    gap: 12px;
+  }
+}
+
+/* ── Booking form: matched to the reference picture ──────────────────────────────────────────────────────────
+   Soft panel, cards raised from it with a light and a dark shadow, a curved dotted rail from the green start dot to the
+   red pin, a drop card set in from the pickup card, a round swap button between them, an outlined date with a tag on its
+   edge and a raised time card. Colours follow each site's accent. */
+.bf.bf {
+  --bfx: var(--brand, var(--red, #1665e8));
+  --bfx-bg: color-mix(in srgb, var(--bfx) 7%, #eceff5);
+  --bfx-raise: 7px 7px 16px rgb(15 23 42 / 0.13), -6px -6px 14px rgb(255 255 255 / 0.92);
+  background: var(--bfx-bg);
+}
+
+/* Pill switch */
+.bf .bf-journey.tabs {
+  width: min(100%, 360px);
+  padding: 7px;
+  background: color-mix(in srgb, var(--bfx) 16%, #dfe6f1);
+  box-shadow: inset 3px 3px 8px rgb(15 23 42 / 0.12), inset -3px -3px 8px rgb(255 255 255 / 0.55);
+}
+.bf .bf-journey.tabs .tab {
+  min-height: 50px;
+  color: color-mix(in srgb, var(--bfx) 45%, #4a5875);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+.bf .bf-journey.tabs .tab.is-active,
+.bf .bf-journey.tabs .tab[aria-selected='true'] {
+  background: var(--bfx);
+  box-shadow: 4px 6px 14px -4px color-mix(in srgb, var(--bfx) 65%, transparent), inset 0 1px 0 rgb(255 255 255 / 0.22);
+  color: #fff;
+}
+
+/* Route */
+.bf .bf-form .bf-route {
+  gap: 18px;
+  padding-left: 50px;
+}
+.bf .bf-form .bf-route::before {
+  top: 38px;
+  bottom: 38px;
+  left: 8px;
+  width: 56px;
+  border: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 56 100' preserveAspectRatio='none'%3E%3Cpath d='M20 0 C 1 22, 0 70, 50 100' fill='none' stroke='%238b95a8' stroke-width='2' stroke-dasharray='5 6' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+}
+.bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+  margin-left: 30px;
+}
+.bf .bf-form .bf-route .bf-field {
+  min-height: 76px;
+  padding: 12px 18px 12px 20px;
+  border-radius: 22px;
+  background: var(--bfx-bg);
+  box-shadow: var(--bfx-raise);
+}
+.bf .bf-form .bf-route .bf-field:focus-within {
+  box-shadow: var(--bfx-raise), 0 0 0 2px var(--bfx);
+}
+.bf .bf-form .bf-route .bf-label {
+  font-size: 0.8125rem;
+  letter-spacing: 0.03em;
+}
+.bf .bf-form .bf-route .bf-trigger {
+  padding: 2px 0 0 8px;
+  font-size: 1.125rem;
+}
+.bf .bf-form .bf-route .bf-addr {
+  display: none;
+}
+.bf .bf-form .bf-route .bf-chev {
+  color: color-mix(in srgb, var(--muted, #697587) 70%, #fff);
+}
+.bf .bf-form .bf-route .bf-pin {
+  left: -24px;
+  width: 16px;
+  height: 16px;
+  background: #22a85a;
+  box-shadow: 0 0 0 6px rgb(34 168 90 / 0.25);
+}
+.bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+  left: -23px;
+  width: 18px;
+  height: 18px;
+  background: #e8344c;
+  box-shadow: none;
+}
+.bf .bf-form .bf-route .bf-swap {
+  margin: -24px 44px -24px 0;
+  width: 46px;
+  height: 46px;
+  background: var(--bfx-bg);
+}
+
+/* Date and time */
+.bf .bf-form .bf-row {
+  gap: 14px;
+}
+.bf .bf-form .bf-label--out {
+  font-size: 0.8125rem;
+  letter-spacing: 0.03em;
+}
+.bf .bf-datewrap .bf-input {
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 20px;
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+.bf .bf-chip {
+  top: -10px;
+  right: 18px;
+  background: color-mix(in srgb, var(--bfx) 14%, #dfe6f1);
+  color: var(--ink, #20252d);
+  font-weight: 500;
+}
+.bf .bf-form .bf-row .bf-time {
+  min-height: 52px;
+  padding: 0 18px;
+  border-radius: 20px;
+  background: var(--bfx-bg);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+@media (max-width: 420px) {
+  .bf .bf-form .bf-route {
+    padding-left: 42px;
+  }
+  .bf .bf-form .bf-route::before {
+    left: 6px;
+    width: 46px;
+  }
+  .bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+    margin-left: 22px;
+  }
+  .bf .bf-form .bf-route .bf-pin {
+    left: -20px;
+  }
+  .bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+    left: -19px;
+  }
+  .bf .bf-form .bf-route .bf-swap {
+    margin-right: 30px;
+  }
+}
+
+/* ── Booking form: flat and white, tight, with the reference's icons ─────────────────────────────────────────
+   No shadows. A white panel; cards are told apart by a thin line in the site's accent. The green start dot has a ring,
+   the drop is a red map pin, the swap is two arrows, the date has the dotted calendar and the time a solid clock. */
+.bf.bf {
+  --bfx: var(--brand, var(--red, #1665e8));
+  --bfx-line: color-mix(in srgb, var(--bfx) 16%, #d9dfe9);
+  --bfx-bg: #fff;
+  --bfx-raise: none;
+  background: #fff;
+  box-shadow: none;
+}
+
+/* Pill switch */
+.bf .bf-journey.tabs {
+  width: min(100%, 340px);
+  padding: 5px;
+  background: color-mix(in srgb, var(--bfx) 11%, #fff);
+  box-shadow: none;
+}
+.bf .bf-journey.tabs .tab {
+  min-height: 44px;
+  font-size: 1.0625rem;
+}
+.bf .bf-journey.tabs .tab.is-active,
+.bf .bf-journey.tabs .tab[aria-selected='true'] {
+  box-shadow: none;
+}
+
+/* Route: tighter, thin outlines instead of shadows */
+.bf .bf-form {
+  gap: 10px;
+}
+.bf .bf-form .bf-route {
+  gap: 10px;
+  padding-left: 44px;
+}
+.bf .bf-form .bf-route::before {
+  top: 32px;
+  bottom: 32px;
+  left: 6px;
+  width: 50px;
+}
+.bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+  margin-left: 26px;
+}
+.bf .bf-form .bf-route .bf-field {
+  min-height: 64px;
+  padding: 9px 14px 9px 16px;
+  border: 1px solid var(--bfx-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: none;
+}
+.bf .bf-form .bf-route .bf-field:focus-within {
+  border-color: var(--bfx);
+  box-shadow: none;
+}
+.bf .bf-form .bf-route .bf-field.is-invalid {
+  border-color: var(--danger, #d92d20);
+  box-shadow: none;
+}
+.bf .bf-form .bf-route .bf-label {
+  font-size: 0.75rem;
+}
+.bf .bf-form .bf-route .bf-trigger {
+  padding: 1px 0 0 8px;
+  font-size: 1.0625rem;
+}
+.bf .bf-form .bf-route .bf-pin {
+  left: -22px;
+  width: 16px;
+  height: 16px;
+  border: 5px solid rgb(34 168 90 / 0.3);
+  background: #22a85a;
+  background-clip: padding-box;
+  box-sizing: content-box;
+  box-shadow: none;
+  translate: -5px -50%;
+}
+.bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+  left: -21px;
+  width: 18px;
+  height: 18px;
+  border: 0;
+  background: #e8344c;
+  box-sizing: border-box;
+  translate: 0 -50%;
+}
+.bf .bf-form .bf-route .bf-swap {
+  width: 40px;
+  height: 40px;
+  margin: -20px 36px -20px 0;
+  border: 1px solid var(--bfx-line);
+  background: #fff;
+  box-shadow: none;
+}
+
+/* Date and time */
+.bf .bf-form .bf-row {
+  gap: 10px;
+}
+.bf .bf-form .bf-label--out {
+  margin-bottom: 6px;
+  font-size: 0.75rem;
+}
+.bf .bf-datewrap .bf-input {
+  position: relative;
+  min-height: 48px;
+  padding: 0 46px 0 14px;
+  border: 1px solid var(--bfx-line);
+  border-radius: 18px;
+  font-size: 1rem;
+}
+.bf .bf-datewrap .bf-input::-webkit-calendar-picker-indicator {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  opacity: 0;
+  cursor: pointer;
+}
+.bf .bf-datewrap::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  width: 24px;
+  height: 24px;
+  background: var(--ink, #20252d);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='3.5'/%3E%3Cpath d='M8 3v4M16 3v4M3.5 10h17'/%3E%3Cpath d='M8.5 14.2h.01M12 14.2h.01M15.5 14.2h.01M8.5 17.2h.01M12 17.2h.01M15.5 17.2h.01' stroke-width='2.4'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round'%3E%3Crect x='3.5' y='5' width='17' height='15.5' rx='3.5'/%3E%3Cpath d='M8 3v4M16 3v4M3.5 10h17'/%3E%3Cpath d='M8.5 14.2h.01M12 14.2h.01M15.5 14.2h.01M8.5 17.2h.01M12 17.2h.01M15.5 17.2h.01' stroke-width='2.4'/%3E%3C/svg%3E") center / contain no-repeat;
+  translate: 0 -50%;
+  pointer-events: none;
+}
+.bf .bf-chip {
+  top: -9px;
+  right: 16px;
+  padding: 2px 10px;
+  font-size: 0.6875rem;
+}
+.bf .bf-form .bf-row .bf-time {
+  min-height: 48px;
+  padding: 0 14px 0 16px;
+  border: 1px solid var(--bfx-line);
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: none;
+  font-size: 1rem;
+}
+.bf .bf-form .bf-row .bf-time svg {
+  color: var(--ink, #20252d);
+}
+
+@media (max-width: 420px) {
+  .bf .bf-form .bf-route {
+    padding-left: 38px;
+  }
+  .bf .bf-form .bf-route::before {
+    left: 5px;
+    width: 42px;
+  }
+  .bf .bf-form .bf-route:not(.bf-route--single) > .bf-route__cell:last-of-type {
+    margin-left: 18px;
+  }
+  .bf .bf-form .bf-route .bf-pin {
+    left: -19px;
+  }
+  .bf .bf-form .bf-route .bf-pin.bf-pin--drop {
+    left: -18px;
+  }
+  .bf .bf-form .bf-route .bf-swap {
+    margin-right: 24px;
+  }
+}
+
+/* The start dot and the drop pin sit just outside the cards: the cards must not clip them. */
+.bf .bf-form .bf-route .bf-field,
+.bf .bf-form .bf-route .bf-route__cell {
+  overflow: visible;
+}
+.bf .bf-form .bf-route .bf-field__main {
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* Pickup date and time: the labels and the values sit in the middle of their boxes (the icons stay on the right). */
+.bf .bf-form .bf-row .bf-label--out {
+  text-align: center;
+}
+.bf .bf-datewrap .bf-input {
+  padding-inline: 46px;
+  text-align: center;
+}
+.bf .bf-datewrap .bf-input::-webkit-datetime-edit {
+  display: block;
+  padding: 0;
+  text-align: center;
+}
+.bf .bf-form .bf-row .bf-time {
+  position: relative;
+  justify-content: center;
+  padding-inline: 46px;
+  text-align: center;
+}
+.bf .bf-form .bf-row .bf-time svg {
+  position: absolute;
+  top: 50%;
+  right: 14px;
+  translate: 0 -50%;
+}

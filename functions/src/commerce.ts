@@ -242,7 +242,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       : 'New booking request to review';
     const n: NotifyInput = {
       recipientType: 'admin', recipientId: 'admin', category: 'bookings', severity: 'info', sound: 'new_booking',
-      title: sourceTitle, message: `${bookingCode}${sourceTag} · ${text(c.name)} · ${pickup.name} → ${drop.name} · ${formatDateTime12(when)} · ₹${fare.total.toLocaleString('en-IN')}`,
+      title: sourceTitle, message: `${bookingCode}${sourceTag}${fuel ? ' · CNG' : ''} · ${text(c.name)} · ${pickup.name} → ${drop.name} · ${formatDateTime12(when)} · ₹${fare.total.toLocaleString('en-IN')}`,
       bookingId: requestId, bookingCode, cta: { label: 'Review booking', page: 'booking-detail', bookingId: requestId }, push: true, sentBy: uid,
     };
     pushes.push({ id: notifyInTx(tx, n), input: n });

@@ -177,7 +177,6 @@ export function ChooseStep() {
                       </div>
 
                       <ul className="cabx-rows">
-                        {fare && fare.driverAllowance > 0 ? <li><CabIcon kind="driver" size={20} /> Driver allowance included</li> : null}
                         {incl ? <li><CabIcon kind="road" size={20} /> {incl}</li> : null}
                       </ul>
 
@@ -195,6 +194,7 @@ export function ChooseStep() {
                           <Icon name="info" size={12} /> Fare details
                         </button>
                       ) : null}
+
                     </div>
 
                     <div className="cab__price">

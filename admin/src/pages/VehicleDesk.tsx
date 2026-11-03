@@ -278,7 +278,7 @@ export default function VehicleDesk() {
           </div>
           <button
             onClick={() => setForm({ id: newVehicleId(), existing: null })}
-            className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 cursor-pointer transition-all self-start md:self-auto"
+            className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 cursor-pointer transition-all self-start md:self-auto"
             style={{ background: "#c1232c" }}
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>

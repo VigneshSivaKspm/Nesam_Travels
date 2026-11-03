@@ -466,7 +466,7 @@ export function MulticityForm() {
           className="bf-submit"
           trailing="arrow-right"
         >
-          Search Cabs & View Fares
+          Get My Fare
         </Button>
       </div>
 

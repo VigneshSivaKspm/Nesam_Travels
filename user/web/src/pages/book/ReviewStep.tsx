@@ -173,7 +173,7 @@ export function ReviewStep() {
         <li>
           <Icon name="car" size={16} />
           <span>
-            <strong>{categoryName(category)}</strong> · {category.seats} passengers
+            <strong>{categoryName(category)}</strong>{draft.fuelType === 'cng' ? ' (CNG)' : ''} · {category.seats} passengers
           </span>
         </li>
       </ul>

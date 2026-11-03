@@ -254,7 +254,7 @@ export default function BookingDetails({ bookingId, onBack, onNavigate }: { book
             <Facts cols={4} items={[
               ["Pickup", pickup ? refDateTime(pickup) : `${booking.date} · ${booking.time}`],
               ["Service / trip type", `${serviceFamilyOf(booking)} · ${tripTypeOf(booking)}`],
-              ["Vehicle", booking.vehicleCategory || booking.vehicle],
+              ["Vehicle", `${booking.vehicleCategory || booking.vehicle}${(booking as { fuelType?: string }).fuelType === "cng" ? " (CNG)" : ""}`],
               ["Office stage", officeStatusLabel(booking, market)],
             ]} />
           </section>
@@ -320,7 +320,7 @@ export default function BookingDetails({ bookingId, onBack, onNavigate }: { book
             ["Pickup address", <span key="p">{booking.pickupAddress || booking.pickup}{mapLink(booking.pickupLat, booking.pickupLng) && <> · <a className="ds-link" style={{ fontSize: 11 }} href={mapLink(booking.pickupLat, booking.pickupLng)!} target="_blank" rel="noreferrer">open map</a></>}</span>],
             ["Drop address", <span key="d">{booking.dropAddress || booking.drop}{mapLink(booking.dropLat, booking.dropLng) && <> · <a className="ds-link" style={{ fontSize: 11 }} href={mapLink(booking.dropLat, booking.dropLng)!} target="_blank" rel="noreferrer">open map</a></>}</span>],
             ["Included distance", included ? `${Math.round(Number(included))} km` : "Not recorded"],
-            ["Vehicle category", booking.vehicleCategory || booking.vehicle],
+            ["Vehicle category", `${booking.vehicleCategory || booking.vehicle}${(booking as { fuelType?: string }).fuelType === "cng" ? " (CNG)" : ""}`],
             ["Required passengers", (b.passengerSeatsRequired as number) ? String(b.passengerSeatsRequired) : "Not recorded"],
             ["Roof carrier", extras.roofCarrier ? "Requested" : "Not requested"],
             ["Hill travel", extras.hillTravel ? "Requested" : "Not requested"],

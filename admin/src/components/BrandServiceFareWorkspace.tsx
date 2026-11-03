@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   BRAND_LABELS,
   BrandFareOverride,
@@ -334,24 +334,24 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
       )}
 
       {t && !t.enabled && <p className="ds-note mb-4">The confirmed tariff engine is switched off. These scoped rates are saved but its booking paths currently use the existing category fallback. The shared engine switch is available under Common.</p>}
-      {selectedBrand === 'common' && t && <div className="ds-panel ds-panel-pad mb-4"><strong>Shared pricing engine · all brands and services</strong><p className="text-[12px] text-muted mb-2">{t.enabled ? 'Enabled' : 'Disabled'} — changing this switch retains all rates.</p>{canEdit && <Button disabled={busy || isDirty} onClick={toggleSharedEngine}>{t.enabled ? 'Disable confirmed tariff' : 'Enable confirmed tariff'}</Button>}</div>}
+      {selectedBrand === 'common' && t && <details className="ds-panel ds-panel-pad mb-4"><summary className="cursor-pointer text-[13px] font-bold">Pricing engine: {t.enabled ? "on" : "off"}</summary><p className="text-[12px] text-muted mb-2">{t.enabled ? 'Enabled' : 'Disabled'} — changing this switch retains all rates.</p>{canEdit && <Button disabled={busy || isDirty} onClick={toggleSharedEngine}>{t.enabled ? 'Disable confirmed tariff' : 'Enable confirmed tariff'}</Button>}</details>}
 
       {/* Persistent Scope Summary Banner */}
       <div className="ds-panel ds-panel-pad mb-4 bg-slate-50 border-l-4 border-l-brand flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Active Scope:</span>
-          <span className="text-[15px] font-black text-ink">{scopeSummary}</span>
+          <span className="text-[12px] font-bold uppercase tracking-wider text-muted">You are editing:</span>
+          <span className="text-[14px] font-bold text-ink">{scopeSummary}</span>
           {isDirty && (
             <Badge tone="amber">
               <Icon name="clock" size={14} /> Unsaved changes
             </Badge>
           )}
           {selectedBrand === "common" ? (
-            <Badge tone="neutral">Common Baseline</Badge>
+            <Badge tone="neutral">Shared by all brands</Badge>
           ) : brandOverrideActive ? (
-            <Badge tone="blue">Brand Override Active</Badge>
+            <Badge tone="blue">Own prices for this brand</Badge>
           ) : (
-            <Badge tone="neutral">Inheriting Common Baseline</Badge>
+            <Badge tone="neutral">Using common prices</Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               disabled={!isDirty || busy || !!loadError}
               onClick={() => setConfirmSaveOpen(true)}
             >
-              <Icon name="check" size={14} /> Save {selectedBrand === "common" ? "Common Rates" : "Brand Overrides"}
+              <Icon name="check" size={14} /> Save changes
             </Button>
           )}
         </div>
@@ -380,9 +380,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
 
         {/* SERVICE-SPECIFIC CONTROLS */}
         {selectedService === "One Way" && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
+            <FareGroup title="Customer price" hint="What the customer pays.">
             <RateField
-              label="Customer Fare Rate"
+              label="Price per km"
               unit="₹/km"
               value={form.customerRate}
               commonValue={commonOW?.customerRate}
@@ -396,35 +397,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="customerRate"
             />
             <RateField
-              label="Partner Payout Rate"
-              unit="₹/km"
-              value={form.partnerRate}
-              commonValue={commonOW?.partnerRate}
-              resolved={evalField("partnerRate", commonOW?.partnerRate)}
-              scopeBrand={selectedBrand}
-              onChange={(v) => setField("partnerRate", v)}
-              onClear={() => handleClearOverride("partnerRate")}
-              tariff={t}
-              service={selectedService}
-              cls={selectedClass}
-              fieldKey="partnerRate"
-            />
-            <RateField
-              label="Minimum Billable Distance"
-              unit="km"
-              value={form.minKm}
-              commonValue={t?.oneWay?.minKm ?? 130}
-              resolved={evalField("minKm", t?.oneWay?.minKm ?? 130)}
-              scopeBrand={selectedBrand}
-              onChange={(v) => setField("minKm", v)}
-              onClear={() => handleClearOverride("minKm")}
-              tariff={t}
-              service={selectedService}
-              cls={selectedClass}
-              fieldKey="minKm"
-            />
-            <RateField
-              label="Customer Allowance (Driver Bata)"
+              label="Driver allowance"
               unit="₹/trip"
               value={form.customerBata}
               commonValue={commonOW?.customerBata}
@@ -439,7 +412,51 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               zeroAllowed
             />
             <RateField
-              label="Partner Allowance (Driver Bata)"
+              label="Minimum km charged"
+              unit="km"
+              value={form.minKm}
+              commonValue={t?.oneWay?.minKm ?? 130}
+              resolved={evalField("minKm", t?.oneWay?.minKm ?? 130)}
+              scopeBrand={selectedBrand}
+              onChange={(v) => setField("minKm", v)}
+              onClear={() => handleClearOverride("minKm")}
+              tariff={t}
+              service={selectedService}
+              cls={selectedClass}
+              fieldKey="minKm"
+            />
+            <RateField
+              label="Extra km price"
+              unit="₹/km"
+              value={form.extraKmRate}
+              commonValue={commonExtras?.extraKmRate ?? commonOW?.customerRate}
+              resolved={evalField("extraKmRate", commonExtras?.extraKmRate ?? commonOW?.customerRate)}
+              scopeBrand={selectedBrand}
+              onChange={(v) => setField("extraKmRate", v)}
+              onClear={() => handleClearOverride("extraKmRate")}
+              tariff={t}
+              service={selectedService}
+              cls={selectedClass}
+              fieldKey="extraKmRate"
+            />
+            </FareGroup>
+            <FareGroup title="Partner pay" hint="What the driver or fleet partner gets.">
+            <RateField
+              label="Partner pay per km"
+              unit="₹/km"
+              value={form.partnerRate}
+              commonValue={commonOW?.partnerRate}
+              resolved={evalField("partnerRate", commonOW?.partnerRate)}
+              scopeBrand={selectedBrand}
+              onChange={(v) => setField("partnerRate", v)}
+              onClear={() => handleClearOverride("partnerRate")}
+              tariff={t}
+              service={selectedService}
+              cls={selectedClass}
+              fieldKey="partnerRate"
+            />
+            <RateField
+              label="Partner driver allowance"
               unit="₹/trip"
               value={form.partnerBata}
               commonValue={commonOW?.partnerBata}
@@ -453,22 +470,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="partnerBata"
               zeroAllowed
             />
+            </FareGroup>
+            <FareGroup title="Extra charges" hint="Paid on top, only when they happen.">
             <RateField
-              label="Extra Kilometre Charge"
-              unit="₹/km"
-              value={form.extraKmRate}
-              commonValue={commonExtras?.extraKmRate ?? commonOW?.customerRate}
-              resolved={evalField("extraKmRate", commonExtras?.extraKmRate ?? commonOW?.customerRate)}
-              scopeBrand={selectedBrand}
-              onChange={(v) => setField("extraKmRate", v)}
-              onClear={() => handleClearOverride("extraKmRate")}
-              tariff={t}
-              service={selectedService}
-              cls={selectedClass}
-              fieldKey="extraKmRate"
-            />
-            <RateField
-              label="Waiting Charge"
+              label="Waiting price"
               unit="₹/hour"
               value={form.waitingPerHour}
               commonValue={commonExtraCharges?.customer?.waitingPerHour ?? commonExtras?.waitingPerHour}
@@ -483,7 +488,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               zeroAllowed
             />
             <RateField
-              label="Hill Station Charge"
+              label="Hill charge"
               unit="₹/trip"
               value={form.hillCharge}
               commonValue={commonExtraCharges?.customer?.hill}
@@ -498,7 +503,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               zeroAllowed
             />
             <RateField
-              label="Roof Carrier Charge"
+              label="Roof carrier charge"
               unit="₹/trip"
               value={form.carrierCharge}
               commonValue={commonExtraCharges?.customer?.carrier}
@@ -512,6 +517,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="carrierCharge"
               zeroAllowed
             />
+            </FareGroup>
           </div>
         )}
 
@@ -747,10 +753,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
         )}
 
         {(selectedService === "Multicity" || selectedService === "Round Trip") && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="space-y-3">
+            <FareGroup title="Customer price" hint="What the customer pays.">
               <RateField
-                label="Customer Distance Rate"
+                label="Price per km"
                 unit="₹/km"
                 value={form.customerRate}
                 commonValue={commonRT?.customerRate}
@@ -764,36 +770,8 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 fieldKey="customerRate"
               />
               <RateField
-                label="Partner Payout Rate"
-                unit="₹/km"
-                value={form.partnerRate}
-                commonValue={commonRT?.partnerRate}
-                resolved={evalField("partnerRate", commonRT?.partnerRate)}
-                scopeBrand={selectedBrand}
-                onChange={(v) => setField("partnerRate", v)}
-                onClear={() => handleClearOverride("partnerRate")}
-                tariff={t}
-                service={selectedService}
-                cls={selectedClass}
-                fieldKey="partnerRate"
-              />
-              <RateField
-                label="Minimum Daily Billable Distance"
-                unit="km/day"
-                value={form.minKmPerDay}
-                commonValue={commonRT?.minKmPerDay}
-                resolved={evalField("minKmPerDay", commonRT?.minKmPerDay)}
-                scopeBrand={selectedBrand}
-                onChange={(v) => setField("minKmPerDay", v)}
-                onClear={() => handleClearOverride("minKmPerDay")}
-                tariff={t}
-                service={selectedService}
-                cls={selectedClass}
-                fieldKey="minKmPerDay"
-              />
-              <RateField
-                label="Customer Daily Allowance (Driver Bata)"
-                unit="₹/day"
+                label="Driver allowance"
+                unit="₹/trip"
                 value={form.customerBata}
                 commonValue={commonRT?.customerBata}
                 resolved={evalField("customerBata", commonRT?.customerBata)}
@@ -807,22 +785,21 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 zeroAllowed
               />
               <RateField
-                label="Partner Daily Allowance (Driver Bata)"
-                unit="₹/day"
-                value={form.partnerBata}
-                commonValue={commonRT?.partnerBata}
-                resolved={evalField("partnerBata", commonRT?.partnerBata)}
+                label="Minimum km per day"
+                unit="km/day"
+                value={form.minKmPerDay}
+                commonValue={commonRT?.minKmPerDay}
+                resolved={evalField("minKmPerDay", commonRT?.minKmPerDay)}
                 scopeBrand={selectedBrand}
-                onChange={(v) => setField("partnerBata", v)}
-                onClear={() => handleClearOverride("partnerBata")}
+                onChange={(v) => setField("minKmPerDay", v)}
+                onClear={() => handleClearOverride("minKmPerDay")}
                 tariff={t}
                 service={selectedService}
                 cls={selectedClass}
-                fieldKey="partnerBata"
-                zeroAllowed
+                fieldKey="minKmPerDay"
               />
               <RateField
-                label="Extra Kilometre Charge"
+                label="Extra km price"
                 unit="₹/km"
                 value={form.extraKmRate}
                 commonValue={commonExtras?.extraKmRate ?? commonRT?.customerRate}
@@ -835,8 +812,41 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 cls={selectedClass}
                 fieldKey="extraKmRate"
               />
+            </FareGroup>
+            <FareGroup title="Partner pay" hint="What the driver or fleet partner gets.">
               <RateField
-                label="Waiting Charge"
+                label="Partner pay per km"
+                unit="₹/km"
+                value={form.partnerRate}
+                commonValue={commonRT?.partnerRate}
+                resolved={evalField("partnerRate", commonRT?.partnerRate)}
+                scopeBrand={selectedBrand}
+                onChange={(v) => setField("partnerRate", v)}
+                onClear={() => handleClearOverride("partnerRate")}
+                tariff={t}
+                service={selectedService}
+                cls={selectedClass}
+                fieldKey="partnerRate"
+              />
+              <RateField
+                label="Partner driver allowance"
+                unit="₹/trip"
+                value={form.partnerBata}
+                commonValue={commonRT?.partnerBata}
+                resolved={evalField("partnerBata", commonRT?.partnerBata)}
+                scopeBrand={selectedBrand}
+                onChange={(v) => setField("partnerBata", v)}
+                onClear={() => handleClearOverride("partnerBata")}
+                tariff={t}
+                service={selectedService}
+                cls={selectedClass}
+                fieldKey="partnerBata"
+                zeroAllowed
+              />
+            </FareGroup>
+            <FareGroup title="Extra charges" hint="Paid on top, only when they happen.">
+              <RateField
+                label="Waiting price"
                 unit="₹/hour"
                 value={form.waitingPerHour}
                 commonValue={commonExtras?.waitingPerHour}
@@ -851,7 +861,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 zeroAllowed
               />
               <RateField
-                label="Hill Station Charge"
+                label="Hill charge"
                 unit="₹/trip"
                 value={form.hillCharge}
                 commonValue={commonExtraCharges?.customer?.hill}
@@ -866,7 +876,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 zeroAllowed
               />
               <RateField
-                label="Roof Carrier Charge"
+                label="Roof carrier charge"
                 unit="₹/trip"
                 value={form.carrierCharge}
                 commonValue={commonExtraCharges?.customer?.carrier}
@@ -880,18 +890,17 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
                 fieldKey="carrierCharge"
                 zeroAllowed
               />
-            </div>
+            </FareGroup>
           </div>
         )}
         {(selectedService === "One Way" || selectedService === "Round Trip") && (
-          <div className="mt-5 border-t border-line pt-4 space-y-3">
-            <h3 className="font-bold">CNG vehicles · {CLASS_LABEL[selectedClass]}</h3>
+          <FareGroup title="CNG vehicles" hint="Optional. Fill all four rate boxes to offer CNG." defaultOpen={[form.cngCustomerRate, form.cngCustomerBata, form.cngPartnerRate, form.cngPartnerBata, form.cngExtraKmRate].some((v) => v.trim() !== "")}>
             <p className="text-[12px] text-muted">
               Optional. Fill the customer rate, customer allowance, partner rate and partner allowance to offer a CNG option for this cab type; customers then pick CNG or Diesel on the vehicle card. Leave them blank for no CNG option. The extra kilometre charge falls back to the CNG customer rate.
             </p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             <RateField
-              label="CNG Customer Fare Rate"
+              label="CNG price per km"
               unit="₹/km"
               value={form.cngCustomerRate}
               commonValue={undefined}
@@ -905,7 +914,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="cngCustomerRate"
             />
             <RateField
-              label="CNG Customer Allowance"
+              label="CNG driver allowance"
               unit="₹/trip"
               value={form.cngCustomerBata}
               commonValue={undefined}
@@ -920,7 +929,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               zeroAllowed
             />
             <RateField
-              label="CNG Partner Payout Rate"
+              label="CNG partner pay per km"
               unit="₹/km"
               value={form.cngPartnerRate}
               commonValue={undefined}
@@ -934,7 +943,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="cngPartnerRate"
             />
             <RateField
-              label="CNG Partner Allowance"
+              label="CNG partner driver allowance"
               unit="₹/trip"
               value={form.cngPartnerBata}
               commonValue={undefined}
@@ -949,7 +958,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               zeroAllowed
             />
             <RateField
-              label="CNG Extra Kilometre Charge"
+              label="CNG extra km price"
               unit="₹/km"
               value={form.cngExtraKmRate}
               commonValue={undefined}
@@ -963,10 +972,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               fieldKey="cngExtraKmRate"
             />
             </div>
-          </div>
+          </FareGroup>
         )}
-        <div id="fare-extra-settings" className="mt-5 border-t border-line pt-4">
-          <h3 className="font-bold mb-3">Partner extras & waiting policy · {scopeSummary}</h3>
+        <div id="fare-extra-settings">
+          <FareGroup title="Advanced: waiting rules and partner extras" hint="Most people never need this." defaultOpen={false}>
           <p className="text-[12px] text-muted mb-3">Blank fields inherit the common settings. Waiting must have free minutes, a rounding interval, rounding scope and tax treatment configured before automatic approval.</p>
           <div className="ds-form-grid">
             {([
@@ -979,6 +988,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
             <label className="ds-field"><span>Waiting rounding scope</span><select className="ds-select" value={form.waitingRoundingScope} onChange={e => setField('waitingRoundingScope',e.target.value)}><option value="">Inherit common ({t?.brandOverrides?.common?.[selectedService]?.[selectedClass]?.waitingRoundingScope ?? t?.extraCharges?.waitingRoundingScope ?? 'not configured'})</option><option value="per_stop">Each stop separately</option><option value="combined">Combined chargeable waiting</option></select></label>
             <label className="ds-field"><span>Tax on extra charges</span><select className="ds-select" value={form.taxTreatment} onChange={e => setField('taxTreatment',e.target.value)}><option value="">Inherit common ({t?.brandOverrides?.common?.[selectedService]?.[selectedClass]?.taxTreatment ?? t?.extraCharges?.taxTreatment ?? 'not configured'})</option><option value="no_gst">No GST</option><option value="tariff_gst">Apply tariff GST</option></select></label>
           </div>
+          </FareGroup>
         </div>
       </fieldset></section>
 
@@ -1058,6 +1068,19 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
   );
 }
 
+/** A titled, collapsible group of related fields, so the page reads as a few short sections instead of one long wall of boxes. */
+function FareGroup({ title, hint, children, defaultOpen = true }: { title: string; hint: string; children: ReactNode; defaultOpen?: boolean }) {
+  return (
+    <details className="ds-fare-group" open={defaultOpen}>
+      <summary>
+        <strong>{title}</strong>
+        <span>{hint}</span>
+      </summary>
+      <div className="ds-fare-group__body">{children}</div>
+    </details>
+  );
+}
+
 /** Reusable individual rate field with explicit source badges and inheritance tracking */
 function RateField({
   label,
@@ -1092,7 +1115,7 @@ function RateField({
   const inherits = getInheritingBrands(tariff, service, cls, fieldKey);
 
   return (
-    <div data-rate-field={fieldKey} className="ds-field p-2.5 border rounded bg-white">
+    <div data-rate-field={fieldKey} className="ds-field p-2.5 border border-line rounded-lg bg-white">
       <div className="flex items-center justify-between gap-1 mb-1">
         <span className="text-[12px] font-bold text-ink">{label}</span>
         <span className="text-[11px] text-muted">{unit}</span>
@@ -1113,28 +1136,15 @@ function RateField({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 mt-1.5 text-[11px]">
-        {scopeBrand === "common" ? (
-          <div className="text-muted leading-tight">
-            <span>Inherited by: {inherits.inheriting.join(", ") || "None"}</span>
-            {inherits.overridden.length > 0 && (
-              <span className="block text-blue-700">
-                Overrides: {inherits.overridden.map((o) => `${o.brand} (₹${o.value})`).join(", ")}
-              </span>
-            )}
-          </div>
-        ) : isOverridden ? (
-          <div className="flex items-center gap-1.5 text-blue-800">
-            <Badge tone="blue">Override</Badge>
-            <span>Active: {inr(Number(value))}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1.5 text-muted">
-            <Badge tone="neutral">Common rate</Badge>
-            <span>Inherited: {resolved.value !== undefined ? inr(resolved.value) : "Not configured"}</span>
-          </div>
-        )}
-      </div>
+      <p className="mt-1 text-[11px] leading-tight text-muted">
+        {scopeBrand === "common"
+          ? inherits.overridden.length > 0
+            ? `${inherits.overridden.length} brand${inherits.overridden.length === 1 ? "" : "s"} use their own price`
+            : "Used by all brands"
+          : isOverridden
+            ? `Own price for this brand: ${inr(Number(value))}`
+            : `Using the common price: ${resolved.value !== undefined ? inr(resolved.value) : "not set"}`}
+      </p>
     </div>
   );
 }

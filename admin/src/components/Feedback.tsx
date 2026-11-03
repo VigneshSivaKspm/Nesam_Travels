@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Button from "./ui/Button";
 import Icon from "./ui/Icon";
@@ -64,7 +64,12 @@ const MAX_WIDTH = { md: 480, lg: 672, xl: 896 };
 const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 /** Dialog with focus trap, Escape-to-close and focus restore. Used for modals and drawers alike. */
+/** Inside this provider, wide tool views (the ones opened from a settings menu) render in the page itself, not as a side drawer. */
+const InlineModalContext = createContext(false);
+export const InlineModals = InlineModalContext.Provider;
+
 export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClose, busy, size = "md", centered, wide, children, footer, footNote }: ModalProps) {
+  const inline = useContext(InlineModalContext) && !!wide;
   const drawer = !centered;
   const dialog = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
@@ -112,6 +117,26 @@ export function Modal({ title, subtitle, eyebrow = "NESAM MASTER CONTROL", onClo
   };
 
   // Rendered into the page body so no parent card (containment, transforms) can displace the popup.
+  if (inline) {
+    return (
+      <section className="ds-inline-sheet" aria-label={title}>
+        <header className="ds-inline-sheet__head">
+          <div className="min-w-0">
+            <h2>{title}</h2>
+            {subtitle && <p>{subtitle}</p>}
+          </div>
+        </header>
+        <div className="ds-inline-sheet__body">{children}</div>
+        {(footer || footNote) && (
+          <div className="ds-inline-sheet__foot">
+            {footNote && <span className="ds-dialog-footnote">{footNote}</span>}
+            {footer}
+          </div>
+        )}
+      </section>
+    );
+  }
+
   return createPortal(
     <div
       className={`ds-overlay ${drawer ? "ds-drawer-overlay" : ""}`}

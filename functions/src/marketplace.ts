@@ -148,7 +148,7 @@ export async function announceToPartners(bookingId: string, b: DocumentData, off
   const base = {
     category: 'bookings' as const, severity: 'info' as const, sound: 'new_booking' as const, push: true,
     title: 'New trip available',
-    message: `${text(b.pickup)} → ${text(b.drop)}${when ? ` · ${formatDateTime12(when)}` : ''} · ${text(b.vehicleCategory)} · payout ₹${money(offer.offeredPayout).toLocaleString('en-IN')}`,
+    message: `${text(b.pickup)} → ${text(b.drop)}${when ? ` · ${formatDateTime12(when)}` : ''} · ${text(b.vehicleCategory)}${b.fuelType === 'cng' ? ' (CNG)' : ''} · payout ₹${money(offer.offeredPayout).toLocaleString('en-IN')}`,
     bookingId, bookingCode: code(b, bookingId), cta: { label: 'View trip', page: 'marketplace', bookingId },
   };
   const targets: { id: string; type: 'driver' | 'vendor' }[] = [
@@ -302,7 +302,7 @@ export const assignVendor = onCall({ timeoutSeconds: 60 }, async (request) => {
     const when = pickupInstant(b);
     const toVendor: NotifyInput = {
       recipientType: 'vendor', recipientId: vendorId, category: 'bookings', severity: 'info', sound: 'new_booking',
-      title: 'Trip assigned to your fleet', message: `${text(b.pickup)} → ${text(b.drop)}${when ? ` · ${formatDateTime12(when)}` : ''} · ${text(b.vehicleCategory)} · payout ₹${payout.amount.toLocaleString('en-IN')}. Assign a driver and vehicle.`,
+      title: 'Trip assigned to your fleet', message: `${text(b.pickup)} → ${text(b.drop)}${when ? ` · ${formatDateTime12(when)}` : ''} · ${text(b.vehicleCategory)}${b.fuelType === 'cng' ? ' (CNG)' : ''} · payout ₹${payout.amount.toLocaleString('en-IN')}. Assign a driver and vehicle.`,
       bookingId, bookingCode: label, cta: { label: 'Open trip', page: 'trip', bookingId }, push: true, sentBy: admin.uid,
     };
     pushes.push({ id: notifyInTx(tx, toVendor), input: toVendor });

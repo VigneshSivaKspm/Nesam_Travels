@@ -474,7 +474,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                     <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                       <button
                         onClick={() => handleAction(n)}
-                        className="px-3.5 py-1.5 text-[11px] font-bold text-white rounded-lg transition-all hover:opacity-90 active:scale-95 cursor-pointer flex items-center gap-1 shadow-xs"
+                        className="px-3.5 py-1.5 text-[11px] font-bold text-white rounded-lg transition-all hover:opacity-90 cursor-pointer flex items-center gap-1 shadow-xs"
                         style={{ background: "#c1232c" }}
                       >
                         <span>Take Action</span>
@@ -789,7 +789,7 @@ export default function NotificationsPage({ onNavigate }: NotificationsPageProps
                 type="button"
                 disabled={isSending}
                 onClick={handleSend}
-                className="px-6 py-2.5 text-[13px] font-bold text-white rounded-lg transition-all hover:opacity-90 active:scale-95 disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                className="px-6 py-2.5 text-[13px] font-bold text-white rounded-lg transition-all hover:opacity-90 disabled:opacity-50 cursor-pointer flex items-center gap-2"
                 style={{ background: "#c1232c" }}
               >
                 {isSending ? (

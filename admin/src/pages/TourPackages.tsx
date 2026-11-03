@@ -311,7 +311,7 @@ export default function TourPackages() {
           <h1 className="text-[20px] font-bold text-ink">Tour Packages</h1>
           <p className="text-[13px] text-muted">Create and manage tour packages with itineraries, pricing, departures and vehicle options.</p>
         </div>
-        <button onClick={() => openForm(null)} className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 transition-all" style={{ background: "#c1232c" }}>
+        <button onClick={() => openForm(null)} className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 transition-all" style={{ background: "#c1232c" }}>
           + Add Tour Package
         </button>
       </div>

@@ -165,7 +165,7 @@ export default function Payments({ onSelectBooking }: { onSelectBooking?: (id: s
         </div>
         <button
           onClick={() => setTab("awaiting")}
-          className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 active:scale-95 cursor-pointer transition-all"
+          className="flex items-center gap-1.5 px-4 py-2 text-[12px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 cursor-pointer transition-all"
           style={{ background: "#c1232c" }}
         >
           Record Payment ({awaiting.length} awaiting)

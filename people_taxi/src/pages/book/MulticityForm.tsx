@@ -464,9 +464,8 @@ export function MulticityForm() {
           block
           loading={submitting}
           className="bf-submit"
-          iconTrailing="arrow-right"
         >
-          Search Cabs & View Fares
+          Let&apos;s Go !
         </Button>
       </div>
 

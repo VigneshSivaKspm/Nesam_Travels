@@ -1126,7 +1126,7 @@ export default function LegacyCoupons({ canEdit }: { canEdit: boolean }) {
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 active:scale-95 transition-all shadow-md flex items-center gap-1.5"
+                    className="px-5 py-2 text-white font-semibold rounded-xl text-xs hover:opacity-90 transition-all shadow-md flex items-center gap-1.5"
                     style={{ background: "#c1232c" }}
                   >
                     {isSubmitting && (
