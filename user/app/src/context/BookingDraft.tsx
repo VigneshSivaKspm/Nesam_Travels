@@ -17,6 +17,8 @@ import {
 export interface BookingDraft {
   pickup: GeoPlace | null;
   drop: GeoPlace | null;
+  /** Ordered intermediate places for an outstation round trip. */
+  stops: GeoPlace[];
   tripType: TripType;
   /** Pickup instant; required — every booking is an advance booking. */
   scheduledAt: Date | null;
@@ -81,6 +83,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const [draft, setDraft] = useState<BookingDraft>({
     pickup: null,
     drop: null,
+    stops: [],
     tripType: 'One Way',
     scheduledAt: null,
     tripEndAt: null,
@@ -130,7 +133,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const reset = useCallback(() => {
     lastOutstation.current = 'One Way';
     setServiceState('outstation');
-    setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '', rentalHours: null }));
+    setDraft((d) => ({ ...d, drop: null, stops: [], scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '', rentalHours: null }));
   }, []);
   const setRoute = useCallback((key: string, info: RouteInfo) => setRouteState({ key, info }), []);
 

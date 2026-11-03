@@ -26,7 +26,7 @@ import { sendCustomerMessage } from './customerComms';
 import { mailOfficeNewBooking } from './officeMail';
 import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeFor, text } from './shared';
+import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeThrough, text } from './shared';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 function place(v: any): GeoPlace {
@@ -60,8 +60,19 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const scheduleProblem = pickupWindowProblem(scheduled, now, window);
   if (scheduleProblem || !scheduled) throw new HttpsError('invalid-argument', scheduleProblem || 'Choose the pickup date and time.');
   const when = scheduled;
-  const [pickup, drop] = await Promise.all([trustedCustomerPlace(place(input.pickup), input.pickup?.id), trustedCustomerPlace(place(input.drop), input.drop?.id)]);
-  const route = await routeFor(pickup, drop);
+  const rawStops = Array.isArray(input.stops) ? input.stops : [];
+  if (rawStops.length > 8) throw new HttpsError('invalid-argument', 'Add no more than 8 intermediate stops.');
+  if (rawStops.length && input.tripType !== 'Round Trip') throw new HttpsError('invalid-argument', 'Intermediate stops are available for round trips only.');
+  const [pickup, drop, ...stops] = await Promise.all([
+    trustedCustomerPlace(place(input.pickup), input.pickup?.id),
+    trustedCustomerPlace(place(input.drop), input.drop?.id),
+    ...rawStops.map((stop: any) => trustedCustomerPlace(place(stop), stop?.id)),
+  ]);
+  const itinerary = [pickup, ...stops, drop];
+  for (let n = 1; n < itinerary.length; n += 1) {
+    if (Math.abs(itinerary[n]!.lat - itinerary[n - 1]!.lat) < 0.0001 && Math.abs(itinerary[n]!.lng - itinerary[n - 1]!.lng) < 0.0001) throw new HttpsError('invalid-argument', 'Two consecutive itinerary locations cannot be the same.');
+  }
+  const route = await routeThrough(itinerary);
   const bookingBrand = resolveAndValidateBrand(input, request);
   const tripType: TripType =
     input.tripType === 'Round Trip'
@@ -153,7 +164,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       context: 'customer',
     });
     const serviceId = matchedService?.id || '';
-    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, fareServiceKey(tripType));
+    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, fareServiceKey(tripType), itinerary);
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
@@ -208,6 +219,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       id: requestId, bookingId: bookingCode, customerId: uid, customer: text(c.name), phoneMasked: maskPhone(phone),
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng, pickupType: pickup.type,
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type,
+      ...(stops.length ? { stops, itinerary } : {}),
       service, serviceId, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
       passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
       fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: storedPricing, fareVerified: true, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,

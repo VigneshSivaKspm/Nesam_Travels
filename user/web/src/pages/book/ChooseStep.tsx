@@ -93,6 +93,7 @@ export function ChooseStep() {
                   <Icon name="arrow-right" size={14} />
                   <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
                 </p>
+                {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__meta">
                   <span>
                     <Badge tone="green">{tripTypeLabel(tripType)}</Badge>

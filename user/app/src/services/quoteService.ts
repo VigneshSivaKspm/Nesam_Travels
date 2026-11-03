@@ -41,6 +41,8 @@ export interface QuoteRequest {
   /** `id` is the master location id when the place came from the location list; the server trusts it only at the same coordinates. */
   pickup: { id?: string; name: string; address: string; lat: number; lng: number; type?: string };
   drop: { id?: string; name: string; address: string; lat: number; lng: number; type?: string };
+  /** Ordered intermediate places; supported for Round Trip only. */
+  stops?: { id?: string; name: string; address: string; lat: number; lng: number; type?: string }[];
   tripType: TripType;
   /** ISO-8601 with an offset. */
   scheduledAt: string;
@@ -55,4 +57,4 @@ export interface QuoteRequest {
 export const fetchQuotes = (req: QuoteRequest): Promise<ServerQuoteResponse> => callFunction<QuoteRequest, ServerQuoteResponse>('quoteBooking', req, 30000);
 
 /** Identity of a request, so a stale answer is never used for a changed trip. */
-export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.id ?? '', r.pickup.lat, r.pickup.lng, r.drop.id ?? '', r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '', r.brand ?? '', r.rentalHours ?? '']) : '');
+export const quoteKeyOf = (r: QuoteRequest | null): string => (r ? JSON.stringify([r.pickup.id ?? '', r.pickup.lat, r.pickup.lng, ...(r.stops ?? []).flatMap((p) => [p.id ?? '', p.lat, p.lng]), r.drop.id ?? '', r.drop.lat, r.drop.lng, r.tripType, r.scheduledAt, r.tripEndAt ?? '', r.couponCode ?? '', r.brand ?? '', r.rentalHours ?? '']) : '');

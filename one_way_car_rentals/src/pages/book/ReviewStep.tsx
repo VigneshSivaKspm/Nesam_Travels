@@ -115,6 +115,7 @@ export function ReviewStep() {
         profile,
         pickup,
         drop,
+        stops: tripType === 'Round Trip' ? draft.stops : [],
         category,
         route,
         fare: quote,
@@ -177,6 +178,7 @@ export function ReviewStep() {
                   <Icon name="arrow-right" size={16} />
                   <span>{drop.id === 'place-local-disposal' ? 'Within city limits' : drop.name}</span>
                 </p>
+                {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__when">{when}</p>
               </div>
               <p className="trip-sum__meta">

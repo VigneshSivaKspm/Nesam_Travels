@@ -351,7 +351,7 @@ import { mapCategory, mapCoupon, normalizeCode, validateCoupon } from './domain/
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
-import { approved, inIndia, routeFor } from './shared';
+import { approved, inIndia, routeThrough } from './shared';
 import { requestIp } from './security';
 import { rateLimited } from './http/util';
 
@@ -396,7 +396,6 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   const input = request.data ?? {};
   const brand = resolveAndValidateBrand(input, request);
   if (input.tripType === 'Multicity') throw new HttpsError('failed-precondition', 'Plan Multicity through the itinerary enquiry and travel-desk quote flow.');
-  const [pickup, drop] = await Promise.all([trustedCustomerPlace(placeOf(input.pickup, 'pickup'), input.pickup?.id), trustedCustomerPlace(placeOf(input.drop, 'drop'), input.drop?.id)]);
   const tripType: TripType =
     input.tripType === 'Round Trip'
       ? 'Round Trip'
@@ -406,6 +405,18 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
       ? 'Airport Taxi'
       : 'One Way';
   assertServiceSupported(brand, tripType);
+  const rawStops = Array.isArray(input.stops) ? input.stops : [];
+  if (rawStops.length > 8) throw new HttpsError('invalid-argument', 'Add no more than 8 intermediate stops.');
+  if (rawStops.length && tripType !== 'Round Trip') throw new HttpsError('invalid-argument', 'Intermediate stops are available for round trips only.');
+  const [pickup, drop, ...stops] = await Promise.all([
+    trustedCustomerPlace(placeOf(input.pickup, 'pickup'), input.pickup?.id),
+    trustedCustomerPlace(placeOf(input.drop, 'drop'), input.drop?.id),
+    ...rawStops.map((stop: any) => trustedCustomerPlace(placeOf(stop, 'stop'), stop?.id)),
+  ]);
+  const itinerary = [pickup, ...stops, drop];
+  for (let n = 1; n < itinerary.length; n += 1) {
+    if (Math.abs(itinerary[n]!.lat - itinerary[n - 1]!.lat) < 0.0001 && Math.abs(itinerary[n]!.lng - itinerary[n - 1]!.lng) < 0.0001) throw new HttpsError('invalid-argument', 'Two consecutive itinerary locations cannot be the same.');
+  }
   const now = new Date();
   const when = parsePickupInstant(input.scheduledAt);
   // Everything below that does not depend on the route starts now, so the reads overlap with the
@@ -416,7 +427,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
     return p;
   };
   const operationsRead = settled(db.doc('settings/operations').get());
-  const routeLookup = settled(routeFor(pickup, drop));
+  const routeLookup = settled(routeThrough(itinerary));
   const customerRead = settled(uid ? db.doc(`customers/${uid}`).get() : Promise.resolve(null));
   const catalogue = settled(
     Promise.all([
@@ -445,7 +456,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   const history = customerId ? historyRead : null;
   const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
   const recipientState = recipientGstState(customer?.data());
-  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, fareServiceKey(tripType));
+  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, fareServiceKey(tripType), itinerary);
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];

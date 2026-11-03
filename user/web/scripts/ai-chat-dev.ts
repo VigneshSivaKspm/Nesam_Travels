@@ -1,24 +1,40 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
-import { loadEnv, type Plugin } from 'vite';
+
+const readEnv = (dir: string, mode: string): Record<string, string> => {
+  const out: Record<string, string> = {};
+  for (const file of ['.env', `.env.${mode}`]) {
+    try {
+      for (const line of readFileSync(path.join(dir, file), 'utf8').split(/\r?\n/)) {
+        const match = /^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/.exec(line);
+        if (!match) continue;
+        out[match[1]!] = match[2]!.replace(/^(['"])(.*)\1$/, '$2');
+      }
+    } catch {
+      // An env file is optional; Vite/server environment variables still apply.
+    }
+  }
+  return out;
+};
 
 /** Run the shared chat server locally; never send the private key to the browser. */
-export function aiChatDev(): Plugin {
+export function aiChatDev() {
   const functionsDir = fileURLToPath(new URL('../../../functions/', import.meta.url));
   const require = createRequire(path.join(functionsDir, 'package.json'));
   return {
     name: 'nesam-local-ai-chat',
     apply: 'serve',
-    configureServer(server) {
+    configureServer(server: any) {
       // Explicitly configured HTTP APIs and emulators keep their own backend.
-      const appEnv = loadEnv(server.config.mode, server.config.root, '');
+      const appEnv = { ...readEnv(server.config.root, server.config.mode), ...(server.config.env ?? {}) };
       if (appEnv.VITE_API_URL || appEnv.EXPO_PUBLIC_API_URL || appEnv.EXPO_PUBLIC_USE_FIREBASE_EMULATORS === 'true') return;
-      const env = loadEnv(server.config.mode, functionsDir, 'GROQ_');
+      const env = readEnv(functionsDir, server.config.mode);
       for (const name of ['GROQ_API_KEY', 'GROQ_MODEL']) {
         if (!process.env[name] && env[name]) process.env[name] = env[name];
       }
-      server.middlewares.use(async (req, res, next) => {
+      server.middlewares.use(async (req: any, res: any, next: () => void) => {
         if (req.url?.split('?')[0] !== '/__functions/chatWithBot') return next();
         res.setHeader('Content-Type', 'application/json');
         res.setHeader('Cache-Control', 'no-store');

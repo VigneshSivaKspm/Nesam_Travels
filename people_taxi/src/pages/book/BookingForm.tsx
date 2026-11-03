@@ -24,7 +24,7 @@ import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { MulticityForm } from './MulticityForm';
 
-type Field = 'pickup' | 'drop' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
+type Field = 'pickup' | 'drop' | 'stops' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
 export type AirportDirection = 'to' | 'from';
 
@@ -70,6 +70,7 @@ export function BookingForm({
   const { pickup, drop, scheduledAt, tripEndAt, tripType } = draft;
 
   const [picker, setPicker] = useState<'pickup' | 'drop' | null>(null);
+  const [stopPicker, setStopPicker] = useState<number | 'new' | null>(null);
   const [timeFor, setTimeFor] = useState<'pickup' | 'return' | null>(null);
   const [errors, setErrors] = useState<Errors>({});
   const [direction, setDirection] = useState<AirportDirection>(() => directionOf(pickup, drop));
@@ -162,6 +163,10 @@ export function BookingForm({
       if (ap && !isAirportPlace(ap)) e[airportField] = 'Choose an airport for this transfer.';
     }
     if (pickup && drop && service !== 'rental' && haversineKm(pickup, drop) < 0.2) e.drop = 'Pickup and drop are too close together.';
+    if (tripType === 'Round Trip' && service === 'outstation') {
+      const points = [pickup, ...draft.stops, drop].filter((p): p is GeoPlace => p !== null);
+      if (points.some((p, index) => index > 0 && haversineKm(points[index - 1]!, p) < 0.2)) e.stops = 'Consecutive itinerary locations cannot be the same.';
+    }
     const at = combineDateTime(date, time);
     if (!date) e.date = 'Choose a pickup date.';
     else if (!time) e.time = 'Choose a pickup time.';
@@ -182,7 +187,7 @@ export function BookingForm({
     if (service === 'rental' && pickup && (!drop || drop.id !== 'place-local-disposal')) update({ drop: disposalFor(pickup) });
     const e = validate();
     setErrors(e);
-    const first = (['pickup', 'drop', 'date', 'time', 'endDate', 'endTime'] as Field[]).find((f) => e[f]);
+    const first = (['pickup', 'stops', 'drop', 'date', 'time', 'endDate', 'endTime'] as Field[]).find((f) => e[f]);
     if (first) {
       refs.current[first]?.focus();
       refs.current[first]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -242,6 +247,10 @@ export function BookingForm({
       </div>
     );
   };
+
+  const stopField = (stop: GeoPlace, index: number) => (
+    <div className="bf-field bf-stop-field" key={`${stop.id}-${index}`}><span className="bf-pin bf-pin--drop" aria-hidden="true" /><div className="bf-field__main"><span className="bf-label" id={`bf-stop-${index}-label`}>Stop {index + 1}</span><button type="button" className="bf-trigger" aria-labelledby={`bf-stop-${index}-label bf-stop-${index}-value`} onClick={() => setStopPicker(index)}><span id={`bf-stop-${index}-value`} className="bf-trigger__text">{stop.name}</span></button></div><button type="button" className="bf-stop-remove" aria-label={`Remove stop ${index + 1}`} onClick={() => update((d) => ({ stops: d.stops.filter((_, n) => n !== index) }))}><Icon name="trash-2" size={16} /></button></div>
+  );
 
   return (
     <section className="bf" id="book-console" aria-labelledby="bf-title">
@@ -311,13 +320,14 @@ export function BookingForm({
                 title="Swap route"
                 disabled={!pickup && !drop}
                 onClick={() => {
-                  update({ pickup: drop, drop: pickup });
+                  update((d) => ({ pickup: d.drop, drop: d.pickup, stops: d.tripType === 'Round Trip' ? [...d.stops].reverse() : d.stops }));
                   setErrors((e) => ({ ...e, pickup: '', drop: '' }));
                 }}
               >
                 <SwapIcon size={22} />
               </button>
             ) : null}
+            {service === 'outstation' && outstationTrip === 'Round Trip' ? <>{draft.stops.map(stopField)}{draft.stops.length < 8 ? <button type="button" className="bf-round-stop-add" onClick={() => setStopPicker('new')}><Icon name="map-pin" size={17} /> Add stop</button> : null}{fieldErr('stops')}</> : null}
             {service !== 'rental' ? (
               <div className="bf-route__cell">
                 {locationField('drop', service === 'airport' && direction === 'to' ? 'Drop airport' : 'Drop location')}
@@ -462,6 +472,7 @@ export function BookingForm({
           }}
         />
       ) : null}
+      {stopPicker !== null ? <LocationPicker config={{ title: stopPicker === 'new' ? 'Add itinerary stop' : `Edit stop ${stopPicker + 1}`, allowCurrent: true, popular: QUICK_CITIES, popularLabel: 'Popular locations', near: pickup ?? position, pinMode: 'drop' }} saved={savedPlaces} recent={recent} onClose={() => setStopPicker(null)} onSelect={(place) => { update((d) => ({ stops: stopPicker === 'new' ? [...d.stops, place] : d.stops.map((stop, index) => index === stopPicker ? place : stop) })); setErrors((e) => ({ ...e, stops: '', form: '' })); setStopPicker(null); }} /> : null}
       {timeFor ? (
         <TimePicker
           title={timeFor === 'pickup' ? 'Pickup time' : 'Return time'}

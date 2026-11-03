@@ -55,7 +55,7 @@ export function useBooking(): BookingValue {
   return v;
 }
 
-export const routeKeyOf = (pickup: GeoPlace | null, drop: GeoPlace | null) => (pickup && drop ? `${pickup.lat},${pickup.lng}>${drop.lat},${drop.lng}` : '');
+export const routeKeyOf = (pickup: GeoPlace | null, drop: GeoPlace | null, stops: GeoPlace[] = []) => pickup && drop ? [pickup, ...stops, drop].map((p) => `${p.lat},${p.lng}`).join('>') : '';
 
 export function BookingProvider({ children }: { children: ReactNode }) {
   const [draft, setDraft] = useState<BookingDraft>(loadDraft);
@@ -85,11 +85,12 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     (patch) => setDraft((d) => ({ ...d, ...(typeof patch === 'function' ? patch(d) : patch) })),
     [],
   );
-  const reset = useCallback(() => setDraft((d) => ({ ...d, drop: null, scheduledAt: null, tripEndAt: null, tripType: 'One Way', promoCode: '', notes: '' })), []);
+  const reset = useCallback(() => setDraft((d) => ({ ...d, drop: null, stops: [], scheduledAt: null, tripEndAt: null, tripType: 'One Way', promoCode: '', notes: '' })), []);
   // A repeat booking always needs a fresh future pickup: the old schedule is never carried over.
-  const startFrom = useCallback<BookingValue['startFrom']>((pickup, drop) => setDraft((d) => ({ ...d, pickup, drop, scheduledAt: null, tripEndAt: null, promoCode: '' })), []);
+  const startFrom = useCallback<BookingValue['startFrom']>((pickup, drop) => setDraft((d) => ({ ...d, pickup, drop, stops: [], scheduledAt: null, tripEndAt: null, promoCode: '' })), []);
 
-  const routeKey = routeKeyOf(draft.pickup, draft.drop);
+  const routeStops = draft.tripType === 'Round Trip' ? draft.stops : [];
+  const routeKey = routeKeyOf(draft.pickup, draft.drop, routeStops);
   const pickupRef = useRef(draft.pickup);
   const dropRef = useRef(draft.drop);
   pickupRef.current = draft.pickup;
@@ -102,8 +103,9 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const drop = dropRef.current;
     if (!routeKey || !pickup || !drop) return undefined;
     const controller = new AbortController();
-    getRoute(pickup, drop, controller.signal)
-      .then((info) => !controller.signal.aborted && setRouteState({ key: routeKey, info, error: false }))
+    const points = [pickup, ...routeStops, drop];
+    Promise.all(points.slice(1).map((point, index) => getRoute(points[index]!, point, controller.signal)))
+      .then((legs) => !controller.signal.aborted && setRouteState({ key: routeKey, info: { distanceKm: legs.reduce((sum, leg) => sum + leg.distanceKm, 0), durationMin: legs.reduce((sum, leg) => sum + leg.durationMin, 0), path: legs.flatMap((leg) => leg.path), estimated: legs.some((leg) => leg.estimated) }, error: false }))
       .catch(() => !controller.signal.aborted && setRouteState({ key: routeKey, info: null, error: true }));
     return () => controller.abort();
   }, [routeKey, routeTry]);
@@ -125,6 +127,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     return {
       pickup: { id: pickup.id, name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
       drop: { id: drop.id, name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
+      stops: tripType === 'Round Trip' ? draft.stops.map((p) => ({ id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, type: p.type })) : [],
       tripType,
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,

@@ -5,6 +5,8 @@ import { isValidLatLng } from '@core/utils/geo';
 export interface BookingDraft {
   pickup: GeoPlace | null;
   drop: GeoPlace | null;
+  /** Ordered intermediate places for an outstation round trip. */
+  stops: GeoPlace[];
   tripType: TripType;
   /** Pickup instant. Required to continue: every booking is an advance booking. */
   scheduledAt: Date | null;
@@ -36,6 +38,7 @@ export const RENTAL_PACKAGE_HOURS: readonly number[] = [4, 6, 8, 10, 12];
 export const EMPTY_DRAFT: BookingDraft = {
   pickup: null,
   drop: null,
+  stops: [],
   tripType: 'One Way',
   scheduledAt: null,
   tripEndAt: null,
@@ -82,6 +85,7 @@ export function loadDraft(): BookingDraft {
       ...EMPTY_DRAFT,
       pickup: validPlace(d.pickup),
       drop: validPlace(d.drop),
+      stops: Array.isArray(d.stops) ? d.stops.map(validPlace).filter((p): p is GeoPlace => p !== null).slice(0, 8) : [],
       tripType: (['One Way', 'Round Trip', 'Local Rental', 'Airport Taxi'] as const).includes(d.tripType as TripType)
         ? (d.tripType as TripType)
         : 'One Way',

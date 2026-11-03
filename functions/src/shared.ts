@@ -36,6 +36,18 @@ export async function routeFor(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   return info;
 }
 
+/** Authoritative route totals across an ordered pickup → stops → drop itinerary. */
+export async function routeThrough(points: GeoPlace[]): Promise<RouteInfo> {
+  if (points.length < 2) throw new HttpsError('invalid-argument', 'Choose a pickup and drop location.');
+  const legs = await Promise.all(points.slice(1).map((point, index) => routeFor(points[index]!, point)));
+  return {
+    distanceKm: legs.reduce((sum, leg) => sum + leg.distanceKm, 0),
+    durationMin: legs.reduce((sum, leg) => sum + leg.durationMin, 0),
+    path: [],
+    estimated: legs.some((leg) => leg.estimated),
+  };
+}
+
 async function lookUpRoute(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   // Never accept distance or duration from the caller.
   if (Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001) {

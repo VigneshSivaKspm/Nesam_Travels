@@ -160,6 +160,7 @@ export function ReviewStep() {
         profile,
         pickup,
         drop,
+        stops: tripType === 'Round Trip' ? draft.stops : [],
         category,
         route,
         fare: quote,
