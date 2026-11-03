@@ -308,7 +308,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
     <div className="ds-fare-workspace">
       <Toast toast={toast} />
 
-      {selectedService === "Multicity" && <p className="ds-note mb-4">Multicity uses the travel-desk enquiry flow. These rates price each enquiry (Bookings → Enquiries &amp; quotes → Price Multicity quote). Blank fields inherit the Round Trip rates.</p>}
+      {selectedService === "Multicity" && <p className="ds-note mb-4">Prepare Multicity quotes in Bookings → Enquiries &amp; quotes → Price Multicity quote. These rates set distance charges, daily minimum kilometres and daily driver bata. Unset fields inherit the shared baseline. Saving a quote does not create a booking.</p>}
       {selectedService === "Airport Taxi" && <p className="ds-note mb-4">Airport fare = base fare for the included KM + extra KM rate for every KM beyond. Customer base, partner base, included KM, extra KM rate and partner extra KM rate must all be set for a vehicle class before quotes use them; until then airport trips use the vehicle-category fare.</p>}
 
       {loadError && (
@@ -732,18 +732,6 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
 
         {(selectedService === "Multicity" || selectedService === "Round Trip") && (
           <div className="space-y-4">
-            {selectedService === "Multicity" && <div className="p-3 bg-amber-50 border border-amber-200 rounded text-[12px] text-amber-900 flex items-start gap-2">
-              <Icon name="info" size={16} className="mt-0.5 text-amber-700 flex-shrink-0" />
-              <div>
-                <strong>Multicity Operational Billing Policy:</strong>
-                <p className="mt-0.5">
-                  Multicity itineraries are multi-stop road tours requested by customers and quoted by the travel desk.
-                  These settings define the per-km rates, daily minimum billable distance, and daily driver batta used by
-                  operations when authoring and converting Multicity quotes.
-                </p>
-              </div>
-            </div>}
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               <RateField
                 label="Customer Distance Rate"
@@ -879,7 +867,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
             </div>
           </div>
         )}
-        <div className="mt-5 border-t border-line pt-4">
+        <div id="fare-extra-settings" className="mt-5 border-t border-line pt-4">
           <h3 className="font-bold mb-3">Partner extras & waiting policy · {scopeSummary}</h3>
           <p className="text-[12px] text-muted mb-3">Blank fields inherit the common settings. Waiting must have free minutes, a rounding interval, rounding scope and tax treatment configured before automatic approval.</p>
           <div className="ds-form-grid">
@@ -1006,7 +994,7 @@ function RateField({
   const inherits = getInheritingBrands(tariff, service, cls, fieldKey);
 
   return (
-    <div className="ds-field p-2.5 border rounded bg-white">
+    <div data-rate-field={fieldKey} className="ds-field p-2.5 border rounded bg-white">
       <div className="flex items-center justify-between gap-1 mb-1">
         <span className="text-[12px] font-bold text-ink">{label}</span>
         <span className="text-[11px] text-muted">{unit}</span>

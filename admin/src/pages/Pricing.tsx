@@ -10,10 +10,11 @@ import { useCan, useCanDo } from "../components/AccessContext";
 import { Modal, Toast, useToast } from "../components/Feedback";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, toneForStatus } from "../components/ui";
 import { StageBar } from "../components/ui/ListKit";
+import type { IconName } from "../components/ui/Icon";
 import MenuButton from "../components/ui/MenuButton";
 import FixedRouteFares from "../components/FixedRouteFares";
 import LocalFares from "../components/LocalFares";
-import FareAdjustmentCard from "../components/FareAdjustmentCard";
+import "./pricingReference.css";
 import VehicleCategoriesPage from "./VehicleCategories";
 import BrandServiceFareWorkspace from "../components/BrandServiceFareWorkspace";
 import { registerFareWorkspaceGuard } from "../services/fareWorkspaceGuard";
@@ -24,14 +25,12 @@ import { directoryCities, directoryZones } from "../domain/placeDirectory";
 import { refDateTime } from "../domain/officeStage";
 
 type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings" | "GST calculation";
-const TAB_LABELS: Record<Tab, string> = {
-  "Brand & service fares": "Base Rates & Payouts",
-  "Booking availability": "Service Areas",
-  "Cab types": "Vehicles by Area",
-  "Pricing rules": "Scheduled Pricing",
-  "More settings": "Route fares & limits",
-  "GST calculation": "GST calculation",
-};
+const MAIN_TABS = [
+  { id: "Booking availability", label: "Booking availability", icon: "toggle-right" },
+  { id: "Cab types", label: "Cab types", icon: "car-front" },
+  { id: "Pricing rules", label: "Pricing rules", icon: "indian-rupee" },
+  { id: "More settings", label: "More settings", icon: "sliders-horizontal" },
+] as const;
 type Sel = { state: string; city: string; area: string };
 const locationKey = (value: string) => value.trim().toLocaleLowerCase();
 const stateKey = (value: string) => {
@@ -65,7 +64,7 @@ const Ta = ({ children }: { children: ReactNode }) => <span className="block tex
 /** What the page shows, kept by the app while the Pricing & Fare Management page is open so Back can put it back. */
 /** Inside Cab types: the customer-visibility rules, or the master Vehicle Categories management. */
 export type CabSection = "Customer cab rules" | "Vehicle categories";
-export type PricingView = { tab: Tab; sel: Sel; filter: (typeof STATUS_FILTERS)[number]; scrollY: number; fareScope?: FareWorkspaceScope; cabSection?: CabSection };
+export type PricingView = { tab: Tab; sel: Sel; filter: (typeof STATUS_FILTERS)[number]; scrollY: number; fareScope?: FareWorkspaceScope; fareClass?: TariffClass; cabSection?: CabSection };
 /** Where the older Vehicle Categories entry points land: Service & Fare Settings → Cab types → Vehicle categories. */
 export const CATEGORIES_VIEW: PricingView = { tab: "Cab types", sel: { state: "", city: "", area: "" }, filter: "All", scrollY: 0, cabSection: "Vehicle categories", fareScope: { brand: "common", service: "One Way" } };
 /** Where Back lands when there is no earlier context: More settings with no location chosen. */
@@ -80,12 +79,15 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   onOpenExtraCharges: (view: PricingView) => void;
 }) {
   const [fareScope, setFareScope] = useState<FareWorkspaceScope>(restore?.fareScope ?? { brand: "nesam", service: "One Way" });
-  const [fareClass, setFareClass] = useState<TariffClass>("sedan");
+  const [fareClass, setFareClass] = useState<TariffClass>(restore?.fareClass ?? "sedan");
+  const [focusExtras, setFocusExtras] = useState(false);
   const gstDirty = useRef(false), gstBusy = useRef(false);
   const workspaceDirty = useRef(false);
   const workspaceBusy = useRef(false);
   useEffect(() => registerFareWorkspaceGuard(() => !workspaceBusy.current && !gstBusy.current && (!(workspaceDirty.current || gstDirty.current) || window.confirm("Discard your unsaved fare changes before leaving?"))), []);
-  const [tab, setTab] = useState<Tab>(restore?.tab ?? "Brand & service fares");
+  const [tab, setTab] = useState<Tab>(restore?.tab ?? "Booking availability");
+  const [query, setQuery] = useState("");
+  const [now, setNow] = useState(Date.now);
   const [cabSection, setCabSection] = useState<CabSection>(restore?.cabSection ?? "Customer cab rules");
   const [sel, setSel] = useState<Sel>(restore?.sel ?? { state: "", city: "", area: "" });
   const [rules, setRules] = useState<ServiceRule[]>([]);
@@ -102,6 +104,10 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const settingsEdit = useCanDo("Settings", "edit");
   const canEdit = pricingAccess && settingsEdit;
   const canTest = useCan("operations");
+  const canViewBusiness = useCanDo("Business accounts", "view");
+  const contentAccess = useCan("content");
+  const settingsView = useCanDo("Settings", "view");
+  const canViewLocations = contentAccess && settingsView;
   const { toast, show } = useToast(6000);
   const scopeLabel = (fareScope.brand === "common" ? "Common — all brands" : BRAND_LABELS[fareScope.brand]) + " → " + fareScope.service;
   const scopeBrand = fareScope.brand === "common" ? "" : fareScope.brand;
@@ -116,6 +122,29 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     if (workspaceDirty.current && !window.confirm("Discard the unsaved rates in " + scopeLabel + " → " + CLASS_LABEL[fareClass] + "?")) return;
     setFareClass(next);
   };
+  const changeTab = (next: Tab) => {
+    if (next === tab || workspaceBusy.current || gstBusy.current) return;
+    if ((workspaceDirty.current || gstDirty.current) && !window.confirm("Discard your unsaved fare changes before switching settings?")) return;
+    workspaceDirty.current = false;
+    gstDirty.current = false;
+    setTab(next);
+    setQuery("");
+    setFilter("All");
+  };
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(timer);
+  }, []);
+  useEffect(() => {
+    if (!focusExtras || tab !== "Brand & service fares") return;
+    const frame = window.requestAnimationFrame(() => {
+      const field = document.querySelector<HTMLElement>('[data-rate-field="waitingPerHour"], [data-rate-field="hillCharge"], #fare-extra-settings');
+      field?.scrollIntoView({ block: "center" });
+      field?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });
+      setFocusExtras(false);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [focusExtras, tab]);
   const inFareScope = (r: ServiceRule) => (!r.brand || r.brand === scopeBrand) && (!r.fareService || r.fareService === fareScope.service)
     && (r.fareService || !r.service || r.service.toLowerCase() === "all" || fareScope.service.toLowerCase().includes(r.service.toLowerCase())
       || (fareScope.service === "One Way" && ["multicity", "outstation", "local", "local pickup & drop"].includes(r.service.toLowerCase())));
@@ -140,17 +169,25 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const areas = locationOptions([...directoryZones(sel.city), ...locationRows.filter(location => inState(location) && (!sel.city || locationKey(location.city) === locationKey(sel.city))).map(location => location.area)]);
   const otherStates = locationOptions(locationRows.map(location => location.state).filter(state => state && !GST_STATES.some(([code]) => code === stateKey(state))));
   const scoped = rules.filter(inFareScope).filter((r) => r.status !== "Removed" || filter === "Removed").filter((r) => inScope(r, sel));
-  const byKind = (k: RuleKind) => scoped.filter((r) => r.kind === k).filter((r) => filter === "All" ? r.status !== "Removed" : phaseOf(r) === filter);
-  const activeOf = (k: RuleKind) => rankRules(scoped.filter((r) => r.kind === k && phaseOf(r) === "Active"));
+  const byKind = (k: RuleKind) => scoped.filter((r) => r.kind === k).filter((r) => filter === "All" ? r.status !== "Removed" : phaseOf(r, now) === filter)
+    .filter(r => !query.trim() || [r.name, r.service, r.reason, r.scope.state, r.scope.city, r.scope.area, summary(r)].join(" ").toLowerCase().includes(query.trim().toLowerCase()));
+  const activeOf = (k: RuleKind) => rankRules(scoped.filter((r) => r.kind === k && phaseOf(r, now) === "Active"));
   const where = sel.area || sel.city || (sel.state ? stateName(sel.state) : "All locations");
   const catNames = categories.filter((c) => c.status === "Active").map((c) => c.name);
+  const savedView = (): PricingView => ({ tab, sel, filter, scrollY: window.scrollY, fareScope, fareClass, cabSection });
+  const availabilityValues = [...new Set(activeOf("availability").map(r => r.availability || "Available"))];
+  const cabSets = [...new Set(activeOf("categories").map(r => [...(r.categories || [])].sort().join(", ")))];
+  const sourceLabel = (r: ServiceRule) => {
+    const inheritedPlace = (sel.area && !r.scope.area) || (sel.city && !r.scope.city) || (sel.state && !r.scope.state);
+    return !ownsRule(r) ? "Inherited from Common" : inheritedPlace ? `Applies from ${r.scope.area || r.scope.city || (r.scope.state ? stateName(r.scope.state) : "All service areas")}` : "Set for this location";
+  };
 
   const ruleTable = (list: ServiceRule[]) => !loaded ? <p className="text-[12px] text-muted py-4" role="status">Loading saved settings…</p> : list.length === 0 ? null : (
     <DataTable label="Rules" minWidth={980} fixed hasActions>
       <thead><tr><th>SETTING</th><th>APPLIES TO</th><th>VALUE</th><th>PICKUP SCHEDULE</th><th>STATUS</th><th className="ds-actions">ACTIONS</th></tr></thead>
       <tbody>{list.map((r) => (
         <tr key={r.id}>
-          <td><strong>{r.name}</strong><small>{r.brand ? BRAND_LABELS[r.brand as keyof typeof BRAND_LABELS] : "Common — all brands"} · {r.fareService || r.service || "All services"} · Priority {r.priority}</small></td>
+          <td><strong>{r.name}</strong><small>{r.brand ? BRAND_LABELS[r.brand as keyof typeof BRAND_LABELS] : "Common — all brands"} · {r.fareService || r.service || "All services"} · Priority {r.priority}</small><span className="u28-origin">{sourceLabel(r)}</span></td>
           <td><strong>{r.scope.area ? "Area-specific rule" : r.scope.city ? "City rule" : r.scope.state ? "State rule" : "All locations"}</strong><small>{[r.scope.area, r.scope.city, r.scope.state && stateName(r.scope.state)].filter(Boolean).join(", ") || "Everywhere"} · {r.scope.side}</small></td>
           <td>{summary(r)}</td>
           <td>{r.schedule.mode === "Always" ? "Always" : `${r.schedule.from ? refDateTime(new Date(r.schedule.from)) : "Now"} → ${r.schedule.to ? refDateTime(new Date(r.schedule.to)) : "Open"}`}</td>
@@ -168,21 +205,45 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
     </DataTable>
   );
 
-  const tools: [string, string, string, () => void][] = [
-    ...(fareScope.service === "One Way" ? [["Fixed route fares", "Agreed customer fare and partner payout for this brand and service.", scopeLabel, () => setSheet({ kind: "fixed" })] as [string, string, string, () => void]] : []),
-    // Local Pickup & Drop is priced per City (canonical location id) for every brand; it has no brand/service override.
-    ...(fareScope.service === "One Way" ? [["Local Pickup & Drop city fares", "Fixed fare for a local trip inside one city, by vehicle class.", "City-wise · all brands", () => setSheet({ kind: "local" })] as [string, string, string, () => void]] : []),
-    ["Fare limits", "Minimum and maximum amounts for this selection.", scopeLabel, () => setSheet({ kind: "limits" })],
-    ["All rules & schedules", "Rules matching this brand, service and selected location.", scopeLabel, () => setSheet({ kind: "all" })],
+  const tools: { key: string; name: string; description: string; scope: string; icon: IconName; go: () => void; disabledReason?: string }[] = [
+    { key: "base", name: "Base rates", description: "Regular ₹/km, driver bata and partner payout.", scope: scopeLabel, icon: "calculator", go: () => changeTab("Brand & service fares") },
+    { key: "local", name: "Local fares", description: "Rental packages and Local Pickup & Drop.", scope: "City-wise · brand rental packages / shared city fares", icon: "map-pin", go: () => setSheet({ kind: "local" }) },
+    { key: "extra", name: "Extra charges", description: "Waiting, hills, carrier and other add-ons.", scope: scopeLabel, icon: "receipt-text", go: () => { setFocusExtras(true); changeTab("Brand & service fares"); } },
+    { key: "fixed", name: "Fixed route fares", description: "Set an agreed fare for a specific route.", scope: "Route-wise · " + scopeLabel, icon: "route", go: () => setSheet({ kind: "fixed" }), disabledReason: fareScope.service !== "One Way" ? "Fixed route fares are configured for One Way. Select One Way above." : undefined },
+    { key: "b2b", name: "Business contracts", description: "Company rates, credit terms and contracts.", scope: "Business account", icon: "building-2", go: () => onNavigate("business"), disabledReason: canViewBusiness ? undefined : "Business accounts view permission is required." },
+    { key: "boundaries", name: "Service boundaries", description: "Define verified cities, areas and service zones.", scope: "Service areas", icon: "map-pinned", go: () => onNavigate("locations"), disabledReason: canViewLocations ? undefined : "Locations view permission is required." },
+    { key: "limits", name: "Fare limits", description: "Review approved minimum and maximum amounts.", scope: scopeLabel, icon: "shield-check", go: () => setSheet({ kind: "limits" }) },
+    { key: "rules", name: "All rules & schedules", description: "Find rules across locations and pickup schedules.", scope: scopeLabel, icon: "calendar-clock", go: () => setSheet({ kind: "all" }) },
+    { key: "tax", name: "Tax settings", description: "Review tax classification and invoice settings.", scope: scopeLabel, icon: "files", go: () => changeTab("GST calculation") },
   ];
 
-  const statusChips = <div className="ds-chip-row">{STATUS_FILTERS.map((s) => <Button key={s} size="sm" variant={filter === s ? "primary" : "secondary"} onClick={() => setFilter(s)}>{s}</Button>)}</div>;
+  // Only rule-based views consume this selection. Route tools and the shared catalog do not.
+  const locationFilter = (
+    <section className="u27-location-bar">
+      <div><span className="dx-eyebrow">LOCATION</span><h2>Which location are you managing?</h2><p lang="ta">எந்த இடத்திற்கான setting?</p></div>
+      <div className="ds-filterbar">
+        <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}{otherStates.map(state => <option key={state} value={state}>{state}</option>)}</select></label>
+        <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} disabled={locationsLoaded && !cities.length} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">{locationsLoaded && !cities.length ? "No cities listed for this state" : "All cities"}</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
+        <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} disabled={locationsLoaded && !areas.length} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">{locationsLoaded && !areas.length ? (sel.city ? "No zones listed for this city" : "Choose a city first") : "All areas"}</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
+      </div>
+      {locationError ? <p className="ds-error mt-3" role="alert">Locations could not be loaded: {locationError}. Reload to try again.</p>
+        : !locationsLoaded ? <p className="text-[12px] text-muted mt-3" role="status">Loading cities and areas…</p>
+        // Built-in places remain available when the saved location master is empty.
+        : !locations.length ? (
+          <div className="fare-location-note" role="status">
+            <span>These are the built-in cities and zones. Add your own in Locations and they show here.</span>
+            <Button size="sm" variant="primary" icon="map-pin" disabledReason={canViewLocations ? undefined : "Locations view permission is required."} onClick={() => { setSheet(null); onNavigate("locations"); }}>Open Locations</Button>
+          </div>
+        )
+        : null}
+    </section>
+  );
 
   return (
-    <div className="ds-page-body">
+    <div className="ds-page-body fare-reference u27-settings-page u11-settings-page">
       <Toast toast={toast} />
       {loadError && <div className="ds-error mb-4" role="alert"><Icon name="circle-alert" />Saved settings could not be loaded: {loadError}. Check your pricing access and reload.</div>}
-      <PageHeader title="Service & Fare Settings" subtitle="Brand and service rates, booking availability, cab types and fare rules." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={!canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to preview its effective fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk enquiry flow." : undefined} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
+      <PageHeader title="Service & Fare Settings" subtitle="Choose a location, then manage booking availability, cab types and fares." actions={<><Button icon="history" onClick={() => setSheet({ kind: "history" })}>Change history</Button><Button variant="primary" icon="calculator" disabledReason={!canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to preview its effective fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk enquiry flow." : undefined} onClick={() => setSheet({ kind: "test" })}>Test fare</Button></>} />
 
       <section className="ds-panel ds-panel-pad mb-4" aria-label="Fare scope">
         {/* Tier 1: Brand Selection */}
@@ -192,7 +253,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-brand text-white text-[11px] font-bold">1</span>
               <span className="text-[12px] font-bold uppercase tracking-wider text-muted">Select Brand</span>
             </div>
-            <Button size="sm" variant={tab === 'GST calculation' ? 'primary' : 'secondary'} onClick={() => setTab('GST calculation')}>
+            <Button size="sm" variant={tab === 'GST calculation' ? 'primary' : 'secondary'} onClick={() => changeTab('GST calculation')}>
               GST calculation
             </Button>
           </div>
@@ -253,7 +314,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
         </div>
 
         {/* Tier 3: Vehicle category (the brand & service fares are set per category) */}
-        {tab === "Brand & service fares" && (
+        {(
           <div className="pt-3 mt-4 border-t border-line">
             <div className="flex items-center gap-2 mb-2.5">
               <span className="inline-flex items-center justify-center w-5 h-5 rounded-full bg-ink text-white text-[11px] font-bold">3</span>
@@ -283,118 +344,76 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
         </div>
       </section>
 
-      <div className="mb-5">
-        <StageBar label="Settings" tabs={(["Brand & service fares", "Booking availability", "Cab types", "Pricing rules", "More settings", "GST calculation"] as const).map((t) => ({ id: t, label: TAB_LABELS[t] }))} value={tab} onChange={(next) => { if (!workspaceBusy.current) setTab(next); }} />
-      </div>
 
-      <div hidden={tab !== "Brand & service fares"}>
+      {tab !== "Brand & service fares" && tab !== "GST calculation" && <>
+        {locationFilter}
+        <div className="u27-context"><span><Icon name="map-pin" />{where}</span><small>Existing confirmed fares and accepted partner payouts are retained.</small></div>
+        <section className="u28-overview" aria-label="Current location settings">
+          <header><strong><Icon name="map-pin" />{where}</strong><span>Rules active now · IST</span></header>
+          {!loaded ? <p role="status">Loading current settings…</p> : loadError ? <p role="alert">Current settings could not be loaded.</p> : <>
+            <div className="u28-overview-values">
+              <div><span>Booking controls</span><strong>{availabilityValues.length > 1 ? "Varies by rule" : availabilityValues[0] || "Available by default"}</strong><small>{activeOf("availability").length ? activeOf("availability").length + " active controls" : "No active availability restriction"}</small></div>
+              <div><span>Configured cabs</span><strong>{cabSets.length > 1 ? "Varies by zone / service" : cabSets[0] || "All active cab types"}</strong><small>{activeOf("categories").length ? activeOf("categories").length + " active category rules" : "Uses default enabled categories"}</small></div>
+              <div><span>Pricing rules</span><strong>{activeOf("pricing").length} active</strong><small>{scoped.filter(r => r.kind === "pricing" && phaseOf(r, now) === "Scheduled").length} scheduled</small></div>
+              <Button icon="search" disabledReason={!canTest ? "Fare preview needs operations access." : fareScope.brand === "common" ? "Choose a customer brand to test its fare." : fareScope.service === "Multicity" ? "Multicity is quoted through the travel desk." : undefined} onClick={() => setSheet({ kind: "test" })}>Test fare</Button>
+            </div>
+            <p>Exact availability and fare depend on the route, cab type and pickup time.</p>
+          </>}
+        </section>
+      </>}
+      <div className="u27-main-tabs" role="tablist" aria-label="Service and fare settings">
+        {MAIN_TABS.map((item, index) => <button key={item.id} id={"fare-tab-" + index} type="button" role="tab" aria-selected={tab === item.id} aria-controls="fare-settings-panel" tabIndex={tab === item.id || (!MAIN_TABS.some(t => t.id === tab) && index === 0) ? 0 : -1} onClick={() => changeTab(item.id)} onKeyDown={e => {
+          const next = e.key === "ArrowRight" ? (index + 1) % MAIN_TABS.length : e.key === "ArrowLeft" ? (index + MAIN_TABS.length - 1) % MAIN_TABS.length : e.key === "Home" ? 0 : e.key === "End" ? MAIN_TABS.length - 1 : -1;
+          if (next >= 0) { e.preventDefault(); document.getElementById("fare-tab-" + next)?.focus(); }
+        }}><Icon name={item.icon} /><span>{item.label}</span></button>)}
+      </div>
+      {(tab === "Brand & service fares" || tab === "GST calculation") && <div className="u11-back-bar"><Button icon="arrow-left" variant="ghost" onClick={() => changeTab("More settings")}>Back to More settings</Button><span>{tab === "GST calculation" ? "GST calculation" : "Base rates & partner payout"} · {scopeLabel}</span></div>}
+      {tab === "Brand & service fares" && <div>
         <BrandServiceFareWorkspace scope={fareScope} vehicleClass={fareClass} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
-      </div>
+      </div>}
+      {tab === "GST calculation" && <div>
+        <FareGstSettings key={fareScope.brand + ":" + fareScope.service} scope={fareScope} onDirtyChange={value => { gstDirty.current = value; }} onBusyChange={value => { gstBusy.current = value; }} />
+      </div>}
+      {MAIN_TABS.some(item => item.id === tab) && <section className="u27-settings-surface" role="tabpanel" id="fare-settings-panel" aria-labelledby={"fare-tab-" + MAIN_TABS.findIndex(item => item.id === tab)}>
+        {tab === "More settings" ? <>
+          <header className="u11-more-heading"><div><h2>More settings</h2><p>Choose what you want to manage.</p></div><span className="u11-scope-note">Each tool shows its own scope</span></header>
+          <div className="u11-tools-grid">{tools.map(tool => <button key={tool.key} type="button" className="u11-tool" onClick={tool.go} disabled={!!tool.disabledReason} title={tool.disabledReason}>
+            <span className="u11-tool-icon"><Icon name={tool.icon} /></span><span className="u11-tool-copy"><span className="u11-tool-name">{tool.name}</span><span className="u11-tool-description">{tool.description}</span><span className="u11-tool-scope">{tool.scope}</span></span><Icon name="chevron-right" />
+          </button>)}</div>
+          <div className="u11-settings-foot"><Icon name="info" />Check the location, service and pickup dates inside each tool before saving.</div>
+        </> : <>
+          {tab === "Cab types" && <StageBar label="Cab types" tabs={[{ id: "Customer cab rules" as const, label: "Customer cab rules" }, { id: "Vehicle categories" as const, label: "Vehicle categories" }]} value={cabSection} onChange={setCabSection} />}
+          {tab === "Cab types" && cabSection === "Vehicle categories" ? <>
+            <p className="ds-note my-4">Shared vehicle catalog — location filters do not apply. Brand prices are managed in Base rates.</p>
+            {fareScope.brand === "common" ? <VehicleCategoriesPage embedded /> : <Button onClick={() => changeScope({ ...fareScope, brand: "common" })}>Open shared vehicle catalog</Button>}
+          </> : <>
+            <div className="sc-section-head"><div><h2>{tab === "Booking availability" ? "Can customers book in this area?" : tab === "Cab types" ? "Which cab types should customers see?" : "When should the fare increase or decrease?"}</h2><p className="u27-tamil" lang="ta">{tab === "Booking availability" ? "இந்த இடத்தில் booking எடுக்கலாமா?" : tab === "Cab types" ? "Customer-க்கு எந்த car வகைகளைக் காட்ட வேண்டும்?" : "இந்த இடத்திற்குக் கட்டணத்தை ஏற்ற / குறைக்க"}</p></div>
+              {canEdit && <Button variant="primary" icon="plus" disabledReason={!loaded || loadError ? "Wait for saved rules to load before adding a setting." : undefined} onClick={() => setSheet({ kind: "new", ruleKind: tab === "Booking availability" ? "availability" : tab === "Cab types" ? "categories" : "pricing" })}>{tab === "Booking availability" ? "Add booking availability" : tab === "Cab types" ? "Add cab types" : "Add pricing rule"}</Button>}
+            </div>
+            {tab === "Pricing rules" && <div className="u27-fare-key"><span><strong>Customer fare</strong>Amount the customer pays</span><span><strong>Partner payout</strong>Amount for the Vendor / Driver Partner</span></div>}
+            <div className="u27-inline-filters"><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search settings for this location" aria-label="Search location settings" /><select value={filter} onChange={e => setFilter(e.target.value as typeof filter)} aria-label="Setting status">{STATUS_FILTERS.map(status => <option key={status} value={status}>{status}</option>)}</select></div>
+            {loadError ? <p className="ds-error" role="alert">Saved settings could not be loaded. Reload to try again.</p> : ruleTable(byKind(tab === "Booking availability" ? "availability" : tab === "Cab types" ? "categories" : "pricing")) ?? <div className="u27-empty-setting"><Icon name={tab === "Pricing rules" ? "badge-indian-rupee" : tab === "Cab types" ? "car-front" : "toggle-right"} /><strong>{query || filter !== "All" ? "No matching settings" : tab === "Pricing rules" ? "Normal applicable fare" : tab === "Cab types" ? "Default cab categories" : "Booking service is available by default"}</strong><p>{query || filter !== "All" ? "Try another search or status filter." : "No additional setting for this selection. Wider matching settings still apply."}</p></div>}
+            <div className="u11-settings-foot"><Icon name="calendar-clock" />Set pickup dates and times inside each rule. Use More settings for base rates and local fares.</div>
+          </>}
+        </>}
+      </section>}
 
-      <div hidden={tab !== "GST calculation"}>
-        <FareGstSettings key={`${fareScope.brand}:${fareScope.service}`} scope={fareScope} onDirtyChange={value => { gstDirty.current = value; }} onBusyChange={value => { gstBusy.current = value; }} />
-      </div>
-
-      {tab !== "Brand & service fares" && tab !== "GST calculation" && (
-        <section className="ds-panel ds-panel-pad mb-5">
-          <div className="ds-filterbar">
-            <label className="ds-field"><span>State</span><select className="ds-select" value={sel.state} onChange={(e) => setSel({ state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.map(([c, n]) => <option key={c} value={c}>{n} ({c})</option>)}{otherStates.map(state => <option key={state} value={state}>{state}</option>)}</select></label>
-            <label className="ds-field"><span>City</span><select className="ds-select" value={sel.city} disabled={locationsLoaded && !cities.length} onChange={(e) => setSel({ ...sel, city: e.target.value, area: "" })}><option value="">{locationsLoaded && !cities.length ? "No cities listed for this state" : "All cities"}</option>{cities.map((c) => <option key={c}>{c}</option>)}</select></label>
-            <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={sel.area} disabled={locationsLoaded && !areas.length} onChange={(e) => setSel({ ...sel, area: e.target.value })}><option value="">{locationsLoaded && !areas.length ? (sel.city ? "No zones listed for this city" : "Choose a city first") : "All areas"}</option>{areas.map((a) => <option key={a}>{a}</option>)}</select></label>
-          </div>
-          {locationError ? <p className="ds-error mt-3" role="alert">Locations could not be loaded: {locationError}. Reload to try again.</p>
-            : !locationsLoaded ? <p className="text-[12px] text-muted mt-3" role="status">Loading cities and areas…</p>
-            // The city and area lists come only from the saved locations (Office → Locations).
-            : !locations.length ? (
-              <div className="ds-note mt-3 flex flex-wrap items-center justify-between gap-3" role="status">
-                <span>These are the built-in cities and zones. Add your own in Locations and they show here.</span>
-                <Button size="sm" variant="primary" icon="map-pin" onClick={() => onNavigate("locations")}>Open Locations</Button>
-              </div>
-            )
-            : null}
-        </section>
-      )}
-
-      {tab === "Booking availability" && (
-        <section className="ds-panel ds-panel-pad">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-            <div><h2 className="text-[16px] font-bold text-ink">Can customers book in this area?</h2><Ta>இந்த இடத்தில் booking எடுக்கலாமா?</Ta></div>
-            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "availability" })}>Add booking availability</Button>}
-          </div>
-          {statusChips}
-          {ruleTable(byKind("availability")) ?? <EmptyState title="Booking service is available by default" hint="No additional availability setting for this selection. Wider matching settings still apply." />}
-          <p className="text-[11px] text-faint mt-3">Set pickup dates and times inside each rule. Use Base Rates &amp; Payouts for this brand and service.</p>
-        </section>
-      )}
-      {tab === "Cab types" && (
-        <div className="mb-4">
-          <StageBar label="Vehicles by Area" tabs={(["Customer cab rules", "Vehicle categories"] as const).map((t) => ({ id: t, label: t }))} value={cabSection} onChange={setCabSection} />
-        </div>
-      )}
-      {tab === "Cab types" && cabSection === "Vehicle categories" && fareScope.brand === "common" && (
-        <section className="ds-panel ds-panel-pad">
-          <p className="ds-note mb-3">Shared vehicle catalog — category names and specifications apply to every brand. Brand prices are managed in Base Rates &amp; Payouts.</p>
-          <VehicleCategoriesPage embedded />
-        </section>
-      )}
-      {tab === "Cab types" && cabSection === "Vehicle categories" && fareScope.brand !== "common" && <div className="ds-panel ds-panel-pad"><p>The vehicle catalog is shared by all brands. Choose Common to manage categories; this brand's fares remain separate.</p><Button onClick={() => changeScope({ ...fareScope, brand: "common" })}>Open shared vehicle catalog</Button></div>}
-      {tab === "Cab types" && cabSection === "Customer cab rules" && (
-        <section className="ds-panel ds-panel-pad">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-            <div><h2 className="text-[16px] font-bold text-ink">Which cab types should customers see?</h2><Ta>Customer-க்கு எந்த car வகைகளைக் காட்ட வேண்டும்?</Ta></div>
-            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "categories" })}>Add cab types</Button>}
-          </div>
-          {statusChips}
-          {ruleTable(byKind("categories")) ?? <EmptyState title="All active cab types are shown" hint="No cab type rule for this selection. Wider matching settings still apply." />}
-        </section>
-      )}
-      {tab === "Pricing rules" && (
-        <section className="ds-panel ds-panel-pad">
-          <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
-            <div><h2 className="text-[16px] font-bold text-ink">When should the fare increase or decrease?</h2><Ta>இந்த இடத்திற்குக் கட்டணத்தை ஏற்ற / குறைக்க</Ta></div>
-            {canEdit && <Button variant="primary" icon="plus" onClick={() => setSheet({ kind: "new", ruleKind: "pricing" })}>Add pricing rule</Button>}
-          </div>
-          <div className="ds-kpi-grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
-            <div className="ds-kpi"><span className="ds-kpi-label">Customer fare</span><span className="ds-kpi-note">Amount the customer pays</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing")[0] ? adjText(activeOf("pricing")[0].customer) : "Normal applicable fare"}</span></div>
-            <div className="ds-kpi"><span className="ds-kpi-label">Partner payout</span><span className="ds-kpi-note">Amount for the Vendor / Driver Partner</span><span className="text-[14px] font-semibold text-ink">{activeOf("pricing")[0] ? adjText(activeOf("pricing")[0].partner) : "Normal applicable payout"}</span></div>
-          </div>
-          {statusChips}
-          {ruleTable(byKind("pricing")) ?? <EmptyState title="Normal applicable fare" hint="No additional fare adjustment for this selection. Wider matching settings still apply." />}
-          <p className="ds-note mt-4">New adjustments use {scopeLabel}. Existing company-wide adjustments remain shared; matching scoped pricing rules take precedence.</p>
-          {fareScope.brand === "common" && <details className="mt-4"><summary className="font-semibold cursor-pointer">Existing shared adjustment — all brands and all services</summary><p className="ds-note my-3">This older shared adjustment affects every brand and service where a scoped pricing rule does not replace it. Its scope is broader than the service filter above.</p><FareAdjustmentCard /></details>}
-        </section>
-      )}
-      {tab === "More settings" && (
-        <section className="ds-panel ds-panel-pad">
-          <h2 className="text-[16px] font-bold text-ink">Choose what you want to manage.</h2>
-          <p className="text-[12px] text-muted mb-4">Tools for {scopeLabel}</p>
-          <div className="ds-tool-grid">
-            {tools.map(([t, d, scope, go]) => (
-              <button key={t} type="button" className="ds-tool" onClick={go}>
-                <strong>{t}</strong><span>{d}</span><small>{scope}</small><Icon name="arrow-up-right" />
-              </button>
-            ))}
-          </div>
-          <p className="text-[11px] text-faint mt-4">Customer rates, partner payouts, local rental packages and extra charges are managed in Base Rates &amp; Payouts for this same selection.</p>
-        </section>
-      )}
-
-      {sheet?.kind === "new" && <RuleSheet kind={sheet.ruleKind} fareScope={fareScope} sel={sel} categories={catNames} services={services} rules={rules.filter(inFareScope)} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
-      {sheet?.kind === "edit" && <RuleSheet kind={sheet.rule.kind} rule={sheet.rule} fareScope={fareScope} sel={sel} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
+      {sheet?.kind === "new" && <RuleSheet kind={sheet.ruleKind} fareScope={fareScope} sel={sel} locations={locationRows} categories={catNames} services={services} rules={rules.filter(inFareScope)} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
+      {sheet?.kind === "edit" && <RuleSheet kind={sheet.rule.kind} rule={sheet.rule} fareScope={fareScope} sel={sel} locations={locationRows} categories={catNames} services={services} rules={rules} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "preview" && <PreviewSheet rule={sheet.rule} canTest={canTest} onTest={() => setSheet({ kind: "test" })} onClose={() => setSheet(null)} />}
       {sheet?.kind === "status" && <StatusSheet rule={sheet.rule} to={sheet.to!} onClose={() => setSheet(null)} onDone={(t) => { setSheet(null); show(t); }} />}
       {sheet?.kind === "history" && <HistorySheet rules={rules.filter(inFareScope)} onClose={() => setSheet(null)} />}
       {sheet?.kind === "test" && <TestFareSheet fareScope={fareScope} onClose={() => setSheet(null)} />}
       {sheet?.kind === "fixed" && <FixedRouteFares scope={fareScope} onClose={() => setSheet(null)} onToast={show} />}
-      {sheet?.kind === "local" && <Modal title="Local Pickup & Drop city fares" onClose={() => setSheet(null)} wide><LocalFares only="Pickup & Drop" initialTab="Pickup & Drop" onToast={show} /></Modal>}
-      {sheet?.kind === "limits" && <LimitsSheet rules={scoped.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} canEditRule={canEditRule} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
-      {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide>{ruleTable(scoped.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />}</Modal>}
+      {sheet?.kind === "local" && <Modal title="Local fares" onClose={() => setSheet(null)} wide><div className="ds-note mb-4">Rental packages use the selected brand. City Pickup &amp; Drop fares are shared across brands.</div><Button className="mb-4" icon="clock" onClick={() => { setSheet(null); setFareScope({ ...fareScope, service: "Local Rental" }); setTab("Brand & service fares"); }}>Manage Local Rental packages</Button><LocalFares only="Pickup & Drop" initialTab="Pickup & Drop" initialCity={sel.city} onToast={show} /></Modal>}
+      {sheet?.kind === "limits" && <LimitsSheet locationFilter={<div className="fare-reference u11-settings-page">{locationFilter}</div>} loaded={loaded} loadError={loadError} rules={scoped.filter((r) => r.kind === "limit" && r.status !== "Removed")} canEdit={canEdit} canEditRule={canEditRule} onAdd={() => setSheet({ kind: "new", ruleKind: "limit" })} onEdit={(r) => setSheet({ kind: "edit", rule: r })} onStatus={(r, to) => setSheet({ kind: "status", rule: r, to })} onClose={() => setSheet(null)} />}
+      {sheet?.kind === "all" && <Modal title="All rules & schedules" onClose={() => setSheet(null)} wide><div className="fare-reference u11-settings-page">{locationFilter}</div>{loadError ? <p className="ds-error" role="alert">{loadError}</p> : (ruleTable(scoped.filter((r) => r.status !== "Removed")) ?? <EmptyState title="No rules configured" />)}</Modal>}
     </div>
   );
 }
 
-function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, onClose, onDone }: {
-  kind: RuleKind; rule?: ServiceRule; fareScope: FareWorkspaceScope; sel: Sel; categories: string[]; services: TravelService[]; rules: ServiceRule[]; onClose: () => void; onDone: (t: string) => void;
+function RuleSheet({ kind, rule, fareScope, sel, locations, categories, services, rules, onClose, onDone }: {
+  kind: RuleKind; rule?: ServiceRule; fareScope: FareWorkspaceScope; sel: Sel; locations: Sel[]; categories: string[]; services: TravelService[]; rules: ServiceRule[]; onClose: () => void; onDone: (t: string) => void;
 }) {
   const [scope, setScope] = useState(rule?.scope ?? { ...sel, side: "Pickup or drop" as Side });
   const [name, setName] = useState(rule?.name ?? "");
@@ -413,6 +432,18 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
   const [preview, setPreview] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const submitting = useRef(false);
+  const initial = useRef(JSON.stringify({ scope, name, service, priority, mode, from, to, availability, cats, customer, partner, limit, reason }));
+  const dirty = initial.current !== JSON.stringify({ scope, name, service, priority, mode, from, to, availability, cats, customer, partner, limit, reason });
+  const close = () => { if (!busy && (!dirty || window.confirm("Discard your unsaved setting changes?"))) onClose(); };
+  useEffect(() => {
+    if (!dirty) return;
+    const leave = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
+    window.addEventListener("beforeunload", leave);
+    return () => window.removeEventListener("beforeunload", leave);
+  }, [dirty]);
+  const scopeCities = locationOptions([scope.city, ...directoryCities(stateKey(scope.state)), ...locations.filter(l => !scope.state || stateKey(l.state) === stateKey(scope.state)).map(l => l.city)]);
+  const scopeAreas = scope.city ? locationOptions([scope.area, ...directoryZones(scope.city), ...locations.filter(l => (!scope.state || stateKey(l.state) === stateKey(scope.state)) && locationKey(l.city) === locationKey(scope.city)).map(l => l.area)]) : [];
   const where = [scope.area, scope.city, scope.state && GST_STATES.find(([c]) => c === scope.state)?.[1]].filter(Boolean).join(", ") || "All locations";
   const title = { availability: "Service Areas", categories: "Vehicles by Area", pricing: "Scheduled Pricing", limit: "Fare limit" }[kind];
   const draft: Omit<ServiceRule, "id"> = {
@@ -429,6 +460,7 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
     && r.scope.state === scope.state && r.scope.city === scope.city && r.scope.area === scope.area && (r.service || "") === draft.service
     && (r.schedule.mode === "Always" || mode === "Always" || !((r.schedule.to ? Date.parse(r.schedule.to) : Infinity) <= (from ? Date.parse(istInputToIso(from)) : -Infinity) || (to ? Date.parse(istInputToIso(to)) : Infinity) <= (r.schedule.from ? Date.parse(r.schedule.from) : -Infinity))));
   const check = () => {
+    if (!Number.isInteger(priority) || priority < 1 || priority > 100) return "Priority must be a whole number from 1 to 100.";
     if (kind === "categories" && !cats.length) return "Choose at least one cab type.";
     if (kind === "pricing" && customer.mode === "Normal" && partner.mode === "Normal") return "Choose an increase or decrease for the customer fare or the partner payout.";
     if (kind === "pricing" && [customer, partner].some((a) => a.mode !== "Normal" && !(a.percent > 0 && a.percent < 100))) return "Enter a percentage between 1 and 99.";
@@ -441,12 +473,14 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
   };
   const save = async (e: FormEvent) => {
     e.preventDefault();
+    if (submitting.current) return;
     const why = check();
     if (why) return setError(why);
     if (!preview) { setError(null); return setPreview(true); }
+    submitting.current = true;
     setBusy(true);
     try { await saveRule(draft, rule?.id, rule); onDone(`${draft.name} saved.`); }
-    catch (err) { setError(err instanceof Error ? err.message : "The setting was not saved. Check your permissions and try again."); setBusy(false); }
+    catch (err) { setError(err instanceof Error ? err.message : "The setting was not saved. Check your permissions and try again."); setBusy(false); submitting.current = false; }
   };
   const adjEditor = (label: string, sub: string, a: Adjustment, set: (a: Adjustment) => void) => (
     <div className="ds-panel ds-panel-pad">
@@ -456,32 +490,33 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
     </div>
   );
   return (
-    <Modal title={rule ? "Edit settings" : "Add settings"} onClose={onClose} busy={busy} size="lg" footNote="Review the location, amounts and pickup schedule before saving." footer={<>{preview && <Button onClick={() => setPreview(false)}>Back</Button>}<Button variant="primary" type="submit" form="rule-form" loading={busy}>{preview ? "Save settings" : "Preview settings"}</Button></>}>
-      <form id="rule-form" onSubmit={save} className="grid gap-4" noValidate>
-        <p className="text-[12px] text-muted">{fareScope.brand === "common" ? "Common — all brands" : BRAND_LABELS[fareScope.brand]} → {rule && !rule.fareService ? rule.service || "All services — existing shared rule" : fareScope.service} · {where} · {scope.side}</p>
+    <Modal title={rule ? "Edit settings" : "Add settings"} onClose={close} busy={busy} size="lg" footNote="Review the location, amounts and pickup schedule before saving." footer={<>{preview && <Button disabled={busy} onClick={() => setPreview(false)}>Back</Button>}<Button variant="primary" type="submit" form="rule-form" loading={busy}>{preview ? "Save settings" : "Preview settings"}</Button></>}>
+      <form id="rule-form" onSubmit={save} className="grid gap-4 fare-reference" noValidate>
+        <div className="u27-setting-location"><Icon name="map-pin" /><div><strong>{where}</strong><small>{fareScope.brand === "common" ? "Common — all brands" : BRAND_LABELS[fareScope.brand]} → {rule && !rule.fareService ? rule.service || "All services — existing shared rule" : fareScope.service} · {scope.side}</small></div></div>
+        {rule && <p className="ds-note">Editing this saved rule affects its entire saved coverage, including other matching locations. Review the scope before saving.</p>}
         {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
         {preview ? (
           <dl className="ds-facts" data-cols={2}>
-            {([["Rule", draft.name], ["Location", where], ["Service / categories", `${service} · ${kind === "categories" ? cats.join(" · ") : "All"}`], ["Value", summary(draft)], ["Pickup schedule", mode], ["Priority", String(priority)], ["Reason", reason]] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
+            {([["Rule", draft.name], ["Location", where], ["Service / categories", `${service} · ${kind === "categories" ? cats.join(" · ") : "All"}`], ["Value", summary(draft)], ["Pickup schedule", mode === "Always" ? "Always" : `${from || "Open start"} → ${to || "Open end"} · IST`], ["Priority", String(priority)], ["Reason", reason]] as const).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}
           </dl>
         ) : (
           <>
             <h3 className="text-[14px] font-bold text-ink">{title}</h3>
             {kind === "availability" && (
-              <div className="grid gap-2">
+              <div className="u27-choice-list">
                 {([["Available", "Customers can request bookings."], ["Limited", "Limited service. Office confirmation is required."], ["Paused", "Stop new booking requests for this selection."]] as const).map(([v, d]) => (
-                  <label key={v} className="ds-check ds-panel ds-panel-pad" style={{ alignItems: "center" }}><input type="radio" name="avail" checked={availability === v} onChange={() => setAvailability(v)} /><span><strong className="block text-[13px] text-ink">{v}</strong><small className="text-muted">{d}</small></span></label>
+                  <label key={v} className={availability === v ? "selected" : ""}><input type="radio" name="avail" checked={availability === v} onChange={() => setAvailability(v)} /><span><strong>{v}</strong><small>{d}</small></span></label>
                 ))}
               </div>
             )}
             {kind === "categories" && (
               <>
-                <div className="flex flex-wrap gap-4">{categories.map((c) => <label key={c} className="ds-check"><input type="checkbox" checked={cats.includes(c)} onChange={(e) => setCats(e.target.checked ? [...cats, c] : cats.filter((x) => x !== c))} />{c}</label>)}</div>
+                <div className="u27-cab-choices">{categories.map((c) => <label key={c}><input type="checkbox" checked={cats.includes(c)} onChange={(e) => setCats(e.target.checked ? [...cats, c] : cats.filter((x) => x !== c))} /><Icon name="car-front" /><strong>{c}</strong></label>)}</div>
                 <p className="text-[11px] text-faint">Unchecked categories stay hidden in search. Time-based cab unavailability is managed under Service Areas.</p>
               </>
             )}
             {kind === "pricing" && (
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="u27-price-columns">
                 {adjEditor("Customer fare", "Amount the customer pays", customer, setCustomer)}
                 {adjEditor("Partner payout", "Amount the partner receives", partner, setPartner)}
                 <p className="text-[11px] text-faint md:col-span-2">Customer fare and partner payout change independently. Fixed route / B2B adjustments require opt-in on the corresponding rate.</p>
@@ -500,13 +535,16 @@ function RuleSheet({ kind, rule, fareScope, sel, categories, services, rules, on
               <div className="ds-seg mt-1">{(["Always", "Range"] as const).map((m) => <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>{m === "Always" ? "Always" : "Specific dates & times"}</button>)}</div>
             </div>
             {mode === "Range" && <div className="ds-form-grid"><label className="ds-field"><span>From · IST</span><input className="ds-input" type="datetime-local" value={from} onChange={(e) => setFrom(e.target.value)} /></label><label className="ds-field"><span>To · IST</span><input className="ds-input" type="datetime-local" value={to} onChange={(e) => setTo(e.target.value)} /></label><p className="text-[11px] text-faint" data-span="2">Matched on the pickup time in IST. The start time is included; the end time is not.</p></div>}
-            <details className="ds-disclosure" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
-              <summary>More options · Service, pickup / drop, categories &amp; priority</summary>
+            <details className="u27-more-options" open={more} onToggle={(e) => setMore((e.target as HTMLDetailsElement).open)}>
+              <summary>More options · Location, service, pickup / drop &amp; priority</summary>
               <div className="ds-form-grid">
                 <label className="ds-field"><span>Rule name</span><input className="ds-input" value={name} placeholder={draft.name} onChange={(e) => setName(e.target.value)} /></label>
                 <label className="ds-field"><span>Service</span><input className="ds-input" readOnly value={rule && !rule.fareService ? rule.service || "All services" : fareScope.service} /></label>
                 <label className="ds-field"><span>Applies to</span><select className="ds-select" value={scope.side} onChange={(e) => setScope({ ...scope, side: e.target.value as Side })}><option>Pickup or drop</option><option>Pickup only</option><option>Drop only</option></select></label>
                 <label className="ds-field"><span>Priority</span><input className="ds-input" type="number" min={1} max={100} value={priority} onChange={(e) => setPriority(Number(e.target.value))} /></label>
+                <label className="ds-field"><span>State</span><select className="ds-select" value={scope.state} onChange={e => setScope({ ...scope, state: e.target.value, city: "", area: "" })}><option value="">All states</option>{GST_STATES.map(([code, label]) => <option key={code} value={code}>{label}</option>)}{scope.state && !GST_STATES.some(([code]) => code === scope.state) && <option value={scope.state}>{scope.state}</option>}</select></label>
+                <label className="ds-field"><span>City</span><select className="ds-select" value={scope.city} onChange={e => setScope({ ...scope, city: e.target.value, area: "" })}><option value="">All cities</option>{scopeCities.map(city => <option key={city}>{city}</option>)}</select></label>
+                <label className="ds-field"><span>Area / Zone</span><select className="ds-select" value={scope.area} disabled={!scope.city} onChange={e => setScope({ ...scope, area: e.target.value })}><option value="">All areas</option>{scopeAreas.map(area => <option key={area}>{area}</option>)}</select></label>
               </div>
             </details>
             {conflict && <p className="text-[11px] text-bad">Resolve this overlapping rule before preview · {conflict.name} · Change the location, dates, service or {kind === "categories" ? "cab types" : "priority"}.</p>}
@@ -565,14 +603,15 @@ function HistorySheet({ rules, onClose }: { rules: ServiceRule[]; onClose: () =>
   );
 }
 
-function LimitsSheet({ rules, canEdit, canEditRule, onAdd, onEdit, onStatus, onClose }: { rules: ServiceRule[]; canEdit: boolean; canEditRule: (rule: ServiceRule) => boolean; onAdd: () => void; onEdit: (r: ServiceRule) => void; onStatus: (r: ServiceRule, to: "Enabled" | "Disabled" | "Removed") => void; onClose: () => void }) {
+function LimitsSheet({ locationFilter, loaded, loadError, rules, canEdit, canEditRule, onAdd, onEdit, onStatus, onClose }: { locationFilter: ReactNode; loaded: boolean; loadError: string | null; rules: ServiceRule[]; canEdit: boolean; canEditRule: (rule: ServiceRule) => boolean; onAdd: () => void; onEdit: (r: ServiceRule) => void; onStatus: (r: ServiceRule, to: "Enabled" | "Disabled" | "Removed") => void; onClose: () => void }) {
   return (
     <Modal title="Fare limits" onClose={onClose} wide>
+      {locationFilter}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div><strong className="text-[15px] text-ink">Office &amp; authority fare limits</strong><p className="text-[12px] text-muted">Stops a new quote for rate review when a configured limit is breached.</p></div>
         {canEdit && <Button icon="plus" onClick={onAdd}>Add limit</Button>}
       </div>
-      {rules.length === 0 ? <EmptyState title="No limits configured" hint="Add an office-approved limit or a verified state notification reference when applicable." /> : (
+      {loadError ? <p className="ds-error" role="alert">{loadError}</p> : !loaded ? <p role="status">Loading saved limits…</p> : rules.length === 0 ? <EmptyState title="No limits configured" hint="Add an office-approved limit or a verified state notification reference when applicable." /> : (
         <DataTable label="Fare limits" minWidth={760} hideTools hasActions>
           <thead><tr><th>LIMIT / REFERENCE</th><th>STATE / SERVICE / CATEGORY</th><th>CUSTOMER OR PARTNER</th><th>MINIMUM / MAXIMUM</th><th>STATUS</th>{canEdit && <th className="ds-actions">ACTIONS</th>}</tr></thead>
           <tbody>{rules.map((r) => <tr key={r.id}><td><strong>{r.name}</strong><small>{r.limit?.reference}</small></td><td>{[r.scope.area, r.scope.city, r.scope.state && GST_STATES.find(([c]) => c === r.scope.state)?.[1]].filter(Boolean).join(", ") || "All"} · {r.service || "All"} · {r.limit?.category}</td><td>{r.limit?.target}</td><td>₹{r.limit?.min} – ₹{r.limit?.max}</td><td><Badge tone={toneForStatus(phaseOf(r) === "Active" ? "Enabled" : phaseOf(r))}>{phaseOf(r) === "Active" ? "Enabled" : phaseOf(r)}</Badge></td>{canEdit && <td className="ds-actions">{canEditRule(r) ? <div><Button size="sm" onClick={() => onEdit(r)}>Edit</Button><Button size="sm" variant="ghost" onClick={() => onStatus(r, r.status === "Enabled" ? "Disabled" : "Enabled")}>{r.status === "Enabled" ? "Disable" : "Enable"}</Button><Button size="sm" variant="ghost" onClick={() => onStatus(r, "Removed")}>Remove</Button></div> : <span className="text-muted">Common inherited rule</span>}</td>}</tr>)}</tbody>

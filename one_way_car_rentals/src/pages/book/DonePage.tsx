@@ -7,7 +7,7 @@ import { formatDate, formatTime } from '@core/utils/format';
 import { Button, Dialog, LinkButton, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import type { TripRecord, TripType } from '@core/types';
-import { SuccessBurst } from '../../../../user/web/src/components/SuccessBurst';
+import { BookingCelebration } from '../../../../user/web/src/components/BookingCelebration';
 
 function JourneyArt({ done }: { done: boolean }) {
   return (
@@ -62,7 +62,7 @@ function BookedDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void
   const at = trip.scheduledAt;
   return (
     <Dialog
-      title="Booking confirmed"
+      title={headline(trip).title}
       onClose={onClose}
       className="booked-dialog"
       footer={
@@ -77,10 +77,7 @@ function BookedDialog({ trip, onClose }: { trip: TripRecord; onClose: () => void
       }
     >
       <div className="booked">
-        <svg className="booked__mark" viewBox="0 0 64 64" aria-hidden="true">
-          <circle className="booked__ring" cx="32" cy="32" r="29" />
-          <path className="booked__tick" d="M19 33.5l9 9 17-19" />
-        </svg>
+        <BookingCelebration label="Booking request saved" />
         <p className="booked__lead">Your ride request is saved. Our dispatch team will assign your driver and keep you updated.</p>
         <div className="booked__id">
           <span>Booking ID</span>
@@ -132,7 +129,7 @@ export function DonePage() {
       <div className="wrap flow-page__wrap">
         <div className="done">
           <div className="done__hero">
-            {h.tone === 'bad' ? <JourneyArt done={false} /> : <SuccessBurst label={h.title} />}
+            {h.tone === 'bad' || booked ? <JourneyArt done={h.tone === 'ok'} /> : <BookingCelebration label={h.title} />}
             <h1>{h.title}</h1>
             <p>{h.text}</p>
             <p className="done__saved">
@@ -203,7 +200,7 @@ export function DonePage() {
           <Icon name="arrow-right" size={16} /> View Booking
         </Link>
       </div>
-      {booked ? <BookedDialog trip={trip} onClose={() => setBooked(false)} /> : null}
+      {booked && h.tone !== 'bad' ? <BookedDialog trip={trip} onClose={() => setBooked(false)} /> : null}
     </div>
   );
 }

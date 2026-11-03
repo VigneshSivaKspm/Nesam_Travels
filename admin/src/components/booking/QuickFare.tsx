@@ -6,7 +6,7 @@ import {
   type FareQuote, type ManualBookingForm,
 } from "../../services/adminBookingService";
 import { ActionError } from "../../services/callables";
-import { searchPlaces, type LatLng, type PlaceResult } from "../../services/geoService";
+import { mainCityPlaces, placeDetail, placeLabel, searchPlaces, type LatLng, type PlaceResult } from "../../services/geoService";
 import { saveEnquiry, type Enquiry } from "../../services/enquiryService";
 import MapLocationPicker, { type PickedPoint } from "../MapLocationPicker";
 import { Modal } from "../Feedback";
@@ -221,6 +221,7 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const [found, setFound] = useState<PlaceResult[]>([]);
+  const [foundQuery, setFoundQuery] = useState("");
   const [searching, setSearching] = useState(false);
   const [failed, setFailed] = useState(false);
   const q = text.trim();
@@ -237,7 +238,9 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
     const t = setTimeout(() => {
       searchPlaces(q, near, ctl.signal)
         .then((r) => {
+          if (ctl.signal.aborted) return;
           setFound(r);
+          setFoundQuery(q);
           setFailed(false);
         })
         .catch(() => {
@@ -258,13 +261,22 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
   const options = useMemo<PlaceOption[]>(() => {
     const lower = q.toLowerCase();
     const locs = saved.filter((l) => (!airport || l.type === "Airport") && (!lower || locLabel(l).toLowerCase().includes(lower))).slice(0, 5);
+    const results = [...(airport ? [] : mainCityPlaces(q)), ...(foundQuery === q ? found : [])].filter(r => !airport || r.type === "airport");
+    const remoteOption = (r: PlaceResult): PlaceOption => ({ key: r.id, label: placeLabel(r), detail: placeDetail(r), point: () => placeFromResult(r) });
     return [
-      ...locs.map((l) => ({ key: `loc-${l.id}`, label: locLabel(l), detail: "Saved location", point: () => pointFromLocation(l) })),
-      ...found.filter((r) => !airport || r.type === "airport").map((r) => ({ key: r.id, label: r.name, detail: r.address, point: () => placeFromResult(r) })),
-    ];
-  }, [q, saved, found, airport]);
+      ...results.filter(r => r.kind === "city").map(remoteOption),
+      ...locs.map((l) => ({ key: `loc-${l.id}`, label: l.type === "City" ? [l.name, l.state].filter(Boolean).join(", ") : l.name, detail: l.type === "City" ? "" : [l.city, l.state].filter(Boolean).join(", "), point: () => pointFromLocation(l) })),
+      ...results.filter(r => r.kind !== "city").map(remoteOption),
+    ].filter((option, index, all) => all.findIndex(other => other.key === option.key || other.label.toLowerCase() === option.label.toLowerCase() && other.detail.toLowerCase() === option.detail.toLowerCase()) === index).slice(0, 3);
+  }, [q, saved, found, foundQuery, airport]);
 
   const shown = open && !value && options.length > 0;
+  useEffect(() => {
+    setActive(-1);
+  }, [options]);
+  useEffect(() => {
+    if (shown && active >= 0) document.getElementById(`${id}-opt-${active}`)?.scrollIntoView({ block: "nearest" });
+  }, [active, shown, id]);
   const pick = (o: PlaceOption) => {
     onChange(o.label, o.point());
     setOpen(false);
@@ -306,7 +318,7 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
           aria-expanded={shown}
           aria-controls={`${id}-list`}
           aria-autocomplete="list"
-          aria-activedescendant={shown && active >= 0 ? `${id}-opt-${active}` : undefined}
+          aria-activedescendant={shown && active >= 0 && active < options.length ? `${id}-opt-${active}` : undefined}
           autoComplete="off"
           placeholder={placeholder}
           value={text}
@@ -327,9 +339,9 @@ function PlaceField({ label, placeholder, text, value, saved, near, airport, onC
         {shown && (
           <ul id={`${id}-list`} role="listbox" className="ds-combo-list">
             {options.map((o, i) => (
-              <li key={o.key} id={`${id}-opt-${i}`} role="option" aria-selected={i === active} className="ds-combo-opt" onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
+              <li key={o.key} id={`${id}-opt-${i}`} role="option" aria-selected={i === active} className="ds-combo-opt" title={`${o.label}\n${o.detail}`} onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
                 <strong>{o.label}</strong>
-                <small>{o.detail}</small>
+                {o.detail && <small>{o.detail}</small>}
               </li>
             ))}
           </ul>

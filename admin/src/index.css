@@ -808,10 +808,10 @@ details.ds-disclosure > summary { cursor: pointer; font-size: 12px; font-weight:
 .ds-combo .ds-input { width: 100%; padding-right: 30px; }
 .ds-combo-clear { position: absolute; top: 50%; right: 6px; display: grid; place-items: center; width: 22px; height: 22px; border: 0; border-radius: 6px; background: none; color: var(--color-faint); cursor: pointer; transform: translateY(-50%); }
 .ds-combo-clear:hover, .ds-combo-clear:focus-visible { background: var(--color-brand-soft); color: var(--color-brand-ink); }
-.ds-combo-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 60; width: 100%; max-height: 280px; margin: 0; padding: 4px; overflow-y: auto; list-style: none; border: 1px solid var(--color-line); border-radius: 8px; background: #fff; box-shadow: var(--shadow-md); }
+.ds-combo-list { position: absolute; top: calc(100% + 4px); left: 0; z-index: 60; width: 100%; max-height: min(240px, 40vh); margin: 0; padding: 4px; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; list-style: none; border: 1px solid var(--color-line); border-radius: 8px; background: #fff; box-shadow: var(--shadow-md); }
 .ds-combo-opt { display: grid; gap: 1px; padding: 7px 10px; border-radius: 6px; cursor: pointer; }
 .ds-combo-opt[aria-selected='true'], .ds-combo-opt:hover { background: var(--color-brand-soft); }
-.ds-combo-opt strong { font-size: 12px; font-weight: 600; color: var(--color-ink); }
+.ds-combo-opt strong { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 600; color: var(--color-ink); }
 .ds-combo-opt small { overflow: hidden; font-size: 11px; color: var(--color-muted); text-overflow: ellipsis; white-space: nowrap; }
 @media (max-width: 1180px) { .ds-quick-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ds-quick-action { padding-top: 0; } }
 @media (max-width: 640px) { .ds-quick-grid { grid-template-columns: 1fr; } }

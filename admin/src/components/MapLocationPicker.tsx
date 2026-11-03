@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { DEFAULT_CENTER, MAP_ATTRIBUTION, MAP_TILE_URL, inIndia, reverseGeocode, searchPlaces, type LatLng, type PlaceResult } from "../services/geoService";
+import { DEFAULT_CENTER, MAP_ATTRIBUTION, MAP_TILE_URL, inIndia, placeDetail, placeLabel, reverseGeocode, searchPlaces, type LatLng, type PlaceResult } from "../services/geoService";
 
 /** A point on the map the admin has chosen. `confirmed` is true once they press "Confirm location". */
 export interface PickedPoint extends LatLng {
@@ -203,9 +203,9 @@ export default function MapLocationPicker({ label, value, onChange, tone = "pick
           <ul role="listbox" className="absolute z-[1000] left-0 right-0 mt-1 max-h-60 overflow-auto rounded-lg border border-line-strong bg-white shadow-lg">
             {results.map((r) => (
               <li key={r.id}>
-                <button type="button" role="option" aria-selected="false" onClick={() => choose(r)} className="w-full text-left px-3 py-2 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
-                  <div className="text-sm font-semibold text-ink">{r.name}</div>
-                  <div className="text-xs text-muted truncate">{r.address}</div>
+                <button type="button" role="option" aria-selected="false" onClick={() => choose(r)} title={r.address} className="w-full min-w-0 text-left px-3 py-2 hover:bg-brand-soft focus:bg-brand-soft focus:outline-none">
+                  <div className="text-sm font-semibold text-ink truncate">{placeLabel(r)}</div>
+                  {placeDetail(r) && <div className="text-xs text-muted truncate">{placeDetail(r)}</div>}
                 </button>
               </li>
             ))}

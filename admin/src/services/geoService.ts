@@ -1,3 +1,5 @@
+import { matchMainCities } from "../../../user/app/src/services/mainCities";
+
 /**
  * Place search (autocomplete) and reverse geocoding for the admin map picker.
  * Uses the same open Photon / OpenStreetMap services as the customer app, so no
@@ -23,6 +25,25 @@ export interface PlaceResult extends LatLng {
   name: string;
   address: string;
   type: "airport" | "other";
+  city?: string;
+  state?: string;
+  kind?: "city" | "landmark" | "address";
+}
+
+/** Concise labels only; the original address remains on the selected point. */
+export const placeLabel = (place: PlaceResult): string =>
+  place.kind === "city" ? [place.name, place.state].filter(Boolean).join(", ") : place.name;
+
+/** Keep the secondary line useful instead of repeating the full place title. */
+export function placeDetail(place: PlaceResult): string {
+  if (place.kind === "city") return "";
+  if (place.city || place.state) return [...new Set([place.city, place.state].filter(Boolean))].join(", ");
+  const key = (value: string) => value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+  const address = place.address.trim();
+  const name = place.name.trim();
+  const remainder = address.toLocaleLowerCase().startsWith(name.toLocaleLowerCase() + ",") ? address.slice(name.length + 1) : address;
+  const parts = remainder.split(",").map(part => part.trim()).filter(part => part && key(part) !== key(name));
+  return [...new Set(parts)].join(", ") || `${place.lat.toFixed(4)}, ${place.lng.toFixed(4)}`;
 }
 
 export const inIndia = (p: LatLng) =>
@@ -48,6 +69,10 @@ function featureToPlace(f: PhotonFeature): PlaceResult | null {
     name,
     address: [name, ...parts].join(", "),
     type: s("osm_value") === "aerodrome" || /airport/i.test(name) ? "airport" : "other",
+    city: s("city") || s("locality") || s("district"),
+    state: s("state"),
+    kind: s("osm_key") === "place" && ["city", "town", "village"].includes(s("osm_value")) ? "city"
+      : ["tourism", "historic", "amenity", "railway", "aeroway", "leisure"].includes(s("osm_key")) ? "landmark" : "address",
     lat,
     lng,
   };
@@ -60,22 +85,56 @@ async function getJson<T>(url: string, signal?: AbortSignal, timeoutMs = 8000): 
   return (await res.json()) as T;
 }
 
-/** Autocomplete suggestions for a typed address (3+ characters), biased towards `near`. */
+/** Existing curated city coordinates can be shown immediately, before map search finishes. */
+export function mainCityPlaces(query: string): PlaceResult[] {
+  return matchMainCities(query).map(city => ({
+    id: city.id, name: city.name, address: city.address, lat: city.lat!, lng: city.lng!, type: "other", kind: "city",
+    state: city.address.includes(",") ? city.address.split(",").pop()!.trim() : city.address,
+  }));
+}
+
+/** City first, then at most two distinct local place suggestions. */
 export async function searchPlaces(query: string, near?: LatLng | null, signal?: AbortSignal): Promise<PlaceResult[]> {
   const q = query.trim();
   if (q.length < 3) return [];
-  const bias = near ? `&lat=${near.lat.toFixed(3)}&lon=${near.lng.toFixed(3)}` : "";
-  const data = await getJson<{ features?: PhotonFeature[] }>(`${GEOCODER_URL}/api/?q=${encodeURIComponent(q)}&limit=8&lang=en&bbox=${INDIA_BBOX}${bias}`, signal);
+  const cities = mainCityPlaces(q);
+  const center = cities[0] || near;
+  const bias = center ? `&lat=${center.lat.toFixed(3)}&lon=${center.lng.toFixed(3)}` : "";
+  const search = cities[0]?.address || q;
+  let data: { features?: PhotonFeature[] };
+  try {
+    data = await getJson<{ features?: PhotonFeature[] }>(`${GEOCODER_URL}/api/?q=${encodeURIComponent(search)}&limit=12&lang=en&bbox=${INDIA_BBOX}${bias}`, signal);
+  } catch (error) {
+    if (signal?.aborted || !cities.length) throw error;
+    return cities;
+  }
   const seen = new Set<string>();
-  return (data.features ?? [])
+  const results = (data.features ?? [])
     .map(featureToPlace)
     .filter((p): p is PlaceResult => {
       if (!p) return false;
-      const k = `${p.name}|${p.address}`;
+      // The provider can return the same named feature more than once. Preserve
+      // similarly named places at different coordinates rather than merging cities.
+      const k = `${p.name}|${p.address}|${p.lat.toFixed(3)},${p.lng.toFixed(3)}`.toLocaleLowerCase().replace(/\s+/g, " ").trim();
       if (seen.has(k)) return false;
       seen.add(k);
       return true;
     });
+  const norm = (value: string) => value.toLocaleLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+  const distance = (place: PlaceResult, city: PlaceResult) => Math.hypot((place.lat - city.lat) * 111, (place.lng - city.lng) * 111 * Math.cos(city.lat * Math.PI / 180));
+  const suggestions = results.filter(place => {
+    if (!cities.length) return true;
+    if (place.kind === "city" && cities.some(city => distance(place, city) < 10)) return false;
+    // A city search suggests distinct local places, not repeated highway segments.
+    return place.kind === "landmark" && cities.some(city => distance(place, city) < 35);
+  }).sort((a, b) => Number(b.kind === "city") - Number(a.kind === "city") || Number(b.kind === "landmark") - Number(a.kind === "landmark"));
+  const unique = new Set(cities.map(city => norm(placeLabel(city))));
+  return [...cities, ...suggestions.filter(place => {
+    const key = norm(placeLabel(place) + " " + placeDetail(place));
+    if (unique.has(key)) return false;
+    unique.add(key);
+    return true;
+  })].slice(0, 3);
 }
 
 /** Address for a point. Never throws: when the geocoder is unreachable the coordinates are the label. */
