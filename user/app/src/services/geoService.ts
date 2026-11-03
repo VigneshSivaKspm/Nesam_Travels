@@ -11,6 +11,7 @@ import { GeoPlace, LatLng, PlaceType, RouteInfo } from '../types';
 import { haversineKm, ROAD_FACTOR, isValidLatLng } from '../utils/geo';
 import { TimeoutError } from '../utils/retry';
 import { matchMainCities } from './mainCities';
+import { callBackend } from './backend';
 
 // ── Device location ─────────────────────────────────────────────────────────
 
@@ -240,6 +241,20 @@ export async function searchPlaces(query: string, near?: LatLng | null, signal?:
   const key = `${q.toLowerCase()}|${bias}`;
   const cached = searchCache.get(key);
   if (cached) return cached;
+  try {
+    const result = await callBackend<{ query: string; near?: LatLng }, { places: GeoPlace[] }>('searchGooglePlaces', { query: q, ...(near ? { near } : {}) }, 15000);
+    if (signal?.aborted) throw signal.reason;
+    if (Array.isArray(result.places) && result.places.length) {
+      const cities = matchMainCities(q);
+      const seen = new Set(cities.map((p) => `${p.name}|${p.address}`));
+      const places = [...cities, ...result.places.filter((p) => isValidLatLng(p) && !seen.has(`${p.name}|${p.address}`))];
+      searchCache.set(key, places);
+      return places;
+    }
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    if (__DEV__) console.info('[geo] Google place search unavailable; using Photon fallback');
+  }
   const url = `${GEOCODER_URL}/api/?q=${encodeURIComponent(q)}&limit=8&lang=en&bbox=${INDIA_BBOX}${bias}`;
   const data = await fetchJson<{ features?: PhotonFeature[] }>(url, signal);
   // A city the rider named comes first ("trichy" → Trichy, not its wards and zones), then the
@@ -279,6 +294,18 @@ export async function reverseGeocode(p: LatLng, signal?: AbortSignal): Promise<G
     lng: p.lng,
   };
   try {
+    try {
+      const result = await callBackend<LatLng, { place: GeoPlace }>('reverseGoogleGeocode', p, 15000);
+      if (signal?.aborted) throw signal.reason;
+      if (result.place && isValidLatLng(result.place)) {
+        const googlePlace = { ...result.place, id: `pin-${key}`, lat: p.lat, lng: p.lng };
+        reverseCache.set(key, googlePlace);
+        return googlePlace;
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (__DEV__) console.info('[geo] Google reverse geocoding unavailable; using Photon fallback');
+    }
     const data = await fetchJson<{ features?: PhotonFeature[] }>(
       `${GEOCODER_URL}/reverse?lat=${p.lat}&lon=${p.lng}&lang=en&limit=1`,
       signal,
@@ -320,6 +347,17 @@ export async function getRoute(from: LatLng, to: LatLng, signal?: AbortSignal): 
   const cached = routeCache.get(key);
   if (cached) return cached;
   try {
+    try {
+      const result = await callBackend<{ origin: LatLng; destination: LatLng }, { route: RouteInfo }>('getGoogleRoute', { origin: from, destination: to }, 20000);
+      if (signal?.aborted) throw signal.reason;
+      if (result.route && Number.isFinite(result.route.distanceKm) && result.route.distanceKm > 0) {
+        routeCache.set(key, result.route);
+        return result.route;
+      }
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (__DEV__) console.info('[geo] Google routing unavailable; using OSRM fallback');
+    }
     const url =
       `${ROUTING_URL}/route/v1/driving/${from.lng},${from.lat};${to.lng},${to.lat}` +
       `?overview=full&geometries=geojson&alternatives=false&steps=false`;

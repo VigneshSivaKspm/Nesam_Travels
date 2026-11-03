@@ -26,7 +26,7 @@ import { sendCustomerMessage } from './customerComms';
 import { mailOfficeNewBooking } from './officeMail';
 import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeThrough, text } from './shared';
+import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeForRoundTripPricing, routeThrough, text } from './shared';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 function place(v: any): GeoPlace {
@@ -82,6 +82,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       : input.tripType === 'Airport Taxi'
       ? 'Airport Taxi'
       : 'One Way';
+  const pricingRoute = routeForRoundTripPricing(route, tripType, pickup, drop, stops.length);
   assertServiceSupported(bookingBrand, tripType);
   // Fixed route and Local Pickup & Drop fares, matched on master-location ids exactly as the quote was.
   const { fixedRoutes, localCityId } = await customerFareContext(tripType, pickup, drop, route.distanceKm);
@@ -170,7 +171,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
     const recipientState = recipientGstState(customer.data());
     const fuel = input.fuelType === 'cng' ? ('cng' as const) : undefined;
-    const priceInput = { fuel, boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
+    const priceInput = { fuel, boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route: pricingRoute, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).

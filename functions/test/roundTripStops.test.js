@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { routeThrough } = require('../lib/shared');
+const { routeForRoundTripPricing, routeThrough } = require('../lib/shared');
 
 test('routeThrough totals every ordered itinerary leg', async () => {
   const originalFetch = global.fetch;
@@ -24,4 +24,22 @@ test('routeThrough totals every ordered itinerary leg', async () => {
   } finally {
     global.fetch = originalFetch;
   }
+});
+
+test('a closed round-trip itinerary is priced from its full measured circuit exactly once', () => {
+  const pickup = { id: 'madurai-a', name: 'Madurai', address: 'Madurai', lat: 9.9252, lng: 78.1198, type: 'other' };
+  const sameDrop = { ...pickup, id: 'madurai-b' };
+  const measuredCircuit = { distanceKm: 640, durationMin: 780, estimated: false, path: [] };
+  const pricingRoute = routeForRoundTripPricing(measuredCircuit, 'Round Trip', pickup, sameDrop, 2);
+  // The round-trip fare engine doubles this legacy base, yielding the measured 640 km once.
+  assert.equal(pricingRoute.distanceKm, 320);
+  assert.equal(pricingRoute.durationMin, 390);
+  assert.equal(pricingRoute.distanceKm * 2, measuredCircuit.distanceKm);
+});
+
+test('ordinary round trips keep their outward route for return-leg doubling', () => {
+  const pickup = { id: 'a', name: 'A', address: 'A', lat: 9.9, lng: 78.1, type: 'other' };
+  const drop = { id: 'b', name: 'B', address: 'B', lat: 11.0, lng: 77.0, type: 'other' };
+  const outward = { distanceKm: 160, durationMin: 210, estimated: false, path: [] };
+  assert.equal(routeForRoundTripPricing(outward, 'Round Trip', pickup, drop, 2), outward);
 });

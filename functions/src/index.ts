@@ -44,3 +44,4 @@ export { submitMulticityEnquiry, acceptEnquiryQuote, getCustomerEnquiries, price
 export { convertMulticityEnquiry } from './multicityConversion';
 export { submitSupportRequest, updateSupportRequest } from './support';
 export { chatWithBot } from './groqChat';
+export { searchGooglePlaces, reverseGoogleGeocode, getGoogleRoute } from './googleMaps';

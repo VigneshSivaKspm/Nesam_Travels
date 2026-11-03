@@ -139,6 +139,9 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   submitSupportRequest: fns.submitSupportRequest,
   updateSupportRequest: fns.updateSupportRequest,
   chatWithBot: fns.chatWithBot,
+  searchGooglePlaces: fns.searchGooglePlaces,
+  reverseGoogleGeocode: fns.reverseGoogleGeocode,
+  getGoogleRoute: fns.getGoogleRoute,
 });
 
 /** Names whose result changes a booking, so the booking is reconciled right after the call. */
@@ -154,4 +157,4 @@ export const RECONCILES_BOOKING = new Set([
 export const RECONCILES_PAYOUT = new Set(['requestPartnerPayout']);
 
 /** Callables a signed-out visitor may use: read-only fare quotes, support requests, and AI chatbot. */
-export const PUBLIC_CALLABLES: ReadonlySet<string> = new Set(['quoteBooking', 'chatWithBot', 'submitSupportRequest']);
+export const PUBLIC_CALLABLES: ReadonlySet<string> = new Set(['quoteBooking', 'chatWithBot', 'submitSupportRequest', 'searchGooglePlaces', 'reverseGoogleGeocode', 'getGoogleRoute']);

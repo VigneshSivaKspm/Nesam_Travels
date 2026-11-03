@@ -48,10 +48,43 @@ export async function routeThrough(points: GeoPlace[]): Promise<RouteInfo> {
   };
 }
 
+/**
+ * Round-trip pricing historically receives one outward route and doubles it. When the rider
+ * explicitly builds a closed itinerary (pickup -> stops -> the same pickup), routeThrough has
+ * already measured the whole circuit. Give the pricing engine one half of that circuit so its
+ * established round-trip doubling produces the real total once, not twice.
+ */
+export function routeForRoundTripPricing(route: RouteInfo, tripType: string, pickup: GeoPlace, drop: GeoPlace, stopCount: number): RouteInfo {
+  const closesAtPickup = stopCount > 0
+    && Math.abs(pickup.lat - drop.lat) < 0.0001
+    && Math.abs(pickup.lng - drop.lng) < 0.0001;
+  if (tripType !== 'Round Trip' || !closesAtPickup) return route;
+  return { ...route, distanceKm: route.distanceKm / 2, durationMin: route.durationMin / 2 };
+}
+
 async function lookUpRoute(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   // Never accept distance or duration from the caller.
   if (Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001) {
     return { distanceKm: 1, durationMin: 15, estimated: true, path: [] };
+  }
+  const googleKey = (process.env.GOOGLE_MAPS_SERVER_API_KEY ?? '').trim();
+  if (googleKey) {
+    try {
+      const response = await fetch('https://routes.googleapis.com/directions/v2:computeRoutes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Goog-Api-Key': googleKey, 'X-Goog-FieldMask': 'routes.distanceMeters,routes.duration' },
+        body: JSON.stringify({ origin: { location: { latLng: { latitude: a.lat, longitude: a.lng } } }, destination: { location: { latLng: { latitude: b.lat, longitude: b.lng } } }, travelMode: 'DRIVE', routingPreference: 'TRAFFIC_UNAWARE', languageCode: 'en-IN', units: 'METRIC' }),
+        signal: AbortSignal.timeout(10000),
+      });
+      const data = response.ok ? await response.json() as any : null;
+      const route = data?.routes?.[0];
+      if (route && Number.isFinite(route.distanceMeters)) {
+        return { distanceKm: Math.max(0.1, route.distanceMeters / 1000), durationMin: Math.max(1, Number(String(route.duration ?? '0s').replace('s', '')) / 60), estimated: false, path: [] };
+      }
+      console.warn('[routing] Google Routes unavailable; using OSRM fallback', { status: response.status });
+    } catch (error) {
+      console.warn('[routing] Google Routes failed; using OSRM fallback', error instanceof Error ? error.message : error);
+    }
   }
   const base = (process.env.ROUTING_URL || 'https://router.project-osrm.org').replace(/\/$/, '');
   try {
