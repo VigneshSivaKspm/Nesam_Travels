@@ -137,6 +137,7 @@ export function FlowBar({
   showBack = false,
   hideFare = false,
   onHome,
+  above,
 }: {
   onBack?: () => void;
   onNext?: () => void;
@@ -151,9 +152,12 @@ export function FlowBar({
   hideFare?: boolean;
   /** Adds a Home icon button to the right of the main button (with onBack, a Back icon button to its left). */
   onHome?: () => void;
+  /** Shown directly above the main button, inside the bar (the terms checkbox). */
+  above?: ReactNode;
 }) {
   return (
     <div className="flow-bar">
+      {above}
       {total !== undefined && onNext ? (
         <div className={`flow-bar__total ${hideFare ? 'flow-bar__total--solo' : ''} ${hideFare && (onBack || onHome) ? 'flow-bar__total--with-icons' : ''}`}>
           {hideFare && onBack ? (

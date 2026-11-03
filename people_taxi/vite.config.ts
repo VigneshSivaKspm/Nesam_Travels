@@ -37,6 +37,15 @@ export default defineConfig(({ mode }) => {
   for (const [k, v] of Object.entries(env)) if (k.startsWith('EXPO_PUBLIC_')) processEnv[k] = v;
   if (env.VITE_API_URL && !processEnv.EXPO_PUBLIC_API_URL) processEnv.EXPO_PUBLIC_API_URL = env.VITE_API_URL;
 
+  // Local development: call the deployed Cloud Functions through this dev server (same origin), so a new localhost port
+  // (8085, 8087 …) is never blocked by the functions' CORS list. Not used in production, with the HTTP API or with emulators.
+  const projectId = processEnv.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'nesamtoursandtravels-202f5';
+  const proxyFunctions = mode !== 'production' && !processEnv.EXPO_PUBLIC_API_URL && processEnv.EXPO_PUBLIC_USE_FIREBASE_EMULATORS !== 'true';
+  if (proxyFunctions) processEnv.EXPO_PUBLIC_FUNCTIONS_PROXY = '/__functions';
+  const functionsProxy = {
+    '/__functions': { target: `https://us-central1-${projectId}.cloudfunctions.net`, changeOrigin: true, secure: true, rewrite: (p: string) => p.replace(/^\/__functions/, '') },
+  };
+
   return {
     // Files from ../app would otherwise resolve ../app/tsconfig.json, which extends
     // `expo/tsconfig.base` (not installed in the web build). Use this project's config for all files.
@@ -58,10 +67,11 @@ export default defineConfig(({ mode }) => {
     },
     server: {
       host: '0.0.0.0',
+      ...(proxyFunctions ? { proxy: functionsProxy } : {}),
       port: Number(process.env.PORT || 8086),
       fs: { allow: [here, path.resolve(here, '../user/app'), path.resolve(here, '../user/web/src/components')] },
     },
-    preview: { host: '0.0.0.0', port: Number(process.env.PORT || 8086) },
+    preview: { host: '0.0.0.0', port: Number(process.env.PORT || 8086), ...(proxyFunctions ? { proxy: functionsProxy } : {}) },
     build: {
       target: 'es2022',
       sourcemap: false,

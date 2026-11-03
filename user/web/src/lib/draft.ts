@@ -13,6 +13,8 @@ export interface BookingDraft {
   categoryId: string;
   /** The booking server records Cash or UPI. */
   payment: PaymentMethod;
+  /** 'cng' when the rider picked the CNG option of the chosen vehicle. */
+  fuelType: '' | 'cng';
   /** A code the rider has applied (re-validated against every fare). */
   promoCode: string;
   notes: string;
@@ -41,6 +43,7 @@ export const EMPTY_DRAFT: BookingDraft = {
   tripEndAt: null,
   categoryId: '',
   payment: 'Cash',
+  fuelType: '',
   promoCode: '',
   notes: '',
   waSame: true,
@@ -91,6 +94,7 @@ export function loadDraft(): BookingDraft {
       tripEndAt: scheduled && endAt && !Number.isNaN(endAt.getTime()) && endAt.getTime() >= scheduled.getTime() ? endAt : null,
       categoryId: typeof d.categoryId === 'string' ? d.categoryId : '',
       payment: d.payment === 'UPI' ? 'UPI' : 'Cash',
+      fuelType: d.fuelType === 'cng' ? 'cng' : '',
       promoCode: typeof d.promoCode === 'string' ? d.promoCode : '',
       notes: typeof d.notes === 'string' ? d.notes.slice(0, 300) : '',
       waSame: d.waSame !== false,

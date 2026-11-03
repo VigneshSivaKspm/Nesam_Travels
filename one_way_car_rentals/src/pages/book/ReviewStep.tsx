@@ -111,6 +111,7 @@ export function ReviewStep() {
         notes,
       });
       const res = await createRideRequest({
+        fuelType: draft.fuelType === 'cng' ? 'cng' : undefined,
         profile,
         pickup,
         drop,
@@ -287,7 +288,7 @@ export function ReviewStep() {
               </div>
             </section>
 
-            <div ref={termsRef} className={`card terms-card ${termsError ? 'is-invalid' : ''}`} style={{ marginTop: 20 }}>
+            <div ref={termsRef} className={`card terms-card rv-terms--page ${termsError ? 'is-invalid' : ''}`} style={{ marginTop: 20 }}>
               <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
                 I accept the fare breakdown and that tolls, parking and permits are paid separately. Cancellation is free while the booking is pending or more than {FREE_CANCEL_WINDOW} before pickup; after that a {formatINR(SCHEDULED_CANCELLATION_FEE)} fee applies.
               </Checkbox>
@@ -331,6 +332,12 @@ export function ReviewStep() {
         </div>
 
         <FlowBar className="only-narrow">
+          <div className="flow-bar__terms">
+            <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
+              I accept the fare, extra charges and cancellation policy.
+            </Checkbox>
+            {termsError ? <p className="field__error" role="alert">{termsError}</p> : null}
+          </div>
           <div className="flow-bar__summary flow-bar__summary--icons">
             <BarIconButton icon="arrow-left" label="Back to vehicles" onClick={() => navigate('/book/ride')} />
             <Button size="lg" loading={submitting} onClick={() => void submit()}>

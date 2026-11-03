@@ -224,7 +224,9 @@ export function useBookingQuote(): BookingQuote {
     const finalQuotes = new Map<string, FareBreakdown>();
     if (server) for (const x of server.quotes) if (x.ok && x.fare) finalQuotes.set(x.categoryId, x.fare);
     const chosen = category ? byId.get(category.id) : undefined;
-    const serverFare = chosen?.ok && chosen.fare ? chosen.fare : null;
+    // The CNG rate card applies when the rider picked CNG and this vehicle offers it.
+    const cngChoice = draft.fuelType === 'cng' && chosen?.ok && chosen.cng ? chosen.cng : null;
+    const serverFare = cngChoice ? cngChoice.fare : chosen?.ok && chosen.fare ? chosen.fare : null;
     const authoritative = !!serverFare;
     const days = chosen?.ok && typeof chosen.days === 'number' && chosen.model === 'round_trip_calendar' ? chosen.days : null;
     return {
@@ -238,8 +240,8 @@ export function useBookingQuote(): BookingQuote {
       pickupTime, checkCoupon, authoritative,
       quoteLoading: serverQuote.status === 'loading',
       quoteError: serverQuote.status === 'error' ? serverQuote.error : '',
-      breakup: chosen?.breakup ?? null,
+      breakup: (cngChoice ? cngChoice.breakup : chosen?.breakup) ?? null,
       entries: byId, unavailable, days, retryQuote: serverQuote.retry,
     };
-  }, [categories, categoryId, route, tripType, pickupTime, adjustment, coupons, trips, promoCode, pickup, drop, serverQuote]);
+  }, [categories, categoryId, route, tripType, pickupTime, adjustment, coupons, trips, promoCode, pickup, drop, serverQuote, draft.fuelType]);
 }

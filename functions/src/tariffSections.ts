@@ -307,6 +307,16 @@ function applyBrandOverride(
     delete override.partnerBata;
   }
 
+  // CNG rate card (One Way and Round Trip): each field saved on its own; null removes it.
+  for (const [key, label, positive] of [
+    ['cngCustomerRate', 'CNG customer rate', true], ['cngPartnerRate', 'CNG partner rate', true],
+    ['cngCustomerBata', 'CNG customer allowance', false], ['cngPartnerBata', 'CNG partner allowance', false],
+    ['cngExtraKmRate', 'CNG extra kilometre rate', true],
+  ] as const) {
+    if (data[key] !== undefined && data[key] !== null) override[key] = amount(data[key], label, positive);
+    else if (data[key] === null) delete override[key];
+  }
+
   if (data.extraKmRate !== undefined && data.extraKmRate !== null) {
     override.extraKmRate = amount(data.extraKmRate, 'Extra kilometre rate', true);
   } else if (data.extraKmRate === null) {

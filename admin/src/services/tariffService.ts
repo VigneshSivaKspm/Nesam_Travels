@@ -63,6 +63,11 @@ export interface BrandFareOverride {
   minKm?: number;
   minKmPerDay?: number;
   customerBata?: number;
+  cngCustomerRate?: number;
+  cngCustomerBata?: number;
+  cngPartnerRate?: number;
+  cngPartnerBata?: number;
+  cngExtraKmRate?: number;
   partnerBata?: number;
   extraKmRate?: number;
   waitingPerHour?: number;

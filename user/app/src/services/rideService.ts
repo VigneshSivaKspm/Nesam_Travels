@@ -325,6 +325,8 @@ export interface RideRequestInput {
   source?: string;
   bookingSource?: string;
   rentalHours?: number | null;
+  /** 'cng' books the trip on the vehicle's CNG rate card (One Way and Round Trip). */
+  fuelType?: 'cng';
   brand?: string;
 }
 
@@ -346,7 +348,7 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
   // An advance booking request: it waits for NESAM's review and is not offered to any partner until then.
   await callBackend('createBooking', { requestId, pickup: input.pickup, drop: input.drop, termsAccepted: input.termsAccepted === true,
     categoryId: input.category.id, tripType: input.tripType, expectedFare: input.fare.total,
-    paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes,
+    paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes, fuelType: input.fuelType === 'cng' ? 'cng' : undefined,
     whatsapp: input.whatsapp, email: input.email || undefined,
     scheduledAt: input.scheduledAt.toISOString(), tripEndAt: input.tripType === 'Round Trip' ? input.tripEndAt?.toISOString() : undefined,
     rentalHours: input.tripType === 'Local Rental' && input.rentalHours ? input.rentalHours : undefined,

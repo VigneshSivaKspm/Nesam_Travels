@@ -12,6 +12,7 @@ import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
 import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
+import { CabIcon, FuelPick, type FuelChoice } from '../../../../user/web/src/components/CabParts';
 import { BarIconButton, FareDialog, FlowBar, PromoControl } from './parts';
 
 const TOO_FAR_KM = 1500;
@@ -25,6 +26,8 @@ export function ChooseStep() {
   const [fareFor, setFareFor] = useState<RideCategory | null>(null);
   const [group, setGroup] = useState<'All' | CategoryGroup>('All');
   const [sort, setSort] = useState<Sort>('recommended');
+  // The fuel chosen on each card (CNG is offered only on vehicles whose CNG rates the admin has saved).
+  const [fuelPick, setFuelPick] = useState<Record<string, FuelChoice>>({});
   const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId } = draft;
 
   const groups = useMemo(() => {
@@ -45,7 +48,16 @@ export function ChooseStep() {
   const selected = q.category;
   const quote = q.quote;
   const canContinue = q.authoritative && !!quote && !tooFar && !!selected && !q.unavailable.has(selected.id);
+  const cngOf = (c: RideCategory) => q.entries.get(c.id)?.cng ?? null;
+  const fuelOf = (c: RideCategory): FuelChoice => (cngOf(c) ? fuelPick[c.id] ?? (c.id === categoryId && draft.fuelType === 'cng' ? 'cng' : 'diesel') : 'diesel');
+  const chooseCategory = (c: RideCategory) => update({ categoryId: c.id, fuelType: fuelOf(c) === 'cng' ? 'cng' : '' });
+  const chooseFuel = (c: RideCategory, f: FuelChoice) => {
+    setFuelPick((p) => ({ ...p, [c.id]: f }));
+    update({ categoryId: c.id, fuelType: f === 'cng' ? 'cng' : '' });
+  };
   const breakupFor = (c: RideCategory) => {
+    const alt = fuelOf(c) === 'cng' ? cngOf(c) : null;
+    if (alt) return alt.breakup;
     if (c.id === selected?.id && q.breakup) return q.breakup;
     const f = q.quotes.get(c.id);
     return f ? buildFareBreakup(c, f, q.outstation) : null;
@@ -196,14 +208,16 @@ export function ChooseStep() {
                 </h2>
                 <ul className="cabs" role="radiogroup" aria-labelledby="cabs-h">
                   {shown.map((c) => {
-                    const fare = q.quotes.get(c.id);
+                    const cngAlt = fuelOf(c) === 'cng' ? cngOf(c) : null;
+                    const fare = cngAlt ? cngAlt.fare : q.quotes.get(c.id);
                     const on = c.id === categoryId;
                     const reason = q.unavailable.get(c.id) ?? '';
                     const blocked = tooFar || !!reason;
-                    const incl = quotedInclusionLine(q.entries.get(c.id), c, q.outstation);
+                    const entry = q.entries.get(c.id);
+                    const incl = quotedInclusionLine(entry && cngAlt ? { ...entry, extraKmRate: cngAlt.extraKmRate } : entry, c, q.outstation);
                     return (
                       <li key={c.id} className={`cab ${on ? 'is-selected' : ''} ${blocked ? 'is-disabled' : ''}`}>
-                        <input id={`cab-${c.id}`} type="radio" name="cab" className="cab__radio" checked={on} disabled={blocked} onChange={() => update({ categoryId: c.id })} />
+                        <input id={`cab-${c.id}`} type="radio" name="cab" className="cab__radio" checked={on} disabled={blocked} onChange={() => chooseCategory(c)} />
                         <label className="cab__label" htmlFor={`cab-${c.id}`}>
                           <span className="cab__tick" aria-hidden="true">
                             <Icon name="check" size={12} />
@@ -216,10 +230,10 @@ export function ChooseStep() {
                             {categoryModels(c) ? <span className="cab__model">{categoryModels(c)}</span> : null}
                             <span className="cab__badges">
                               <span className="feat feat--seats">
-                                <Icon name="passengers" size={13} /> {c.seats} passengers
+                                <CabIcon kind="seat" size={18} /> {c.seats} passengers
                               </span>
                               <span className="feat feat--ac">
-                                <Icon name="air-conditioning" size={13} /> AC
+                                <CabIcon kind="ac" size={18} /> AC
                               </span>
                             </span>
                           </span>
@@ -228,8 +242,8 @@ export function ChooseStep() {
                               <span className="cab__na">{reason}</span>
                             ) : fare ? (
                               <>
-                                <strong className="num">{formatINR(fare.total)}</strong>
-                                <small>{q.quoteLoading ? 'Confirming fare…' : 'Incl. GST'}</small>
+                                <strong className="num">{formatINR(fare.taxableAmount)}</strong>
+                                <small className="cab__tax">{q.quoteLoading ? 'Confirming fare…' : fare.gst > 0 ? `+ ${formatINR(fare.gst)} GST` : ''}</small>
                               </>
                             ) : q.quoteLoading ? (
                               <span className="skeleton cab__price-skel" />
@@ -238,6 +252,11 @@ export function ChooseStep() {
                             )}
                           </span>
                         </label>
+                        {cngOf(c) && !blocked ? (
+                          <div className="cab__fuel">
+                            <FuelPick name={`fuel-${c.id}`} value={fuelOf(c)} onChange={(f) => chooseFuel(c, f)} />
+                          </div>
+                        ) : null}
                         <div className="cab__foot">
                           <span>{incl || 'Fare as per route distance'}</span>
                           {fare ? (

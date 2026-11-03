@@ -47,7 +47,9 @@ export function kmAmountPaise(km: number, ratePaise: number): number {
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
-export interface OneWayRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number }
+/** The CNG rate card of one vehicle class. All four rates together, or no CNG option; the extra-km rate falls back to the CNG customer rate. */
+export interface CngRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number; extraKmRate?: number }
+export interface OneWayRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number; cng?: CngRates }
 export interface RoundTripRates extends OneWayRates { minKmPerDay: number }
 export interface RentalRates { firstHour: number; laterHour: number; minHours: number; minTimeFare: number; partnerPerHour: number }
 export interface CityDropRates { customerBase: number; customerExtraKm: number; partnerBase: number; partnerExtraKm: number }
@@ -93,6 +95,12 @@ export interface BrandFareOverride {
   customerBata?: number;
   partnerBata?: number;
   extraKmRate?: number;
+  /** CNG rate card (One Way and Round Trip): a brand can set its own, anything not set inherits Common. */
+  cngCustomerRate?: number;
+  cngCustomerBata?: number;
+  cngPartnerRate?: number;
+  cngPartnerBata?: number;
+  cngExtraKmRate?: number;
   waitingPerHour?: number;
   hillCharge?: number;
   carrierCharge?: number;
@@ -195,6 +203,20 @@ function rateMap<T extends object>(v: unknown, keys: readonly (keyof T)[]): Part
 
 const isPos = (v: unknown): v is number => isNum(v) && v > 0;
 
+/** Keeps a class's CNG rate card only when it is complete; a partial card is dropped, never priced at ₹0. */
+function sanitizeCng<T extends OneWayRates>(m: Partial<Record<TariffClass, T>>): Partial<Record<TariffClass, T>> {
+  for (const c of TARIFF_CLASSES) {
+    const r = m[c];
+    if (!r || !('cng' in r)) continue;
+    const g = (r as { cng?: Partial<CngRates> }).cng;
+    const { cng: _drop, ...rest } = r as T & { cng?: unknown };
+    m[c] = (g && isPos(g.customerRate) && isNum(g.customerBata) && isNum(g.partnerRate) && isNum(g.partnerBata)
+      ? { ...rest, cng: { customerRate: g.customerRate, customerBata: g.customerBata, partnerRate: g.partnerRate, partnerBata: g.partnerBata, ...(isPos(g.extraKmRate) ? { extraKmRate: g.extraKmRate } : {}) } }
+      : rest) as unknown as T;
+  }
+  return m;
+}
+
 function parseLocalFare(r: any): LocalFareEntry | null {
   if (!r || typeof r !== 'object') return null;
   // A rate that is missing, zero or malformed is "not configured" — it is never priced as ₹0.
@@ -265,6 +287,7 @@ function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
         if (isNum(rates.customerBata)) r.customerBata = rates.customerBata;
         if (isNum(rates.partnerBata)) r.partnerBata = rates.partnerBata;
         if (isNum(rates.extraKmRate)) r.extraKmRate = rates.extraKmRate;
+        for (const key of ['cngCustomerRate', 'cngCustomerBata', 'cngPartnerRate', 'cngPartnerBata', 'cngExtraKmRate'] as const) if (isNum(rates[key])) r[key] = rates[key];
         if (isNum(rates.waitingPerHour)) r.waitingPerHour = rates.waitingPerHour;
         if (isNum(rates.hillCharge)) r.hillCharge = rates.hillCharge;
         if (isNum(rates.carrierCharge)) r.carrierCharge = rates.carrierCharge;
@@ -345,18 +368,29 @@ export function scopedTariffForBrand(
     if (serviceKey === 'One Way' || serviceKey === 'Round Trip') {
       const trip = serviceKey;
       const common = trip === 'One Way' ? classRates(base.oneWay.classes, cls) : classRates(base.roundTrip.classes, cls);
-      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined || (trip === 'Round Trip' && ov.minKmPerDay !== undefined)) {
+      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined || ov.cngCustomerRate !== undefined || ov.cngCustomerBata !== undefined || ov.cngPartnerRate !== undefined || ov.cngPartnerBata !== undefined || ov.cngExtraKmRate !== undefined || (trip === 'Round Trip' && ov.minKmPerDay !== undefined)) {
         const merged = {
           customerRate: pick(ov, 'customerRate', common?.customerRate),
           partnerRate: pick(ov, 'partnerRate', common?.partnerRate),
           customerBata: pick(ov, 'customerBata', common?.customerBata),
           partnerBata: pick(ov, 'partnerBata', common?.partnerBata),
         };
+        // The CNG card inherits field by field from Common; it is kept only when complete.
+        const cngMerged = {
+          customerRate: pick(ov, 'cngCustomerRate', common?.cng?.customerRate),
+          customerBata: pick(ov, 'cngCustomerBata', common?.cng?.customerBata),
+          partnerRate: pick(ov, 'cngPartnerRate', common?.cng?.partnerRate),
+          partnerBata: pick(ov, 'cngPartnerBata', common?.cng?.partnerBata),
+          extraKmRate: pick(ov, 'cngExtraKmRate', common?.cng?.extraKmRate),
+        };
+        const cng: CngRates | undefined = isPos(cngMerged.customerRate) && isNum(cngMerged.customerBata) && isNum(cngMerged.partnerRate) && isNum(cngMerged.partnerBata)
+          ? { customerRate: cngMerged.customerRate, customerBata: cngMerged.customerBata, partnerRate: cngMerged.partnerRate, partnerBata: cngMerged.partnerBata, ...(isPos(cngMerged.extraKmRate) ? { extraKmRate: cngMerged.extraKmRate } : {}) }
+          : undefined;
         if (trip === 'One Way') {
-          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata)) next.oneWay.classes[cls] = merged as OneWayRates;
+          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata)) next.oneWay.classes[cls] = { ...(merged as OneWayRates), ...(cng ? { cng } : {}) };
         } else {
           const minKmPerDay = pick(ov, 'minKmPerDay', (common as RoundTripRates | undefined)?.minKmPerDay);
-          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata) && isPos(minKmPerDay)) next.roundTrip.classes[cls] = { ...(merged as OneWayRates), minKmPerDay };
+          if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata) && isPos(minKmPerDay)) next.roundTrip.classes[cls] = { ...(merged as OneWayRates), ...(cng ? { cng } : {}), minKmPerDay };
         }
       }
       if (trip === 'One Way' && ov.minKm !== undefined && ov.minKm > 0) next.oneWay.minKm = ov.minKm;
@@ -435,10 +469,10 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     version: typeof d.version === 'number' ? d.version : 0,
     enabled: d.enabled === true,
     gstRate: isNum(d.gstRate) && d.gstRate < 1 ? d.gstRate : 0.05,
-    oneWay: { minKm: isNum(d.oneWay?.minKm) && d.oneWay.minKm > 0 ? d.oneWay.minKm : 130, classes: rateMap<OneWayRates>(d.oneWay?.classes, ['customerRate', 'customerBata', 'partnerRate', 'partnerBata']) },
+    oneWay: { minKm: isNum(d.oneWay?.minKm) && d.oneWay.minKm > 0 ? d.oneWay.minKm : 130, classes: sanitizeCng(rateMap<OneWayRates>(d.oneWay?.classes, ['customerRate', 'customerBata', 'partnerRate', 'partnerBata'])) },
     roundTrip: {
       maxDays: isNum(d.roundTrip?.maxDays) && d.roundTrip.maxDays >= 1 ? Math.floor(d.roundTrip.maxDays) : 30,
-      classes: rateMap<RoundTripRates>(d.roundTrip?.classes, ['customerRate', 'customerBata', 'partnerRate', 'partnerBata', 'minKmPerDay']),
+      classes: sanitizeCng(rateMap<RoundTripRates>(d.roundTrip?.classes, ['customerRate', 'customerBata', 'partnerRate', 'partnerBata', 'minKmPerDay'])),
     },
     rental: { classes: rateMap<RentalRates>(d.rental?.classes, ['firstHour', 'laterHour', 'minHours', 'minTimeFare', 'partnerPerHour']) },
     cityDrop: { baseKm: isNum(d.cityDrop?.baseKm) && d.cityDrop.baseKm > 0 ? d.cityDrop.baseKm : 20, zones, classes: rateMap<CityDropRates>(d.cityDrop?.classes, ['customerBase', 'customerExtraKm', 'partnerBase', 'partnerExtraKm']) },
@@ -531,6 +565,8 @@ export interface PricingSnapshot {
   fixedRouteReversed?: boolean;
   businessCustomerRatePaise?: number;
   businessGstMode?: GstMode;
+  /** 'cng' when the fare was worked out on the CNG rate card. */
+  fuelType?: 'cng';
   /** Brand scope applied to price this booking. */
   brand?: string;
   /** True when brand-specific overrides were used instead of common baseline. */
@@ -553,6 +589,8 @@ export interface QuoteInput {
   discount?: number;
   adjustmentPercent?: number;
   adjustmentDirection?: 'increase' | 'decrease';
+  /** 'cng' prices the trip on the class's CNG rate card (One Way and Round Trip). */
+  fuel?: 'cng';
 }
 
 export interface QuoteResult {
@@ -621,6 +659,13 @@ export function outstationExtraFor(cfg: TariffConfig, cls: TariffClass, trip: 'O
     ?? (cls === 'innova' ? specific?.suv ?? cfg.outstationExtras?.suv : undefined);
 }
 
+/** The rate card a trip is priced on: the class's normal one, or its CNG card when the customer chose CNG. */
+function fuelRates<T extends OneWayRates>(r: T, fuel: 'cng' | undefined): T {
+  if (fuel !== 'cng') return r;
+  if (!r.cng) throw new TariffError('cng-unavailable', 'CNG is not available for this vehicle.');
+  return { ...r, customerRate: r.cng.customerRate, customerBata: r.cng.customerBata, partnerRate: r.cng.partnerRate, partnerBata: r.cng.partnerBata };
+}
+
 function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number, trip: 'One Way' | 'Round Trip'): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {
   const x = outstationExtraFor(cfg, cls, trip);
   if (!x) return { extraKmRatePaise: ratePaise, waiting: {} };
@@ -629,11 +674,13 @@ function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number, trip
 
 /** Standard one-way: included KM = max(floor, quoted route KM); base = included × rate + bata. */
 export function quoteOneWay(i: QuoteInput): QuoteResult {
-  const r = classRates(i.config.oneWay.classes, i.tariffClass);
-  if (!r) throw new TariffError('rate-missing', 'The one-way tariff for this vehicle class is not configured.');
+  const standard = classRates(i.config.oneWay.classes, i.tariffClass);
+  if (!standard) throw new TariffError('rate-missing', 'The one-way tariff for this vehicle class is not configured.');
+  const r = fuelRates(standard, i.fuel);
   const included = Math.max(i.config.oneWay.minKm, Math.round(i.routeKm * 10) / 10);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata);
-  const extra = extraUsage(i.config, i.tariffClass, ratePaise, 'One Way');
+  const standardExtra = extraUsage(i.config, i.tariffClass, ratePaise, 'One Way');
+  const extra = i.fuel === 'cng' ? { ...standardExtra, extraKmRatePaise: paise(r.cng?.extraKmRate ?? r.customerRate) } : standardExtra;
   const distancePaise = kmAmountPaise(included, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, included - i.routeKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;
@@ -648,7 +695,7 @@ export function quoteOneWay(i: QuoteInput): QuoteResult {
     pricing: {
       schema: 2, source: 'tariff_v2', model: 'one_way_standard', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
       quotedKm: included, includedKm: included, extraKmRatePaise: extra.extraKmRatePaise, customerRatePaise: ratePaise, customerBataPaise: bataPaise,
-      ...extra.waiting, days: 1, minKmPerDay: i.config.oneWay.minKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      ...(i.fuel === 'cng' ? { fuelType: 'cng' as const } : {}), ...extra.waiting, days: 1, minKmPerDay: i.config.oneWay.minKm, packagePaise, discount: fare.discount, adminAdjustment: 0,
       adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
       partner: { mode: 'NORMAL_RATE', ratePaise: paise(r.partnerRate), bataPaise: paise(r.partnerBata), minKm: i.config.oneWay.minKm, days: 1, basePaise: kmAmountPaise(partnerKm, paise(r.partnerRate)) + paise(r.partnerBata) },
       pickupDate: istDate(i.pickupMs), endDate: null, gates: [...GATES_ONE_WAY],
@@ -658,8 +705,9 @@ export function quoteOneWay(i: QuoteInput): QuoteResult {
 
 /** Round trip by Indian calendar days; billable KM = max(total KM, daily minimum × days). */
 export function quoteRoundTrip(i: QuoteInput): QuoteResult {
-  const r = classRates(i.config.roundTrip.classes, i.tariffClass);
-  if (!r) throw new TariffError('rate-missing', 'The round-trip tariff for this vehicle class is not configured.');
+  const standard = classRates(i.config.roundTrip.classes, i.tariffClass);
+  if (!standard) throw new TariffError('rate-missing', 'The round-trip tariff for this vehicle class is not configured.');
+  const r = fuelRates(standard, i.fuel);
   if (i.endMs === null) throw new TariffError('end-required', 'Choose the date and time the trip ends.');
   const days = calendarDays(i.pickupMs, i.endMs);
   if (days === null) throw new TariffError('end-before-pickup', 'The trip cannot end before it starts.');
@@ -668,7 +716,8 @@ export function quoteRoundTrip(i: QuoteInput): QuoteResult {
   const floorKm = r.minKmPerDay * days;
   const billable = Math.max(actualKm, floorKm);
   const ratePaise = paise(r.customerRate), bataPaise = paise(r.customerBata) * days;
-  const extra = extraUsage(i.config, i.tariffClass, ratePaise, 'Round Trip');
+  const standardExtra = extraUsage(i.config, i.tariffClass, ratePaise, 'Round Trip');
+  const extra = i.fuel === 'cng' ? { ...standardExtra, extraKmRatePaise: paise(r.cng?.extraKmRate ?? r.customerRate) } : standardExtra;
   const distancePaise = kmAmountPaise(billable, ratePaise);
   const floorPaise = kmAmountPaise(Math.max(0, billable - actualKm), ratePaise);
   const packagePaise = distancePaise + bataPaise;
@@ -683,7 +732,7 @@ export function quoteRoundTrip(i: QuoteInput): QuoteResult {
     pricing: {
       schema: 2, source: 'tariff_v2', model: 'round_trip_calendar', tariffVersion: i.config.version, tariffClass: i.tariffClass, gstRate: i.config.gstRate,
       quotedKm: actualKm, includedKm: billable, extraKmRatePaise: extra.extraKmRatePaise, customerRatePaise: ratePaise, customerBataPaise: paise(r.customerBata),
-      ...extra.waiting, days, minKmPerDay: r.minKmPerDay, packagePaise, discount: fare.discount, adminAdjustment: 0,
+      ...(i.fuel === 'cng' ? { fuelType: 'cng' as const } : {}), ...extra.waiting, days, minKmPerDay: r.minKmPerDay, packagePaise, discount: fare.discount, adminAdjustment: 0,
       adjustmentPercent: i.adjustmentPercent ?? 0, adjustmentDirection: i.adjustmentDirection ?? 'increase',
       partner: { mode: 'NORMAL_RATE', ratePaise: partnerRate, bataPaise: paise(r.partnerBata), minKm: r.minKmPerDay, days, basePaise: kmAmountPaise(billable, partnerRate) + paise(r.partnerBata) * days },
       pickupDate: istDate(i.pickupMs), endDate: istDate(i.endMs), gates: [...GATES_ROUND_TRIP],

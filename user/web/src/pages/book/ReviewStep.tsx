@@ -110,6 +110,7 @@ export function ReviewStep() {
     setSubmitError('');
     try {
       const res = await createRideRequest({
+        fuelType: draft.fuelType === 'cng' ? 'cng' : undefined,
         profile,
         pickup,
         drop,
@@ -192,7 +193,7 @@ export function ReviewStep() {
 
   const action = (
     <section className="card rv-act" aria-label="Book">
-      <div ref={termsRef}>
+      <div ref={termsRef} className="rv-terms--page">
         <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
           I accept the fare, extra charges and <Link to="/legal">cancellation policy</Link>, and understand NESAM reviews this request before confirming it.
         </Checkbox>
@@ -328,6 +329,16 @@ export function ReviewStep() {
       </div>
 
       <FlowBar className="flow-bar--review">
+        <div className="flow-bar__terms">
+          <Checkbox checked={termsAccepted} onChange={(v) => setTermsAccepted(v)} invalid={!!termsError}>
+            I accept the fare, extra charges and <Link to="/legal" target="_blank" rel="noopener">cancellation policy</Link>.
+          </Checkbox>
+          {termsError ? (
+            <p className="field__error" role="alert">
+              {termsError}
+            </p>
+          ) : null}
+        </div>
         <div className="flow-bar__total flow-bar__total--solo flow-bar__total--icons">
           <BarIconButton icon="arrow-left" label="Back to vehicles" onClick={() => navigate('/book/ride')} />
           <Button size="lg" loading={submitting} disabled={submitting || (!!blocker && termsAccepted && tried)} onClick={() => void submit()}>

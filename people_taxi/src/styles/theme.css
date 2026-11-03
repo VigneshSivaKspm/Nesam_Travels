@@ -1214,3 +1214,114 @@ html[data-hero-logo='in'] .topbar .brand {
   letter-spacing: 0;
   box-shadow: none;
 }
+
+/* Terms checkbox: on phones and tablets it sits in the bottom bar, right above the Book & Confirm button; the page copy is for desktop. */
+.flow-bar__terms {
+  padding: 0 2px 2px;
+  font-size: 0.875rem;
+}
+@media (max-width: 999.98px) {
+  .rv-policy--page,
+  .rv-terms--page {
+    display: none;
+  }
+}
+
+/* Vehicle card price: the base amount in a smaller size, the GST as a separate, smaller line under it. */
+.cab__price strong {
+  font-size: 1.1875rem;
+  line-height: 1.15;
+}
+.cab__price .cab__tax {
+  display: block;
+  color: var(--muted);
+  font-size: 0.6875rem;
+  font-weight: 500;
+}
+
+/* Terms line in the bottom bar: smaller text and a smaller tick box. */
+.flow-bar__terms,
+.flow-bar__terms label,
+.flow-bar__terms .check {
+  font-size: 0.8125rem;
+  line-height: 1.35;
+}
+.flow-bar__terms .check {
+  align-items: center;
+  gap: 10px;
+}
+.flow-bar__terms .check input,
+.flow-bar__terms input[type='checkbox'] {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  border-width: 1.5px;
+  border-radius: 6px;
+  background-size: 12px;
+}
+
+/* The two notes now sit under the total in the fare card. */
+.sel-card--sum .rv-sum__notes {
+  display: grid;
+  gap: 2px;
+  margin: -4px 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1.45;
+}
+
+/* Vehicle card price: the amount on the right, the "+ ₹… GST" line directly under it, both right-aligned. */
+.cab__price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 2px;
+  text-align: right;
+}
+.cab__price strong {
+  order: 0;
+  grid-column: auto;
+  grid-row: auto;
+  align-self: auto;
+}
+.cab__price .cab__tax {
+  order: 1;
+  grid-column: auto;
+  grid-row: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+.cab__price .cab__saving {
+  order: 2;
+}
+
+/* Fare card, smaller: lighter total, tighter notes and links, a small support line. */
+.sel-card.sel-card--sum {
+  gap: 8px;
+  padding: 12px 14px;
+}
+.sel-card--sum .sel-card__total span {
+  font-size: 0.875rem;
+}
+.sel-card--sum .sel-card__total strong {
+  font-size: 1.1875rem;
+}
+.sel-card--sum .rv-sum__notes {
+  margin: -2px 0 0;
+  font-size: 0.6875rem;
+  line-height: 1.4;
+}
+.sel-card--sum .rv-links {
+  gap: 4px 12px;
+  padding: 8px 0;
+}
+.sel-card--sum .rv-links .link-btn,
+.sel-card--sum .rv-links .promo .link-btn {
+  font-size: 0.75rem;
+}
+.sel-card--sum .rv-act__note {
+  font-size: 0.6875rem;
+}

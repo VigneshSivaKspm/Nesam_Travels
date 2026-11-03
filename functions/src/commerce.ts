@@ -158,7 +158,8 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
     const recipientState = recipientGstState(customer.data());
-    const priceInput = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
+    const fuel = input.fuelType === 'cng' ? ('cng' as const) : undefined;
+    const priceInput = { fuel, boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).
@@ -214,6 +215,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       discountDetails: fare.discountDetail, globalAdjustmentApplied: fare.globalAdjustment ?? null,
       routeEstimated: false, couponCode, discount, notes: text(input.notes), payment: 'Pending', paymentStatus: 'Unpaid',
       paymentMethod: input.paymentMethod === 'UPI' ? 'UPI' : 'Cash',
+      ...(fuel ? { fuelType: fuel } : {}),
       rideTiming: 'scheduled', bookingType: 'advance', scheduledAt: Timestamp.fromDate(when), pickupAt: Timestamp.fromDate(when),
       termsAccepted: true, termsAcceptedAt: stamp,
       date, time, status: 'Pending', tripSubStatus: 'Not Started', source: bookingSource, bookingSource, brand: bookingSource, ...availabilityFields(rules), createdAt: stamp, updatedAt: stamp,

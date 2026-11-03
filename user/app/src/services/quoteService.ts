@@ -24,6 +24,8 @@ export interface ServerCategoryQuote {
   gstIncluded?: boolean;
   couponMessage?: string;
   couponApplied?: boolean;
+  /** The same trip priced on the vehicle's CNG rate card; absent when this vehicle has no CNG option. */
+  cng?: { fare: FareBreakdown; breakup: FareBreakup; extraKmRate: number } | null;
   error?: string;
 }
 

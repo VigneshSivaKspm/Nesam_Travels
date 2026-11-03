@@ -156,6 +156,7 @@ export function ReviewStep() {
         notes,
       });
       const res = await createRideRequest({
+        fuelType: draft.fuelType === 'cng' ? 'cng' : undefined,
         profile,
         pickup,
         drop,
@@ -199,53 +200,6 @@ export function ReviewStep() {
 
         <div className="review">
           <div className="review__main">
-            <section className="card rv-sum" aria-labelledby="rv-trip-head">
-              <div className="rv-sum__head">
-                <h2 id="rv-trip-head" className="route-title route-title--lg">
-                  <span>{pickup.name}</span>
-                  <Icon name="arrow-right" size={18} />
-                  <span>{drop.id === 'place-local-disposal' ? 'Within City' : drop.name}</span>
-                </h2>
-              </div>
-
-              <ul className="rv-meta">
-                {scheduledAt ? (
-                  <li>
-                    <Icon name="calendar" size={16} />
-                    <span>
-                      <strong>{formatDate(scheduledAt)}</strong>, {formatTime(scheduledAt)}
-                      {tripEndAt ? ` · Return ${formatDate(tripEndAt)}` : ''}
-                    </span>
-                  </li>
-                ) : null}
-                {route ? (
-                  <li>
-                    <Icon name="route" size={16} />
-                    <span>
-                      {formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}
-                    </span>
-                  </li>
-                ) : null}
-                <li>
-                  <Icon name="car" size={16} />
-                  <span>
-                    <strong>{categoryName(category)}</strong> · {category.seats} seats
-                  </span>
-                </li>
-              </ul>
-
-              <div className="rv-sum__total">
-                <div className="rv-sum__row">
-                  <span className="rv-sum__label">Total fare</span>
-                  <strong className="rv-sum__amount num">{formatINR(quote.total)}</strong>
-                </div>
-                <ul className="rv-sum__notes">
-                  <li>All charges and discounts are included</li>
-                  <li>Fuel, toll, state tax and parking are separate</li>
-                </ul>
-              </div>
-            </section>
-
             <section className="card" aria-labelledby="rv-who-head">
               <h2 id="rv-who-head">Passenger &amp; Contact Details</h2>
 
@@ -307,7 +261,7 @@ export function ReviewStep() {
 
             </section>
 
-            <section className="card rv-policy" ref={termsRef}>
+            <section className="card rv-policy rv-policy--page" ref={termsRef}>
               <Checkbox
                 label="I accept the fare, extra charges and cancellation policy."
                 checked={termsAccepted}
@@ -335,6 +289,11 @@ export function ReviewStep() {
                 <span>Total to pay</span>
                 <strong className="num">{formatINR(quote.total)}</strong>
               </div>
+
+              <ul className="rv-sum__notes">
+                <li>All charges and discounts are included</li>
+                <li>Fuel, toll, state tax and parking are separate</li>
+              </ul>
 
               <div className="rv-links">
                 <PromoControl
@@ -379,6 +338,12 @@ export function ReviewStep() {
         onBack={() => navigate('/book/ride')}
         backLabel="Back to vehicles"
         onHome={() => navigate('/')}
+        above={
+          <div className="flow-bar__terms">
+            <Checkbox label="I accept the fare, extra charges and cancellation policy." checked={termsAccepted} onChange={setTermsAccepted} />
+            {termsError ? <p className="bf-error">{termsError}</p> : null}
+          </div>
+        }
       />
 
       {showFare ? <FareDialog fare={breakup} onClose={() => setShowFare(false)} /> : null}

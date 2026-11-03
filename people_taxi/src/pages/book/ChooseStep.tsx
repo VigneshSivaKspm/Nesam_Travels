@@ -12,6 +12,7 @@ import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
 import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
+import { CabIcon, FuelPick, type FuelChoice } from '../../../../user/web/src/components/CabParts';
 import { FareDialog, FlowBar, PromoControl } from './parts';
 
 const TOO_FAR_KM = 1500;
@@ -25,6 +26,8 @@ export function ChooseStep() {
   const [fareFor, setFareFor] = useState<RideCategory | null>(null);
   const [group, setGroup] = useState<'All' | CategoryGroup>('All');
   const [sort, setSort] = useState<Sort>('recommended');
+  // The fuel chosen on each card (CNG is offered only on vehicles whose CNG rates the admin has saved).
+  const [fuelPick, setFuelPick] = useState<Record<string, FuelChoice>>({});
   const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId } = draft;
 
   const groups = useMemo(() => {
@@ -45,7 +48,16 @@ export function ChooseStep() {
   const selected = q.category;
   const quote = q.quote;
   const canContinue = q.authoritative && !!quote && !tooFar && !!selected && !q.unavailable.has(selected.id);
+  const cngOf = (c: RideCategory) => q.entries.get(c.id)?.cng ?? null;
+  const fuelOf = (c: RideCategory): FuelChoice => (cngOf(c) ? fuelPick[c.id] ?? (c.id === categoryId && draft.fuelType === 'cng' ? 'cng' : 'diesel') : 'diesel');
+  const chooseCategory = (c: RideCategory) => update({ categoryId: c.id, fuelType: fuelOf(c) === 'cng' ? 'cng' : '' });
+  const chooseFuel = (c: RideCategory, f: FuelChoice) => {
+    setFuelPick((p) => ({ ...p, [c.id]: f }));
+    update({ categoryId: c.id, fuelType: f === 'cng' ? 'cng' : '' });
+  };
   const breakupFor = (c: RideCategory) => {
+    const alt = fuelOf(c) === 'cng' ? cngOf(c) : null;
+    if (alt) return alt.breakup;
     if (c.id === selected?.id && q.breakup) return q.breakup;
     const f = q.quotes.get(c.id);
     return f ? buildFareBreakup(c, f, q.outstation) : null;
@@ -120,26 +132,28 @@ export function ChooseStep() {
 
               {shown.map((c) => {
                 const isSelected = c.id === categoryId;
-                const fare = q.quotes.get(c.id);
+                const cngAlt = fuelOf(c) === 'cng' ? cngOf(c) : null;
+                const fare = cngAlt ? cngAlt.fare : q.quotes.get(c.id);
                 const unavailable = q.unavailable.has(c.id);
                 const disabled = unavailable || tooFar;
                 const photo = categoryPhoto(c);
                 const name = categoryName(c);
                 const b = breakupFor(c);
-                const incl = quotedInclusionLine(q.entries.get(c.id), c, q.outstation);
+                const entry = q.entries.get(c.id);
+                const incl = quotedInclusionLine(entry && cngAlt ? { ...entry, extraKmRate: cngAlt.extraKmRate } : entry, c, q.outstation);
 
                 return (
                   <div
                     key={c.id}
                     className={`cab ${isSelected ? 'is-selected' : ''} ${disabled ? 'is-disabled' : ''}`}
-                    onClick={() => !disabled && update({ categoryId: c.id })}
+                    onClick={() => !disabled && chooseCategory(c)}
                     role="radio"
                     aria-checked={isSelected}
                     tabIndex={disabled ? -1 : 0}
                     onKeyDown={(e) => {
                       if ((e.key === ' ' || e.key === 'Enter') && !disabled) {
                         e.preventDefault();
-                        update({ categoryId: c.id });
+                        chooseCategory(c);
                       }
                     }}
                   >
@@ -155,16 +169,19 @@ export function ChooseStep() {
                       <div className="cab__header">
                         <h3 className="cab__name">{name}</h3>
                         {categoryModels(c) ? <p className="cab__model">{categoryModels(c)}</p> : null}
-                        <div className="cab__specs">
-                          <span><Icon name="user" size={12} /> {c.seats} Seats</span>
-                          <span className="cab__dot">·</span>
-                          <span><Icon name="snowflake" size={12} /> AC</span>
-                          <span className="cab__dot">·</span>
-                          <span><Icon name="luggage" size={12} /> {((c as any).luggage ?? (c.seats >= 6 ? 4 : 2))} Bags</span>
-                        </div>
+                        <ul className="cabx-facts">
+                          <li><CabIcon kind="seat" size={20} /> {c.seats} seats</li>
+                          <li><CabIcon kind="ac" size={20} /> AC</li>
+                          <li><CabIcon kind="bag" size={20} /> {((c as any).luggage ?? (c.seats >= 6 ? 4 : 2))} bags</li>
+                        </ul>
                       </div>
 
-                      {incl ? <p className="cab__incl">{incl}</p> : null}
+                      <ul className="cabx-rows">
+                        {fare && fare.driverAllowance > 0 ? <li><CabIcon kind="driver" size={20} /> Driver allowance included</li> : null}
+                        {incl ? <li><CabIcon kind="road" size={20} /> {incl}</li> : null}
+                      </ul>
+
+                      {cngOf(c) ? <FuelPick name={`fuel-${c.id}`} value={fuelOf(c)} onChange={(f) => !disabled && chooseFuel(c, f)} /> : null}
 
                       {fare ? (
                         <button
@@ -183,7 +200,8 @@ export function ChooseStep() {
                     <div className="cab__price">
                       {fare ? (
                         <>
-                          <strong>{formatINR(fare.total)}</strong>
+                          <strong>{formatINR(fare.taxableAmount)}</strong>
+                          {fare.gst > 0 ? <small className="cab__tax">+ {formatINR(fare.gst)} GST</small> : null}
                           {fare.discount > 0 ? (
                             <span className="cab__saving">Save {formatINR(fare.discount)}</span>
                           ) : null}

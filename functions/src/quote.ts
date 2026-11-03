@@ -111,6 +111,8 @@ export interface PriceInput {
   fixedRoutes?: FixedRouteFare[];
   serviceId?: string;
   businessContract?: import('./domain/business').BusinessContract | null;
+  /** 'cng' prices a One Way / Round Trip on the class's CNG rate card. Ignored where no CNG card applies. */
+  fuel?: 'cng';
   /** Brand scope applied to price this booking. */
   brand?: string;
 }
@@ -224,12 +226,12 @@ function priceBookingCore(i: PriceInput): PriceResult {
         ? quoteRoundTrip({
             config: cfg, tariffClass: klass, tripType: 'Round Trip', routeKm: i.route.distanceKm, durationMin: i.route.durationMin,
             pickupMs: i.pickupAt.getTime(), endMs: i.tripEndAt ? i.tripEndAt.getTime() : null, discount,
-            adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
+            adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction, fuel: i.fuel,
           })
         : quoteOneWay({
             config: cfg, tariffClass: klass, tripType: 'One Way', routeKm: i.route.distanceKm, durationMin: i.route.durationMin,
             pickupMs: i.pickupAt.getTime(), endMs: null, discount,
-            adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction,
+            adjustmentPercent: i.adjustment?.percent ?? 0, adjustmentDirection: i.adjustment?.direction, fuel: i.fuel,
           }));
       const q = withDiscounts(run);
       return {
@@ -478,7 +480,16 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
         const priced = discount > 0 ? priceBooking({ ...base, discount }) : before;
         // The same limit check a booking makes, so a quote the customer sees can always be booked.
         assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(adjustPartner(priced.pricing, rules)) });
+        // The same trip on the CNG rate card, when this class has one and the fare came from the per-km tariff.
+        let cng: { fare: typeof priced.fare; breakup: typeof priced.breakup; extraKmRate: number } | null = null;
+        if ((priced.pricing.model === 'one_way_standard' || priced.pricing.model === 'round_trip_calendar') && !input.fuelType) {
+          try {
+            const alt = priceBooking({ ...base, discount, fuel: 'cng' });
+            cng = { fare: alt.fare, breakup: alt.breakup, extraKmRate: (alt.pricing.gstInclusiveBase?.extraKmRatePaise ?? alt.pricing.extraKmRatePaise) / 100 };
+          } catch { cng = null; }
+        }
         return {
+          cng,
           categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service,
           model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, rentalHours: priced.pricing.rentalHours ?? null,
           // The customer-facing extra-KM rate (as entered when the fare includes GST).

@@ -11,6 +11,8 @@ export interface BookingDraft {
   /** Round trips only: when the trip ends (billing counts Indian calendar dates from pickup to here). */
   tripEndAt: Date | null;
   categoryId: string;
+  /** 'cng' when the rider picked the CNG option of the chosen vehicle. */
+  fuelType: '' | 'cng';
   /** A code the rider has applied (re-validated against every fare). */
   promoCode: string;
   notes: string;
@@ -38,6 +40,7 @@ export const EMPTY_DRAFT: BookingDraft = {
   scheduledAt: null,
   tripEndAt: null,
   categoryId: '',
+  fuelType: '',
   promoCode: '',
   notes: '',
   waSame: true,
@@ -87,6 +90,7 @@ export function loadDraft(): BookingDraft {
       // The end only makes sense after a still-valid pickup.
       tripEndAt: scheduled && endAt && !Number.isNaN(endAt.getTime()) && endAt.getTime() >= scheduled.getTime() ? endAt : null,
       categoryId: typeof d.categoryId === 'string' ? d.categoryId : '',
+      fuelType: d.fuelType === 'cng' ? 'cng' : '',
       promoCode: typeof d.promoCode === 'string' ? d.promoCode : '',
       notes: typeof d.notes === 'string' ? d.notes.slice(0, 300) : '',
       waSame: d.waSame !== false,

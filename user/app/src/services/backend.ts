@@ -12,6 +12,13 @@ import { app, auth } from '../config/firebase';
 
 const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? '').trim().replace(/\/+$/, '');
 
+/**
+ * Local development only: the dev server forwards this path to the deployed functions, so the browser sees a same-origin
+ * call and the functions' allowed-website list (CORS) never applies. Unset in production builds and in the app.
+ */
+const FN_PROXY = (process.env.EXPO_PUBLIC_FUNCTIONS_PROXY ?? '').trim();
+const callableFunctions = () => (FN_PROXY && typeof window !== 'undefined' ? getFunctions(app, `${window.location.origin}${FN_PROXY}`) : getFunctions(app));
+
 /** True when server functions go through the HTTP API instead of Firebase callables. */
 export const usesHttpApi = API_URL.length > 0;
 
@@ -27,7 +34,7 @@ class BackendError extends Error {
 
 export async function callBackend<Req, Res>(name: string, data: Req, timeoutMs = 60000): Promise<Res> {
   if (!usesHttpApi) {
-    return (await httpsCallable<Req, Res>(getFunctions(app), name, { timeout: timeoutMs })(data)).data;
+    return (await httpsCallable<Req, Res>(callableFunctions(), name, { timeout: timeoutMs })(data)).data;
   }
 
   // Signed out: sent without a token; the server only answers its public (read-only) functions.
