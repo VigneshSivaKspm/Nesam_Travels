@@ -49,6 +49,9 @@ export interface RouteInfo {
   path: [number, number][];
   /** true when OSRM was unreachable and distance is a straight-line estimate. */
   estimated: boolean;
+  /** Round Trip only: the whole running distance, out through every stop to the drop and back to the pickup. */
+  totalDistanceKm?: number;
+  totalDurationMin?: number;
 }
 
 export interface FareConfig {

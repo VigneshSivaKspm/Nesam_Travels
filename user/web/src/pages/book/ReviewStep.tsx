@@ -149,7 +149,10 @@ export function ReviewStep() {
 
   const freeHours = Math.round(SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000);
   const when = scheduledAt ? `${formatDate(scheduledAt)} · ${formatTime(scheduledAt)} IST` : 'Pickup time not chosen';
-  const dropName = drop.id === 'place-local-disposal' ? 'Within the city' : drop.name;
+  // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
+  const sameAsPickup = Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
+  const roundVia = tripType === 'Round Trip' ? [...draft.stops, ...(sameAsPickup ? [] : [drop])] : [];
+  const dropName = tripType === 'Round Trip' ? pickup.name : drop.id === 'place-local-disposal' ? 'Within the city' : drop.name;
 
   const summary = (
     <section className="card rv-sum" aria-label="Trip and fare">
@@ -158,7 +161,7 @@ export function ReviewStep() {
         <Icon name="arrow-right" size={17} />
         <span>{dropName}</span>
       </p>
-      {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
+      {roundVia.length ? <p className="trip-sum__when">Via {roundVia.map((stop) => stop.name).join(' → ')}</p> : null}
       <ul className="rv-meta">
         <li>
           <Icon name="calendar" size={16} />
@@ -170,7 +173,7 @@ export function ReviewStep() {
         {route ? (
           <li>
             <Icon name="route" size={16} />
-            <span>{formatDistance(route.distanceKm)}</span>
+            <span>{formatDistance(route.totalDistanceKm ?? route.distanceKm)}</span>
           </li>
         ) : null}
         <li>

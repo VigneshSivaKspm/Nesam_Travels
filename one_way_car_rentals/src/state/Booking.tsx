@@ -90,7 +90,10 @@ export function BookingProvider({ children }: { children: ReactNode }) {
   const startFrom = useCallback<BookingValue['startFrom']>((pickup, drop) => setDraft((d) => ({ ...d, pickup, drop, stops: [], scheduledAt: null, tripEndAt: null, multicity: false, promoCode: '' })), []);
 
   const routeStops = draft.tripType === 'Round Trip' ? draft.stops : [];
-  const routeKey = routeKeyOf(draft.pickup, draft.drop, routeStops);
+  const isRoundTrip = draft.tripType === 'Round Trip';
+  const baseRouteKey = routeKeyOf(draft.pickup, draft.drop, routeStops);
+  // The key also tells a Round Trip apart, so switching trip type measures the way back too.
+  const routeKey = baseRouteKey && isRoundTrip ? `${baseRouteKey}|rt` : baseRouteKey;
   const pickupRef = useRef(draft.pickup);
   const dropRef = useRef(draft.drop);
   pickupRef.current = draft.pickup;
@@ -105,7 +108,25 @@ export function BookingProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     const points = [pickup, ...routeStops, drop];
     Promise.all(points.slice(1).map((point, index) => getRoute(points[index]!, point, controller.signal)))
-      .then((legs) => !controller.signal.aborted && setRouteState({ key: routeKey, info: { distanceKm: legs.reduce((sum, leg) => sum + leg.distanceKm, 0), durationMin: legs.reduce((sum, leg) => sum + leg.durationMin, 0), path: legs.flatMap((leg) => leg.path), estimated: legs.some((leg) => leg.estimated) }, error: false }))
+      .then(async (legs) => {
+        const info: RouteInfo = {
+          distanceKm: legs.reduce((sum, leg) => sum + leg.distanceKm, 0),
+          durationMin: legs.reduce((sum, leg) => sum + leg.durationMin, 0),
+          path: legs.flatMap((leg) => leg.path),
+          estimated: legs.some((leg) => leg.estimated),
+        };
+        // A Round Trip always ends back at the pickup: the running distance is the way out through every stop to the
+        // drop plus the way back from the drop to the pickup (a drop that is the pickup already closes the circuit).
+        if (isRoundTrip) {
+          const closed = Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
+          const back = !closed && routeStops.length ? await getRoute(drop, pickup, controller.signal) : null;
+          const factor = !closed && !routeStops.length ? 2 : 1;
+          info.totalDistanceKm = (info.distanceKm + (back?.distanceKm ?? 0)) * factor;
+          info.totalDurationMin = (info.durationMin + (back?.durationMin ?? 0)) * factor;
+          if (back?.estimated) info.estimated = true;
+        }
+        if (!controller.signal.aborted) setRouteState({ key: routeKey, info, error: false });
+      })
       .catch(() => !controller.signal.aborted && setRouteState({ key: routeKey, info: null, error: true }));
     return () => controller.abort();
   }, [routeKey, routeTry]);
@@ -128,7 +149,7 @@ export function BookingProvider({ children }: { children: ReactNode }) {
       pickup: { id: pickup.id, name: pickup.name, address: pickup.address, lat: pickup.lat, lng: pickup.lng, type: pickup.type },
       drop: { id: drop.id, name: drop.name, address: drop.address, lat: drop.lat, lng: drop.lng, type: drop.type },
       stops: tripType === 'Round Trip' ? draft.stops.map((p) => ({ id: p.id, name: p.name, address: p.address, lat: p.lat, lng: p.lng, type: p.type })) : [],
-      tripType: draft.multicity && tripType === 'Round Trip' ? 'Multicity' : tripType,
+      tripType: draft.multicity && tripType === 'Round Trip' ? ('Multicity' as const) : tripType,
       scheduledAt: scheduledAt.toISOString(),
       tripEndAt: tripType === 'Round Trip' && tripEndAt ? tripEndAt.toISOString() : null,
       rentalHours: tripType === 'Local Rental' ? draft.rentalHours : null,

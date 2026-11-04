@@ -34,6 +34,9 @@ export function ChooseStep() {
   // The fuel chosen on each card (CNG is offered only on vehicles whose CNG rates the admin has saved).
   const [fuelPick, setFuelPick] = useState<Record<string, FuelChoice>>({});
   const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId } = draft;
+  // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
+  const sameAsPickup = !!pickup && !!drop && Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
+  const roundVia = tripType === 'Round Trip' ? [...draft.stops, ...(sameAsPickup || !drop ? [] : [drop])] : [];
 
   const groups = useMemo(() => {
     const present = new Set(categories.map(categoryGroup));
@@ -91,15 +94,15 @@ export function ChooseStep() {
                 <p className="route-title">
                   <span>{pickup.name}</span>
                   <Icon name="arrow-right" size={14} />
-                  <span>{drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
+                  <span>{tripType === 'Round Trip' ? pickup.name : drop.id === 'place-local-disposal' ? 'Within the city' : drop.name}</span>
                 </p>
-                {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
+                {roundVia.length ? <p className="trip-sum__when">Via {roundVia.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__meta">
                   <span>
                     <Badge tone="green">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
                   </span>
                   <span className="trip-sum__when">{when}</span>
-                  <span>{route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
+                  <span>{route ? `${formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about ${formatDuration(route.totalDurationMin ?? route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
                   {tripType === 'Round Trip' && tripEndAt ? <span>Return {formatDate(tripEndAt)}, {formatTime(tripEndAt)}</span> : null}
                 </p>
               </div>

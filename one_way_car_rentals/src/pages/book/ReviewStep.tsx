@@ -70,6 +70,9 @@ export function ReviewStep() {
     );
   }
 
+  // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
+  const sameAsPickup = Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
+  const roundVia = tripType === 'Round Trip' ? [...draft.stops, ...(sameAsPickup ? [] : [drop])] : [];
   const priceKey = JSON.stringify([pickup.lat, pickup.lng, drop.lat, drop.lng, tripType, scheduledAt?.toISOString() ?? null, category.id, q.coupon?.code, adjustment?.id, adjustment?.percent]);
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : q.quote;
   const breakup = q.breakup ?? buildFareBreakup(category, quote, q.outstation);
@@ -178,13 +181,13 @@ export function ReviewStep() {
                 <p className="route-title">
                   <span>{pickup.name}</span>
                   <Icon name="arrow-right" size={16} />
-                  <span>{drop.id === 'place-local-disposal' ? 'Within city limits' : drop.name}</span>
+                  <span>{tripType === 'Round Trip' ? pickup.name : drop.id === 'place-local-disposal' ? 'Within city limits' : drop.name}</span>
                 </p>
-                {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
+                {roundVia.length ? <p className="trip-sum__when">Via {roundVia.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__when">{when}</p>
               </div>
               <p className="trip-sum__meta">
-                {route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}` : ''}
+                {route ? `${formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about ${formatDuration(route.totalDurationMin ?? route.durationMin)}` : ''}
                 {tripType === 'Round Trip' && tripEndAt ? ` · Return ${formatDate(tripEndAt)}, ${formatTime(tripEndAt)}` : ''}
               </p>
             </section>
