@@ -21,7 +21,7 @@
 }
 .bf-services {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 8px;
   margin-top: 0;
   padding: 6px;
@@ -1013,7 +1013,7 @@
     box-shadow: 0 6px 20px -8px rgb(22 101 232 / 0.14);
   }
   .bf-services {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 4px;
     padding: 4px;
     border-radius: var(--r-md);

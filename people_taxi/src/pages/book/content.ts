@@ -179,14 +179,39 @@ export const QUICK_CITIES: GeoPlace[] = [
 ];
 
 
+/** Civil airports in the six states People Taxi serves, grouped by state (the state name is in each address, so searching a state lists its airports). */
+const airport = (id: string, name: string, address: string, lat: number, lng: number): GeoPlace => ({ ...place(id, name, address, lat, lng), type: 'airport' });
+
 export const AIRPORTS: GeoPlace[] = [
-  place('air-maa', 'Chennai International Airport (MAA)', 'Meenambakkam, Chennai, Tamil Nadu', 12.9941, 80.1709),
-  place('air-blr', 'Kempegowda International Airport (BLR)', 'Devanahalli, Bengaluru, Karnataka', 13.1986, 77.7066),
-  place('air-cjb', 'Coimbatore International Airport (CJB)', 'Peelamedu, Coimbatore, Tamil Nadu', 11.03, 77.0434),
-  place('air-mdu', 'Madurai Airport (IXM)', 'Madurai, Tamil Nadu', 9.8345, 78.0934),
-  place('air-trz', 'Tiruchirappalli International Airport (TRZ)', 'Trichy, Tamil Nadu', 10.7654, 78.7107),
-  place('air-cjy', 'Kozhikode Calicut Airport (CCJ)', 'Karipur, Kerala', 11.1369, 75.9553),
-  place('air-cok', 'Cochin International Airport (COK)', 'Nedumbassery, Kochi, Kerala', 10.1518, 76.4019),
+  // Tamil Nadu
+  airport('air-maa', 'Chennai International Airport (MAA)', 'Meenambakkam, Chennai, Tamil Nadu', 12.9941, 80.1709),
+  airport('air-cjb', 'Coimbatore International Airport (CJB)', 'Peelamedu, Coimbatore, Tamil Nadu', 11.03, 77.0434),
+  airport('air-mdu', 'Madurai Airport (IXM)', 'Madurai, Tamil Nadu', 9.8345, 78.0934),
+  airport('air-trz', 'Tiruchirappalli International Airport (TRZ)', 'Trichy, Tamil Nadu', 10.7654, 78.7107),
+  airport('air-sxv', 'Salem Airport (SXV)', 'Kamalapuram, Salem, Tamil Nadu', 11.7833, 78.0656),
+  airport('air-tcr', 'Tuticorin Airport (TCR)', 'Vagaikulam, Thoothukudi, Tamil Nadu', 8.7243, 78.0258),
+  // Kerala
+  airport('air-cok', 'Cochin International Airport (COK)', 'Nedumbassery, Kochi, Kerala', 10.1518, 76.4019),
+  airport('air-cjy', 'Kozhikode Calicut Airport (CCJ)', 'Karipur, Kerala', 11.1369, 75.9553),
+  airport('air-trv', 'Trivandrum International Airport (TRV)', 'Thiruvananthapuram, Kerala', 8.4821, 76.9201),
+  airport('air-cnn', 'Kannur International Airport (CNN)', 'Mattannur, Kannur, Kerala', 11.9186, 75.5472),
+  // Karnataka
+  airport('air-blr', 'Kempegowda International Airport (BLR)', 'Devanahalli, Bengaluru, Karnataka', 13.1986, 77.7066),
+  airport('air-ixe', 'Mangaluru International Airport (IXE)', 'Bajpe, Mangaluru, Karnataka', 12.9613, 74.8901),
+  airport('air-myq', 'Mysuru Airport (MYQ)', 'Mandakalli, Mysuru, Karnataka', 12.23, 76.6558),
+  airport('air-hbx', 'Hubballi Airport (HBX)', 'Hubballi, Karnataka', 15.3617, 75.0849),
+  airport('air-ixg', 'Belagavi Airport (IXG)', 'Sambra, Belagavi, Karnataka', 15.8593, 74.6183),
+  // Telangana
+  airport('air-hyd', 'Rajiv Gandhi International Airport (HYD)', 'Shamshabad, Hyderabad, Telangana', 17.2403, 78.4294),
+  // Puducherry
+  airport('air-pny', 'Puducherry Airport (PNY)', 'Lawspet, Puducherry', 11.968, 79.812),
+  // Andhra Pradesh
+  airport('air-vtz', 'Visakhapatnam Airport (VTZ)', 'Visakhapatnam, Andhra Pradesh', 17.7212, 83.2245),
+  airport('air-vga', 'Vijayawada Airport (VGA)', 'Gannavaram, Vijayawada, Andhra Pradesh', 16.5304, 80.7968),
+  airport('air-tir', 'Tirupati Airport (TIR)', 'Renigunta, Tirupati, Andhra Pradesh', 13.6325, 79.5433),
+  airport('air-rja', 'Rajahmundry Airport (RJA)', 'Madhurapudi, Rajahmundry, Andhra Pradesh', 17.1104, 81.8182),
+  airport('air-cdp', 'Kadapa Airport (CDP)', 'Kadapa, Andhra Pradesh', 14.51, 78.7728),
+  airport('air-kjb', 'Kurnool Airport (KJB)', 'Orvakal, Kurnool, Andhra Pradesh', 15.7117, 78.1647),
 ];
 
 export const isAirportPlace = (p: GeoPlace | null | undefined): boolean =>

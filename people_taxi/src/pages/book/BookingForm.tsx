@@ -24,7 +24,7 @@ import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { MulticityForm } from './MulticityForm';
 
-type Field = 'pickup' | 'drop' | 'stops' | 'date' | 'time' | 'form';
+type Field = 'pickup' | 'drop' | 'stops' | 'date' | 'time' | 'retDate' | 'retTime' | 'form';
 type Errors = Partial<Record<Field, string>>;
 export type AirportDirection = 'to' | 'from';
 
@@ -69,6 +69,7 @@ export function BookingForm({
   const { position } = useDeviceLocation(true);
   const { online } = useOnline();
   const { pickup, drop, scheduledAt, tripEndAt, tripType } = draft;
+  const isRound = service === 'outstation' && tripType === 'Round Trip';
 
   const [picker, setPicker] = useState<'pickup' | 'drop' | null>(null);
   const [stopPicker, setStopPicker] = useState<number | 'new' | null>(null);
@@ -106,11 +107,15 @@ export function BookingForm({
     const d = combineDateTime(date, time);
     if ((d?.getTime() ?? null) !== (scheduledAt?.getTime() ?? null)) update({ scheduledAt: d });
   }, [date, time]); // eslint-disable-line react-hooks/exhaustive-deps
-  // No return date is asked: a round trip is quoted from the pickup instant.
+  // Round trip: the return (when the trip ends) is a second date and time. It is the trip end the fare is counted to,
+  // so it must come after the pickup. A saved end equal to the pickup is an old default, not a choice: start empty.
+  const hasOwnEnd = !!tripEndAt && !!scheduledAt && tripEndAt.getTime() > scheduledAt.getTime();
+  const [depDate, setDepDate] = useState(() => (hasOwnEnd && tripEndAt ? toDateInput(tripEndAt) : ''));
+  const [depTime, setDepTime] = useState(() => (hasOwnEnd && tripEndAt ? toTimeInput(tripEndAt) : ''));
   useEffect(() => {
-    const d = tripType === 'Round Trip' ? combineDateTime(date, time) : null;
+    const d = isRound ? combineDateTime(depDate, depTime) : null;
     if ((d?.getTime() ?? null) !== (tripEndAt?.getTime() ?? null)) update({ tripEndAt: d });
-  }, [date, time, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [depDate, depTime, isRound]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recent = useMemo(() => {
     const seen = new Set<string>();
@@ -168,6 +173,13 @@ export function BookingForm({
       const points = [pickup, ...draft.stops, drop].filter((p): p is GeoPlace => p !== null);
       if (points.some((p, index) => index > 0 && haversineKm(points[index - 1]!, p) < 0.2)) e.stops = 'Consecutive itinerary locations cannot be the same.';
     }
+    if (isRound) {
+      const back = combineDateTime(depDate, depTime);
+      if (!depDate) e.retDate = 'Choose a return date (when your trip ends).';
+      else if (!depTime) e.retTime = 'Choose a return time (when your trip ends).';
+      else if (!back || (scheduledAt && back.getTime() <= scheduledAt.getTime())) e.retTime = 'The trip end must be after the pickup.';
+      else if (back.getTime() - Date.now() > (latestPickup().getTime() - Date.now()) + 7 * 86400000) e.retDate = 'Choose an earlier return date.';
+    }
     const at = combineDateTime(date, time);
     if (!date) e.date = 'Choose a pickup date.';
     else if (!time) e.time = 'Choose a pickup time.';
@@ -182,7 +194,7 @@ export function BookingForm({
     if (service === 'rental' && pickup && (!drop || drop.id !== 'place-local-disposal')) update({ drop: disposalFor(pickup) });
     const e = validate();
     setErrors(e);
-    const first = (['pickup', 'stops', 'drop', 'date', 'time'] as Field[]).find((f) => e[f]);
+    const first = (['pickup', 'stops', 'drop', 'date', 'time', 'retDate', 'retTime'] as Field[]).find((f) => e[f]);
     if (first) {
       refs.current[first]?.focus();
       refs.current[first]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -260,7 +272,7 @@ export function BookingForm({
         {SERVICES.map((s) => (
           <button key={s.id} type="button" className={`bf-service ${service === s.id ? 'is-active' : ''}`} aria-pressed={service === s.id} aria-controls="bf-form" onClick={() => onService(s.id)}>
             <span className="bf-service__icon">
-              <Icon name={s.icon} size={22} />
+              <Icon name={s.icon} size={s.id === 'multicity' ? 27 : s.id === 'airport' ? 25 : 22} />
             </span>
             <span>{s.label}</span>
           </button>
@@ -310,7 +322,7 @@ export function BookingForm({
               {fieldErr('pickup')}
               {service === 'rental' ? <p className="bf-hint">Pick your city, then search an address or drop the pin where the cab and driver should meet you.</p> : null}
             </div>
-            {service === 'outstation' && outstationTrip !== 'Round Trip' ? (
+            {(service === 'outstation' && outstationTrip !== 'Round Trip') || service === 'local' ? (
               <button
                 type="button"
                 className="bf-swap"
@@ -347,6 +359,7 @@ export function BookingForm({
               <div className="bf-route__cell">
                 {locationField('drop', service === 'airport' && direction === 'to' ? 'Drop airport' : 'Drop location')}
                 {fieldErr('drop')}
+                {service === 'local' ? <p className="bf-hint">Local Taxi is for a pickup and drop inside the same city.</p> : null}
               </div>
             ) : null}
           </div>
@@ -413,6 +426,57 @@ export function BookingForm({
             </div>
           </div>
 
+          {isRound ? (
+            <div className="bf-row">
+              <div className="bf-cell">
+                <label className="bf-label bf-label--out" htmlFor="bf-dep-date">
+                  Return date
+                </label>
+                <div className="bf-datewrap">
+                  <input
+                    ref={(el) => {
+                      refs.current.retDate = el;
+                    }}
+                    id="bf-dep-date"
+                    className="input bf-input"
+                    type="date"
+                    value={depDate}
+                    min={date || toDateInput(new Date())}
+                    aria-invalid={!!errors.retDate || undefined}
+                    aria-describedby={errors.retDate ? 'bf-retDate-err' : undefined}
+                    onChange={(e) => {
+                      setDepDate(e.target.value);
+                      setErrors((x) => ({ ...x, retDate: '', retTime: '' }));
+                    }}
+                  />
+                  {depDate ? <span className="bf-chip">{dayHint(depDate)}</span> : null}
+                </div>
+                {fieldErr('retDate')}
+              </div>
+              <div className="bf-cell">
+                <span className="bf-label bf-label--out" id="bf-dep-time-label">
+                  Return time
+                </span>
+                <button
+                  ref={(el) => {
+                    refs.current.retTime = el;
+                  }}
+                  type="button"
+                  className={`bf-time ${depTime ? '' : 'is-empty'}`}
+                  aria-labelledby="bf-dep-time-label bf-dep-time-value"
+                  aria-invalid={!!errors.retTime || undefined}
+                  aria-describedby={errors.retTime ? 'bf-retTime-err' : undefined}
+                  onClick={() => setTimeFor('return')}
+                >
+                  <span id="bf-dep-time-value">{depTime ? formatTime12(depTime) : ''}</span>
+                  <ClockIcon size={26} />
+                </button>
+                {fieldErr('retTime')}
+              </div>
+            </div>
+          ) : null}
+          {isRound ? <p className="bf-hint">Return date and time is when your round trip ends.</p> : null}
+
           {errors.form ? (
             <p className="bf-error bf-error--form" role="alert">
               {errors.form}
@@ -439,15 +503,20 @@ export function BookingForm({
       {stopPicker !== null ? <LocationPicker config={{ title: stopPicker === 'new' ? 'Add itinerary stop' : `Edit stop ${stopPicker + 1}`, allowCurrent: true, popular: QUICK_CITIES, popularLabel: 'Popular locations', near: pickup ?? position, pinMode: 'drop' }} saved={savedPlaces} recent={recent} onClose={() => setStopPicker(null)} onSelect={(place) => { update((d) => ({ stops: stopPicker === 'new' ? [...d.stops, place] : d.stops.map((stop, index) => index === stopPicker ? place : stop) })); setErrors((e) => ({ ...e, stops: '', form: '' })); setStopPicker(null); }} /> : null}
       {timeFor ? (
         <TimePicker
-          title="Pickup time"
-          date={date}
-          value={time}
-          validate="pickup"
-          notBefore={null}
+          title={timeFor === 'return' ? 'Return time' : 'Pickup time'}
+          date={timeFor === 'return' ? depDate : date}
+          value={timeFor === 'return' ? depTime : time}
+          validate={timeFor === 'return' ? 'after' : 'pickup'}
+          notBefore={timeFor === 'return' ? scheduledAt : null}
           onClose={() => setTimeFor(null)}
           onConfirm={(t) => {
-            setTime(t);
-            setErrors((x) => ({ ...x, time: '' }));
+            if (timeFor === 'return') {
+              setDepTime(t);
+              setErrors((x) => ({ ...x, retTime: '' }));
+            } else {
+              setTime(t);
+              setErrors((x) => ({ ...x, time: '' }));
+            }
             setTimeFor(null);
           }}
         />

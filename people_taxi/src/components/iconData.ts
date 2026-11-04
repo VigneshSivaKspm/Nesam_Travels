@@ -59,4 +59,14 @@ export const TRAVEL_ICONS: Record<string, string> = {
   landmark: '<polygon points="12 2 2 7 22 7 12 2"/><line x1="4" x2="4" y1="7" y2="17"/><line x1="8" x2="8" y1="7" y2="17"/><line x1="12" x2="12" y1="7" y2="17"/><line x1="16" x2="16" y1="7" y2="17"/><line x1="20" x2="20" y1="7" y2="17"/><path d="M2 17h20v4H2z"/>',
   temple: '<path d="m12 2 3 4H9l3-4zm0 4v2M5 8h14l-1 4H6L5 8zm-2 4h18v2H3v-2zm2 2v6h2v-6H5zm5 0v6h4v-6h-4zm7 0v6h2v-6h-2zM2 20h20v2H2v-2z"/>',
   hill: '<path d="m2 20 7-12 5 8 3-5 5 9H2z"/>',
+  // Outstation: a signpost with two arrow boards pointing opposite ways, one way and round trip. Used by Outstation.
+  'outstation': '<path d="M4 3.5h11.2L19 7l-3.8 3.5H4z" fill="currentColor" stroke="none"/><path d="M20 12.5H8.8L5 16l3.8 3.5H20z" fill="currentColor" stroke="none" fill-opacity=".55"/><path d="M12 2v1.4M12 10.6v1.9M12 19.6V22"/>',
+  // Multicity: a skyline of three cities joined by one route over the rooftops. Used by Multicity.
+  'multicity-route': '<rect x="2.8" y="12" width="5.2" height="9" rx="1.2" fill="currentColor" stroke="none" fill-opacity=".55"/><rect x="9.4" y="8" width="5.2" height="13" rx="1.2" fill="currentColor" stroke="none"/><rect x="16" y="14" width="5.2" height="7" rx="1.2" fill="currentColor" stroke="none" fill-opacity=".55"/><path d="M5.4 9.4C7.4 5 9.6 3.8 12 5.2s5.2 1.4 6.6 6.2"/><circle cx="5.4" cy="9.4" r="1.5" fill="currentColor" stroke="none"/><circle cx="12" cy="5" r="1.5" fill="currentColor" stroke="none"/><circle cx="18.6" cy="11.4" r="1.5" fill="currentColor" stroke="none"/>',
+  // Airport: a solid jet climbing away on a dotted flight path. Used by Airport Taxi.
+  'jet': '<g transform="rotate(45 12 12)"><path d="M12 2c1.1 0 1.8.9 1.8 2.3v5.2l7.2 4.3v2.1l-7.2-2.1v3.7l2 1.6V21l-3.8-.9-3.8.9v-1.5l2-1.6v-3.7L3 15.9v-2.1l7.2-4.3V4.3C10.2 2.9 10.9 2 12 2z" fill="currentColor" stroke="none"/></g><path d="M3 19.5c2.6.1 5.2-.8 7-3" stroke-dasharray="1.6 2.4"/>',
+  // Car with a clock at the upper right: hourly rental with a driver. Used by Rental.
+  'car-clock': '<path d="M2.5 17.5v-3c0-.8.5-1.4 1.2-1.7l2-.8 1.6-3A1.8 1.8 0 0 1 8.9 8h3.6"/><path d="M14 12.4h2.8c1.7 0 2.7 1.2 2.7 2.8v2.3"/><path d="M2.5 17.5h2.7M8.8 17.5h4.4M16.8 17.5h2.7M10 8v4.6"/><circle cx="7" cy="17.5" r="1.8"/><circle cx="15" cy="17.5" r="1.8"/><circle cx="17" cy="7" r="4.2"/><path d="M17 4.8V7l1.6 1.2"/>',
+  // Taxi on a route: a cab with a roof lamp above a wavy route line that has a dot at each end. Used by Local Taxi.
+  'taxi-route': '<path d="M10.5 2.6h3v1.8h-3z"/><path d="M3.5 14V11.8l2-.8 1.7-3.3A1.6 1.6 0 0 1 8.6 6.8h6.8a1.6 1.6 0 0 1 1.4.9L18.5 11l2 .8V14"/><path d="M6 11h12M3.5 14H5M9.5 14h5M19 14h1.5"/><circle cx="7.3" cy="14.4" r="1.8"/><circle cx="16.7" cy="14.4" r="1.8"/><path d="M5.6 20.2c2-2.6 3.5-2.6 6.4 0s4.4 2.6 6.4 0"/><circle cx="4" cy="20.2" r="1.2"/><circle cx="20" cy="20.2" r="1.2"/>',
 };

@@ -1,7 +1,7 @@
-// Service taxonomy for People Taxi: Outstation, Airport Taxi, Local Rental, Multicity.
+// Service taxonomy for People Taxi: Outstation, Airport Taxi, Local Rental, Multicity, Local Taxi.
 import type { TripType } from '@core/types';
 
-export type ServiceId = 'outstation' | 'airport' | 'rental' | 'multicity';
+export type ServiceId = 'outstation' | 'airport' | 'rental' | 'multicity' | 'local';
 
 export interface ServiceMeta {
   id: ServiceId;
@@ -19,7 +19,7 @@ export const SERVICES: readonly ServiceMeta[] = [
     tagline: 'One-way drops & round trips at fixed rates',
     tripType: 'One Way',
     online: true,
-    icon: 'car',
+    icon: 'outstation',
   },
   {
     id: 'airport',
@@ -27,15 +27,15 @@ export const SERVICES: readonly ServiceMeta[] = [
     tagline: 'Pickup & drop at all South India airports',
     tripType: 'Airport Taxi',
     online: true,
-    icon: 'plane',
+    icon: 'jet',
   },
   {
     id: 'rental',
-    label: 'Local Rental',
+    label: 'Rental',
     tagline: 'Hourly city disposal packages with driver',
     tripType: 'Local Rental',
     online: true,
-    icon: 'clock',
+    icon: 'car-clock',
   },
   {
     id: 'multicity',
@@ -43,7 +43,16 @@ export const SERVICES: readonly ServiceMeta[] = [
     tagline: 'Custom multi-stop itineraries & tour packages',
     tripType: null,
     online: true,
-    icon: 'multicity',
+    icon: 'multicity-route',
+  },
+  {
+    // Pickup and drop inside one city: the server prices it from that city's Local Pickup & Drop fare.
+    id: 'local',
+    label: 'Local Taxi',
+    tagline: 'City pickup & drop within your city',
+    tripType: 'One Way',
+    online: true,
+    icon: 'taxi-route',
   },
 ] as const;
 
@@ -52,10 +61,11 @@ export const SERVICE_TITLE: Record<ServiceId, string> = {
   airport: 'Airport Taxi',
   rental: 'Local City Rental',
   multicity: 'Multicity Tour & Itinerary',
+  local: 'Local Taxi',
 };
 
 export const parseService = (raw: string | null): ServiceId | null => {
-  if (raw === 'outstation' || raw === 'airport' || raw === 'rental' || raw === 'multicity') return raw;
+  if (raw === 'outstation' || raw === 'airport' || raw === 'rental' || raw === 'multicity' || raw === 'local') return raw;
   if (raw === 'one-way' || raw === 'round-trip') return 'outstation';
   return null;
 };

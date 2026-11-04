@@ -336,7 +336,7 @@
     flex: 0 1 auto;
     min-width: 0;
   }
-  /* Phone bottom bar: a flat white strip with the four services and Account. */
+  /* Phone bottom bar: a flat white strip with the five services. */
   .tabbar {
     position: fixed;
     left: 0;
@@ -391,7 +391,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-  /* Header icons (My trips, Notifications) */
+  /* Header icons (Notifications) */
   .icon-btn.is-active {
     background: var(--brand-soft);
     color: var(--brand);

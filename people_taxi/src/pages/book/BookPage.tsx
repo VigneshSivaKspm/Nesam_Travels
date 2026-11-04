@@ -105,7 +105,9 @@ function Home() {
     const wanted: TripType =
       service === 'airport'
         ? 'Airport Taxi'
-        : service === 'rental'
+        : service === 'local'
+          ? 'One Way'
+          : service === 'rental'
           ? 'Local Rental'
           : outstationTrip === 'Round Trip'
             ? 'Round Trip'

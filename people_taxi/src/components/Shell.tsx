@@ -39,17 +39,16 @@ const NAV = [
 ] as const;
 
 /** Desktop header links. Account lives in the profile menu there. On phones the bottom bar holds the four
-    services and Account, and the header holds My trips and Notifications. */
+    services, and the header holds Notifications. Account and My trips are in the side menu. */
 const TOP_NAV = [NAV[0], NAV[1], { to: '/offers', label: 'Offers', short: 'Offers', icon: 'offers' }, NAV[2]] as const;
 
 /** Active booking flow pages where the phone bottom tab bar steps aside for the sticky FlowBar. */
 const FLOW = [/^\/book\/(ride|confirm|done\/[^/]+)$/, /^\/ride\//, /^\/trips\/[^/]+$/];
 const IMMERSIVE = [/^\/ride\//, /^\/trips\/[^/]+$/];
-const ACCOUNT_PATHS = /^\/(account|trips|offers|legal)(\/|$)/;
 
-/** Phone bottom bar: the four services (each opens the booking form on that service) and Account. */
-/** The bottom bar: Outstation, the main service, sits in the middle (raised and filled). */
-const BAR_ORDER: ServiceId[] = ['airport', 'rental', 'outstation', 'multicity'];
+/** Phone bottom bar: the five services, each opening the booking form on that service. Outstation, the main
+    service, is raised and filled in the middle. */
+const BAR_ORDER: ServiceId[] = ['airport', 'multicity', 'outstation', 'rental', 'local'];
 const barServices = () => BAR_ORDER.flatMap((id) => SERVICES.find((s) => s.id === id) ?? []);
 
 function BottomNav() {
@@ -58,24 +57,17 @@ function BottomNav() {
   const { draft } = useBooking();
   const onHome = location.pathname === '/book' || location.pathname === '/';
   const current: ServiceId | null = onHome ? (parseService(params.get('service')) ?? serviceOfTrip(draft.tripType)) : null;
-  const accountActive = ACCOUNT_PATHS.test(location.pathname);
 
   return (
-    <nav className="tabbar" aria-label="Services and account">
+    <nav className="tabbar" aria-label="Services">
       {barServices().map((s) => (
         <Link key={s.id} to={serviceHref(s.id)} className={`tabbar__link ${s.id === 'outstation' ? 'tabbar__link--main' : ''} ${current === s.id ? 'is-active' : ''}`} aria-current={current === s.id ? 'page' : undefined}>
           <span className="tabbar__icon">
-            <Icon name={s.icon} size={22} />
+            <Icon name={s.icon} size={s.id === 'outstation' ? 30 : s.id === 'multicity' ? 28 : s.id === 'airport' ? 26 : 22} />
           </span>
           <span className="tabbar__label">{s.label}</span>
         </Link>
       ))}
-      <Link to="/account" className={`tabbar__link ${accountActive ? 'is-active' : ''}`} aria-current={accountActive ? 'page' : undefined}>
-        <span className="tabbar__icon">
-          <Icon name="profile" size={22} />
-        </span>
-        <span className="tabbar__label">Account</span>
-      </Link>
     </nav>
   );
 }
@@ -431,9 +423,6 @@ export function Shell() {
               </Button>
             ) : (
               <>
-                <NavLink to="/trips" className={({ isActive }) => `icon-btn ${isActive ? 'is-active' : ''}`} aria-label="My trips" title="My trips">
-                  <Icon name="trip-history" size={20} />
-                </NavLink>
                 <NavLink
                   to="/notifications"
                   className={({ isActive }) => `icon-btn icon-btn--badge ${isActive ? 'is-active' : ''}`}

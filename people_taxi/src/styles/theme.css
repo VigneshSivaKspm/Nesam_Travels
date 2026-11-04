@@ -2094,10 +2094,10 @@ html[data-hero-logo='in'] .topbar .brand {
     max-width: 420px;
     margin: 0;
   }
-  /* In a narrow card the four services sit in two rows, so none is squeezed. */
+  /* In a narrow card the five services sit in rows of three, so none is squeezed. */
   .home-hero > .bf .bf-services {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 6px;
   }
 }
@@ -2147,11 +2147,11 @@ html[data-hero-logo='in'] .topbar .brand {
   }
 }
 
-/* Desktop form card: the four services in one row, each with the icon above and the name below. */
+/* Desktop form card: the five services in one row, each with the icon above and the name below. */
 @media (min-width: 1000px) {
   .home-hero > .bf .bf-services {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     gap: 6px;
     padding: 6px;
     border-radius: 20px;

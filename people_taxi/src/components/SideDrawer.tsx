@@ -14,6 +14,7 @@ interface MenuLink {
 const QUICK: { to: string; label: string; icon: string }[] = [
   { to: '/book', label: 'Book a ride', icon: 'car' },
   { to: '/trips', label: 'My trips', icon: 'trip-history' },
+  { to: '/account', label: 'Account', icon: 'profile' },
   { to: '/offers', label: 'Offers', icon: 'offers' },
   { to: '/support', label: 'Help & support', icon: 'help' },
 ];
