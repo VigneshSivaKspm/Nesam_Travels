@@ -226,7 +226,8 @@ export function ChooseStep() {
                     We couldn’t confirm fares with NESAM. The amounts below are estimates; you can continue once the fare is confirmed.
                   </Notice>
                 ) : null}
-                {categories.some((c) => q.entries.get(c.id)?.cng) ? <FuelBar value={fuelAll} onChange={chooseFuelAll} /> : null}
+                <FuelBar value={fuelAll} onChange={chooseFuelAll} />
+                {fuelAll === 'cng' && !q.quoteLoading && shown.length === 0 ? <p className="cab__na">No cab type offers CNG for this trip yet. Choose Diesel / Petrol.</p> : null}
                 <h2 className="sr-only" id="cabs-h">
                   Available cabs
                 </h2>

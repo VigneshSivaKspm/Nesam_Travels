@@ -78,7 +78,6 @@ export function ChooseRideScreen() {
   const entryOf = (id?: string) => server?.quotes.find((x) => x.categoryId === id);
   const selectedEntry = entryOf(selected?.id);
   // CNG is offered only on the cab types the admin enabled it for; choosing CNG lists just those.
-  const anyCng = !!server?.quotes.some((x) => x.ok && x.cng);
   const listed = fuelCng ? categories.filter((c) => !!entryOf(c.id)?.cng) : categories;
   const noCngHere = fuelCng && !!selectedEntry?.ok && !selectedEntry.cng;
   const canContinue = !!route && !!selectedQuote && !tooFar && !!server && !!entryOf(selected?.id)?.ok && !noCngHere;
@@ -133,7 +132,7 @@ export function ChooseRideScreen() {
         {/* Cab cards */}
         <Content style={{ gap: 12 }}>
           {/* Fuel: Diesel / Petrol or CNG for the whole list */}
-          {anyCng ? <View style={styles.fuelRow} accessibilityRole="radiogroup">
+          <View style={styles.fuelRow} accessibilityRole="radiogroup">
             {([['', 'Diesel / Petrol'], ['cng', 'CNG']] as const).map(([value, label]) => {
               const active = draft.fuelType === value;
               return (
@@ -149,7 +148,8 @@ export function ChooseRideScreen() {
                 </Pressable>
               );
             })}
-          </View> : null}
+          </View>
+          {fuelCng && !quoteLoading && !!server && listed.length === 0 ? <Text style={styles.unavail}>No cab type offers CNG for this trip yet. Choose Diesel / Petrol.</Text> : null}
           {listed.map((c) => {
             const on = selected?.id === c.id;
             const quote = quotes.get(c.id);

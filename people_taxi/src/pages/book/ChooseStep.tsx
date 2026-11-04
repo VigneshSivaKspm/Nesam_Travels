@@ -134,7 +134,8 @@ export function ChooseStep() {
             </div>
 
 
-            {categories.some((c) => q.entries.get(c.id)?.cng) ? <FuelBar value={fuelAll} onChange={chooseFuelAll} /> : null}
+            <FuelBar value={fuelAll} onChange={chooseFuelAll} />
+            {fuelAll === 'cng' && !q.quoteLoading && shown.length === 0 ? <p className="cab__na">No cab type offers CNG for this trip yet. Choose Diesel / Petrol.</p> : null}
             <div className="cabs" role="radiogroup" aria-label="Available cabs">
               {categoryStatus === 'loading' && categories.length === 0 ? (
                 <>
