@@ -56,7 +56,8 @@ export interface CategoryEstimate {
 
 /** Local "YYYY-MM-DDTHH:mm" India time → the value the booking form expects. */
 export const tripPickupAt = (t: QuickTrip) => (t.date && t.time ? `${t.date}T${t.time}` : "");
-export const tripEndAt = (t: QuickTrip) => (t.tripType === "Round Trip" && t.endDate ? `${t.endDate}T${t.endTime || "20:00"}` : "");
+// A Multicity quote has no return date: it is priced for the pickup day.
+export const tripEndAt = (t: QuickTrip) => (t.tripType !== "Round Trip" ? "" : t.multicity && t.date ? `${t.date}T23:59` : t.endDate ? `${t.endDate}T${t.endTime || "20:00"}` : "");
 
 /** The booking-form view of a trip (customer fields left empty for a quote). */
 export function tripToForm(t: QuickTrip, categoryId: string, base: ManualBookingForm = emptyManualBooking()): ManualBookingForm {
@@ -144,7 +145,7 @@ export function validateTrip(t: QuickTrip): string | null {
   if (!t.date || !t.time) return "Choose the pickup date and time.";
   const at = tripPickupDate(t);
   if (!at || at.getTime() < Date.now() + 30 * 60000) return "Pickup must be at least 30 minutes from now.";
-  if (t.tripType === "Round Trip" && !t.endDate) return "Choose when the trip ends.";
+  if (t.tripType === "Round Trip" && !t.multicity && !t.endDate) return "Choose when the trip ends.";
   if (t.tripType === "Airport Taxi" && t[airportSide(t)]?.type !== "airport") return `Choose the airport as the ${airportSide(t)} for this transfer.`;
   return null;
 }
@@ -419,7 +420,7 @@ export function TripFields({ trip, set, data, compact, idPrefix, action, allowed
           <label htmlFor={`${idPrefix}-time`}>{compact ? "Time · IST" : "Pickup time * · IST"}</label>
           <TimeSelect id={`${idPrefix}-time`} label="Pickup time" value={trip.time} onChange={(time) => set({ time })} />
         </div>
-        {trip.tripType === "Round Trip" && (
+        {trip.tripType === "Round Trip" && !trip.multicity && (
           <>
             <label className="ds-field"><span>Return date *</span><input className="ds-input" type="date" min={trip.date || today} value={trip.endDate} onChange={(e) => set({ endDate: e.target.value })} /></label>
             <div className="ds-field">
