@@ -268,8 +268,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   type NavItem = { key: string; label: string; hint: string; icon: IconName; on?: boolean; opens?: boolean; go: () => void; disabledReason?: string };
   const navGroups: { title: string; items: NavItem[] }[] = [
     { title: "Prices", items: [
-      { key: "base", label: "Base rates", hint: "Price per km, driver allowance, partner pay and CNG", icon: "calculator", on: !inlineKind && tab === "Brand & service fares", go: () => changeTab("Brand & service fares") },
-      { key: "extra", label: "Extra charges", hint: "Waiting, hill and roof carrier charges", icon: "receipt-text", go: () => { setFocusExtras(true); changeTab("Brand & service fares"); } },
+      { key: "base", label: "Base rates", hint: "Price per km, driver allowance, partner pay, CNG and extra charges", icon: "calculator", on: !inlineKind && tab === "Brand & service fares", go: () => changeTab("Brand & service fares") },
       { key: "tax", label: "GST & tax", hint: "How GST is worked out and shown", icon: "files", on: !inlineKind && tab === "GST calculation", go: () => changeTab("GST calculation") },
     ] },
     { title: "Special fares", items: [
