@@ -87,6 +87,8 @@ export function ReviewStep() {
     );
   }
 
+  // Display only: a higher struck-out price above the fare (set in admin → Pricing → Base rates).
+  const strikeOf = (draft.fuelType === 'cng' ? q.entries.get(category.id)?.cng?.strikeTotal : q.entries.get(category.id)?.strikeTotal) ?? 0;
   const priceKey = JSON.stringify([
     pickup.lat,
     pickup.lng,
@@ -302,7 +304,10 @@ export function ReviewStep() {
                     <Icon name="info" size={18} />
                   </button>
                 </span>
-                <strong className="num">{formatINR(quote.total)}</strong>
+                <span style={{ display: "grid", justifyItems: "end" }}>
+                  {strikeOf > 0 ? <s className="cab__strike">{formatINR(strikeOf)}</s> : null}
+                  <strong className="num">{formatINR(quote.total)}</strong>
+                </span>
               </div>
 
               <ul className="rv-sum__notes">

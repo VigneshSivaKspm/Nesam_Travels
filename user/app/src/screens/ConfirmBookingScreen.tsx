@@ -122,6 +122,8 @@ export function ConfirmBookingScreen() {
   const cngEntry = draft.fuelType === 'cng' ? authoritativeEntry?.cng ?? null : null;
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : cngEntry?.fare ?? authoritativeEntry?.fare ?? localQuote;
   const outstation = isOutstation(route.distanceKm);
+  // Display only: a higher struck-out price above the fare.
+  const strikeTotal = (cngEntry ? cngEntry.strikeTotal : authoritativeEntry?.strikeTotal) ?? 0;
 
   const emailError = email.trim() && !EMAIL_RE.test(email.trim()) ? 'Enter a valid email address or leave blank.' : '';
   const waError = whatsappProblem(waSame, waCode, waNumber);
@@ -226,7 +228,10 @@ export function ConfirmBookingScreen() {
               <Text style={styles.totalLabel}>Total fare</Text>
               <Text style={styles.gstNote}>GST included</Text>
             </View>
-            <Text style={styles.total}>{formatINR(quote.total)}</Text>
+            <View style={{ alignItems: 'flex-end' }}>
+              {strikeTotal > 0 ? <Text style={{ fontSize: 14, color: '#697587', opacity: 0.55, textDecorationLine: 'line-through' }}>{formatINR(strikeTotal)}</Text> : null}
+              <Text style={styles.total}>{formatINR(quote.total)}</Text>
+            </View>
           </View>
           <TextButton title="View fare details" onPress={() => setFareOpen(true)} size={12} style={{ alignSelf: 'flex-start', marginTop: 6 }} />
         </View>

@@ -551,7 +551,9 @@ service cloud.firestore {
     }
 
     match /vehicle_categories/{catId} {
-      allow read: if isSignedIn();
+      // Active categories are the public list of cab types the booking pages show, so a visitor who has not signed in yet
+      // sees the real categories (not the built-in defaults). Inactive ones stay visible to signed-in users only.
+      allow read: if isSignedIn() || resource.data.status == 'Active';
       allow write: if can('pricing');
     }
 

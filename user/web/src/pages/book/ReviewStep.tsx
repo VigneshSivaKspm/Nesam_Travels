@@ -75,6 +75,8 @@ export function ReviewStep() {
     );
   }
 
+  // Display only: a higher struck-out price above the fare (set in admin → Pricing → Base rates).
+  const strikeOf = (draft.fuelType === 'cng' ? q.entries.get(category.id)?.cng?.strikeTotal : q.entries.get(category.id)?.strikeTotal) ?? 0;
   const priceKey = JSON.stringify([pickup.lat, pickup.lng, drop.lat, drop.lng, tripType, scheduledAt?.toISOString() ?? null, category.id, q.coupon?.code, adjustment?.id, adjustment?.percent]);
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : q.quote;
   const breakup = q.breakup ?? buildFareBreakup(category, quote, q.outstation);
@@ -193,7 +195,10 @@ export function ReviewStep() {
             View fare details
           </button>
         </div>
-        <strong className="num rv-sum__amount">{formatINR(quote.total)}</strong>
+        <span style={{ display: "grid", justifyItems: "end" }}>
+          {strikeOf > 0 ? <s className="cab__strike">{formatINR(strikeOf)}</s> : null}
+          <strong className="num rv-sum__amount">{formatINR(quote.total)}</strong>
+        </span>
       </div>
     </section>
   );

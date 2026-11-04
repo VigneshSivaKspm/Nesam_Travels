@@ -2936,8 +2936,9 @@ html[data-hero-logo='in'] .ride-chip {
 .cab__strike {
   display: block;
   color: var(--muted, #697587);
+  opacity: 0.55;
   font-size: 0.8125rem;
-  font-weight: 600;
+  font-weight: 500;
   line-height: 1.2;
   text-decoration: line-through;
   text-decoration-thickness: 1.5px;

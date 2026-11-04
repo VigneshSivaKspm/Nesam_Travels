@@ -73,6 +73,8 @@ export function ReviewStep() {
   // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
   const sameAsPickup = Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
   const roundVia = tripType === 'Round Trip' ? [...draft.stops, ...(sameAsPickup ? [] : [drop])] : [];
+  // Display only: a higher struck-out price above the fare (set in admin → Pricing → Base rates).
+  const strikeOf = (draft.fuelType === 'cng' ? q.entries.get(category.id)?.cng?.strikeTotal : q.entries.get(category.id)?.strikeTotal) ?? 0;
   const priceKey = JSON.stringify([pickup.lat, pickup.lng, drop.lat, drop.lng, tripType, scheduledAt?.toISOString() ?? null, category.id, q.coupon?.code, adjustment?.id, adjustment?.percent]);
   const quote = serverQuote?.key === priceKey ? serverQuote.fare : q.quote;
   const breakup = q.breakup ?? buildFareBreakup(category, quote, q.outstation);
@@ -205,6 +207,7 @@ export function ReviewStep() {
                   <strong>{categoryName(category)}{draft.fuelType === 'cng' ? ' (CNG)' : ''}</strong>
                   <p className="muted small">{category.seats} passengers · AC · Driver driven</p>
                   <p className="review-car__price num">
+                    {strikeOf > 0 ? <s className="cab__strike">{formatINR(strikeOf)}</s> : null}
                     <strong>{formatINR(quote.total)}</strong>
                   </p>
                   <p className="muted small">Includes base fare, driver bata &amp; discounts</p>
@@ -316,7 +319,10 @@ export function ReviewStep() {
               <h3 className="flow-card__title">Total Payable</h3>
               <div className="flow-card__price-row">
                 <span>Trip Fare</span>
-                <strong className="num">{formatINR(quote.total)}</strong>
+                <span style={{ display: "grid", justifyItems: "end" }}>
+                  {strikeOf > 0 ? <s className="cab__strike">{formatINR(strikeOf)}</s> : null}
+                  <strong className="num">{formatINR(quote.total)}</strong>
+                </span>
               </div>
               <p className="muted small">Tolls, parking and state permits paid separately to the driver against physical slips.</p>
 
