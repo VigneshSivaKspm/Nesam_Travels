@@ -12,8 +12,11 @@ import { gstComponents, withFareGst, validGstRule, type FareGstPolicies, type Gs
 import { FareBreakdown } from './types';
 import { ExtraChargesConfig, ExtraChargesSnapshot, parseExtraCharges } from './extraCharges';
 
-export type TariffClass = 'sedan' | 'suv' | 'innova' | 'crysta';
-export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'innova', 'crysta'];
+// 'suv' is SUV 6+1 and 'suv7' is SUV 7+1. Like Innova, a class with no rates of its own keeps using the SUV rates (see classRates).
+export type TariffClass = 'sedan' | 'suv' | 'suv7' | 'innova' | 'crysta';
+export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'suv7', 'innova', 'crysta'];
+/** Classes that price at the SUV rates until they have rates of their own. */
+export const FALLS_BACK_TO_SUV = (c: TariffClass): boolean => c === 'innova' || c === 'suv7';
 
 /**
  * One-way / round-trip / city-drop rates of a class. Tariffs saved before 'innova' existed priced Innova
@@ -21,7 +24,7 @@ export const TARIFF_CLASSES: readonly TariffClass[] = ['sedan', 'suv', 'innova',
  * an Innova rate is saved). The local-fare and rental-package sections never inherit.
  */
 export function classRates<T>(m: Partial<Record<TariffClass, T>>, c: TariffClass): T | undefined {
-  return m[c] ?? (c === 'innova' ? m.suv : undefined);
+  return m[c] ?? (FALLS_BACK_TO_SUV(c) ? m.suv : undefined);
 }
 
 /** Rupees → paise, rejecting anything that is not a finite non-negative number. */
@@ -75,7 +78,7 @@ export interface RentalPackage { customerFare: number; partnerPayout: number; in
 /** `packages` is keyed by the hour count ("4", "6", …). */
 export interface RentalClassConfig { minHours?: number; packages: Partial<Record<string, RentalPackage>> }
 /** Minimum rental hours of a category that has none saved yet. */
-export const DEFAULT_RENTAL_MIN_HOURS: Readonly<Record<TariffClass, number>> = { sedan: 4, suv: 4, innova: 4, crysta: 10 };
+export const DEFAULT_RENTAL_MIN_HOURS: Readonly<Record<TariffClass, number>> = { sedan: 4, suv: 4, suv7: 4, innova: 4, crysta: 10 };
 
 /** Brand-scoped fare override for a specific service and vehicle class. */
 export interface BrandFareOverride {
@@ -442,7 +445,7 @@ export function scopedTariffForBrand(
 
 /** Airport transfer rates of a class in an (already scoped) tariff: the per-class settings, else the older shared base fares. */
 export function airportRatesFor(cfg: TariffConfig, cls: TariffClass): AirportClassRates {
-  return cfg.airportClasses?.[cls] ?? (cls === 'innova' ? cfg.airportClasses?.suv : undefined) ?? { customerBase: cfg.airport?.customerBase, partnerBase: cfg.airport?.partnerBase };
+  return cfg.airportClasses?.[cls] ?? (FALLS_BACK_TO_SUV(cls) ? cfg.airportClasses?.suv : undefined) ?? { customerBase: cfg.airport?.customerBase, partnerBase: cfg.airport?.partnerBase };
 }
 
 /** The airport rates of a class when every one needed to quote is configured; null otherwise. */
@@ -658,7 +661,7 @@ function toBreakdown(args: {
 export function outstationExtraFor(cfg: TariffConfig, cls: TariffClass, trip: 'One Way' | 'Round Trip'): OutstationExtra | undefined {
   const specific = trip === 'One Way' ? cfg.oneWayExtras : cfg.roundTripExtras;
   return specific?.[cls] ?? cfg.outstationExtras?.[cls]
-    ?? (cls === 'innova' ? specific?.suv ?? cfg.outstationExtras?.suv : undefined);
+    ?? (FALLS_BACK_TO_SUV(cls) ? specific?.suv ?? cfg.outstationExtras?.suv : undefined);
 }
 
 /** The rate card a trip is priced on: the class's normal one, or its CNG card when the customer chose CNG. */

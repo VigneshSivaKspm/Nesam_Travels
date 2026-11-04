@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { subscribeToDocument } from "./adminFirestoreService";
 
 /** Vehicle classes the tariff prices. Innova has its own rates only once saved; until then it is priced at the SUV rates. */
-export type TariffClass = "sedan" | "suv" | "innova" | "crysta";
-export const TARIFF_CLASSES: readonly TariffClass[] = ["sedan", "suv", "innova", "crysta"];
-export const CLASS_LABEL: Record<TariffClass, string> = { sedan: "Sedan", suv: "SUV", innova: "Innova", crysta: "Innova Crysta" };
+// "suv" is SUV 6+1 and "suv7" is SUV 7+1; a class with no rates of its own (Innova, SUV 7+1) uses the SUV rates.
+export type TariffClass = "sedan" | "suv" | "suv7" | "innova" | "crysta";
+export const TARIFF_CLASSES: readonly TariffClass[] = ["sedan", "suv", "suv7", "innova", "crysta"];
+export const FALLS_BACK_TO_SUV = (c: TariffClass): boolean => c === "innova" || c === "suv7";
+export const CLASS_LABEL: Record<TariffClass, string> = { sedan: "Sedan", suv: "SUV 6+1", suv7: "SUV 7+1", innova: "Innova", crysta: "Innova Crysta" };
 
 export const RENTAL_HOURS = [4, 6, 8, 10, 12] as const;
 /** Minimum rental hours of a category that has none saved yet (the server applies the same default). */
-export const DEFAULT_RENTAL_MIN_HOURS: Record<TariffClass, number> = { sedan: 4, suv: 4, innova: 4, crysta: 10 };
+export const DEFAULT_RENTAL_MIN_HOURS: Record<TariffClass, number> = { sedan: 4, suv: 4, suv7: 4, innova: 4, crysta: 10 };
 
 export interface OneWayRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number }
 export interface RoundTripRates extends OneWayRates { minKmPerDay: number }
@@ -104,7 +106,7 @@ export interface Tariff {
 export function outstationExtraFor(t: Tariff | null | undefined, cls: TariffClass, trip: "One Way" | "Round Trip") {
   const specific = trip === "One Way" ? t?.oneWayExtras : t?.roundTripExtras;
   return specific?.[cls] ?? t?.outstationExtras?.[cls]
-    ?? (cls === "innova" ? specific?.suv ?? t?.outstationExtras?.suv : undefined);
+    ?? (FALLS_BACK_TO_SUV(cls) ? specific?.suv ?? t?.outstationExtras?.suv : undefined);
 }
 
 /** Live tariff document: undefined = loading, null = nothing saved yet. */

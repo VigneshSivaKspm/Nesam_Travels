@@ -24,8 +24,10 @@ export interface SeoProps {
   schema?: object | object[];
 }
 
-export const PRIMARY_DOMAIN = 'nesamcabs.com';
-export const PRIMARY_BASE_URL = 'https://nesamcabs.com';
+// One canonical host. Every other NESAM domain (see SUPPORTED_DOMAINS) redirects here with a 301 (vercel.json), so search engines
+// see a single site, one sitemap and one robots.txt. The apex nesamcabs.com is redirected to www by the hosting.
+export const PRIMARY_DOMAIN = 'www.nesamcabs.com';
+export const PRIMARY_BASE_URL = 'https://www.nesamcabs.com';
 export const BASE_URL = PRIMARY_BASE_URL;
 
 export const SUPPORTED_DOMAINS = [
@@ -41,17 +43,13 @@ export type SupportedDomain = (typeof SUPPORTED_DOMAINS)[number];
 
 export const ALL_BRAND_URLS: string[] = SUPPORTED_DOMAINS.map((d) => `https://${d}/`);
 
-export function getActiveDomain(): SupportedDomain {
-  if (typeof window !== 'undefined' && window.location && window.location.hostname) {
-    const host = window.location.hostname.toLowerCase().replace(/^www\./, '');
-    const matched = SUPPORTED_DOMAINS.find((d) => d === host);
-    if (matched) return matched;
-  }
+/** The canonical host: other domains redirect to it, so canonical URLs never follow the visitor's host. */
+export function getActiveDomain(): string {
   return PRIMARY_DOMAIN;
 }
 
 export function getActiveBaseUrl(): string {
-  return `https://${getActiveDomain()}`;
+  return PRIMARY_BASE_URL;
 }
 
 export const DEFAULT_DESCRIPTION =
@@ -178,16 +176,10 @@ export function updateSeo({
   // Canonical Link
   setCanonical(canonicalUrl);
 
-  // Multi-Domain Alternates & Hreflang
+  // Language alternates: one canonical site serves every language.
   const cleanPath = relativePath === '/' ? '' : relativePath;
-  setAlternateTag('x-default', `https://nesamcabs.com${cleanPath || '/'}`);
-  setAlternateTag('en-IN', `https://nesamcabs.in${cleanPath || '/'}`);
-  setAlternateTag('ta-IN', `https://nesamcabs.in${cleanPath || '/'}`);
-
-  // Cross-domain alternate links for all 6 supported domains
-  for (const domain of SUPPORTED_DOMAINS) {
-    setAlternateTag(null, `https://${domain}${cleanPath || '/'}`);
-  }
+  setAlternateTag('x-default', `${PRIMARY_BASE_URL}${cleanPath || '/'}`);
+  setAlternateTag('en-IN', `${PRIMARY_BASE_URL}${cleanPath || '/'}`);
 
   // Open Graph
   setMetaTag('property', 'og:title', fullTitle);

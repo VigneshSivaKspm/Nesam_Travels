@@ -293,17 +293,18 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const pill = (key: string, label: string, on: boolean, onClick: () => void) => (
     <button key={key} type="button" className={`fs-pill ${on ? "is-on" : ""}`} aria-pressed={on} onClick={onClick}>{label}</button>
   );
-  // The vehicle row lists the active vehicle categories. Rates are kept per vehicle class, so categories of one class (SUV 6+1 and
-  // SUV 7+1) edit the same SUV rates. Before the categories load, the four classes are shown.
+  // The vehicle row lists the active vehicle categories. Each one has its own rate class (Sedan, SUV 6+1, SUV 7+1, Innova, Innova Crysta);
+  // SUV 7+1 and Innova use the SUV 6+1 rates until they are given their own. Before the categories load, the classes are shown.
   const classOfCategory = (c: VehicleCategory): TariffClass => {
     const saved = String((c as unknown as { tariffClass?: unknown }).tariffClass ?? "").toLowerCase() as TariffClass;
     if (TARIFF_CLASSES.includes(saved)) return saved;
     const name = (c.name || "").toLowerCase();
     if (/crysta/.test(name)) return "crysta";
     if (/innova/.test(name)) return "innova";
-    if (/(suv|xuv|ertiga|marazzo|carens|xl6|scorpio|fortuner|muv|mpv)/.test(name)) return "suv";
+    const seats = c.seatingCapacity || 0;
+    if (/(suv|xuv|ertiga|marazzo|carens|xl6|scorpio|fortuner|muv|mpv)/.test(name)) return seats >= 7 || /7\s*\+\s*1/.test(name) ? "suv7" : "suv";
     if (/(sedan|dzire|etios|aura|verna|mini|hatch|micro|swift|wagon|alto|auto)/.test(name)) return "sedan";
-    return (c.seatingCapacity || 0) >= 7 ? "suv" : (c.seatingCapacity || 0) >= 6 ? "suv" : "sedan";
+    return seats >= 7 ? "suv7" : seats >= 6 ? "suv" : "sedan";
   };
   const activeCats = categories.filter((c) => c.status === "Active").sort((a, b) => (a.displayOrder || 99) - (b.displayOrder || 99));
   const vehicleChoices: { key: string; label: string; cls: TariffClass; shared: boolean }[] = activeCats.length
@@ -381,7 +382,6 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
       {!inlineKind && tab !== "Service areas" && <>
       {tab !== "Brand & service fares" && tab !== "GST calculation" && <>
         {locationFilter}
-        <div className="u27-context"><span><Icon name="map-pin" />{where}</span><small>Existing confirmed fares and accepted partner payouts are retained.</small></div>
         <section className="u28-overview" aria-label="Current location settings">
           <header><strong><Icon name="map-pin" />{where}</strong><span>Rules active now · IST</span></header>
           {!loaded ? <p role="status">Loading current settings…</p> : loadError ? <p role="alert">Current settings could not be loaded.</p> : <>

@@ -22,7 +22,7 @@ const ROBOTS_DIR = path.resolve(PUBLIC_DIR, 'robots');
 const TODAY = new Date().toISOString().split('T')[0];
 
 export const DOMAINS = [
-  { domain: 'nesamcabs.com', name: 'NESAM Cabs', tld: 'com', isPrimary: true },
+  { domain: 'www.nesamcabs.com', name: 'NESAM Cabs', tld: 'com', isPrimary: true },
   { domain: 'nesamcabs.in', name: 'NESAM Cabs India', tld: 'in' },
   { domain: 'nesamtravels.com', name: 'NESAM Travels', tld: 'com' },
   { domain: 'nesamtravels.in', name: 'NESAM Travels India', tld: 'in' },
@@ -294,11 +294,6 @@ function generateDomainSitemap(domainObj) {
     xml += `    <changefreq>${entry.changefreq}</changefreq>\n`;
     xml += `    <priority>${entry.priority}</priority>\n`;
 
-    // Multi-domain hreflang alternate links
-    xml += `    <xhtml:link rel="alternate" hreflang="x-default" href="https://nesamcabs.com/${entry.path}" />\n`;
-    xml += `    <xhtml:link rel="alternate" hreflang="en-IN" href="https://nesamcabs.in/${entry.path}" />\n`;
-    xml += `    <xhtml:link rel="alternate" hreflang="ta-IN" href="https://nesamcabs.in/${entry.path}" />\n`;
-
     if (entry.images && entry.images.length > 0) {
       for (const img of entry.images) {
         xml += `    <image:image>\n`;
@@ -425,9 +420,6 @@ Disallow: /book/confirm
 
 # Sitemap Directives for Google Search Console & Bing Webmaster Tools
 Sitemap: https://${domain}/sitemap.xml
-Sitemap: https://${domain}/sitemaps/sitemap-${domain.replace(/\./g, '-')}.xml
-Sitemap: https://${domain}/sitemaps/sitemap-index.xml
-Host: https://${domain}
 `;
 }
 
@@ -444,46 +436,21 @@ function escapeXml(unsafe) {
 }
 
 export function generateAll() {
-  if (!fs.existsSync(SITEMAPS_DIR)) fs.mkdirSync(SITEMAPS_DIR, { recursive: true });
-  if (!fs.existsSync(ROBOTS_DIR)) fs.mkdirSync(ROBOTS_DIR, { recursive: true });
+  // One site: www.nesamcabs.com. The other NESAM domains redirect to it (vercel.json), so there is one sitemap and one robots.txt,
+  // written at the site root where search engines look for them.
+  const primary = DOMAINS.find((d) => d.isPrimary) ?? DOMAINS[0];
+  console.log(`Generating SEO assets for ${primary.domain}...`);
 
-  console.log(`Generating Multi-Domain SEO assets for ${DOMAINS.length} domains...`);
+  fs.writeFileSync(path.join(PUBLIC_DIR, 'sitemap.xml'), generateDomainSitemap(primary), 'utf-8');
+  console.log('  ✓ Generated sitemap: public/sitemap.xml');
+  fs.writeFileSync(path.join(PUBLIC_DIR, 'robots.txt'), generateDomainRobots(primary), 'utf-8');
+  console.log('  ✓ Generated robots.txt: public/robots.txt');
 
-  // 1. Generate individual domain sitemaps & robots
-  for (const d of DOMAINS) {
-    const slug = d.domain.replace(/\./g, '-');
+  // Older per-domain files and the sitemap index are no longer used.
+  for (const dir of [SITEMAPS_DIR, ROBOTS_DIR]) fs.rmSync(dir, { recursive: true, force: true });
+  fs.rmSync(path.join(PUBLIC_DIR, 'sitemap-index.xml'), { force: true });
 
-    // Sitemap
-    const sitemapContent = generateDomainSitemap(d);
-    const sitemapPath = path.join(SITEMAPS_DIR, `sitemap-${slug}.xml`);
-    fs.writeFileSync(sitemapPath, sitemapContent, 'utf-8');
-    console.log(`  ✓ Generated sitemap: public/sitemaps/sitemap-${slug}.xml`);
-
-    // Robots.txt
-    const robotsContent = generateDomainRobots(d);
-    const robotsPath = path.join(ROBOTS_DIR, `robots-${slug}.txt`);
-    fs.writeFileSync(robotsPath, robotsContent, 'utf-8');
-    console.log(`  ✓ Generated robots.txt: public/robots/robots-${slug}.txt`);
-
-    // If primary domain, also mirror to public/sitemap.xml
-    if (d.isPrimary) {
-      fs.writeFileSync(path.join(PUBLIC_DIR, 'sitemap.xml'), sitemapContent, 'utf-8');
-      console.log(`  ✓ Mirrored primary sitemap to public/sitemap.xml`);
-    }
-  }
-
-  // 2. Generate master Sitemap Index
-  const indexContent = generateSitemapIndex();
-  fs.writeFileSync(path.join(SITEMAPS_DIR, 'sitemap-index.xml'), indexContent, 'utf-8');
-  fs.writeFileSync(path.join(PUBLIC_DIR, 'sitemap-index.xml'), indexContent, 'utf-8');
-  console.log(`  ✓ Generated global sitemap index: public/sitemaps/sitemap-index.xml & public/sitemap-index.xml`);
-
-  // 3. Generate primary root robots.txt
-  const rootRobots = generateDomainRobots(DOMAINS[0]);
-  fs.writeFileSync(path.join(PUBLIC_DIR, 'robots.txt'), rootRobots, 'utf-8');
-  console.log(`  ✓ Updated root robots.txt: public/robots.txt`);
-
-  console.log('Multi-domain SEO asset generation complete.');
+  console.log('SEO asset generation complete.');
 }
 
 // Execute if run directly

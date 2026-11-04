@@ -10,118 +10,6 @@
   "outputDirectory": "dist",
   "rewrites": [
     {
-      "source": "/sitemap.xml",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamcabs\\.in.*)"
-        }
-      ],
-      "destination": "/sitemaps/sitemap-nesamcabs-in.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamcabs\\.in.*)"
-        }
-      ],
-      "destination": "/robots/robots-nesamcabs-in.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtravels\\.com.*)"
-        }
-      ],
-      "destination": "/sitemaps/sitemap-nesamtravels-com.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtravels\\.com.*)"
-        }
-      ],
-      "destination": "/robots/robots-nesamtravels-com.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtravels\\.in.*)"
-        }
-      ],
-      "destination": "/sitemaps/sitemap-nesamtravels-in.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtravels\\.in.*)"
-        }
-      ],
-      "destination": "/robots/robots-nesamtravels-in.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtoursandtravels\\.com.*)"
-        }
-      ],
-      "destination": "/sitemaps/sitemap-nesamtoursandtravels-com.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtoursandtravels\\.com.*)"
-        }
-      ],
-      "destination": "/robots/robots-nesamtoursandtravels-com.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtoursandtravels\\.in.*)"
-        }
-      ],
-      "destination": "/sitemaps/sitemap-nesamtoursandtravels-in.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "has": [
-        {
-          "type": "host",
-          "value": "(?<domain>.*nesamtoursandtravels\\.in.*)"
-        }
-      ],
-      "destination": "/robots/robots-nesamtoursandtravels-in.txt"
-    },
-    {
-      "source": "/sitemap.xml",
-      "destination": "/sitemaps/sitemap-nesamcabs-com.xml"
-    },
-    {
-      "source": "/robots.txt",
-      "destination": "/robots/robots-nesamcabs-com.txt"
-    },
-    {
-      "source": "/sitemap-index.xml",
-      "destination": "/sitemaps/sitemap-index.xml"
-    },
-    {
       "source": "/:verification(google[a-zA-Z0-9_-]+\\.html)",
       "destination": "/:verification"
     },
@@ -183,7 +71,7 @@
       ]
     },
     {
-      "source": "/(robots.txt|robots/.*)",
+      "source": "/robots.txt",
       "headers": [
         {
           "key": "Content-Type",
@@ -196,7 +84,7 @@
       ]
     },
     {
-      "source": "/(sitemap.xml|sitemap-index.xml|sitemaps/.*)",
+      "source": "/sitemap.xml",
       "headers": [
         {
           "key": "Content-Type",
@@ -225,6 +113,30 @@
           "value": "public, max-age=86400"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?:www\\.)?(?:nesamcabs\\.in|nesamtravels\\.com|nesamtravels\\.in|nesamtoursandtravels\\.com|nesamtoursandtravels\\.in)"
+        }
+      ],
+      "destination": "https://www.nesamcabs.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "nesamcabs\\.com"
+        }
+      ],
+      "destination": "https://www.nesamcabs.com/:path*",
+      "permanent": true
     }
   ]
 }

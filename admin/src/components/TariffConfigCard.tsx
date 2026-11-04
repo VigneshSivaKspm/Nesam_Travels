@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveTariffConfig, saveTariffSection } from "../services/bookingOpsService";
 import { ActionError } from "../services/callables";
-import { CLASS_LABEL, TARIFF_CLASSES, outstationExtraFor, useTariff, type Tariff, type TariffClass, type Zone } from "../services/tariffService";
+import { CLASS_LABEL, FALLS_BACK_TO_SUV, TARIFF_CLASSES, outstationExtraFor, useTariff, type Tariff, type TariffClass, type Zone } from "../services/tariffService";
 import { useCan } from "./AccessContext";
 import { Field, Notice, inputCls, primaryBtn, secondaryBtn } from "./FormKit";
 
@@ -109,7 +109,7 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
       const r = form.rows[c];
       const savedHere = !!t?.oneWay?.classes?.[c] || !!t?.roundTrip?.classes?.[c];
       if (isBlank(r)) {
-        if (savedHere && c !== "innova") return `${CLASS_LABEL[c]} rates cannot be cleared once saved. Enter its rates.`;
+        if (savedHere && !FALLS_BACK_TO_SUV(c)) return `${CLASS_LABEL[c]} rates cannot be cleared once saved. Enter its rates.`;
         continue;
       }
       for (const [k, label, , zeroOk] of ALL_COLS) {
@@ -131,7 +131,7 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
     for (const c of TARIFF_CLASSES) {
       const r = form.rows[c], n = (k: RowKey) => toNum(r[k]);
       if (isBlank(r)) {
-        if (c === "innova" && (t?.oneWay?.classes?.innova || t?.roundTrip?.classes?.innova || t?.outstationExtras?.innova || t?.oneWayExtras?.innova || t?.roundTripExtras?.innova)) classes[c] = null;
+        if (FALLS_BACK_TO_SUV(c) && (t?.oneWay?.classes?.[c] || t?.roundTrip?.classes?.[c] || t?.outstationExtras?.[c] || t?.oneWayExtras?.[c] || t?.roundTripExtras?.[c])) classes[c] = null;
         continue;
       }
       classes[c] = {
@@ -222,7 +222,7 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
       <input
         type="number" inputMode="decimal" min={0} step="0.01" value={form.rows[c][k]} disabled={locked}
         onChange={(e) => setCell(c, k, e.target.value)} aria-label={`${CLASS_LABEL[c]} · ${label} (${unit})`}
-        placeholder={c === "innova" ? "SUV rate" : "Not configured"} className={`${inputCls} w-[104px] tabular-nums`}
+        placeholder={FALLS_BACK_TO_SUV(c) ? "SUV rate" : "Not configured"} className={`${inputCls} w-[104px] tabular-nums`}
       />
     </td>
   );
@@ -238,7 +238,7 @@ export default function TariffConfigCard({ onDirtyChange, onBusyChange }: { onDi
           <tr key={c} className="border-t border-line-soft">
             <th scope="row" className="sticky left-0 bg-white px-3 py-1.5 text-left font-semibold text-ink">
               {CLASS_LABEL[c]}
-              {c === "innova" && <span className="block text-[11px] font-normal text-muted">{isBlank(form.rows.innova) ? "Uses the SUV rates" : "Own rates"}</span>}
+              {FALLS_BACK_TO_SUV(c) && <span className="block text-[11px] font-normal text-muted">{isBlank(form.rows[c]) ? "Uses the SUV 6+1 rates" : "Own rates"}</span>}
             </th>
             {cols.map((col) => cell(c, col))}
           </tr>

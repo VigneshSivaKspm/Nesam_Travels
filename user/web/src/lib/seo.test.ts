@@ -19,16 +19,16 @@ describe('Multi-Domain SEO Utilities', () => {
       'nesamtoursandtravels.com',
       'nesamtoursandtravels.in',
     ]);
-    expect(PRIMARY_DOMAIN).toBe('nesamcabs.com');
-    expect(PRIMARY_BASE_URL).toBe('https://nesamcabs.com');
+    expect(PRIMARY_DOMAIN).toBe('www.nesamcabs.com');
+    expect(PRIMARY_BASE_URL).toBe('https://www.nesamcabs.com');
     expect(ALL_BRAND_URLS).toHaveLength(6);
     expect(ALL_BRAND_URLS).toContain('https://nesamcabs.in/');
     expect(ALL_BRAND_URLS).toContain('https://nesamtoursandtravels.com/');
   });
 
-  it('resolves primary domain when window is undefined or untrusted hostname', () => {
-    expect(getActiveDomain()).toBe('nesamcabs.com');
-    expect(getActiveBaseUrl()).toBe('https://nesamcabs.com');
+  it('always uses the canonical host', () => {
+    expect(getActiveDomain()).toBe('www.nesamcabs.com');
+    expect(getActiveBaseUrl()).toBe('https://www.nesamcabs.com');
   });
 
   it('builds breadcrumb JSON-LD schema with correct URLs and positions', () => {

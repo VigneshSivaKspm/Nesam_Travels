@@ -13,7 +13,7 @@ import Enquiries from "../components/booking/Enquiries";
 import { effectiveStatus, subscribeEnquiries, type Enquiry } from "../services/enquiryService";
 import { paymentOf } from "../domain/bookingFlow";
 import {
-  OFFICE_STAGES, agreedPayoutOf, assignmentDeadline, bookingTabOf, customerGroups, fareOf, matchesTripType, officeStageOf, officeStatusLabel, refDate, refTime, type OfficeStage,
+  OFFICE_STAGES, TRIP_TABS, agreedPayoutOf, assignmentDeadline, bookingTabOf, customerGroups, fareOf, matchesTripType, officeStageOf, officeStatusLabel, refDate, refTime, tripTabOf, type OfficeStage, type TripTab,
 } from "../domain/officeStage";
 import { useCan } from "../components/AccessContext";
 import { Badge, Button, DataTable, EmptyState, Icon, PageHeader, TableSkeleton, toneForStatus } from "../components/ui";
@@ -60,6 +60,7 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
   useEffect(() => subscribeEnquiries((rows) => setNewEnquiries(rows.filter((e) => effectiveStatus(e) === "New").length)), []);
   const [f, setF] = useState<Filters>(NO_FILTERS);
   const [sort, setSort] = useState<Sort>("earliest");
+  const [tripTab, setTripTab] = useState<TripTab>("All trips");
   const [moreFilters, setMoreFilters] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [sheet, setSheet] = useState<Sheet>(null);
@@ -99,6 +100,7 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
       if (f.date === "Tomorrow" && day !== tomorrow) return false;
       if (f.date === "Date range" && ((f.from && day < f.from) || (f.to && day > f.to))) return false;
       if (!matchesTripType(b, f.type)) return false;
+      if (tripTab !== "All trips" && tripTabOf(b) !== tripTab) return false;
       if (f.group !== "All" && groups.get(b.id) !== f.group) return false;
       if (f.category && (b.vehicleCategory || b.vehicle) !== f.category) return false;
       if (f.payment && paymentOf(b).status !== f.payment) return false;
@@ -111,9 +113,15 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
       return rows.sort((a, b) => late(a) - late(b) || t(a) - t(b));
     }
     return rows.sort((a, b) => (sort === "latest" ? t(b) - t(a) : t(a) - t(b)));
-  }, [inStage, f, sort, groups, now, ops.warningHours]);
+  }, [inStage, f, sort, tripTab, groups, now, ops.warningHours]);
 
-  const paging = usePaging(filtered, [stage, f, sort]);
+  const tripCounts = useMemo(() => {
+    const c: Record<TripTab, number> = { "All trips": inStage.length, "One Way": 0, "Round Trip": 0, "Local Rental": 0, Multicity: 0, "Airport Taxi": 0 };
+    for (const b of inStage) c[tripTabOf(b)]++;
+    return c;
+  }, [inStage]);
+
+  const paging = usePaging(filtered, [stage, f, sort, tripTab]);
   const filtersActive = JSON.stringify(f) !== JSON.stringify(NO_FILTERS);
   const hiddenActive = Boolean(f.category || f.payment || f.channel);
 
@@ -247,6 +255,13 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
         }
       />
 
+      <StageBar
+        label="Trip type"
+        tabs={TRIP_TABS.map((t) => ({ id: t, label: t, count: tripCounts[t] }))}
+        value={tripTab}
+        onChange={(t) => { setTripTab(t); setExpanded(null); }}
+      />
+
       <div className="ds-filterbar" role="search">
         <div className="ds-search" style={{ flex: "1 1 320px" }}>
           <Icon name="search" />
@@ -256,12 +271,6 @@ export default function Bookings({ onSelectBooking, initialTab, onNewBooking, on
           <span>Pickup date</span>
           <select value={f.date} onChange={(e) => setF({ ...f, date: e.target.value as Filters["date"] })} className="ds-select" aria-label="Pickup date">
             {["All", "Today", "Tomorrow", "Date range"].map((x) => <option key={x}>{x}</option>)}
-          </select>
-        </label>
-        <label className="ds-field">
-          <span>Trip type</span>
-          <select value={f.type} onChange={(e) => setF({ ...f, type: e.target.value })} className="ds-select" aria-label="Trip type">
-            {["All", "One Way", "Round Trip", "Multi-stop", "Package"].map((x) => <option key={x}>{x}</option>)}
           </select>
         </label>
         <label className="ds-field">

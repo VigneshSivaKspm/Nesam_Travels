@@ -66,6 +66,20 @@ export function tripTypeOf(b: Pick<Booking, "service" | "serviceType" | "tripTyp
   return "One Way";
 }
 
+/** The trip-type tabs on Bookings. */
+export const TRIP_TABS = ["All trips", "One Way", "Round Trip", "Local Rental", "Multicity", "Airport Taxi"] as const;
+export type TripTab = (typeof TRIP_TABS)[number];
+
+/** Which trip-type tab a booking belongs to. A Multicity tour is stored as a Round Trip tagged Multicity, so that is checked first. */
+export function tripTabOf(b: Pick<Booking, "service" | "serviceType" | "tripType">): Exclude<TripTab, "All trips"> {
+  const s = [b.tripType, b.serviceType, b.service, (b as { tourType?: string }).tourType];
+  if (has(/airport/i, ...s)) return "Airport Taxi";
+  if (has(/multi/i, ...s)) return "Multicity";
+  if (has(/round/i, ...s)) return "Round Trip";
+  if (has(/rental|hour/i, ...s)) return "Local Rental";
+  return "One Way";
+}
+
 /** Service family under the trip type: Outstation · Airport · Local. */
 export function serviceFamilyOf(b: Pick<Booking, "service" | "serviceType" | "tripType">): string {
   const s = [b.tripType, b.serviceType, b.service];

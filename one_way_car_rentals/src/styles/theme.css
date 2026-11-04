@@ -2210,3 +2210,34 @@ html[data-hero-logo='in'] .ride-chip {
   font-size: 0.75rem;
   line-height: 1.4;
 }
+
+/* Multicity "Add stop": the same compact pill as the Round Trip form. */
+.bf .bf-multicity .bf-route__tools {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+.bf .bf-multicity .bf-round-stop-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 38px;
+  margin: 0;
+  padding: 0 18px;
+  border: 1.5px solid color-mix(in srgb, var(--bfx, var(--brand, #1665e8)) 35%, #d9dfe9);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink, #20252d);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.bf .bf-multicity .bf-round-stop-add svg {
+  color: var(--bfx, var(--brand, #1665e8));
+}
+.bf .bf-multicity .bf-round-stop-add.is-invalid {
+  border-color: var(--danger, #d92d20);
+}

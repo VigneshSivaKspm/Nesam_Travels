@@ -4,6 +4,7 @@ import {
   BrandFareOverride,
   BrandId,
   CLASS_LABEL,
+  FALLS_BACK_TO_SUV,
   DEFAULT_RENTAL_MIN_HOURS,
   RENTAL_HOURS,
   RateValue,
@@ -208,10 +209,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, fuel = 
   // Compute common baseline reference values for comparison
   // Baselines exactly as the server inherits them (Innova uses the SUV card until it has its own). resolveRate then layers
   // the Common service setting and the brand's own on top.
-  const commonOW = t?.oneWay?.classes?.[selectedClass] ?? (selectedClass === "innova" ? t?.oneWay?.classes?.suv : undefined);
+  const commonOW = t?.oneWay?.classes?.[selectedClass] ?? (FALLS_BACK_TO_SUV(selectedClass) ? t?.oneWay?.classes?.suv : undefined);
   // Round Trip uses its own card; Multicity inherits the Round Trip card (a multi-day tour is billed the same way).
   const commonRT: { customerRate?: number; partnerRate?: number; minKmPerDay?: number; customerBata?: number; partnerBata?: number } | undefined =
-    t?.roundTrip?.classes?.[selectedClass] ?? (selectedClass === "innova" ? t?.roundTrip?.classes?.suv : undefined);
+    t?.roundTrip?.classes?.[selectedClass] ?? (FALLS_BACK_TO_SUV(selectedClass) ? t?.roundTrip?.classes?.suv : undefined);
   const commonExtras = selectedService === "One Way" ? outstationExtraFor(t, selectedClass, "One Way")
     : selectedService === "Round Trip" || selectedService === "Multicity" ? outstationExtraFor(t, selectedClass, "Round Trip")
     : undefined;

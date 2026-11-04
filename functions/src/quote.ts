@@ -52,7 +52,7 @@ export function tariffClassOf(category: { tariffClass?: unknown; dutyClass?: unk
   const duty: DutyClass | null = dutyClassOf(category);
   if (!duty) return null;
   // Innova has its own class; until an Innova rate is saved it is priced at the SUV rate (see classRates).
-  return duty === 'sedan' ? 'sedan' : duty === 'crysta' ? 'crysta' : duty === 'innova' ? 'innova' : 'suv';
+  return duty === 'sedan' ? 'sedan' : duty === 'crysta' ? 'crysta' : duty === 'innova' ? 'innova' : duty === 'suv7' ? 'suv7' : 'suv';
 }
 
 /**

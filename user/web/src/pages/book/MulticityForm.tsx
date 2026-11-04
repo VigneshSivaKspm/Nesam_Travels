@@ -2,7 +2,7 @@
 // return schedule. "Let's Go" turns it into a booking draft (a Round Trip through those cities, priced from the Multicity
 // rates) and opens the normal flow: cabs with their fares, review, then Confirm booking.
 import { useEffect, useMemo, useState } from 'react';
-import { ClockIcon, PinIcon } from '@/components/CabParts';
+import { ClockIcon } from '@/components/CabParts';
 import { useNavigate } from 'react-router-dom';
 import type { GeoPlace } from '@core/types';
 import { scheduleProblem } from '@core/utils/bookingRules';
@@ -284,9 +284,11 @@ export function MulticityForm() {
           </div>
         ))}
         {cities.length < MAX_CITIES ? (
-          <button type="button" className={`bf-add-city ${errors.stops ? 'is-invalid' : ''}`} onClick={() => setPickerTarget('new')}>
-            <PinIcon size={20} /> Add stop
-          </button>
+          <div className="bf-route__tools">
+            <button type="button" className={`bf-round-stop-add ${errors.stops ? 'is-invalid' : ''}`} onClick={() => setPickerTarget('new')}>
+              <Icon name="plus" size={16} /> Add stop
+            </button>
+          </div>
         ) : null}
         {errors.stops ? <p className="bf-error">{errors.stops}</p> : null}
 
