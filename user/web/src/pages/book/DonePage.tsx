@@ -12,8 +12,8 @@ import { Icon } from '@/components/Icon';
 import { useSeo } from '@/lib/seo';
 import { useBooking } from '@/state/Booking';
 import { tripTypeLabel } from '@/lib/services';
-import { BookingCelebration } from '@/components/BookingCelebration';
 import { BookingConfirmedOverlay } from '@/components/BookingConfirmedOverlay';
+import './done.css';
 
 function headline(t: TripRecord): { title: string; text: string; tone: 'pending' | 'ok' | 'bad' } {
   if (t.status === 'Rejected') return { title: 'Booking not accepted', text: 'NESAM could not accept this booking request. Nothing has been charged.', tone: 'bad' };
@@ -127,76 +127,92 @@ export function DonePage() {
         />
       ) : null}
       <div className="wrap flow-page__wrap">
-        <div className="done">
-          <div className="done__hero">
-            {h.tone === 'bad' ? <JourneyArt done={false} /> : <BookingCelebration label={h.title} logo={{ src: '/nesam/logo.webp', alt: 'NESAM Cabs' }} />}
+        <div className="dn">
+          <section className={`dn-hero dn-hero--${h.tone}`}>
+            <i className="dn-hero__spark" aria-hidden="true" />
+            <i className="dn-hero__spark" aria-hidden="true" />
+            <i className="dn-hero__spark" aria-hidden="true" />
+            <i className="dn-hero__spark" aria-hidden="true" />
+            {h.tone !== 'bad' ? (
+              <div className="dn-scene" aria-hidden="true">
+                <span className="dn-scene__stop" />
+                <span className="dn-scene__road" />
+                <span className="dn-scene__trail" />
+            <svg className="dn-scene__car" viewBox="0 0 120 52" focusable="false">
+              <path className="body" d="M6 36c0-4 2-6 6-7l14-3 14-14c2-2 4-3 7-3h26c4 0 7 1 9 4l11 13 12 3c4 1 6 3 6 7v4c0 2-2 4-4 4h-8a11 11 0 0 0-22 0H46a11 11 0 0 0-22 0H10c-2 0-4-2-4-4Z" />
+              <path className="glass" d="M40 26l9-10c1-1 2-2 4-2h22c2 0 3 1 4 2l8 10Z" />
+              <rect className="lamp" x="108" y="30" width="7" height="5" rx="2" />
+              <circle className="tyre" cx="35" cy="42" r="8.5" />
+              <circle className="tyre" cx="95" cy="42" r="8.5" />
+              <circle className="hub" cx="35" cy="42" r="3" />
+              <circle className="hub" cx="95" cy="42" r="3" />
+            </svg>
+                <span className="dn-scene__pin" />
+              </div>
+            ) : null}
             <h1>{h.title}</h1>
-            <p>{pending ? 'Sending your request…' : h.text}</p>
-            <p className="done__saved">
-              <Icon name="shield-check" size={14} /> Your trip is saved in My Bookings.
+            <p className="dn-hero__text">{pending ? 'Sending your request…' : h.text}</p>
+            <p className="dn-hero__saved">
+              <Icon name="shield-check" size={14} /> Your trip is saved in My Bookings
             </p>
-          </div>
+          </section>
 
-          <section className="ticket" aria-label="Trip summary">
-            <header className="ticket__head">
-              <span className="ticket__brand">NESAM</span>
-              <span>Trip summary</span>
-            </header>
-            <div className="ticket__body">
-              <div className="ticket__id">
-                <span>Booking ID</span>
+          <section className="dn-ticket" aria-label="Trip summary">
+            <header className="dn-ticket__head">
+              <span className="dn-ticket__brand">NESAM</span>
+              <span className="dn-ticket__id">
+                <small>Booking ID</small>
                 <strong className="num">{trip.bookingId}</strong>
+              </span>
+            </header>
+            <ol className="dn-trip">
+              <li>
+                <small>Pickup</small>
+                <strong>{trip.pickup.name}</strong>
+              </li>
+              <li>
+                <small>Drop</small>
+                <strong>{trip.drop.id === 'place-local-disposal' ? 'Within the city' : trip.drop.name}</strong>
+              </li>
+            </ol>
+            <div className="dn-facts">
+              <div className="dn-fact">
+                <Icon name="calendar" size={18} />
+                <span>
+                  <small>Pickup date</small>
+                  <strong>{at ? formatDate(at) : '—'}</strong>
+                </span>
               </div>
-              <ol className="ticket__route">
-                <li>
-                  <span className="ticket__dot" aria-hidden="true" />
-                  <small>Pickup location</small>
-                  <strong>{trip.pickup.name}</strong>
-                </li>
-                <li>
-                  <span className="ticket__dot ticket__dot--drop" aria-hidden="true" />
-                  <small>Drop location</small>
-                  <strong>{trip.drop.id === 'place-local-disposal' ? 'Within the city' : trip.drop.name}</strong>
-                </li>
-              </ol>
-              <div className="ticket__cut" aria-hidden="true" />
-              <div className="ticket__grid">
-                <div>
-                  <Icon name="calendar" size={17} />
-                  <span>
-                    <small>Pickup date</small>
-                    <strong>{at ? formatDate(at) : '—'}</strong>
-                  </span>
-                </div>
-                <div>
-                  <Icon name="clock" size={17} />
-                  <span>
-                    <small>Pickup time</small>
-                    <strong>{at ? formatTime(at) : '—'}</strong>
-                  </span>
-                </div>
+              <div className="dn-fact">
+                <Icon name="clock" size={18} />
+                <span>
+                  <small>Pickup time</small>
+                  <strong>{at ? formatTime(at) : '—'}</strong>
+                </span>
               </div>
-              <div className="ticket__car">
-                <Icon name="car" size={17} />
+              <div className="dn-fact dn-fact--wide">
+                <Icon name="car" size={18} />
                 <span>
                   <strong>{trip.categoryName}</strong>
-                  <small>{trip.paymentMethod === 'UPI' ? 'Pay your driver by UPI' : 'Pay your driver in cash'}</small>
+                  <small>
+                    {tripTypeLabel(trip.tripType)} · {trip.paymentMethod === 'UPI' ? 'Pay your driver by UPI' : 'Pay your driver in cash'}
+                  </small>
                 </span>
-                <span className="badge badge--red">{tripTypeLabel(trip.tripType)}</span>
               </div>
-              <p className={`ticket__status ticket__status--${h.tone}`}>
-                <Icon name={h.tone === 'ok' ? 'success' : h.tone === 'bad' ? 'warning' : 'clock'} size={15} /> Status: {h.tone === 'pending' ? 'Awaiting NESAM review' : h.title}
-              </p>
             </div>
+            <p className={`dn-status dn-status--${h.tone}`}>
+              <Icon name={h.tone === 'ok' ? 'success' : h.tone === 'bad' ? 'warning' : 'clock'} size={15} /> Status:{' '}
+              {h.tone === 'pending' ? 'Awaiting NESAM review' : h.title}
+            </p>
           </section>
         </div>
       </div>
       <div className="done-actions">
-        <Button size="lg" icon="home" onClick={() => navigate('/book')}>
-          Back to Home
+        <Button icon="home" onClick={() => navigate('/book')}>
+          Home
         </Button>
-        <Link className="btn btn--text btn--lg" to={`/trips/${trip.id}`}>
-          <Icon name="arrow-right" size={16} /> View Booking
+        <Link className="btn btn--secondary" to={`/trips/${trip.id}`}>
+          <Icon name="arrow-right" size={15} /> View Booking
         </Link>
       </div>
     </div>

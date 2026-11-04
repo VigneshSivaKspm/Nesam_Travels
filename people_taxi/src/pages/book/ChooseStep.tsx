@@ -89,7 +89,7 @@ export function ChooseStep() {
                     <Badge variant="blue">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
                   </span>
                   {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
-                  {route ? <span>{formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about {formatDuration(route.totalDurationMin ?? route.durationMin)}</span> : null}
+                  {route && tripType !== 'Local Rental' ? <span>{formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about {formatDuration(route.totalDurationMin ?? route.durationMin)}</span> : null}
                   {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
                 </p>
               </div>
@@ -210,7 +210,7 @@ export function ChooseStep() {
                           ) : null}
                         </>
                       ) : unavailable ? (
-                        <span className="cab__na">Unavailable for this route</span>
+                        <span className="cab__na">{q.unavailable.get(c.id) || 'Unavailable for this route'}</span>
                       ) : (
                         <span className="cab__price-skel skeleton" />
                       )}

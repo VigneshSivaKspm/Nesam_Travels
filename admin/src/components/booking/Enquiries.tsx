@@ -1,4 +1,5 @@
 import DateTime12Input from "../DateTime12Input";
+import { categoryTitle } from "../../domain/categoryLabel";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { Modal, Toast, useToast } from "../Feedback";
 import { Badge, Button, EmptyState, Icon, PageHeader, toneForStatus } from "../ui";
@@ -318,7 +319,7 @@ function MulticityPricer({ e }: { e: Enquiry }) {
         <label className="ds-field"><span>Vehicle category</span>
           <select className="ds-select" value={categoryId} onChange={(ev) => { setCategoryId(ev.target.value); setPreview(null); }}>
             <option value="">Choose…</option>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+            {categories.map((c) => <option key={c.id} value={c.id}>{categoryTitle(c)}</option>)}
           </select>
         </label>
         <label className="ds-field"><span>Quote valid (days)</span><input className="ds-input w-20" type="number" min={1} max={30} value={validDays} onChange={(ev) => setValidDays(ev.target.value)} /></label>

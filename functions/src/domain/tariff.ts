@@ -48,7 +48,7 @@ export function kmAmountPaise(km: number, ratePaise: number): number {
 // ── Configuration ───────────────────────────────────────────────────────────
 
 /** The CNG rate card of one vehicle class. All four rates together, or no CNG option; the extra-km rate falls back to the CNG customer rate. */
-export interface CngRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number; extraKmRate?: number }
+export interface CngRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number; extraKmRate?: number; /** Round Trip: the daily minimum KM on the CNG card; absent = the class's normal daily minimum. */ minKmPerDay?: number }
 export interface OneWayRates { customerRate: number; customerBata: number; partnerRate: number; partnerBata: number; cng?: CngRates }
 export interface RoundTripRates extends OneWayRates { minKmPerDay: number }
 export interface RentalRates { firstHour: number; laterHour: number; minHours: number; minTimeFare: number; partnerPerHour: number }
@@ -101,6 +101,7 @@ export interface BrandFareOverride {
   cngPartnerRate?: number;
   cngPartnerBata?: number;
   cngExtraKmRate?: number;
+  cngMinKmPerDay?: number;
   waitingPerHour?: number;
   hillCharge?: number;
   carrierCharge?: number;
@@ -211,7 +212,7 @@ function sanitizeCng<T extends OneWayRates>(m: Partial<Record<TariffClass, T>>):
     const g = (r as { cng?: Partial<CngRates> }).cng;
     const { cng: _drop, ...rest } = r as T & { cng?: unknown };
     m[c] = (g && isPos(g.customerRate) && isNum(g.customerBata) && isNum(g.partnerRate) && isNum(g.partnerBata)
-      ? { ...rest, cng: { customerRate: g.customerRate, customerBata: g.customerBata, partnerRate: g.partnerRate, partnerBata: g.partnerBata, ...(isPos(g.extraKmRate) ? { extraKmRate: g.extraKmRate } : {}) } }
+      ? { ...rest, cng: { customerRate: g.customerRate, customerBata: g.customerBata, partnerRate: g.partnerRate, partnerBata: g.partnerBata, ...(isPos(g.extraKmRate) ? { extraKmRate: g.extraKmRate } : {}), ...(isPos(g.minKmPerDay) ? { minKmPerDay: g.minKmPerDay } : {}) } }
       : rest) as unknown as T;
   }
   return m;
@@ -287,7 +288,7 @@ function parseBrandOverrides(raw: unknown): TariffConfig['brandOverrides'] {
         if (isNum(rates.customerBata)) r.customerBata = rates.customerBata;
         if (isNum(rates.partnerBata)) r.partnerBata = rates.partnerBata;
         if (isNum(rates.extraKmRate)) r.extraKmRate = rates.extraKmRate;
-        for (const key of ['cngCustomerRate', 'cngCustomerBata', 'cngPartnerRate', 'cngPartnerBata', 'cngExtraKmRate'] as const) if (isNum(rates[key])) r[key] = rates[key];
+        for (const key of ['cngCustomerRate', 'cngCustomerBata', 'cngPartnerRate', 'cngPartnerBata', 'cngExtraKmRate', 'cngMinKmPerDay'] as const) if (isNum(rates[key])) r[key] = rates[key];
         if (isNum(rates.waitingPerHour)) r.waitingPerHour = rates.waitingPerHour;
         if (isNum(rates.hillCharge)) r.hillCharge = rates.hillCharge;
         if (isNum(rates.carrierCharge)) r.carrierCharge = rates.carrierCharge;
@@ -368,7 +369,7 @@ export function scopedTariffForBrand(
     if (serviceKey === 'One Way' || serviceKey === 'Round Trip') {
       const trip = serviceKey;
       const common = trip === 'One Way' ? classRates(base.oneWay.classes, cls) : classRates(base.roundTrip.classes, cls);
-      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined || ov.cngCustomerRate !== undefined || ov.cngCustomerBata !== undefined || ov.cngPartnerRate !== undefined || ov.cngPartnerBata !== undefined || ov.cngExtraKmRate !== undefined || (trip === 'Round Trip' && ov.minKmPerDay !== undefined)) {
+      if (ov.customerRate !== undefined || ov.partnerRate !== undefined || ov.customerBata !== undefined || ov.partnerBata !== undefined || ov.cngCustomerRate !== undefined || ov.cngCustomerBata !== undefined || ov.cngPartnerRate !== undefined || ov.cngPartnerBata !== undefined || ov.cngExtraKmRate !== undefined || ov.cngMinKmPerDay !== undefined || (trip === 'Round Trip' && ov.minKmPerDay !== undefined)) {
         const merged = {
           customerRate: pick(ov, 'customerRate', common?.customerRate),
           partnerRate: pick(ov, 'partnerRate', common?.partnerRate),
@@ -382,9 +383,10 @@ export function scopedTariffForBrand(
           partnerRate: pick(ov, 'cngPartnerRate', common?.cng?.partnerRate),
           partnerBata: pick(ov, 'cngPartnerBata', common?.cng?.partnerBata),
           extraKmRate: pick(ov, 'cngExtraKmRate', common?.cng?.extraKmRate),
+          minKmPerDay: trip === 'Round Trip' ? pick(ov, 'cngMinKmPerDay', common?.cng?.minKmPerDay) : undefined,
         };
         const cng: CngRates | undefined = isPos(cngMerged.customerRate) && isNum(cngMerged.customerBata) && isNum(cngMerged.partnerRate) && isNum(cngMerged.partnerBata)
-          ? { customerRate: cngMerged.customerRate, customerBata: cngMerged.customerBata, partnerRate: cngMerged.partnerRate, partnerBata: cngMerged.partnerBata, ...(isPos(cngMerged.extraKmRate) ? { extraKmRate: cngMerged.extraKmRate } : {}) }
+          ? { customerRate: cngMerged.customerRate, customerBata: cngMerged.customerBata, partnerRate: cngMerged.partnerRate, partnerBata: cngMerged.partnerBata, ...(isPos(cngMerged.extraKmRate) ? { extraKmRate: cngMerged.extraKmRate } : {}), ...(isPos(cngMerged.minKmPerDay) ? { minKmPerDay: cngMerged.minKmPerDay } : {}) }
           : undefined;
         if (trip === 'One Way') {
           if (isNum(merged.customerRate) && isNum(merged.partnerRate) && isNum(merged.customerBata) && isNum(merged.partnerBata)) next.oneWay.classes[cls] = { ...(merged as OneWayRates), ...(cng ? { cng } : {}) };
@@ -663,7 +665,9 @@ export function outstationExtraFor(cfg: TariffConfig, cls: TariffClass, trip: 'O
 function fuelRates<T extends OneWayRates>(r: T, fuel: 'cng' | undefined): T {
   if (fuel !== 'cng') return r;
   if (!r.cng) throw new TariffError('cng-unavailable', 'CNG is not available for this vehicle.');
-  return { ...r, customerRate: r.cng.customerRate, customerBata: r.cng.customerBata, partnerRate: r.cng.partnerRate, partnerBata: r.cng.partnerBata };
+  // A Round Trip on the CNG card uses its own daily minimum KM when one is set.
+  const cngMin = 'minKmPerDay' in r && isPos(r.cng.minKmPerDay) ? { minKmPerDay: r.cng.minKmPerDay } : {};
+  return { ...r, customerRate: r.cng.customerRate, customerBata: r.cng.customerBata, partnerRate: r.cng.partnerRate, partnerBata: r.cng.partnerBata, ...cngMin };
 }
 
 function extraUsage(cfg: TariffConfig, cls: TariffClass, ratePaise: number, trip: 'One Way' | 'Round Trip'): { extraKmRatePaise: number; waiting: { waitingPerHourPaise?: number } } {

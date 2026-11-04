@@ -32,8 +32,9 @@ const disposalFor = (pickup: GeoPlace): GeoPlace => ({
   id: 'place-local-disposal',
   name: 'Local City Disposal',
   address: `${pickup.name} & City Limits (Within city disposal)`,
-  lat: pickup.lat + 0.04,
-  lng: pickup.lng + 0.04,
+  // A point a few hundred metres inland from the pickup: it only stands for "within the city" and is never priced by distance.
+  lat: pickup.lat + 0.003,
+  lng: pickup.lng - 0.003,
   type: 'other',
 });
 
@@ -129,10 +130,10 @@ export function BookingForm({
   const pickerConfig = (f: 'pickup' | 'drop'): PickerConfig => {
     const airportOnly = service === 'airport' && f === airportField;
     return {
-      title: f === 'pickup' ? (service === 'rental' ? 'Pickup city or address' : 'Pickup location') : 'Drop location',
+      title: f === 'pickup' ? (service === 'rental' ? 'Choose your pickup location' : 'Pickup location') : 'Drop location',
       allowCurrent: !airportOnly,
       popular: airportOnly ? AIRPORTS : QUICK_CITIES,
-      popularLabel: airportOnly ? 'Airports' : 'Popular destinations',
+      popularLabel: airportOnly ? 'Airports' : service === 'rental' && f === 'pickup' ? 'Your city' : 'Popular locations',
       near: f === 'drop' ? (pickup ?? position) : position,
       pinMode: airportOnly ? undefined : f,
       check: airportOnly ? (p) => (isAirportPlace(p) ? '' : 'Choose an airport for this transfer.') : service === 'airport' ? (p) => (isAirportPlace(p) ? 'The other end of an airport transfer should be your city address, not an airport.' : '') : undefined,
@@ -311,8 +312,9 @@ export function BookingForm({
         >
           <div className={`bf-route ${service === 'rental' ? 'bf-route--single' : ''} ${service === 'outstation' && outstationTrip === 'Round Trip' ? 'bf-route--round' : ''}`}>
             <div className="bf-route__cell">
-              {locationField('pickup', service === 'rental' ? 'Pickup in your city' : service === 'airport' && direction === 'from' ? 'Pickup airport' : 'Pickup location')}
+              {locationField('pickup', service === 'rental' ? 'Pickup location' : service === 'airport' && direction === 'from' ? 'Pickup airport' : 'Pickup location')}
               {fieldErr('pickup')}
+              {service === 'rental' ? <p className="bf-hint">Pick your city, then search an address or drop the pin where the cab and driver should meet you.</p> : null}
             </div>
             {service === 'outstation' && outstationTrip !== 'Round Trip' ? (
               <button

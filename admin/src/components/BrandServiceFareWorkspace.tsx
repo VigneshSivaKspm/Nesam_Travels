@@ -41,6 +41,7 @@ interface FormFields {
   cngCustomerBata: string;
   cngPartnerBata: string;
   cngExtraKmRate: string;
+  cngMinKmPerDay: string;
   extraKmRate: string;
   waitingPerHour: string;
   hillCharge: string;
@@ -68,6 +69,7 @@ const emptyForm = (): FormFields => ({
   cngCustomerBata: "",
   cngPartnerBata: "",
   cngExtraKmRate: "",
+  cngMinKmPerDay: "",
   extraKmRate: "",
   waitingPerHour: "",
   hillCharge: "",
@@ -82,8 +84,8 @@ const emptyForm = (): FormFields => ({
 
 const str = (v: unknown): string => (typeof v === "number" && Number.isFinite(v) ? String(v) : "");
 
-export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirtyChange, onBusyChange }: {
-  scope: FareWorkspaceScope; vehicleClass: TariffClass; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void;
+export default function BrandServiceFareWorkspace({ scope, vehicleClass, fuel = "petrol", onDirtyChange, onBusyChange }: {
+  scope: FareWorkspaceScope; vehicleClass: TariffClass; /** Which vehicles the rates on screen are for: Diesel / Petrol (the normal rates) or CNG (its own rate card). */ fuel?: "petrol" | "cng"; onDirtyChange: (dirty: boolean) => void; onBusyChange: (busy: boolean) => void;
 }) {
   const pricingAccess = useCan("pricing");
   const settingsEdit = useCanDo("Settings", "edit");
@@ -95,6 +97,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
   const selectedBrand = scope.brand;
   const selectedService = scope.service;
   const selectedClass = vehicleClass;
+  const showCng = fuel === "cng" && (selectedService === "One Way" || selectedService === "Round Trip");
 
   // Form edit state
   const [form, setForm] = useState<FormFields>(emptyForm);
@@ -137,6 +140,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
         f.cngCustomerBata = str(ov.cngCustomerBata);
         f.cngPartnerBata = str(ov.cngPartnerBata);
         f.cngExtraKmRate = str(ov.cngExtraKmRate);
+        f.cngMinKmPerDay = str(ov.cngMinKmPerDay);
         f.extraKmRate = str(ov.extraKmRate);
         f.waitingPerHour = str(ov.waitingPerHour);
         f.hillCharge = str(ov.hillCharge);
@@ -245,7 +249,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
         if (form.minKmPerDay.trim()) overrideData.minKmPerDay = Number(form.minKmPerDay);
         if (form.customerBata.trim()) overrideData.customerBata = Number(form.customerBata);
         if (form.partnerBata.trim()) overrideData.partnerBata = Number(form.partnerBata);
-        for (const key of ['cngCustomerRate','cngPartnerRate','cngCustomerBata','cngPartnerBata','cngExtraKmRate'] as const) if (form[key].trim()) overrideData[key] = Number(form[key]);
+        for (const key of ['cngCustomerRate','cngPartnerRate','cngCustomerBata','cngPartnerBata','cngExtraKmRate','cngMinKmPerDay'] as const) if (form[key].trim()) overrideData[key] = Number(form[key]);
         if (form.extraKmRate.trim()) overrideData.extraKmRate = Number(form.extraKmRate);
         if (form.waitingPerHour.trim()) overrideData.waitingPerHour = Number(form.waitingPerHour);
         if (form.hillCharge.trim()) overrideData.hillCharge = Number(form.hillCharge);
@@ -276,7 +280,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
 
         const isClearingAll = Object.values(overrideData).every(value => value === null);
         // Null explicitly removes an individual override; omission would preserve the previous value.
-        for (const key of ['customerRate','partnerRate','customerBase','partnerBase','minKm','minKmPerDay','customerBata','partnerBata','cngCustomerRate','cngPartnerRate','cngCustomerBata','cngPartnerBata','cngExtraKmRate','extraKmRate','waitingPerHour','hillCharge','carrierCharge','minRentalHours']) {
+        for (const key of ['customerRate','partnerRate','customerBase','partnerBase','minKm','minKmPerDay','customerBata','partnerBata','cngCustomerRate','cngPartnerRate','cngCustomerBata','cngPartnerBata','cngExtraKmRate','cngMinKmPerDay','extraKmRate','waitingPerHour','hillCharge','carrierCharge','minRentalHours']) {
           if (!(key in overrideData)) overrideData[key] = null;
         }
 
@@ -379,7 +383,10 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
         </p>
 
         {/* SERVICE-SPECIFIC CONTROLS */}
-        {selectedService === "One Way" && (
+        {showCng && (
+          <p className="text-[12px] text-muted mb-3">Showing the <strong>CNG</strong> rate card. Switch Fuel to Diesel / Petrol above to edit the normal rates.</p>
+        )}
+        {!showCng && selectedService === "One Way" && (
           <div className="space-y-3">
             <FareGroup title="Customer price" hint="What the customer pays.">
             <RateField
@@ -752,7 +759,7 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
           </div>
         )}
 
-        {(selectedService === "Multicity" || selectedService === "Round Trip") && (
+        {!showCng && (selectedService === "Multicity" || selectedService === "Round Trip") && (
           <div className="space-y-3">
             <FareGroup title="Customer price" hint="What the customer pays.">
               <RateField
@@ -893,8 +900,8 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
             </FareGroup>
           </div>
         )}
-        {(selectedService === "One Way" || selectedService === "Round Trip") && (
-          <FareGroup title="CNG vehicles" hint="Optional. Fill all four rate boxes to offer CNG." defaultOpen={[form.cngCustomerRate, form.cngCustomerBata, form.cngPartnerRate, form.cngPartnerBata, form.cngExtraKmRate].some((v) => v.trim() !== "")}>
+        {showCng && (
+          <FareGroup title="CNG rate card" hint="Fill the first four rate boxes to offer CNG." defaultOpen>
             <p className="text-[12px] text-muted">
               Customers then choose CNG or Diesel on the vehicle card. Leave all boxes blank for no CNG option. The extra km price falls back to the CNG price per km.</p>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -970,6 +977,22 @@ export default function BrandServiceFareWorkspace({ scope, vehicleClass, onDirty
               cls={selectedClass}
               fieldKey="cngExtraKmRate"
             />
+            {selectedService === "Round Trip" && (
+              <RateField
+                label="CNG minimum km per day"
+                unit="km"
+                value={form.cngMinKmPerDay}
+                commonValue={undefined}
+                resolved={evalField("cngMinKmPerDay", undefined)}
+                scopeBrand={selectedBrand}
+                onChange={(v) => setField("cngMinKmPerDay", v)}
+                onClear={() => handleClearOverride("cngMinKmPerDay")}
+                tariff={t}
+                service={selectedService}
+                cls={selectedClass}
+                fieldKey="cngMinKmPerDay"
+              />
+            )}
             </div>
           </FareGroup>
         )}

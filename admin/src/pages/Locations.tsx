@@ -7,6 +7,7 @@ import {
   deleteLocation,
   findLocationReferences,
   saveLocation,
+  seedBuiltInCities,
   setLocationStatus,
   validateLocation,
   type LocationField,
@@ -102,6 +103,19 @@ export default function Locations() {
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [statusBusyId, setStatusBusyId] = useState<string | null>(null);
   const { toast, show: showToast } = useToast();
+  const [seeding, setSeeding] = useState(false);
+  const handleSeedCities = async () => {
+    if (seeding) return;
+    setSeeding(true);
+    try {
+      const n = await seedBuiltInCities(locations, auth.currentUser?.uid || "");
+      showToast(n ? `${n} cities added and saved to Firebase.` : "All built-in cities are already in Locations.");
+    } catch (err) {
+      showToast(actionError(err), "error");
+    } finally {
+      setSeeding(false);
+    }
+  };
 
   useEffect(() => {
     setLoading(true);
@@ -277,6 +291,13 @@ export default function Locations() {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleSeedCities}
+            disabled={seeding}
+            className="px-4 py-2 text-xs font-semibold rounded-xl border border-line text-ink bg-white hover:bg-gray-50 transition-all disabled:opacity-50"
+          >
+            {seeding ? "Adding cities…" : "Add built-in cities"}
+          </button>
           <button
             onClick={handleOpenCreate}
             className="px-4 py-2 text-xs font-semibold text-white rounded-xl hover:opacity-90 transition-all shadow-md flex items-center gap-2"

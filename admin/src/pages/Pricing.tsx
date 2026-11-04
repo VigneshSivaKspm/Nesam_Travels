@@ -80,6 +80,14 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   onOpenExtraCharges: (view: PricingView) => void;
 }) {
   const [fareScope, setFareScope] = useState<FareWorkspaceScope>(restore?.fareScope ?? { brand: "nesam", service: "One Way" });
+  // Which vehicles the base rates are for: Diesel / Petrol (the normal rates) or CNG (its own rate card, One Way and Round Trip).
+  const [fareFuel, setFareFuel] = useState<"petrol" | "cng">("petrol");
+  const fuelApplies = fareScope.service === "One Way" || fareScope.service === "Round Trip";
+  const changeFuel = (next: "petrol" | "cng") => {
+    // The Diesel / Petrol and CNG boxes share one form, so edits made on one are kept when switching and saved together.
+    if (workspaceBusy.current || next === fareFuel) return;
+    setFareFuel(next);
+  };
   const [fareClass, setFareClass] = useState<TariffClass>(restore?.fareClass ?? "sedan");
   const [focusExtras, setFocusExtras] = useState(false);
   const gstDirty = useRef(false), gstBusy = useRef(false);
@@ -196,7 +204,17 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           <td><strong>{r.scope.area ? "Area-specific rule" : r.scope.city ? "City rule" : r.scope.state ? "State rule" : "All locations"}</strong><small>{[r.scope.area, r.scope.city, r.scope.state && stateName(r.scope.state)].filter(Boolean).join(", ") || "Everywhere"} · {r.scope.side}</small></td>
           <td>{summary(r)}</td>
           <td>{r.schedule.mode === "Always" ? "Always" : `${r.schedule.from ? refDateTime(new Date(r.schedule.from)) : "Now"} → ${r.schedule.to ? refDateTime(new Date(r.schedule.to)) : "Open"}`}</td>
-          <td><Badge tone={toneForStatus(phaseOf(r) === "Active" ? "Enabled" : phaseOf(r))}>{phaseOf(r) === "Active" ? "Enabled" : phaseOf(r)}</Badge></td>
+          <td>
+            <label className="flex items-center gap-2 text-[12px]">
+              <button type="button" role="switch" aria-checked={r.status === "Enabled"} aria-label={`${r.status === "Enabled" ? "Disable" : "Enable"} ${r.name}`}
+                disabled={!canEditRule(r) || r.status === "Removed"}
+                onClick={() => setSheet({ kind: "status", rule: r, to: r.status === "Enabled" ? "Disabled" : "Enabled" })}
+                className="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50" style={{ background: r.status === "Enabled" ? "var(--color-brand)" : "#cfd6df" }}>
+                <span className="inline-block h-5 w-5 rounded-full bg-white shadow transition" style={{ transform: `translateX(${r.status === "Enabled" ? 22 : 2}px)` }} />
+              </button>
+              {r.status === "Removed" ? "Removed" : r.status === "Enabled" ? "Enabled" : "Disabled"}
+            </label>
+          </td>
           <td className="ds-actions"><div>
             {canEditRule(r) && r.status !== "Removed" && <Button size="sm" onClick={() => setSheet({ kind: "edit", rule: r })}>Edit</Button>}
             <Button size="sm" variant="ghost" onClick={() => setSheet({ kind: "preview", rule: r })}>Preview</Button>
@@ -275,6 +293,22 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
   const pill = (key: string, label: string, on: boolean, onClick: () => void) => (
     <button key={key} type="button" className={`fs-pill ${on ? "is-on" : ""}`} aria-pressed={on} onClick={onClick}>{label}</button>
   );
+  // The vehicle row lists the active vehicle categories. Rates are kept per vehicle class, so categories of one class (SUV 6+1 and
+  // SUV 7+1) edit the same SUV rates. Before the categories load, the four classes are shown.
+  const classOfCategory = (c: VehicleCategory): TariffClass => {
+    const saved = String((c as unknown as { tariffClass?: unknown }).tariffClass ?? "").toLowerCase() as TariffClass;
+    if (TARIFF_CLASSES.includes(saved)) return saved;
+    const name = (c.name || "").toLowerCase();
+    if (/crysta/.test(name)) return "crysta";
+    if (/innova/.test(name)) return "innova";
+    if (/(suv|xuv|ertiga|marazzo|carens|xl6|scorpio|fortuner|muv|mpv)/.test(name)) return "suv";
+    if (/(sedan|dzire|etios|aura|verna|mini|hatch|micro|swift|wagon|alto|auto)/.test(name)) return "sedan";
+    return (c.seatingCapacity || 0) >= 7 ? "suv" : (c.seatingCapacity || 0) >= 6 ? "suv" : "sedan";
+  };
+  const activeCats = categories.filter((c) => c.status === "Active").sort((a, b) => (a.displayOrder || 99) - (b.displayOrder || 99));
+  const vehicleChoices: { key: string; label: string; cls: TariffClass; shared: boolean }[] = activeCats.length
+    ? activeCats.map((c) => ({ key: c.id, label: c.name, cls: classOfCategory(c), shared: activeCats.filter((o) => classOfCategory(o) === classOfCategory(c)).length > 1 }))
+    : TARIFF_CLASSES.map((cls) => ({ key: cls, label: CLASS_LABEL[cls], cls, shared: false }));
   const showScope = tab !== "Service areas" && inlineKind !== "local" && inlineKind !== "history" && !(tab === "Cab types" && cabSection === "Vehicle categories" && !inlineKind);
   const scopeBar = showScope ? (
     <section className="fs-scope" aria-label="Where these settings apply">
@@ -294,11 +328,20 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
           {availableServices.map((service) => pill(service, service, fareScope.service === service, () => changeScope({ ...fareScope, service })))}
         </div>
       </div>
+      {tab === "Brand & service fares" && fuelApplies && (
+        <div className="fs-scope__row">
+          <span className="fs-scope__label">Fuel</span>
+          <div className="fs-pills" role="group" aria-label="Fuel">
+            {pill("petrol", "Diesel / Petrol", fareFuel === "petrol", () => changeFuel("petrol"))}
+            {pill("cng", "CNG", fareFuel === "cng", () => changeFuel("cng"))}
+          </div>
+        </div>
+      )}
       {tab === "Brand & service fares" && (
         <div className="fs-scope__row">
           <span className="fs-scope__label">Vehicle</span>
           <div className="fs-pills" role="group" aria-label="Vehicle">
-            {TARIFF_CLASSES.map((cls) => pill(cls, CLASS_LABEL[cls], fareClass === cls, () => changeClass(cls)))}
+            {vehicleChoices.map((v) => <button key={v.key} type="button" className={`fs-pill ${fareClass === v.cls ? "is-on" : ""}`} aria-pressed={fareClass === v.cls} title={v.shared ? `Uses the ${CLASS_LABEL[v.cls]} rates, shared with the other ${CLASS_LABEL[v.cls]} categories` : `Uses the ${CLASS_LABEL[v.cls]} rates`} onClick={() => changeClass(v.cls)}>{v.label}</button>)}
           </div>
         </div>
       )}
@@ -325,7 +368,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
               {g.items.map((it) => (
                 <button key={it.key} type="button" className={`fs-nav__item ${it.on ? "is-on" : ""}`} aria-current={it.on ? "page" : undefined} onClick={it.go} disabled={!!it.disabledReason} title={it.disabledReason ?? it.hint}>
                   <Icon name={it.icon} />
-                  <span className="fs-nav__text"><strong>{it.label}</strong><small>{it.hint}</small></span>
+                  <span className="fs-nav__text"><strong>{it.label}</strong></span>
                   {it.opens ? <Icon name="chevron-right" /> : null}
                 </button>
               ))}
@@ -353,7 +396,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
         </section>
       </>}
       {tab === "Brand & service fares" && <div>
-        <BrandServiceFareWorkspace scope={fareScope} vehicleClass={fareClass} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
+        <BrandServiceFareWorkspace scope={fareScope} vehicleClass={fareClass} fuel={fuelApplies ? fareFuel : "petrol"} onDirtyChange={dirty => { workspaceDirty.current = dirty; }} onBusyChange={busy => { workspaceBusy.current = busy; }} />
       </div>}
       {tab === "GST calculation" && <div>
         <FareGstSettings key={fareScope.brand + ":" + fareScope.service} scope={fareScope} onDirtyChange={value => { gstDirty.current = value; }} onBusyChange={value => { gstBusy.current = value; }} />

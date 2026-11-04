@@ -22,6 +22,8 @@ export function supportsTrip(service: Record<string, any>, tripType: string): bo
     'Outstation Cab': ['One Way', 'Round Trip'],
     'Airport Taxi': ['Airport Taxi'],
     'Local Rental': ['Local Rental'],
+    // The Multicity service is booked as a tour (a Round Trip through its cities); it never serves an ordinary trip.
+    Multicity: ['Multicity'],
   };
   return known[service.serviceType]?.includes(tripType) ?? true;
 }

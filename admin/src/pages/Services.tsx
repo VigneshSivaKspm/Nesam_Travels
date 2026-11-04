@@ -5,6 +5,7 @@ import {
   ServiceActionError,
   deleteService,
   saveService,
+  seedDefaultServices,
   setServiceStatus,
   validateService,
   type ServiceField,
@@ -152,6 +153,20 @@ export default function Services() {
     setShowModal(true);
   };
 
+  const [seeding, setSeeding] = useState(false);
+  const handleSeedDefaults = async () => {
+    if (seeding) return;
+    setSeeding(true);
+    try {
+      const n = await seedDefaultServices(services, auth.currentUser?.uid || "");
+      showToast(n ? `${n} default service${n === 1 ? "" : "s"} added and saved to Firebase.` : "All default services are already set up.");
+    } catch (err) {
+      showToast(actionError(err), "error");
+    } finally {
+      setSeeding(false);
+    }
+  };
+
   const handleOpenAdd = () =>
     openForm({ ...defaultFormState, displayOrder: services.reduce((m, s) => Math.max(m, s.displayOrder || 0), 0) + 1 }, null);
 
@@ -266,6 +281,13 @@ export default function Services() {
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleSeedDefaults}
+            disabled={seeding}
+            className="px-4 py-2.5 text-[13px] font-semibold rounded-lg border border-line text-ink bg-white hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+          >
+            {seeding ? "Setting up…" : "Set up default services"}
+          </button>
+          <button
             onClick={handleOpenAdd}
             className="flex items-center gap-2 px-4 py-2.5 text-[13px] font-semibold text-white rounded-lg shadow-sm hover:opacity-90 transition-all cursor-pointer"
             style={{ background: "#c1232c" }}
@@ -345,6 +367,13 @@ export default function Services() {
             Services (for example Airport Taxi or Outstation Cab) are what customers can book. Add the first service to get started.
           </p>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleSeedDefaults}
+              disabled={seeding}
+              className="px-6 py-2.5 text-[13px] font-semibold rounded-lg border border-line text-ink bg-white hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {seeding ? "Setting up…" : "Set up default services"}
+            </button>
             <button
               onClick={handleOpenAdd}
               className="px-6 py-2.5 text-[13px] font-semibold text-white rounded-lg hover:opacity-90 transition-opacity cursor-pointer shadow-sm"

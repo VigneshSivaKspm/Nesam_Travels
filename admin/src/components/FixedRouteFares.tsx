@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { categoryTitle } from "../domain/categoryLabel";
 import type { FareRule, MasterLocation, TravelService, VehicleCategory } from "../types";
 import { subscribeFareRules, subscribeLocations, subscribeServices, subscribeVehicleCategories } from "../services/adminFirestoreService";
 import { saveFixedRouteFare } from "../services/bookingOpsService";
+import { saveLocation, deriveLocationCode, type LocationForm } from "../services/locationService";
+import { auth } from "../services/firebase";
+import { CITIES_BY_STATE } from "../domain/placeDirectory";
+import { GST_STATES } from "../domain/gstStates";
 import { ActionError } from "../services/callables";
 import { BRAND_LABELS, type FareWorkspaceScope } from "../services/tariffService";
 import { inr } from "../services/tariffService";
@@ -174,7 +179,58 @@ function RouteEditor({ rule, fareScope, locations, categories, services, canEdit
   // Active locations, categories and services are offered; one already saved on this fare stays selectable.
   const pickLocations = locations.filter((l) => l.status === "Active" || l.id === f.origin || l.id === f.dest);
   const pickCategories = categories.filter((c) => c.status === "Active" || c.id === f.category);
-  const pickServices = services.filter((s) => s.status === "Active" || s.id === f.service);
+  // The services, named as customers know them. Each uses the saved service of that kind (from Services); one that has not
+  // been set up there yet is shown but cannot be chosen, because a fare is stored against a real saved service.
+  const activeServices = services.filter((s) => s.status === "Active" || s.id === f.service);
+  const serviceChoices = [
+    { label: "One Way", types: ["One Way Taxi", "Outstation Cab"], words: /one.?way/i },
+    { label: "Round Trip", types: ["Outstation Cab"], words: /round.?trip/i },
+    { label: "Multicity", types: ["Multicity"], words: /multi.?city/i },
+    { label: "Local Rental", types: ["Local Rental"], words: /rental/i },
+    { label: "Airport Taxi", types: ["Airport Taxi"], words: /airport/i },
+  ].map((c) => {
+    const found = c.types.map((t) => activeServices.find((s) => s.serviceType === t)).find(Boolean) ?? activeServices.find((s) => c.words.test(s.name));
+    return { ...c, id: found?.id ?? "" };
+  });
+  // A fare already saved against some other saved service keeps showing it.
+  const extraSaved = activeServices.filter((s) => s.id === f.service && !serviceChoices.some((c) => c.id === s.id));
+
+  // Built-in cities that are not in the location master yet: choosing one adds it to Locations as an active City, then selects it.
+  const builtIn = useMemo(() => {
+    const have = new Set(locations.filter((l) => l.type === "City").map((l) => (l.name || l.city).trim().toLowerCase()));
+    const out: { key: string; name: string; state: string }[] = [];
+    for (const [code, names] of Object.entries(CITIES_BY_STATE)) {
+      const state = GST_STATES.find(([c]) => c === code)?.[1] ?? code;
+      for (const name of names) if (!have.has(name.toLowerCase())) out.push({ key: `new:${name}`, name, state });
+    }
+    return out;
+  }, [locations]);
+  const [adding, setAdding] = useState(false);
+  const pickPlace = async (side: "origin" | "dest", value: string) => {
+    if (!value.startsWith("new:")) return set({ [side]: value } as Partial<typeof f>);
+    const entry = builtIn.find((b) => b.key === value);
+    if (!entry || adding) return;
+    setAdding(true);
+    const form: LocationForm = {
+      name: entry.name, code: deriveLocationCode(entry.name), type: "City", state: entry.state, district: "", city: entry.name, area: "", pincode: "", address: "",
+      parentLocationId: "", lat: "", lng: "", placeId: "", pickupEnabled: true, dropEnabled: true, onlineBookingEnabled: true, adminBookingEnabled: true,
+      serviceIds: [], status: "Active", displayOrder: locations.length + 1,
+    };
+    try {
+      const saved = await saveLocation(form, null, locations, auth.currentUser?.uid || "");
+      set({ [side]: saved.id } as Partial<typeof f>);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "The city could not be added to Locations.");
+    } finally {
+      setAdding(false);
+    }
+  };
+  const placeOptions = (
+    <>
+      {pickLocations.length > 0 && <optgroup label="In Locations">{pickLocations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.city && l.city !== l.name ? ` (${l.city})` : ""}</option>)}</optgroup>}
+      {canEdit && builtIn.length > 0 && <optgroup label="Add city from the built-in list">{builtIn.map((b) => <option key={b.key} value={b.key}>{b.name} · {b.state}</option>)}</optgroup>}
+    </>
+  );
 
   const problem = (() => {
     if (!f.origin || !f.dest) return "Choose both the pickup and the drop location.";
@@ -225,23 +281,23 @@ function RouteEditor({ rule, fareScope, locations, categories, services, canEdit
           {error && <div className="ds-error" role="alert"><Icon name="circle-alert" />{error}</div>}
           <div className="ds-form-grid">
             <label className="ds-field"><span>Pickup location</span>
-              <select className="ds-select" value={f.origin} onChange={(e) => set({ origin: e.target.value })} disabled={busy}>
-                <option value="">Choose pickup</option>{pickLocations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.city ? ` (${l.city})` : ""}</option>)}
+              <select className="ds-select" value={f.origin} onChange={(e) => void pickPlace("origin", e.target.value)} disabled={busy || adding}>
+                <option value="">{adding ? "Adding city…" : "Choose pickup"}</option>{placeOptions}
               </select>
             </label>
             <label className="ds-field"><span>Drop location</span>
-              <select className="ds-select" value={f.dest} onChange={(e) => set({ dest: e.target.value })} disabled={busy}>
-                <option value="">Choose drop</option>{pickLocations.map((l) => <option key={l.id} value={l.id}>{l.name}{l.city ? ` (${l.city})` : ""}</option>)}
+              <select className="ds-select" value={f.dest} onChange={(e) => void pickPlace("dest", e.target.value)} disabled={busy || adding}>
+                <option value="">{adding ? "Adding city…" : "Choose drop"}</option>{placeOptions}
               </select>
             </label>
             <label className="ds-field"><span>Service</span>
               <select className="ds-select" value={f.service} onChange={(e) => set({ service: e.target.value })} disabled={busy}>
-                <option value="">Any service</option>{pickServices.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                <option value="">Any service</option>{serviceChoices.map((c) => <option key={c.label} value={c.id} disabled={!c.id}>{c.label}{c.id ? "" : " (not set up in Services)"}</option>)}{extraSaved.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </label>
             <label className="ds-field"><span>Vehicle category</span>
               <select className="ds-select" value={f.category} onChange={(e) => set({ category: e.target.value })} disabled={busy}>
-                <option value="">Choose a category</option>{pickCategories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                <option value="">Choose a category</option>{pickCategories.map((c) => <option key={c.id} value={c.id}>{categoryTitle(c)}</option>)}
               </select>
             </label>
             <label className="ds-field"><span>Customer fare · ₹</span><input className="ds-input" type="number" inputMode="decimal" min={0} step="0.01" value={f.fare} onChange={(e) => set({ fare: e.target.value })} disabled={busy} /></label>

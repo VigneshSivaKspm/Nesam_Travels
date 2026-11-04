@@ -102,7 +102,7 @@ export function ChooseStep() {
                     <Badge tone="green">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
                   </span>
                   <span className="trip-sum__when">{when}</span>
-                  <span>{route ? `${formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about ${formatDuration(route.totalDurationMin ?? route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
+                  {tripType !== 'Local Rental' ? <span>{route ? `${formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about ${formatDuration(route.totalDurationMin ?? route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span> : null}
                   {tripType === 'Round Trip' && tripEndAt ? <span>Return {formatDate(tripEndAt)}, {formatTime(tripEndAt)}</span> : null}
                 </p>
               </div>

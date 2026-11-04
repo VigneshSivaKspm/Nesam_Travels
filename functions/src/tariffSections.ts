@@ -311,7 +311,7 @@ function applyBrandOverride(
   for (const [key, label, positive] of [
     ['cngCustomerRate', 'CNG customer rate', true], ['cngPartnerRate', 'CNG partner rate', true],
     ['cngCustomerBata', 'CNG customer allowance', false], ['cngPartnerBata', 'CNG partner allowance', false],
-    ['cngExtraKmRate', 'CNG extra kilometre rate', true],
+    ['cngExtraKmRate', 'CNG extra kilometre rate', true], ['cngMinKmPerDay', 'CNG minimum kilometres per day', true],
   ] as const) {
     if (data[key] !== undefined && data[key] !== null) override[key] = amount(data[key], label, positive);
     else if (data[key] === null) delete override[key];

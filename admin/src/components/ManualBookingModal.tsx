@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { categoryTitle } from "../domain/categoryLabel";
 import type { Customer, FareRule, MasterLocation, TravelService, VehicleCategory } from "../types";
 import { Modal } from "./Feedback";
 import MapLocationPicker from "./MapLocationPicker";
@@ -228,7 +229,7 @@ export default function ManualBookingModal({ customers, services, locations, cat
             <Field label="Vehicle category" required error={errors.categoryId} hint="The fare updates when you change this.">
               <select value={form.categoryId} onChange={(e) => set("categoryId", e.target.value)} className={`${inputCls} ${errors.categoryId ? inputErrCls : ""}`}>
                 <option value="">Choose</option>
-                {cats.map((c) => <option key={c.id} value={c.id}>{c.name} ({c.seatingCapacity} seats)</option>)}
+                {cats.map((c) => <option key={c.id} value={c.id}>{categoryTitle(c)} ({c.seatingCapacity} seats)</option>)}
               </select>
             </Field>
             <Field label="Trip type">

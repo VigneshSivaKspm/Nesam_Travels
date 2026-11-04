@@ -60,7 +60,8 @@ export function InboxProvider({ userId, children }: { userId?: string | null; ch
       for (const n of list) {
         if (seen.current.has(n.id)) continue;
         seen.current.add(n.id);
-        if (!n.read && n.popup) {
+        // "Booking confirmed" is already shown full-screen by the confirmation animation, so it gets no toast.
+        if (!n.read && n.popup && n.title !== 'Booking confirmed') {
           push({ title: n.title, message: n.message, tone: n.severity === 'critical' || n.severity === 'warning' ? 'warning' : 'info', action: { label: n.ctaLabel || 'Open', run: () => navigate(pathForPage(n.ctaPage)) } });
         }
       }

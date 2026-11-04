@@ -8,7 +8,6 @@ import { buildFareBreakup } from '@core/utils/fareBreakup';
 import { scheduleProblem, whatsappProblem } from '@core/utils/bookingRules';
 import { formatDate, formatDistance, formatDuration, formatINR, formatPhone, formatTime, isValidEmail, isValidIndianMobile } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { BackButton, Button, Checkbox, Notice, PageHead, TextField } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
@@ -285,11 +284,24 @@ export function ReviewStep() {
             <section className="card" aria-labelledby="rv-pay-head">
               <h2 id="rv-pay-head">Payment Method</h2>
               <PaymentChoice value={payment} onChange={(p) => update({ payment: p })} />
+              <div className="rv-pay-promo">
+                <PromoControl
+                  code={draft.promoCode}
+                  applied={quote.discount > 0}
+                  onApply={(code) => update({ promoCode: code })}
+                  onRemove={() => update({ promoCode: '' })}
+                />
+              </div>
             </section>
 
             <div className="card sel-card sel-card--sum">
               <div className="sel-card__total">
-                <span>Total to pay</span>
+                <span className="rv-total-label">
+                  Total Payable
+                  <button type="button" className="rv-info-btn" onClick={() => setShowFare(true)} aria-label="Fare details" title="Fare details">
+                    <Icon name="info" size={18} />
+                  </button>
+                </span>
                 <strong className="num">{formatINR(quote.total)}</strong>
               </div>
 
@@ -298,18 +310,6 @@ export function ReviewStep() {
                 <li>Includes base fare, driver bata &amp; discounts</li>
                 <li>Toll, State Tax &amp; Parking extra (as per actuals)</li>
               </ul>
-
-              <div className="rv-links">
-                <PromoControl
-                  code={draft.promoCode}
-                  applied={quote.discount > 0}
-                  onApply={(code) => update({ promoCode: code })}
-                  onRemove={() => update({ promoCode: '' })}
-                />
-                <button type="button" className="link-btn" onClick={() => setShowFare(true)}>
-                  <Icon name="info" size={14} /> Fare details
-                </button>
-              </div>
 
               <div className="rv-act">
                 <Button
@@ -323,9 +323,6 @@ export function ReviewStep() {
                 >
                   {profile ? 'Confirm & Book Ride' : 'Sign in to Confirm'}
                 </Button>
-                <p className="rv-act__note">
-                  24/7 support: <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>
-                </p>
               </div>
             </div>
           </aside>

@@ -14,6 +14,8 @@ import {
 import { db } from "./firebase";
 import { COLLECTIONS, describeDataError } from "./adminFirestoreService";
 import type { LocationType, MasterLocation, TourPackage } from "../types";
+import { CITIES_BY_STATE } from "../domain/placeDirectory";
+import { GST_STATES } from "../domain/gstStates";
 
 export class LocationActionError extends Error {}
 
@@ -152,6 +154,38 @@ async function propagateRename(id: string, newName: string) {
   children.docs.forEach((d) => add(d.ref, { parentLocationName: newName }));
   await commitInChunks([...byPath.values()]);
   return byPath.size;
+}
+
+/** Adds every built-in city that is not in the location master yet, as an active City (fixed ids, so running it again adds nothing twice). */
+export async function seedBuiltInCities(existing: MasterLocation[], actorId: string): Promise<number> {
+  const have = new Set(existing.filter((l) => l.type === "City").map((l) => (l.name || l.city).trim().toLowerCase()));
+  const rows: { id: string; name: string; state: string; code: string }[] = [];
+  for (const [stateCode, names] of Object.entries(CITIES_BY_STATE)) {
+    const state = GST_STATES.find(([c]) => c === stateCode)?.[1] ?? stateCode;
+    for (const name of names) {
+      if (have.has(name.toLowerCase())) continue;
+      rows.push({ id: `city_${stateCode}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`, name, state, code: deriveLocationCode(name) });
+    }
+  }
+  if (!rows.length) return 0;
+  try {
+    let order = existing.reduce((m, l) => Math.max(m, l.displayOrder || 0), 0);
+    for (let i = 0; i < rows.length; i += 400) {
+      const batch = writeBatch(db);
+      for (const r of rows.slice(i, i + 400)) {
+        order += 1;
+        batch.set(doc(db, COLLECTIONS.LOCATIONS, r.id), {
+          id: r.id, name: r.name, normalizedName: r.name.toLowerCase(), code: r.code, type: "City", state: r.state, district: "", city: r.name, area: "", pincode: "", address: "",
+          parentLocationId: "", parentLocationName: "", lat: null, lng: null, placeId: "", pickupEnabled: true, dropEnabled: true, onlineBookingEnabled: true, adminBookingEnabled: true,
+          serviceIds: [], status: "Active", displayOrder: order, createdBy: actorId, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    }
+  } catch (err) {
+    throw new LocationActionError(describeDataError(err));
+  }
+  return rows.length;
 }
 
 export async function saveLocation(f: LocationForm, existing: MasterLocation | null, locations: MasterLocation[], actorId: string) {

@@ -22,9 +22,49 @@ export const SERVICE_TYPES = [
   "Outstation Cab",
   "One Way Taxi",
   "Local Rental",
+  "Multicity",
   "Corporate Travel",
   "Recurring Transport",
 ] as const;
+
+/** The services every site offers. Seeding creates only the ones missing, with fixed ids, so running it again never duplicates. */
+export const DEFAULT_SERVICES: { id: string; name: string; serviceType: string; icon: string; shortDescription: string; displayOrder: number; featured: boolean;
+  airport?: boolean; outstation?: { oneWay: boolean; roundTrip: boolean } }[] = [
+  { id: "svc_one_way_taxi", name: "One Way Taxi", serviceType: "One Way Taxi", icon: "🚖", displayOrder: 1, featured: true, outstation: { oneWay: true, roundTrip: false },
+    shortDescription: "Pay only for the drop: a cab from your pickup to your destination." },
+  { id: "svc_outstation_round_trip", name: "Outstation Round Trip", serviceType: "Outstation Cab", icon: "🧳", displayOrder: 2, featured: true, outstation: { oneWay: true, roundTrip: true },
+    shortDescription: "Go, stay and come back with the same driver, with stops along the way." },
+  { id: "svc_multicity", name: "Multicity Tour", serviceType: "Multicity", icon: "🗺️", displayOrder: 3, featured: true,
+    shortDescription: "One cab through several cities, priced for the whole itinerary." },
+  { id: "svc_local_rental", name: "Local Rental", serviceType: "Local Rental", icon: "⏱️", displayOrder: 4, featured: false,
+    shortDescription: "A cab and driver by the hour for city use." },
+  { id: "svc_airport_taxi", name: "Airport Taxi", serviceType: "Airport Taxi", icon: "✈️", displayOrder: 5, featured: false, airport: true,
+    shortDescription: "On-time pickups and drops for airport transfers." },
+];
+
+/** Creates the default services that are not saved yet (matched by id or by service type). Returns how many were added. */
+export async function seedDefaultServices(existing: TravelService[], actorId: string): Promise<number> {
+  const have = (d: (typeof DEFAULT_SERVICES)[number]) => existing.some((s) => s.id === d.id || s.serviceType === d.serviceType);
+  const missing = DEFAULT_SERVICES.filter((d) => !have(d));
+  if (!missing.length) return 0;
+  try {
+    const batch = writeBatch(db);
+    for (const d of missing) {
+      batch.set(doc(db, COLLECTIONS.SERVICES, d.id), {
+        id: d.id, name: d.name, code: deriveCode(d.name), slug: deriveSlug(d.name), serviceType: d.serviceType,
+        shortDescription: d.shortDescription, fullDescription: "", icon: d.icon, imageUrl: "", status: "Active", displayOrder: d.displayOrder, featured: d.featured,
+        onlineBookingEnabled: true, adminBookingEnabled: true, allowedVehicleCategoryIds: [], allowedVehicleCategoryNames: [],
+        airportOptions: { airportPickup: !!d.airport, airportDrop: !!d.airport },
+        outstationOptions: { oneWayAllowed: d.outstation?.oneWay ?? false, roundTripAllowed: d.outstation?.roundTrip ?? false },
+        seoTitle: "", seoDescription: "", createdBy: actorId, createdAt: serverTimestamp(), updatedAt: serverTimestamp(),
+      });
+    }
+    await batch.commit();
+  } catch (err) {
+    throw new ServiceActionError(describeDataError(err));
+  }
+  return missing.length;
+}
 
 export type ServiceForm = Omit<TravelService, "id" | "allowedVehicleCategoryNames" | "createdAt" | "updatedAt" | "createdBy">;
 export type ServiceField = "name" | "code" | "slug" | "serviceType" | "imageUrl" | "displayOrder" | "seoTitle" | "seoDescription" | "channels" | "shortDescription";

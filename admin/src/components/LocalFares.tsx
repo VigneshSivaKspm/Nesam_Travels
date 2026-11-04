@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { MasterLocation } from "../types";
 import { subscribeLocations } from "../services/adminFirestoreService";
 import { saveTariffSection } from "../services/bookingOpsService";
+import { saveLocation, deriveLocationCode, type LocationForm } from "../services/locationService";
+import { auth } from "../services/firebase";
+import { CITIES_BY_STATE } from "../domain/placeDirectory";
+import { GST_STATES } from "../domain/gstStates";
 import { ActionError } from "../services/callables";
 import {
   CLASS_LABEL, RENTAL_HOURS, TARIFF_CLASSES, inr, rentalMinHours, useTariff, validLocalFare, validPackage,
@@ -41,6 +45,45 @@ export default function LocalFares({ initialTab = "Rental packages", initialCity
     const match = initialCity ? cities.filter((c) => c.city === initialCity || c.name === initialCity) : [];
     if (match.length === 1) setCityId(match[0].id);
   }, [cities, cityId, initialCity]);
+  // Built-in cities that are not in the location master yet: choosing one adds it to Locations as an active City.
+  const builtIn = useMemo(() => {
+    const have = new Set(cities.map((c) => `${(c.name || c.city).trim().toLowerCase()}|${(c.state || "").trim().toLowerCase()}`));
+    const out: { key: string; name: string; state: string }[] = [];
+    for (const [code, names] of Object.entries(CITIES_BY_STATE)) {
+      const state = GST_STATES.find(([c]) => c === code)?.[1] ?? code;
+      for (const name of names) if (!have.has(`${name.toLowerCase()}|${state.toLowerCase()}`) && !cities.some((c) => (c.name || c.city).trim().toLowerCase() === name.toLowerCase())) out.push({ key: `new:${code}:${name}`, name, state });
+    }
+    return out;
+  }, [cities]);
+  const [adding, setAdding] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [pendingName, setPendingName] = useState("");
+  // When the new City record arrives from the location master, select it.
+  useEffect(() => {
+    if (!pendingName) return;
+    const found = cities.find((c) => (c.name || c.city).trim().toLowerCase() === pendingName.toLowerCase());
+    if (found) { setCityId(found.id); setPendingName(""); }
+  }, [cities, pendingName]);
+  const pickCity = async (value: string) => {
+    setAddError("");
+    if (!value.startsWith("new:")) return setCityId(value);
+    const entry = builtIn.find((b) => b.key === value);
+    if (!entry || adding) return;
+    setAdding(true);
+    const form: LocationForm = {
+      name: entry.name, code: deriveLocationCode(entry.name), type: "City", state: entry.state, district: "", city: entry.name, area: "", pincode: "", address: "",
+      parentLocationId: "", lat: "", lng: "", placeId: "", pickupEnabled: true, dropEnabled: true, onlineBookingEnabled: true, adminBookingEnabled: true,
+      serviceIds: [], status: "Active", displayOrder: locations.length + 1,
+    };
+    try {
+      await saveLocation(form, null, locations, auth.currentUser?.uid || "");
+      setPendingName(entry.name);
+    } catch (err) {
+      setAddError(err instanceof Error ? err.message : "The city could not be added to Locations.");
+    } finally {
+      setAdding(false);
+    }
+  };
   const city = cities.find((c) => c.id === cityId);
   const version = tariff?.version ?? 0;
   const ready = tariff !== undefined && !error;
@@ -99,12 +142,13 @@ export default function LocalFares({ initialTab = "Rental packages", initialCity
           <p className="text-[12px] text-muted mb-3">Fare = the greater of the road distance and the minimum billable kilometres, times the rate per kilometre. The 130 km Outstation minimum does not apply here.</p>
           <label className="ds-field mb-3" style={{ maxWidth: 360 }}>
             <span>City</span>
-            <select className="ds-select" value={cityId} onChange={(e) => setCityId(e.target.value)}>
-              <option value="">Choose a city…</option>
-              {cities.map((c) => <option key={c.id} value={c.id}>{c.name || c.city}{c.state ? ` · ${c.state}` : ""}</option>)}
+            <select className="ds-select" value={cityId} disabled={adding} onChange={(e) => void pickCity(e.target.value)}>
+              <option value="">{adding ? "Adding city…" : "Choose a city…"}</option>
+              {cities.length > 0 && <optgroup label="In Locations">{cities.map((c) => <option key={c.id} value={c.id}>{c.name || c.city}{c.state ? ` · ${c.state}` : ""}</option>)}</optgroup>}
+              {canEdit && builtIn.length > 0 && <optgroup label="Add from the built-in list">{builtIn.map((b) => <option key={b.key} value={b.key}>{b.name} · {b.state}</option>)}</optgroup>}
             </select>
           </label>
-          {!cities.length && <EmptyState title="No active cities in the location master" hint="Add a City in Locations first. Fares are saved against the city record." />}
+          {addError && <p className="ds-error" role="alert">{addError}</p>}
           {city && (
             <DataTable label={`Local Pickup and Drop fares in ${city.name || city.city}`} minWidth={900} hideTools hasActions>
               <thead><tr><th>CATEGORY / CITY</th><th>MINIMUM / CUSTOMER RATE</th><th>PARTNER RATE</th><th>EXTRA KM / WAITING</th><th>STATUS</th>{canEdit && <th className="ds-actions">ACTION</th>}</tr></thead>
