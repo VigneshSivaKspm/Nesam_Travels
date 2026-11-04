@@ -63,9 +63,10 @@ export function ChooseRideScreen() {
 
   const pickupTime = scheduledAt ?? new Date(now);
   const server = serverQuote.status === 'ready' ? serverQuote.data : null;
+  const fuelCng = draft.fuelType === 'cng';
   const quotes = new Map<string, FareBreakdown>();
   if (server) {
-    for (const x of server.quotes) if (x.ok && x.fare) quotes.set(x.categoryId, x.fare);
+    for (const x of server.quotes) if (x.ok && x.fare) quotes.set(x.categoryId, fuelCng && x.cng ? x.cng.fare : x.fare);
   } else if (route) {
     for (const c of categories) quotes.set(c.id, calculateFare({ category: c, route, tripType, pickupTime, adjustment }));
   }
@@ -75,8 +76,12 @@ export function ChooseRideScreen() {
   const outstation = route ? isOutstation(route.distanceKm) : true;
   const tooFar = route ? route.distanceKm > 1500 : false;
   const entryOf = (id?: string) => server?.quotes.find((x) => x.categoryId === id);
-  const canContinue = !!route && !!selectedQuote && !tooFar && !!server && !!entryOf(selected?.id)?.ok;
   const selectedEntry = entryOf(selected?.id);
+  // CNG is offered only on the cab types the admin enabled it for; choosing CNG lists just those.
+  const anyCng = !!server?.quotes.some((x) => x.ok && x.cng);
+  const listed = fuelCng ? categories.filter((c) => !!entryOf(c.id)?.cng) : categories;
+  const noCngHere = fuelCng && !!selectedEntry?.ok && !selectedEntry.cng;
+  const canContinue = !!route && !!selectedQuote && !tooFar && !!server && !!entryOf(selected?.id)?.ok && !noCngHere;
   const quoteLoading = !!route && !server && serverQuote.status === 'loading';
   const quoteProblem = !route
     ? ''
@@ -88,7 +93,9 @@ export function ChooseRideScreen() {
           ? serverQuote.error || 'We could not confirm the fare right now.'
           : selectedEntry && !selectedEntry.ok
             ? selectedEntry.error || 'This cab cannot be booked for this trip. Please choose another cab.'
-            : '';
+            : noCngHere
+              ? 'CNG is not offered on this vehicle. Choose Diesel / Petrol or another cab.'
+              : '';
 
   const fareSheet = categories.find((c) => c.id === fareFor) ?? null;
   const fareSheetQuote = fareSheet ? quotes.get(fareSheet.id) ?? null : null;
@@ -125,17 +132,37 @@ export function ChooseRideScreen() {
 
         {/* Cab cards */}
         <Content style={{ gap: 12 }}>
-          {categories.map((c) => {
+          {/* Fuel: Diesel / Petrol or CNG for the whole list */}
+          {anyCng ? <View style={styles.fuelRow} accessibilityRole="radiogroup">
+            {([['', 'Diesel / Petrol'], ['cng', 'CNG']] as const).map(([value, label]) => {
+              const active = draft.fuelType === value;
+              return (
+                <Pressable
+                  key={label}
+                  onPress={() => update({ fuelType: value })}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={label}
+                  style={[styles.fuelBtn, active && (value === 'cng' ? styles.fuelBtnCng : styles.fuelBtnDiesel)]}
+                >
+                  <Text style={[styles.fuelText, active && { color: value === 'cng' ? '#11773a' : '#a85a00' }]}>{label}</Text>
+                </Pressable>
+              );
+            })}
+          </View> : null}
+          {listed.map((c) => {
             const on = selected?.id === c.id;
             const quote = quotes.get(c.id);
             const entry = entryOf(c.id);
             const photo = getVehicleImage(c.name);
             const bagText = `${c.luggageCapacity ?? (c.seats >= 6 ? 4 : 2)} bags`;
             const seatText = `${c.seats} seats`;
-            const extraRate = entry?.ok && entry.extraKmRate ? entry.extraKmRate : c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
+            const extraRate = entry?.ok && fuelCng && entry.cng ? entry.cng.extraKmRate : entry?.ok && entry.extraKmRate ? entry.extraKmRate : c.fare.extras?.extraKmRate ?? (outstation && c.fare.outstationPerKmRate ? c.fare.outstationPerKmRate : c.fare.perKmRate);
             const includedKm = entry?.includedKm ?? (c.fare.baseKm > 0 ? c.fare.baseKm : (route ? included : 0));
             const inclLine = `${entry?.ok && entry.rentalHours ? `${entry.rentalHours} hours · ` : ''}${includedKm > 0 ? `${includedKm} km included · Extra km ₹${extraRate}` : `Extra km ₹${extraRate}`}`;
-            const unavailReason = !serverQuote.data ? '' : entry && !entry.ok ? entry.error || 'Not available for this trip' : '';
+            const strikeTotal = (fuelCng && entry?.ok && entry.cng ? entry.cng.strikeTotal : entry?.ok ? entry.strikeTotal : 0) ?? 0;
+            const strike = quote && strikeTotal > 0 ? strikeTotal : 0;
+            const unavailReason = !serverQuote.data ? '' : entry && !entry.ok ? entry.error || 'Not available for this trip' : fuelCng && entry?.ok && !entry.cng ? 'CNG is not offered on this vehicle: diesel fare shown' : '';
 
             return (
               <View key={c.id} style={[styles.car, on && styles.carOn]}>
@@ -163,7 +190,10 @@ export function ChooseRideScreen() {
                   <Text style={styles.included}>{inclLine}</Text>
                   <View style={styles.rate}>
                     <Text style={styles.rateLabel}>{gstText(quote)} included</Text>
-                    <Text style={styles.price}>{quote ? formatINR(quote.total) : '—'}</Text>
+                    <View style={{ alignItems: 'flex-end' }}>
+                      {strike > 0 ? <Text style={styles.strike}>{formatINR(strike)}</Text> : null}
+                      <Text style={styles.price}>{quote ? formatINR(quote.total) : '—'}</Text>
+                    </View>
                   </View>
                 </Pressable>
                 {unavailReason ? <Text style={styles.unavail}>{unavailReason}</Text> : null}
@@ -261,6 +291,12 @@ const styles = StyleSheet.create({
   price: { fontFamily: fonts.bold, fontSize: 22, lineHeight: 29, letterSpacing: -0.6, color: colors.ink },
   carFoot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, minHeight: 45, borderTopWidth: 1, borderTopColor: '#EEF0F4' },
   extra: { fontFamily: fonts.regular, fontSize: 10, color: '#626E80', flexShrink: 1 },
+  strike: { fontFamily: fonts.medium, fontSize: 13, color: '#697587', textDecorationLine: 'line-through' },
+  fuelRow: { flexDirection: 'row', gap: 8 },
+  fuelBtn: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 14, borderWidth: 1.5, borderColor: '#d9dfe9', backgroundColor: colors.white },
+  fuelBtnDiesel: { borderColor: '#e07b00', backgroundColor: '#fff4e0' },
+  fuelBtnCng: { borderColor: '#16a34a', backgroundColor: '#e8f8ee' },
+  fuelText: { fontFamily: fonts.bold, fontSize: 14, color: colors.text },
   unavail: { fontFamily: fonts.medium, fontSize: 11, color: colors.primaryDark, paddingHorizontal: 14, paddingBottom: 10 },
   bottom: { backgroundColor: colors.white, borderTopWidth: 1, borderTopColor: '#E5E8ED', paddingHorizontal: space.xl, paddingTop: 10, paddingBottom: 10, gap: 8 },
   bottomRow: { flexDirection: 'row', alignItems: 'center', gap: 16 },

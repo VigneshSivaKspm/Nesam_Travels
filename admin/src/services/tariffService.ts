@@ -100,6 +100,8 @@ export interface Tariff {
   rentalPackages?: Partial<Record<TariffClass, { minHours?: number; packages?: Partial<Record<string, Partial<RentalPackage>>> }>>;
   extraCharges?: ExtraCharges;
   brandOverrides?: Partial<Record<string, Partial<Record<string, Partial<Record<TariffClass, BrandFareOverride>>>>>>;
+  /** Display only: the % shown as a higher struck-out price, by brand then service. */
+  displayMarkup?: Record<string, Record<string, number>>;
 }
 
 /** Journey-specific rates take precedence; old shared rates remain a backwards-compatible fallback. */

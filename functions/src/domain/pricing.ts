@@ -57,6 +57,7 @@ export function mapCategory(id: string, d: Record<string, any>): RideCategory | 
       },
     },
     displayOrder: num(d.displayOrder, 99),
+    cngEnabled: d.cngEnabled === true,
   };
 }
 

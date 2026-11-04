@@ -150,6 +150,8 @@ export interface TariffConfig {
   rentalPackages?: Partial<Record<TariffClass, RentalClassConfig>>;
   /** Waiting, hill and roof carrier rates by vehicle category (see domain/extraCharges.ts). */
   extraCharges?: ExtraChargesConfig;
+  /** Display only: % shown as a higher, struck-out price above a fare, by Brand -> Service. It never changes what is charged. */
+  displayMarkup?: Record<string, Record<string, number>>;
   /** Brand-specific fare overrides organized by Brand -> Service -> Category. */
   brandOverrides?: Partial<Record<string, Partial<Record<string, Partial<Record<TariffClass, BrandFareOverride>>>>>>;
 }
@@ -456,6 +458,25 @@ export function completeAirportRates(cfg: TariffConfig, cls: TariffClass): Requi
 }
 
 /** Parses business_config/tariff_v2. Anything malformed is dropped (treated as not configured). */
+function parseDisplayMarkup(v: unknown): Record<string, Record<string, number>> | undefined {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+  const out: Record<string, Record<string, number>> = {};
+  for (const [brand, services] of Object.entries(v as Record<string, unknown>)) {
+    if (!services || typeof services !== 'object' || Array.isArray(services)) continue;
+    const row: Record<string, number> = {};
+    for (const [service, pct] of Object.entries(services as Record<string, unknown>)) {
+      if (isNum(pct) && pct > 0 && pct <= 300) row[service] = Math.round(pct * 100) / 100;
+    }
+    if (Object.keys(row).length) out[brand] = row;
+  }
+  return Object.keys(out).length ? out : undefined;
+}
+
+/** The % shown as a struck-out higher price above a fare: the brand's own setting for the service, else the shared one. 0 = none. */
+export function displayMarkupPercent(cfg: TariffConfig | null, brand: string | undefined, service: string): number {
+  return cfg?.displayMarkup?.[brand ?? '']?.[service] ?? cfg?.displayMarkup?.common?.[service] ?? 0;
+}
+
 export function parseTariffConfig(d: Record<string, any> | undefined | null): TariffConfig | null {
   if (!d || typeof d !== 'object') return null;
   const airportOk = isNum(d.airport?.customerBase) && isNum(d.airport?.partnerBase);
@@ -489,6 +510,7 @@ export function parseTariffConfig(d: Record<string, any> | undefined | null): Ta
     ...(rentalPackages ? { rentalPackages } : {}),
     ...(extraCharges ? { extraCharges } : {}),
     ...(brandOverrides ? { brandOverrides } : {}),
+    ...(parseDisplayMarkup(d.displayMarkup) ? { displayMarkup: parseDisplayMarkup(d.displayMarkup) } : {}),
     ...(parseFareGst(d.fareGst) ? { fareGst: parseFareGst(d.fareGst) } : {}),
   };
 }

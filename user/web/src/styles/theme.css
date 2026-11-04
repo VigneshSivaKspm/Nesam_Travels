@@ -2549,3 +2549,53 @@ h2,
 .bf .bf-multicity .bf-round-stop-add.is-invalid {
   border-color: var(--danger, #d92d20);
 }
+
+/* Fuel choice above the cab list: Diesel / Petrol or CNG, two clear buttons. */
+.cabx-fuelbar {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 10px;
+}
+.cabx-fuelbar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid #d9dfe9;
+  border-radius: 14px;
+  background: #fff;
+  color: var(--ink, #20252d);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.cabx-fuelbar__btn--diesel.is-on {
+  border-color: #e07b00;
+  background: #fff4e0;
+  color: #a85a00;
+}
+.cabx-fuelbar__btn--cng.is-on {
+  border-color: #16a34a;
+  background: #e8f8ee;
+  color: #11773a;
+}
+.cabx-fuelbar__btn:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--brand, #1665e8) 40%, transparent);
+  outline-offset: 2px;
+}
+
+/* Struck-out higher price above the real fare (display only; set in admin → Pricing → Base rates). */
+.cab__strike {
+  display: block;
+  color: var(--muted, #697587);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}

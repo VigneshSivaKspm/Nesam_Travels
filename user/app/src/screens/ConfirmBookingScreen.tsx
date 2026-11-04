@@ -118,7 +118,9 @@ export function ConfirmBookingScreen() {
 
   const priceKey = JSON.stringify([draft, adjustment?.id, adjustment?.percent]);
   const localQuote = calculateFare({ category, route, tripType, pickupTime, adjustment, discount: coupon?.discount ?? 0 });
-  const quote = serverQuote?.key === priceKey ? serverQuote.fare : authoritativeEntry?.fare ?? localQuote;
+  // On the CNG rate card when the rider chose CNG and this vehicle offers it.
+  const cngEntry = draft.fuelType === 'cng' ? authoritativeEntry?.cng ?? null : null;
+  const quote = serverQuote?.key === priceKey ? serverQuote.fare : cngEntry?.fare ?? authoritativeEntry?.fare ?? localQuote;
   const outstation = isOutstation(route.distanceKm);
 
   const emailError = email.trim() && !EMAIL_RE.test(email.trim()) ? 'Enter a valid email address or leave blank.' : '';
@@ -154,6 +156,7 @@ export function ConfirmBookingScreen() {
         tripType,
         paymentMethod: CUSTOMER_PAYMENTS_ENABLED ? payment : 'Cash',
         // Only a code the server applied to this fare is sent; a rejected code would make the booking fail.
+        fuelType: draft.fuelType === 'cng' ? 'cng' : undefined,
         couponCode: authoritativeEntry?.couponApplied ? promoCode : '',
         notes: composeBookingNotes({
           flight: tripType === 'Airport Taxi' ? flightNumber : '',

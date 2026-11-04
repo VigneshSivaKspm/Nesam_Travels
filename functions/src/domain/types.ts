@@ -89,6 +89,8 @@ export interface RideCategory {
   matchVehicleTypes: string[];
   fare: FareConfig;
   displayOrder: number;
+  /** CNG may be chosen for this category (set per category in admin; it also needs a CNG rate card for its class). */
+  cngEnabled?: boolean;
 }
 
 export interface FareBreakdown {

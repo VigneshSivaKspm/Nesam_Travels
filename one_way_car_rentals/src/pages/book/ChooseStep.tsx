@@ -12,7 +12,7 @@ import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
 import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
-import { CabIcon, FuelPick, type FuelChoice } from '../../../../user/web/src/components/CabParts';
+import { CabIcon, FuelBar, type FuelChoice } from '../../../../user/web/src/components/CabParts';
 import { BarIconButton, FareDialog, FlowBar, PromoControl } from './parts';
 
 const TOO_FAR_KM = 1500;
@@ -27,7 +27,8 @@ export function ChooseStep() {
   const [group, setGroup] = useState<'All' | CategoryGroup>('All');
   const [sort, setSort] = useState<Sort>('recommended');
   // The fuel chosen on each card (CNG is offered only on vehicles whose CNG rates the admin has saved).
-  const [fuelPick, setFuelPick] = useState<Record<string, FuelChoice>>({});
+  // One fuel choice for the whole list: Diesel / Petrol, or CNG (priced on a vehicle's CNG rate card where the admin has saved one).
+  const [fuelAll, setFuelAll] = useState<FuelChoice>(draft.fuelType === 'cng' ? 'cng' : 'diesel');
   const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId } = draft;
   // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
   const sameAsPickup = !!pickup && !!drop && Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
@@ -39,11 +40,12 @@ export function ChooseStep() {
   }, [categories]);
 
   const shown = useMemo(() => {
-    const list = categories.filter((c) => group === 'All' || categoryGroup(c) === group);
+    // With CNG chosen, only the cab types that offer CNG are listed (the admin enables CNG per category).
+    const list = categories.filter((c) => (group === 'All' || categoryGroup(c) === group) && (fuelAll !== 'cng' || !!q.entries.get(c.id)?.cng));
     if (sort === 'recommended') return list;
     const price = (c: RideCategory) => q.quotes.get(c.id)?.total ?? (sort === 'low' ? Infinity : -Infinity);
     return [...list].sort((a, b) => (sort === 'low' ? price(a) - price(b) : price(b) - price(a)));
-  }, [categories, group, sort, q.quotes]);
+  }, [categories, group, sort, q.quotes, q.entries, fuelAll]);
 
   if (!pickup || !drop) return null;
 
@@ -52,11 +54,18 @@ export function ChooseStep() {
   const quote = q.quote;
   const canContinue = q.authoritative && !!quote && !tooFar && !!selected && !q.unavailable.has(selected.id);
   const cngOf = (c: RideCategory) => q.entries.get(c.id)?.cng ?? null;
-  const fuelOf = (c: RideCategory): FuelChoice => (cngOf(c) ? fuelPick[c.id] ?? (c.id === categoryId && draft.fuelType === 'cng' ? 'cng' : 'diesel') : 'diesel');
+  const fuelOf = (c: RideCategory): FuelChoice => (fuelAll === 'cng' && cngOf(c) ? 'cng' : 'diesel');
   const chooseCategory = (c: RideCategory) => update({ categoryId: c.id, fuelType: fuelOf(c) === 'cng' ? 'cng' : '' });
-  const chooseFuel = (c: RideCategory, f: FuelChoice) => {
-    setFuelPick((p) => ({ ...p, [c.id]: f }));
-    update({ categoryId: c.id, fuelType: f === 'cng' ? 'cng' : '' });
+  const chooseFuelAll = (f: FuelChoice) => {
+    setFuelAll(f);
+    const current = categories.find((c) => c.id === categoryId);
+    if (f === 'cng' && !(current && cngOf(current))) {
+      // The chosen cab type has no CNG: move to the first one that does.
+      const first = categories.find((c) => !!cngOf(c));
+      update(first ? { categoryId: first.id, fuelType: 'cng' } : { fuelType: '' });
+      return;
+    }
+    update({ fuelType: f === 'cng' ? 'cng' : '' });
   };
   const breakupFor = (c: RideCategory) => {
     const alt = fuelOf(c) === 'cng' ? cngOf(c) : null;
@@ -207,6 +216,7 @@ export function ChooseStep() {
                     We couldn’t confirm live fares. The amounts below are estimates; you can continue once confirmed.
                   </Notice>
                 ) : null}
+                {categories.some((c) => q.entries.get(c.id)?.cng) ? <FuelBar value={fuelAll} onChange={chooseFuelAll} /> : null}
                 <h2 className="sr-only" id="cabs-h">
                   Available cabs
                 </h2>
@@ -218,6 +228,8 @@ export function ChooseStep() {
                     const reason = q.unavailable.get(c.id) ?? '';
                     const blocked = tooFar || !!reason;
                     const entry = q.entries.get(c.id);
+                    const strikeTotal = (cngAlt ? cngAlt.strikeTotal : entry?.strikeTotal) ?? 0;
+                    const strike = fare && strikeTotal > 0 && fare.total > 0 ? Math.round((fare.taxableAmount * strikeTotal) / fare.total) : 0;
                     const incl = quotedInclusionLine(entry && cngAlt ? { ...entry, extraKmRate: cngAlt.extraKmRate } : entry, c, q.outstation);
                     return (
                       <li key={c.id} className={`cab ${on ? 'is-selected' : ''} ${blocked ? 'is-disabled' : ''}`}>
@@ -245,6 +257,7 @@ export function ChooseStep() {
                               <span className="cab__na">{reason}</span>
                             ) : fare ? (
                               <>
+                                {strike > 0 ? <s className="cab__strike">{formatINR(strike)}</s> : null}
                                 <strong className="num">{formatINR(fare.taxableAmount)}</strong>
                                 <small className="cab__tax">{q.quoteLoading ? 'Confirming fare…' : fare.gst > 0 ? `+ ${formatINR(fare.gst)} GST` : ''}</small>
                               </>
@@ -255,11 +268,7 @@ export function ChooseStep() {
                             )}
                           </span>
                         </label>
-                        {cngOf(c) && !blocked ? (
-                          <div className="cab__fuel">
-                            <FuelPick name={`fuel-${c.id}`} value={fuelOf(c)} onChange={(f) => chooseFuel(c, f)} />
-                          </div>
-                        ) : null}
+                        {fuelAll === 'cng' && !cngOf(c) && !blocked && !q.quoteLoading ? <small className="cab__na">CNG is not offered on this vehicle: diesel fare shown</small> : null}
                         <div className="cab__foot">
                           <span>{incl || 'Fare as per route distance'}</span>
                           {fare ? (

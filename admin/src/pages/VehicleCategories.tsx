@@ -69,6 +69,7 @@ const defaultFormState = {
   recommendedPassengers: 0,
   displayOrder: 1,
   status: "Active" as "Active" | "Inactive",
+  cngEnabled: false,
   fare: {
     baseFare: 0,
     baseKm: 0,
@@ -101,6 +102,7 @@ const toForm = (f: typeof defaultFormState): CategoryForm => ({
   recommendedPassengers: f.recommendedPassengers,
   displayOrder: f.displayOrder,
   status: f.status,
+  cngEnabled: f.cngEnabled,
   fare: { ...f.fare },
 });
 
@@ -212,6 +214,7 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
         recommendedPassengers: cat.recommendedPassengers || 0,
         displayOrder: cat.displayOrder || 1,
         status: cat.status || "Active",
+        cngEnabled: cat.cngEnabled === true,
         fare: {
           baseFare: cat.fare?.baseFare ?? 0,
           baseKm: cat.fare?.baseKm ?? 0,
@@ -515,6 +518,9 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                                     {cat.code}
                                   </span>
                                 )}
+                                {cat.cngEnabled && (
+                                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-green-100 text-green-800 font-bold uppercase">CNG</span>
+                                )}
                               </div>
                               {cat.description?.trim() && cat.description.trim() !== cat.name && (
                                 <div className="text-[11px] text-faint line-clamp-1 max-w-xs">
@@ -728,6 +734,16 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                         className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                     </div>
+
+                    <label className="flex items-center gap-3 p-3 rounded-xl border border-line bg-gray-50 max-w-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={formData.cngEnabled === true}
+                        onChange={(e) => setFormData({ ...formData, cngEnabled: e.target.checked })}
+                        className="w-4 h-4 accent-brand"
+                      />
+                      <span className="text-[12px] font-semibold text-ink">CNG available</span>
+                    </label>
 
                     <div className="max-w-xs">
                       <label className="block text-[11px] font-bold text-ink mb-1">Status</label>

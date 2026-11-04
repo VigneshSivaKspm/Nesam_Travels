@@ -33,6 +33,8 @@ export interface BookingDraft {
   promoCode: string;
   /** Local Rental package hours; null = the shortest package each car offers. */
   rentalHours: number | null;
+  /** 'cng' when the rider chose CNG vehicles (priced on a vehicle's CNG rate card where one is saved). */
+  fuelType: '' | 'cng';
 }
 
 /** The services in the bottom navigation. Multicity has no booking contract on the server yet. */
@@ -92,6 +94,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
     flightNumber: '',
     promoCode: '',
     rentalHours: null,
+    fuelType: '',
   });
   const [service, setServiceState] = useState<HomeService>('outstation');
   const lastOutstation = useRef<TripType>('One Way');
@@ -133,7 +136,7 @@ export function BookingDraftProvider({ children }: { children: React.ReactNode }
   const reset = useCallback(() => {
     lastOutstation.current = 'One Way';
     setServiceState('outstation');
-    setDraft((d) => ({ ...d, drop: null, stops: [], scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '', rentalHours: null }));
+    setDraft((d) => ({ ...d, drop: null, stops: [], scheduledAt: null, tripEndAt: null, tripType: 'One Way', flightNumber: '', airportDirection: 'to', promoCode: '', rentalHours: null, fuelType: '' }));
   }, []);
   const setRoute = useCallback((key: string, info: RouteInfo) => setRouteState({ key, info }), []);
 

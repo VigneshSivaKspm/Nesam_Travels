@@ -105,6 +105,24 @@ export function FuelPick({ name, value, onChange }: { name: string; value: FuelC
   );
 }
 
+/** "Fuel type" above the cab list: Diesel / Petrol or CNG, as two buttons. */
+export function FuelBar({ value, onChange }: { value: FuelChoice; onChange: (v: FuelChoice) => void }) {
+  const opts: { id: FuelChoice; label: string }[] = [
+    { id: 'diesel', label: 'Diesel / Petrol' },
+    { id: 'cng', label: 'CNG' },
+  ];
+  return (
+    <div className="cabx-fuelbar" role="radiogroup" aria-label="Fuel type">
+      {opts.map((o) => (
+        <button key={o.id} type="button" role="radio" aria-checked={value === o.id} className={`cabx-fuelbar__btn cabx-fuelbar__btn--${o.id} ${value === o.id ? 'is-on' : ''}`} onClick={() => onChange(o.id)}>
+          <CabIcon kind={o.id} size={20} />
+          <span>{o.label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 /** Up and down arrows side by side: the swap pickup / drop button. */
 export function SwapIcon({ size = 20 }: { size?: number }) {
   return (

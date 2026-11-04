@@ -24,6 +24,7 @@ import { BRANDS, BRAND_LABELS, BRAND_SUPPORTED_SERVICES, CLASS_LABEL, TARIFF_CLA
 import { EstimateList, TripFields, emptyTrip, estimateAll, useQuickData, validateTrip, type CategoryEstimate, type QuickTrip } from "../components/booking/QuickFare";
 import { GST_STATES } from "../domain/gstStates";
 import { directoryCities, directoryZones } from "../domain/placeDirectory";
+import DisplayMarkupCard from "../components/DisplayMarkupCard";
 import { refDateTime } from "../domain/officeStage";
 
 type Tab = "Brand & service fares" | "Booking availability" | "Cab types" | "Pricing rules" | "More settings" | "GST calculation" | "Service areas";
@@ -379,6 +380,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
         <div className="fs-main">
       {pageTitle && <header className="fs-title"><h2>{pageTitle.h}</h2><p>{pageTitle.p}</p></header>}
       {scopeBar}
+      {!inlineKind && tab === "Brand & service fares" && <DisplayMarkupCard scope={fareScope} />}
       {!inlineKind && tab !== "Service areas" && <>
       {tab !== "Brand & service fares" && tab !== "GST calculation" && <>
         {locationFilter}

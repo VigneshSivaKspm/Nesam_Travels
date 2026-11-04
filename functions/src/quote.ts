@@ -19,7 +19,7 @@ import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, se
 import {
   CONFIRMED_TARIFF_V2, FixedRouteFare, completeAirportRates, defaultRentalHours, quoteAirport, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
   parseFixedRouteFare, parseTariffConfig, gstOn, quoteFixedRoute, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone, scopedTariffForBrand,
-  calendarDays, finalizeFare, multicityRatesFor, quoteMulticity,
+  calendarDays, finalizeFare, multicityRatesFor, quoteMulticity, displayMarkupPercent,
 } from './domain/tariff';
 import { gstComponents } from './domain/gst';
 import { multicityBookingAmounts } from './domain/multicitySnapshot';
@@ -380,6 +380,7 @@ export const saveTariffConfig = onCall(async (request) => {
       ...(submitted.rentalPackages ?? before?.rentalPackages ? { rentalPackages: submitted.rentalPackages ?? before?.rentalPackages } : {}),
       // The extra-charge rates are edited only by their own section: a full tariff save never drops them.
       ...(before?.extraCharges ? { extraCharges: before.extraCharges } : {}),
+      ...(before?.displayMarkup ? { displayMarkup: before.displayMarkup } : {}),
     };
     if (parsed.enabled && !Object.keys(parsed.oneWay.classes).length && !Object.keys(parsed.roundTrip.classes).length) {
       throw new HttpsError('failed-precondition', 'Configure at least one one-way or round-trip rate card before enabling the tariff.');
@@ -506,6 +507,9 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   const history = customerId ? historyRead : null;
   const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
   const recipientState = recipientGstState(customer?.data());
+  // Display only: the % shown as a higher struck-out price above each fare. The fare itself is never changed by it.
+  const strikePercent = displayMarkupPercent(tariff, brand, multicity ? 'Multicity' : fareServiceKey(tripType));
+  const struck = (total: number) => (strikePercent > 0 ? { strikeTotal: Math.round(total * (1 + strikePercent / 100)) } : {});
   const rules = evaluateRules(serviceRules, pickup, drop, when, multicity ? 'Multicity' : ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, multicity ? 'Multicity' : fareServiceKey(tripType), itinerary);
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
@@ -542,16 +546,16 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
         // The same limit check a booking makes, so a quote the customer sees can always be booked.
         assertWithinLimits(rules, { categoryName: category.name, customerFare: priced.fare.total, partnerPayout: partnerPayoutRupees(adjustPartner(priced.pricing, rules)) });
         // The same trip on the CNG rate card, when this class has one and the fare came from the per-km tariff.
-        let cng: { fare: typeof priced.fare; breakup: typeof priced.breakup; extraKmRate: number } | null = null;
-        if ((priced.pricing.model === 'one_way_standard' || priced.pricing.model === 'round_trip_calendar') && !input.fuelType) {
+        let cng: { fare: typeof priced.fare; breakup: typeof priced.breakup; extraKmRate: number; strikeTotal?: number } | null = null;
+        if (c.cngEnabled === true && (priced.pricing.model === 'one_way_standard' || priced.pricing.model === 'round_trip_calendar') && !input.fuelType) {
           try {
             const alt = priceBooking({ ...base, discount, fuel: 'cng' });
-            cng = { fare: alt.fare, breakup: alt.breakup, extraKmRate: (alt.pricing.gstInclusiveBase?.extraKmRatePaise ?? alt.pricing.extraKmRatePaise) / 100 };
+            cng = { fare: alt.fare, breakup: alt.breakup, extraKmRate: (alt.pricing.gstInclusiveBase?.extraKmRatePaise ?? alt.pricing.extraKmRatePaise) / 100, ...struck(alt.fare.total) };
           } catch { cng = null; }
         }
         return {
           cng,
-          categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service,
+          categoryId: c.id, ok: true as const, fare: priced.fare, breakup: priced.breakup, service: priced.service, ...struck(priced.fare.total),
           model: priced.pricing.model, days: priced.pricing.days, includedKm: priced.pricing.includedKm, rentalHours: priced.pricing.rentalHours ?? null,
           // The customer-facing extra-KM rate (as entered when the fare includes GST).
           extraKmRate: (priced.pricing.gstInclusiveBase?.extraKmRatePaise ?? priced.pricing.extraKmRatePaise) / 100, gstIncluded: priced.pricing.gstInFare === true, couponMessage, couponApplied: discount > 0,

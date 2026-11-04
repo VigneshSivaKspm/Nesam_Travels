@@ -116,6 +116,7 @@ function payloadFrom(form: CategoryForm) {
     acSupported: form.acSupported ?? "Both",
     recommendedPassengers: form.recommendedPassengers || form.seatingCapacity,
     displayOrder: form.displayOrder || 1,
+    cngEnabled: form.cngEnabled === true,
     status: form.status,
     fare: { ...form.fare },
   };

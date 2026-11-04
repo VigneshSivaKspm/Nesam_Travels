@@ -22,10 +22,12 @@ export interface ServerCategoryQuote {
   extraKmRate?: number;
   /** True when the configured fare already contained GST (it was not added on top). */
   gstIncluded?: boolean;
+  /** Display only: a higher price to show struck out above `fare.total`. The fare is what is charged. */
+  strikeTotal?: number;
   couponMessage?: string;
   couponApplied?: boolean;
   /** The same trip priced on the vehicle's CNG rate card; absent when this vehicle has no CNG option. */
-  cng?: { fare: FareBreakdown; breakup: FareBreakup; extraKmRate: number } | null;
+  cng?: { fare: FareBreakdown; breakup: FareBreakup; extraKmRate: number; strikeTotal?: number } | null;
   error?: string;
 }
 
