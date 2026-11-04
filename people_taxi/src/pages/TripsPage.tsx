@@ -97,12 +97,6 @@ export function TripsPage() {
   const [limit, setLimit] = useState(PAGE);
   const [cancelTrip, setCancelTrip] = useState<TripRecord | null>(null);
 
-  const counts = useMemo(() => {
-    const c: Record<TripTab, number> = { Upcoming: 0, Completed: 0, Cancelled: 0 };
-    for (const t of trips) c[tabOfTrip(t)] += 1;
-    return c;
-  }, [trips]);
-
   const shown = useMemo(() => {
     const q = query.trim().toLowerCase();
     const list = trips.filter((t) => tabOfTrip(t) === tab && (!q || [t.pickup.name, t.drop.name, t.bookingId, t.categoryName].some((s) => s.toLowerCase().includes(q))));
@@ -155,7 +149,7 @@ export function TripsPage() {
       <div className="page">
         <TourQuotes brand="people_taxi" />
         <div className="toolbar">
-          <div className="tabs" role="tablist" aria-label="Trip status">
+          <div className="tabs tabs--trips" role="tablist" aria-label="Trip status">
             {TABS.map((t) => (
               <button
                 key={t}
@@ -169,7 +163,6 @@ export function TripsPage() {
                 }}
               >
                 {t}
-                <span className="chip__count">{counts[t]}</span>
               </button>
             ))}
           </div>

@@ -24,7 +24,7 @@ import { SERVICES, SERVICE_TITLE, type ServiceId } from '@/lib/services';
 import { AIRPORTS, QUICK_CITIES, isAirportPlace } from './content';
 import { MulticityForm } from './MulticityForm';
 
-type Field = 'pickup' | 'drop' | 'stops' | 'date' | 'time' | 'endDate' | 'endTime' | 'form';
+type Field = 'pickup' | 'drop' | 'stops' | 'date' | 'time' | 'form';
 type Errors = Partial<Record<Field, string>>;
 export type AirportDirection = 'to' | 'from';
 
@@ -102,16 +102,15 @@ export function BookingForm({
   // ── Schedule (local date + time inputs mirrored into the draft) ─────────
   const [date, setDate] = useState(() => (scheduledAt ? toDateInput(scheduledAt) : toDateInput(new Date())));
   const [time, setTime] = useState(() => (scheduledAt ? toTimeInput(scheduledAt) : ''));
-  const [endDate, setEndDate] = useState(() => (tripEndAt ? toDateInput(tripEndAt) : ''));
-  const [endTime, setEndTime] = useState(() => (tripEndAt ? toTimeInput(tripEndAt) : ''));
   useEffect(() => {
     const d = combineDateTime(date, time);
     if ((d?.getTime() ?? null) !== (scheduledAt?.getTime() ?? null)) update({ scheduledAt: d });
   }, [date, time]); // eslint-disable-line react-hooks/exhaustive-deps
+  // No return date is asked: a round trip is quoted from the pickup instant.
   useEffect(() => {
-    const d = tripType === 'Round Trip' ? combineDateTime(endDate, endTime) : null;
+    const d = tripType === 'Round Trip' ? combineDateTime(date, time) : null;
     if ((d?.getTime() ?? null) !== (tripEndAt?.getTime() ?? null)) update({ tripEndAt: d });
-  }, [endDate, endTime, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [date, time, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recent = useMemo(() => {
     const seen = new Set<string>();
@@ -136,6 +135,7 @@ export function BookingForm({
       popularLabel: airportOnly ? 'Airports' : service === 'rental' && f === 'pickup' ? 'Your city' : 'Popular locations',
       near: f === 'drop' ? (pickup ?? position) : position,
       pinMode: airportOnly ? undefined : f,
+      ...(airportOnly ? { resultFilter: isAirportPlace, subtitle: 'Search for an airport.', placeholder: 'Search airport', emptyText: 'No airports found. Try the airport or city name.' } : {}),
       check: airportOnly ? (p) => (isAirportPlace(p) ? '' : 'Choose an airport for this transfer.') : service === 'airport' ? (p) => (isAirportPlace(p) ? 'The other end of an airport transfer should be your city address, not an airport.' : '') : undefined,
     };
   };
@@ -175,12 +175,6 @@ export function BookingForm({
       const p = scheduleProblem(at);
       if (p) e.time = p;
     }
-    if (tripType === 'Round Trip' && service === 'outstation') {
-      const end = combineDateTime(endDate, endTime);
-      if (!endDate) e.endDate = 'Choose the return date.';
-      else if (!endTime) e.endTime = 'Choose the return time.';
-      else if (at && end && end.getTime() <= at.getTime()) e.endTime = 'The return must be after the pickup.';
-    }
     return e;
   };
 
@@ -188,7 +182,7 @@ export function BookingForm({
     if (service === 'rental' && pickup && (!drop || drop.id !== 'place-local-disposal')) update({ drop: disposalFor(pickup) });
     const e = validate();
     setErrors(e);
-    const first = (['pickup', 'stops', 'drop', 'date', 'time', 'endDate', 'endTime'] as Field[]).find((f) => e[f]);
+    const first = (['pickup', 'stops', 'drop', 'date', 'time'] as Field[]).find((f) => e[f]);
     if (first) {
       refs.current[first]?.focus();
       refs.current[first]?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -419,57 +413,6 @@ export function BookingForm({
             </div>
           </div>
 
-          {service === 'outstation' && outstationTrip === 'Round Trip' ? (
-            <div className="bf-row">
-              <div className="bf-cell">
-                <label className="bf-label bf-label--out" htmlFor="bf-end-date">
-                  Return date
-                </label>
-                <div className="bf-datewrap">
-                  <input
-                    ref={(el) => {
-                      refs.current.endDate = el;
-                    }}
-                    id="bf-end-date"
-                    className="input bf-input"
-                    type="date"
-                    value={endDate}
-                    min={date || toDateInput(new Date())}
-                    max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
-                    aria-invalid={!!errors.endDate || undefined}
-                    aria-describedby={errors.endDate ? 'bf-endDate-err' : undefined}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      setErrors((x) => ({ ...x, endDate: '', endTime: '' }));
-                    }}
-                  />
-                  {endDate ? <span className="bf-chip">{dayHint(endDate)}</span> : null}
-                </div>
-                {fieldErr('endDate')}
-              </div>
-              <div className="bf-cell">
-                <span className="bf-label bf-label--out" id="bf-end-time-label">
-                  Return time
-                </span>
-                <button
-                  ref={(el) => {
-                    refs.current.endTime = el;
-                  }}
-                  type="button"
-                  className={`bf-time ${endTime ? '' : 'is-empty'}`}
-                  aria-labelledby="bf-end-time-label bf-end-time-value"
-                  aria-invalid={!!errors.endTime || undefined}
-                  aria-describedby={errors.endTime ? 'bf-endTime-err' : undefined}
-                  onClick={() => setTimeFor('return')}
-                >
-                  <span id="bf-end-time-value">{endTime ? formatTime12(endTime) : ''}</span>
-                  <ClockIcon size={26} />
-                </button>
-                {fieldErr('endTime')}
-              </div>
-            </div>
-          ) : null}
-
           {errors.form ? (
             <p className="bf-error bf-error--form" role="alert">
               {errors.form}
@@ -496,20 +439,15 @@ export function BookingForm({
       {stopPicker !== null ? <LocationPicker config={{ title: stopPicker === 'new' ? 'Add itinerary stop' : `Edit stop ${stopPicker + 1}`, allowCurrent: true, popular: QUICK_CITIES, popularLabel: 'Popular locations', near: pickup ?? position, pinMode: 'drop' }} saved={savedPlaces} recent={recent} onClose={() => setStopPicker(null)} onSelect={(place) => { update((d) => ({ stops: stopPicker === 'new' ? [...d.stops, place] : d.stops.map((stop, index) => index === stopPicker ? place : stop) })); setErrors((e) => ({ ...e, stops: '', form: '' })); setStopPicker(null); }} /> : null}
       {timeFor ? (
         <TimePicker
-          title={timeFor === 'pickup' ? 'Pickup time' : 'Return time'}
-          date={timeFor === 'pickup' ? date : endDate}
-          value={timeFor === 'pickup' ? time : endTime}
-          validate={timeFor === 'pickup' ? 'pickup' : 'after'}
-          notBefore={timeFor === 'return' ? combineDateTime(date, time) : null}
+          title="Pickup time"
+          date={date}
+          value={time}
+          validate="pickup"
+          notBefore={null}
           onClose={() => setTimeFor(null)}
           onConfirm={(t) => {
-            if (timeFor === 'pickup') {
-              setTime(t);
-              setErrors((x) => ({ ...x, time: '' }));
-            } else {
-              setEndTime(t);
-              setErrors((x) => ({ ...x, endTime: '' }));
-            }
+            setTime(t);
+            setErrors((x) => ({ ...x, time: '' }));
             setTimeFor(null);
           }}
         />

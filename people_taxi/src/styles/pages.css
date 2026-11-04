@@ -14,6 +14,21 @@
   gap: 16px;
   margin-bottom: clamp(20px, 2vw, 32px);
 }
+/* Trips: three equal, centred tabs that fill the row (no counts). */
+.tabs--trips {
+  width: min(100%, 440px);
+}
+.tabs--trips .tab {
+  justify-content: center;
+  min-width: 0;
+  padding: 0 12px;
+  white-space: nowrap;
+}
+@media (max-width: 639.98px) {
+  .tabs--trips {
+    width: 100%;
+  }
+}
 .search {
   display: flex;
   align-items: center;

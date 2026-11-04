@@ -28,6 +28,11 @@ export interface PickerConfig {
   popularLabel?: string;
   near?: LatLng | null;
   pinMode?: 'pickup' | 'drop';
+  // Airport-only pickers: search shows just the places this accepts (plus matching `popular` entries).
+  resultFilter?: (p: GeoPlace) => boolean;
+  subtitle?: string;
+  placeholder?: string;
+  emptyText?: string;
 }
 
 function Row({ icon, title, subtitle, onClick, busy, disabled }: { icon: string; title: string; subtitle?: string; onClick: () => void; busy?: boolean; disabled?: boolean }) {
@@ -76,7 +81,12 @@ export function LocationPicker({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       searchPlaces(q, config.near ?? null, controller.signal)
-        .then((r) => !controller.signal.aborted && setResults({ q, list: r, error: r.length ? '' : 'No places found. Try a landmark, area or city name.' }))
+        .then((raw) => {
+          if (controller.signal.aborted) return;
+          const r = config.resultFilter ? raw.filter(config.resultFilter) : raw;
+          const own = config.resultFilter ? config.popular.some((p) => `${p.name} ${p.address}`.toLowerCase().includes(q.toLowerCase())) : false;
+          setResults({ q, list: r, error: r.length || own ? '' : config.emptyText ?? 'No places found. Try a landmark, area or city name.' });
+        })
         .catch(() => !controller.signal.aborted && setResults({ q, list: [], error: isOnline() ? 'Search is temporarily unavailable. Please try again.' : 'You’re offline — search needs a connection.' }));
     }, 320);
     return () => {
@@ -118,9 +128,13 @@ export function LocationPicker({
 
   if (mapMode) return <PinDialog title={config.title} mode={config.pinMode ?? 'pickup'} onBack={() => setMapMode(false)} onConfirm={choose} />;
 
-  const list = results.q === q ? results.list : [];
+  const found = results.q === q ? results.list : [];
+  // Airport-only pickers list the curated airports that match first, then any other airports the search found.
+  const list = config.resultFilter
+    ? [...config.popular.filter((p) => `${p.name} ${p.address}`.toLowerCase().includes(filterLower)), ...found.filter((p) => !config.popular.some((c) => c.name.toLowerCase() === p.name.toLowerCase()))]
+    : found;
   return (
-    <Dialog title={config.title} subtitle="Search a city, area or landmark." onClose={onClose} variant="page" className="picker">
+    <Dialog title={config.title} subtitle={config.subtitle ?? 'Search a city, area or landmark.'} onClose={onClose} variant="page" className="picker">
       <div className="picker__search">
         <Icon name="search" size={18} />
         <label className="sr-only" htmlFor="picker-q">
@@ -131,7 +145,7 @@ export function LocationPicker({
           data-autofocus
           type="search"
           value={query}
-          placeholder="City, area or landmark"
+          placeholder={config.placeholder ?? 'City, area or landmark'}
           autoComplete="off"
           spellCheck={false}
           enterKeyHint="search"
@@ -194,7 +208,7 @@ export function LocationPicker({
           </>
         ) : (
           <>
-            {saved.length && !q ? (
+            {saved.length && !q && !config.resultFilter ? (
               <>
                 <p className="picker__head">Saved addresses</p>
                 <ul>
@@ -204,7 +218,7 @@ export function LocationPicker({
                 </ul>
               </>
             ) : null}
-            {recent.length && !q ? (
+            {recent.length && !q && !config.resultFilter ? (
               <>
                 <p className="picker__head">Recent</p>
                 <ul>

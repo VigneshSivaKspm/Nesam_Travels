@@ -172,23 +172,11 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
     const d = combineDateTime(whenDate, whenTime);
     if ((d?.getTime() ?? null) !== (scheduledAt?.getTime() ?? null)) update({ scheduledAt: d });
   }, [whenDate, whenTime]); // eslint-disable-line react-hooks/exhaustive-deps
-  // Round trips: the return date and time. Billing counts Indian calendar dates from pickup to here.
-  const [endDate, setEndDate] = useState(() => (tripEndAt ? toDateInput(tripEndAt) : ''));
-  const [endTime, setEndTime] = useState(() => (tripEndAt ? toTimeInput(tripEndAt) : ''));
+  // No return date is asked: a round trip is quoted from the pickup instant.
   useEffect(() => {
-    const d = tripType === 'Round Trip' ? combineDateTime(endDate, endTime) : null;
+    const d = tripType === 'Round Trip' ? combineDateTime(whenDate, whenTime) : null;
     if ((d?.getTime() ?? null) !== (tripEndAt?.getTime() ?? null)) update({ tripEndAt: d });
-  }, [endDate, endTime, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
-  const endIssue =
-    tripType !== 'Round Trip'
-      ? ''
-      : tripEndAt && scheduledAt && tripEndAt.getTime() < scheduledAt.getTime()
-        ? 'The return cannot be before the pickup.'
-        : endDate || endTime
-          ? !tripEndAt
-            ? 'Choose both the return date and time.'
-            : ''
-          : '';
+  }, [whenDate, whenTime, tripType]); // eslint-disable-line react-hooks/exhaustive-deps
   const scheduleIssue = scheduledAt ? scheduleProblem(scheduledAt) : whenDate || whenTime ? 'Choose both a pickup date and a time.' : '';
 
   // ── Continue ─────────────────────────────────────────────────────────────
@@ -218,7 +206,7 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
         ? currentBlocker
         : haversineKm(pickup, targetDrop) < 0.2 && !isLocalRental && tripType !== 'Round Trip'
           ? 'Pickup and destination are too close together.'
-          : scheduleProblem(scheduledAt) || (tripType === 'Round Trip' && (!tripEndAt || endIssue) ? endIssue || 'Choose when your round trip returns.' : '');
+          : scheduleProblem(scheduledAt);
     setProblem(reason);
     if (!reason) navigate('/book/ride');
   };
@@ -308,7 +296,7 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
     );
   };
 
-  const issue = problem || scheduleIssue || endIssue;
+  const issue = problem || scheduleIssue;
 
   return (
     <section ref={root} id="book-console" className="console" aria-label="Plan your trip">
@@ -436,25 +424,6 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
           </label>
         </div>
 
-        {tripType === 'Round Trip' ? (
-          <div className="when" role="group" aria-label="Return date and time">
-            <label className="when__item">
-              <span>Return date</span>
-              <input
-                type="date"
-                value={endDate}
-                min={whenDate || toDateInput(new Date())}
-                max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
-                onChange={(e) => setEndDate(e.target.value)}
-              />
-            </label>
-            <label className="when__item">
-              <span>Return time</span>
-              <input type="time" value={endTime} step={300} onChange={(e) => setEndTime(e.target.value)} />
-            </label>
-          </div>
-        ) : null}
-
         <Button size="lg" className="console__go" disabled={!pickup || !drop} onClick={proceed}>
           See fares
           <Icon name="arrow-right" size={20} />
@@ -470,7 +439,7 @@ export function PlanStep({ ui, setUi, intent }: { ui: PlanUi; setUi: Dispatch<Se
           </p>
         ) : (
           <p className="console__hint">
-            <Icon name="clock" size={16} /> Choose your departure ·{' '}
+            <Icon name="clock" size={16} /> Choose your pickup time ·{' '}
             <button type="button" className="link-btn" onClick={suggestPickup}>
               Suggest the earliest time
             </button>

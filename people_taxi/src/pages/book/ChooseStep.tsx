@@ -29,7 +29,7 @@ export function ChooseStep() {
   // The fuel chosen on each card (CNG is offered only on vehicles whose CNG rates the admin has saved).
   // The fuel chosen on each card. CNG is offered only on the cab types the admin enabled it for (and that have CNG rates saved).
   const [fuelPick, setFuelPick] = useState<Record<string, FuelChoice>>({});
-  const { pickup, drop, tripType, scheduledAt, tripEndAt, categoryId } = draft;
+  const { pickup, drop, tripType, scheduledAt, categoryId } = draft;
   // A Round Trip always ends back at the pickup: the drop is simply the last place visited.
   const sameAsPickup = !!pickup && !!drop && Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
   const roundVia = tripType === 'Round Trip' ? [...draft.stops, ...(sameAsPickup || !drop ? [] : [drop])] : [];
@@ -91,7 +91,6 @@ export function ChooseStep() {
                   </span>
                   {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
                   {route && tripType !== 'Local Rental' ? <span>{formatDistance(route.totalDistanceKm ?? route.distanceKm)} · about {formatDuration(route.totalDurationMin ?? route.durationMin)}</span> : null}
-                  {tripEndAt ? <span>Return {formatDate(tripEndAt)}</span> : null}
                 </p>
               </div>
             </section>
