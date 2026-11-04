@@ -1,5 +1,6 @@
 import DateTime12Input from "../components/DateTime12Input";
 import FareGstSettings from '../components/FareGstSettings';
+import FareAdjustmentCard from '../components/FareAdjustmentCard';
 import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import type { MasterLocation, TravelService, VehicleCategory } from "../types";
 import { subscribeLocations, subscribeServices, subscribeVehicleCategories } from "../services/adminFirestoreService";
@@ -371,6 +372,7 @@ export default function Pricing({ onNavigate, restore, onRestored, onOpenFareRul
             <div className="u27-inline-filters"><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search settings for this location" aria-label="Search location settings" /><select value={filter} onChange={e => setFilter(e.target.value as typeof filter)} aria-label="Setting status">{STATUS_FILTERS.map(status => <option key={status} value={status}>{status}</option>)}</select></div>
             {loadError ? <p className="ds-error" role="alert">Saved settings could not be loaded. Reload to try again.</p> : ruleTable(byKind(tab === "Booking availability" ? "availability" : tab === "Cab types" ? "categories" : "pricing")) ?? <div className="u27-empty-setting"><Icon name={tab === "Pricing rules" ? "badge-indian-rupee" : tab === "Cab types" ? "car-front" : "toggle-right"} /><strong>{query || filter !== "All" ? "No matching settings" : tab === "Pricing rules" ? "Normal applicable fare" : tab === "Cab types" ? "Default cab categories" : "Booking service is available by default"}</strong><p>{query || filter !== "All" ? "Try another search or status filter." : "No additional setting for this selection. Wider matching settings still apply."}</p></div>}
             <div className="u11-settings-foot"><Icon name="calendar-clock" />Set pickup dates and times inside each rule. Use the fare settings above for base rates and local fares.</div>
+            {tab === "Pricing rules" && fareScope.brand === "common" && <details className="mt-4"><summary className="font-semibold cursor-pointer">Existing shared adjustment — all brands and all services</summary><p className="ds-note my-3">This older shared percentage adjustment is still applied by the fare engine to every brand and service unless a scoped pricing rule replaces it. Staff with pricing access can see it here and switch it off.</p><FareAdjustmentCard /></details>}
           </>}
         </>
       </section>}

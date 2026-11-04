@@ -138,6 +138,7 @@ export const CALLABLES: Readonly<Record<string, CallableLike>> = Object.freeze({
   // support & AI chatbot
   submitSupportRequest: fns.submitSupportRequest,
   updateSupportRequest: fns.updateSupportRequest,
+  requestAccountDeletion: fns.requestAccountDeletion,
   chatWithBot: fns.chatWithBot,
   searchGooglePlaces: fns.searchGooglePlaces,
   reverseGoogleGeocode: fns.reverseGoogleGeocode,

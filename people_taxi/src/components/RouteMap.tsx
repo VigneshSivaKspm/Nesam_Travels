@@ -8,6 +8,7 @@ import type { LatLng } from '@core/types';
 import { DEFAULT_CENTER } from '@core/config/constants';
 import { isValidLatLng } from '@core/utils/geo';
 import { Icon } from './Icon';
+import { GoogleRouteMap, hasGoogleMapsWebKey } from './GoogleRouteMap';
 
 const TILE_URL = (import.meta.env.VITE_MAP_TILE_URL as string | undefined) || 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 const ATTRIBUTION = (import.meta.env.VITE_MAP_ATTRIBUTION as string | undefined) || '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
@@ -50,7 +51,7 @@ const meIcon = L.divIcon({ className: 'map-pin-wrap', html: '<span class="map-me
 
 const ZERO: MapPadding = { top: 24, right: 24, bottom: 24, left: 24 };
 
-export function RouteMap({ pickup, drop, driver, userLocation, path, basePath, padding = ZERO, pinMode = null, onCenterChange, className = '', label }: Props) {
+function LeafletRouteMap({ pickup, drop, driver, userLocation, path, basePath, padding = ZERO, pinMode = null, onCenterChange, className = '', label }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const layers = useRef<{ group: L.LayerGroup; route: L.Polyline | null }>({ group: L.layerGroup(), route: null });
@@ -225,4 +226,11 @@ export function RouteMap({ pickup, drop, driver, userLocation, path, basePath, p
       {tilesFailed ? <div className="route-map__offline">Map tiles could not be loaded. Your route and fares are unaffected.</div> : null}
     </div>
   );
+}
+
+export function RouteMap(props: Props) {
+  const [googleFailed, setGoogleFailed] = useState(false);
+  const padding = props.padding ?? ZERO;
+  if (hasGoogleMapsWebKey && !googleFailed) return <GoogleRouteMap {...props} padding={padding} onLoadError={() => setGoogleFailed(true)} />;
+  return <LeafletRouteMap {...props} padding={padding} />;
 }

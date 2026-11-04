@@ -5,6 +5,7 @@ import { updateCustomerProfile } from '@core/services/userService';
 import { COMPANY_LEGAL_NAME, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR, formatPhone } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
+import { callFunction } from '@core/services/callables';
 import { Avatar, Button, Dialog, EmptyState, LinkButton, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { PhotoError, uploadProfilePhoto } from '@/lib/avatarUpload';
@@ -45,6 +46,27 @@ export function AccountPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
+  const [deleteAsk, setDeleteAsk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+
+  const requestDeletion = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteResult(null);
+    try {
+      const r = await callFunction<{ role: string }, { alreadyOpen: boolean; liveBookings: number; reference: string }>('requestAccountDeletion', { role: 'customer' });
+      setDeleteResult({
+        tone: 'success',
+        text: `${r.alreadyOpen ? 'Your request is already with our team.' : 'Request received.'} Reference ${r.reference}. We will confirm by phone or email${r.liveBookings ? `. ${r.liveBookings} booking(s) are still open and must be completed or cancelled first` : ''}.`,
+      });
+    } catch (e) {
+      setDeleteResult({ tone: 'error', text: describeError(e, 'The request was not sent. Please try again.') });
+    } finally {
+      setDeleting(false);
+      setDeleteAsk(false);
+    }
+  };
 
   if (!profile) {
     return (
@@ -67,7 +89,8 @@ export function AccountPage() {
             </EmptyState>
           </div>
           <div className="card card--list" style={{ marginTop: 16 }}>
-            <Row icon="document" label="Terms, privacy & customer policies" to="/legal" />
+            <Row icon="info" label="About People Taxi" to="/about" />
+                <Row icon="document" label="Terms, privacy & customer policies" to="/legal" />
           </div>
         </div>
       </>
@@ -154,6 +177,7 @@ export function AccountPage() {
               <div className="card card--list">
                 <Row icon="support" label="Help and support tickets" to="/support" />
                 <Row icon="phone" label="Call People Taxi" value={SUPPORT_PHONE_DISPLAY} href={`tel:${SUPPORT_PHONE}`} />
+                <Row icon="info" label="About People Taxi" to="/about" />
                 <Row icon="document" label="Terms, privacy & customer policies" to="/legal" />
               </div>
             </section>
@@ -169,9 +193,43 @@ export function AccountPage() {
                 </Button>
               </div>
             </section>
+            <section className="group" aria-label="Delete account">
+              <h2 className="eyebrow">Privacy</h2>
+              <div className="card account__logout">
+                <div>
+                  <strong>Delete my account</strong>
+                  <p className="muted small">Ask us to erase your account and personal data.</p>
+                </div>
+                <Button variant="secondary" onClick={() => setDeleteAsk(true)}>
+                  Request deletion
+                </Button>
+              </div>
+              {deleteResult ? <Notice tone={deleteResult.tone}>{deleteResult.text}</Notice> : null}
+            </section>
           </div>
         </div>
       </div>
+
+      {deleteAsk ? (
+        <Dialog
+          title="Delete your account?"
+          onClose={() => setDeleteAsk(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setDeleteAsk(false)}>
+                Keep my account
+              </Button>
+              <Button variant="danger" loading={deleting} onClick={() => void requestDeletion()}>
+                Request deletion
+              </Button>
+            </>
+          }
+        >
+          <p className="muted">
+            We will verify the request, settle anything still open (bookings, payments) and then delete your account and personal data. Records we must keep by law, such as invoices, are retained. This cannot be undone once it is processed.
+          </p>
+        </Dialog>
+      ) : null}
 
       {confirm ? (
         <Dialog

@@ -24,6 +24,7 @@ import {
   type PopularRoute,
   type Service,
 } from './content';
+import { categoryName } from '@/lib/categories';
 
 export function HeroCopy() {
   // While the logo shows in the hero the header leaves its own out and puts "Book a cab" first; once the
@@ -323,7 +324,7 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
               <li key={c.id} className="hx-vehicle">
                 <img src={vehicleArtUrl(c)} alt={`NESAM ${c.name}, ${c.seats} seats`} width={320} height={210} loading="lazy" />
                 <div className="hx-vehicle__body">
-                  <strong>{c.name}</strong>
+                  <strong>{categoryName(c)}</strong>
                   <span className="hx-vehicle__seats">
                     <Icon name="passengers" size={15} /> {c.seats} seats
                   </span>

@@ -41,7 +41,7 @@ export function FareBreakdown({ lines, total, tolls = 0, estimated = false, poli
         <span className="num">{formatINR(total + tolls)}</span>
       </div>
 
-      {extra.length ? <AdditionalCharges lines={extra} policy={<PolicyLinks ids={policies} newTab />} footnote={footnote} /> : null}
+      {extra.length ? <AdditionalCharges lines={extra} policy={<PolicyLinks ids={['terms']} newTab />} footnote={footnote} /> : null}
       {na.length ? <p className="fare__na">Not applicable: {na.map((l) => l.label).join(', ')}.</p> : null}
       {extra.length ? null : (
         <>

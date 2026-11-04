@@ -31,6 +31,7 @@ export function sitemapEntries(): SitemapEntry[] {
     })),
     { path: '/offers', images: [], priority: '0.5', changefreq: 'weekly' },
     { path: '/support', images: [], priority: '0.5', changefreq: 'monthly' },
+    { path: '/about', images: [], priority: '0.4', changefreq: 'yearly' },
     { path: '/legal', images: [], priority: '0.3', changefreq: 'yearly' },
   ];
 }

@@ -34,6 +34,7 @@ const PaymentsPage = page(() => import('@/pages/PaymentsPage'), 'PaymentsPage');
 const OffersPage = page(() => import('@/pages/OffersPage'), 'OffersPage');
 const SupportPage = page(() => import('@/pages/SupportPage'), 'SupportPage');
 const LegalPage = page(() => import('@/pages/LegalPage'), 'LegalPage');
+const AboutPage = page(() => import('@/pages/AboutPage'), 'AboutPage');
 const RouteLandingPage = page(() => import('@/pages/routes/RouteLandingPage'), 'RouteLandingPage');
 const ServiceLandingPage = page(() => import('@/pages/services/ServiceLandingPage'), 'ServiceLandingPage');
 
@@ -128,6 +129,7 @@ export function AppRoutes() {
         <Route path="/offers" element={<OffersPage />} />
         <Route path="/support" element={<SupportPage />} />
         <Route path="/legal" element={<LegalPage />} />
+        <Route path="/about" element={<AboutPage />} />
         <Route path="/routes/:routeId" element={<RouteLandingPage />} />
         <Route path="/services/:serviceId" element={<ServiceLandingPage />} />
         <Route path="*" element={<NotFound />} />

@@ -10,6 +10,7 @@ export interface MulticityDraft {
   date: string;
   time: string;
   endDate: string;
+  endTime: string;
   categoryId: string;
   notes: string;
 }
@@ -38,7 +39,7 @@ export function multicityInstant(date: string, time: string): string | undefined
 }
 
 export function freshMulticityDraft(): MulticityDraft {
-  return { submissionId: newId('sub'), pickup: null, drop: null, stops: [{ id: newId('stop'), place: null }], date: '', time: '', endDate: '', categoryId: '', notes: '' };
+  return { submissionId: newId('sub'), pickup: null, drop: null, stops: [{ id: newId('stop'), place: null }], date: '', time: '', endDate: '', endTime: '', categoryId: '', notes: '' };
 }
 
 /** Storage is untrusted: rebuild a bounded, typed draft instead of trusting parsed JSON. */
@@ -62,6 +63,7 @@ export function loadMulticityDraft(raw: string | null): MulticityDraft {
       stops: stops.length ? stops : fresh.stops,
       date: validMulticityDate(date) ? date : '', endDate: validMulticityDate(endDate) ? endDate : '',
       time: /^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? time : '',
+      endTime: /^([01]\d|2[0-3]):[0-5]\d$/.test(string(parsed.endTime, 5)) ? string(parsed.endTime, 5) : '',
       categoryId: typeof parsed.categoryId === 'string' && /^[A-Za-z0-9_-]{1,80}$/.test(parsed.categoryId) ? parsed.categoryId : '',
       notes: string(parsed.notes, 500),
     };

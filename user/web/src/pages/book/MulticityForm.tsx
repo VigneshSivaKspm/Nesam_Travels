@@ -1,19 +1,17 @@
-// Multicity & Custom Tour Itinerary Form for NESAM.
-// Allows riders to build multi-stop road trip itineraries with reorderable intermediate stops,
-// departure and return schedules.
-// Submits a validated itinerary enquiry (submitMulticityEnquiry) with a stable submissionId and the nesam brand.
-import { useEffect, useMemo, useRef, useState } from 'react';
+// Multicity tour form for NESAM: pickup, any number of cities along the way, the final drop, and the departure and
+// return schedule. "Let's Go" turns it into a booking draft (a Round Trip through those cities, priced from the Multicity
+// rates) and opens the normal flow: cabs with their fares, review, then Confirm booking.
+import { useEffect, useMemo, useState } from 'react';
 import { ClockIcon, PinIcon } from '@/components/CabParts';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import type { GeoPlace } from '@core/types';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { scheduleProblem } from '@core/utils/bookingRules';
-import { callFunction, newId } from '@core/services/callables';
+import { newId } from '@core/services/callables';
 import { useCustomerData } from '@/state/CustomerData';
-import { useAuth } from '@/state/Auth';
+import { useBooking } from '@/state/Booking';
 import { loadMulticityDraft, multicityInstant, validMulticityDate, validMulticityPlace, type MulticityDraft } from '@core/utils/multicityDraft';
 import { useOnline } from '@/lib/hooks';
-import { latestPickup, toDateInput } from '@/lib/schedule';
+import { combineDateTime, latestPickup, toDateInput } from '@/lib/schedule';
 import { Button } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { LocationPicker, type PickerConfig } from '@/components/LocationPicker';
@@ -50,17 +48,15 @@ const dayHint = (iso: string): string => {
 };
 
 export function MulticityForm() {
-  const { state: auth, openLoginModal } = useAuth();
   const { savedPlaces, trips } = useCustomerData();
   const { online } = useOnline();
+  const navigate = useNavigate();
+  const { draft, update } = useBooking();
 
   const [state, setState] = useState<StoredMulticityState>(loadStoredState);
   const [pickerTarget, setPickerTarget] = useState<'pickup' | 'drop' | string | null>(null);
-  const [timePickerOpen, setTimePickerOpen] = useState(false);
+  const [timeFor, setTimeFor] = useState<'pickup' | 'return' | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [submitting, setSubmitting] = useState(false);
-  const submittingRef = useRef(false);
-  const [submittedQuote, setSubmittedQuote] = useState<{ code: string; message: string } | null>(null);
 
   // Synchronize draft changes into sessionStorage
   useEffect(() => {
@@ -88,6 +84,8 @@ export function MulticityForm() {
     const instant = multicityInstant(state.date, state.time);
     return instant ? new Date(instant) : null;
   }, [state.date, state.time]);
+
+  const tourEnd = useMemo(() => (state.endDate && state.endTime ? combineDateTime(state.endDate, state.endTime) : null), [state.endDate, state.endTime]);
 
   // Only chosen cities are shown; "Add city" opens the picker for the next one.
   const cities = useMemo(() => state.stops.filter((s) => s.place), [state.stops]);
@@ -197,6 +195,10 @@ export function MulticityForm() {
 
     if (filledStops.some((stop) => !validMulticityPlace(stop.place))) err.stops = 'Choose a valid location for every city.';
 
+    if (!state.endDate) err.endDate = 'Choose the return date.';
+    else if (!state.endTime) err.endTime = 'Choose the return time.';
+    else if (scheduled && tourEnd && tourEnd.getTime() <= scheduled.getTime()) err.endTime = 'The return must be after the departure.';
+
     if (!online) {
       err.form = 'You are currently offline. Please check your internet connection.';
     }
@@ -205,130 +207,29 @@ export function MulticityForm() {
     return Object.keys(err).length === 0;
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (submittingRef.current || !validate()) return;
-
-    if (auth.status !== 'ready') {
-      openLoginModal({
-        title: 'Sign in to request tour quote',
-        subtitle: 'Sign in so our travel desk can link this itinerary quote directly to your account.',
-      });
-      return;
-    }
-
-    submittingRef.current = true;
-    setSubmitting(true);
-    setErrors({});
-
-    try {
-      const filledStops = state.stops.filter((s) => s.place !== null).map((s) => ({ ...s.place!, id: s.id }));
-      const res = await callFunction<{
-        submissionId: string;
-        brand: string;
-        source: string;
-        pickup: GeoPlace;
-        drop: GeoPlace;
-        stops: GeoPlace[];
-        scheduledAt: string;
-        tripEndAt?: string;
-      }, { id: string; code: string; status: string; message: string }>('submitMulticityEnquiry', {
-        submissionId: state.submissionId,
-        brand: 'nesam',
-        source: 'nesam_web',
-        pickup: state.pickup!,
-        drop: state.drop!,
-        stops: filledStops,
-        scheduledAt: scheduled!.toISOString(),
-      });
-
-      setSubmittedQuote({
-        code: res.code || res.id,
-        message: res.message || 'Your itinerary quote request has been received.',
-      });
-
-      // Clear draft on successful submission
-      try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* Submission succeeded even if storage is unavailable. */ }
-    } catch (err: any) {
-      setErrors({ form: err.message || 'Failed to submit itinerary quote. Please try again.' });
-    } finally {
-      submittingRef.current = false;
-      setSubmitting(false);
-    }
+    if (!validate() || !scheduled || !tourEnd) return;
+    // The tour becomes the booking draft: a Round Trip through these cities, priced from the Multicity rates.
+    const filledStops = state.stops.filter((s) => s.place !== null).map((s) => ({ ...s.place!, id: s.place!.id }));
+    const next = {
+      ...draft,
+      pickup: state.pickup!,
+      drop: state.drop!,
+      stops: filledStops,
+      tripType: 'Round Trip' as const,
+      multicity: true,
+      scheduledAt: scheduled,
+      tripEndAt: tourEnd,
+      promoCode: '',
+    };
+    update(next);
+    navigate('/book/ride');
   };
-
-  const resetState = () => {
-    setSubmittedQuote(null);
-    setState({
-      submissionId: newId('sub'),
-      pickup: null,
-      drop: null,
-      stops: [{ id: newId('stop'), place: null }],
-      date: '',
-      time: '',
-      endDate: '',
-      categoryId: '',
-      notes: '',
-    });
-    setErrors({});
-  };
-
-  // ── Success State ──────────────────────────────────────────────────────────
-  if (submittedQuote) {
-    return (
-      <div className="bf-success" role="region" aria-label="Itinerary quote confirmation">
-        <div className="bf-success__icon" aria-hidden="true">
-          <Icon name="circle-check" size={52} />
-        </div>
-        <h3 className="text-xl font-bold text-ink">Quote Request Received!</h3>
-        <p className="bf-success__code">
-          Reference: <strong>{submittedQuote.code}</strong>
-        </p>
-        <div className="bf-success__status">
-          <Icon name="clock-3" size={14} /> Status: <span>Under Travel Desk Review</span>
-        </div>
-        <p className="bf-success__desc">
-          Our travel desk is calculating exact highway route distance, state permit charges and custom tour package pricing.
-          The travel desk will contact you after reviewing your itinerary and preparing a quote.
-        </p>
-
-        <div className="bf-success__itinerary">
-          <span className="bf-route-summary__title">Requested Itinerary:</span>
-          <div className="bf-route-flow">
-            <span className="bf-route-flow__stop">{state.pickup?.name}</span>
-            {state.stops.filter((s) => s.place).map((s) => (
-              <span key={s.id} className="bf-route-flow__stop">
-                <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {s.place?.name}
-              </span>
-            ))}
-            <span className="bf-route-flow__stop">
-              <Icon name="arrow-right" size={12} className="bf-route-flow__arrow" /> {state.drop?.name}
-            </span>
-          </div>
-        </div>
-
-        <div className="bf-success__actions">
-          <Button type="button" variant="secondary" size="md" onClick={resetState}>
-            Plan Another Tour
-          </Button>
-          <Link to="/trips" className="btn btn--primary btn--md">
-            View My Trips
-          </Link>
-        </div>
-
-        <div className="bf-success__support">
-          <span>Need immediate travel desk assistance?</span>
-          <a href={`tel:${SUPPORT_PHONE}`} className="bf-call-link">
-            <Icon name="phone" size={14} /> Call {SUPPORT_PHONE_DISPLAY}
-          </a>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <form className="bf-multicity" onSubmit={onSubmit} noValidate>
-      <fieldset className="bf-fieldset" disabled={submitting}>
+      <fieldset className="bf-fieldset">
       {/* ── Route & Stops Section ── */}
       <div className="bf-section" role="group" aria-label="Route and stops">
         {/* 1. Starting Pickup Point */}
@@ -453,12 +354,53 @@ export function MulticityForm() {
               type="button"
               className={`bf-time ${state.time ? '' : 'is-empty'}`}
               aria-labelledby="mc-time-label mc-time-val"
-              onClick={() => setTimePickerOpen(true)}
+              onClick={() => setTimeFor('pickup')}
             >
               <span id="mc-time-val">{state.time ? formatTime12(state.time) : ''}</span>
               <Icon name="clock-3" size={16} />
             </button>
             {errors.time ? <p className="bf-error">{errors.time}</p> : null}
+          </div>
+        </div>
+        <div className="bf-row">
+          <div className="bf-cell">
+            <label className="bf-label bf-label--out" htmlFor="mc-end-date">
+              Return date
+            </label>
+            <div className="bf-datewrap">
+              <input
+                id="mc-end-date"
+                type="date"
+                className="input bf-input"
+                min={state.date || todayStr}
+                max={toDateInput(latestPickup(Date.now() + 30 * 86400000))}
+                value={state.endDate}
+                onChange={(e) => {
+                  setState((s) => ({ ...s, endDate: e.target.value }));
+                  setErrors((x) => ({ ...x, endDate: '', endTime: '' }));
+                }}
+                required
+              />
+              {state.endDate ? <span className="bf-chip">{dayHint(state.endDate)}</span> : null}
+            </div>
+            {errors.endDate ? <p className="bf-error">{errors.endDate}</p> : null}
+          </div>
+
+          <div className="bf-cell">
+            <span className="bf-label bf-label--out" id="mc-end-time-label">
+              Return time
+            </span>
+            <button
+              id="mc-end-time-btn"
+              type="button"
+              className={`bf-time ${state.endTime ? '' : 'is-empty'}`}
+              aria-labelledby="mc-end-time-label mc-end-time-val"
+              onClick={() => setTimeFor('return')}
+            >
+              <span id="mc-end-time-val">{state.endTime ? formatTime12(state.endTime) : ''}</span>
+              <Icon name="clock-3" size={16} />
+            </button>
+            {errors.endTime ? <p className="bf-error">{errors.endTime}</p> : null}
           </div>
         </div>
       </div>
@@ -476,7 +418,6 @@ export function MulticityForm() {
           variant="primary"
           size="lg"
           block
-          loading={submitting}
           className="bf-submit"
         >
           Let&apos;s Go !
@@ -495,17 +436,23 @@ export function MulticityForm() {
       ) : null}
 
       {/* ── Time Picker Modal ── */}
-      {timePickerOpen ? (
+      {timeFor ? (
         <TimePicker
-          title="Departure time"
-          date={state.date}
-          value={state.time}
-          validate="pickup"
-          onClose={() => setTimePickerOpen(false)}
+          title={timeFor === 'pickup' ? 'Departure time' : 'Return time'}
+          date={timeFor === 'pickup' ? state.date : state.endDate}
+          value={timeFor === 'pickup' ? state.time : state.endTime}
+          validate={timeFor === 'pickup' ? 'pickup' : 'after'}
+          notBefore={timeFor === 'return' ? scheduled : null}
+          onClose={() => setTimeFor(null)}
           onConfirm={(t) => {
-            setState((s) => ({ ...s, time: t }));
-            setErrors((x) => ({ ...x, time: '' }));
-            setTimePickerOpen(false);
+            if (timeFor === 'pickup') {
+              setState((s) => ({ ...s, time: t }));
+              setErrors((x) => ({ ...x, time: '' }));
+            } else {
+              setState((s) => ({ ...s, endTime: t }));
+              setErrors((x) => ({ ...x, endTime: '' }));
+            }
+            setTimeFor(null);
           }}
         />
       ) : null}

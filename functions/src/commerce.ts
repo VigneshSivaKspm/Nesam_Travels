@@ -26,7 +26,7 @@ import { sendCustomerMessage } from './customerComms';
 import { mailOfficeNewBooking } from './officeMail';
 import { storePricingInTx } from './pricingPrivate';
 import { notifyInTx, pushAfterCommit, NotifyInput } from './notify';
-import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, routeForRoundTripPricing, routeThrough, text } from './shared';
+import { NO_BOOKABLE_CATEGORIES, approved, inIndia, requestIdOf as id, roundTripPricingRoute, routeThrough, text } from './shared';
 import { assertServiceSupported, resolveAndValidateBrand } from './brandContext';
 
 function place(v: any): GeoPlace {
@@ -46,7 +46,8 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (existing.data()!.customerId !== uid) throw new HttpsError('permission-denied', 'Request already used.');
     return { id: requestId, fare: existing.data()!.fare };
   }
-  if (input.tripType === 'Multicity') throw new HttpsError('failed-precondition', 'Book Multicity through an agreed itinerary quote. A direct One Way booking cannot preserve its stops.');
+  // A Multicity tour is booked directly as a Round Trip through its cities, priced from the Multicity rates.
+  const multicity = input.tripType === 'Multicity';
   // Customers must have accepted the current published Terms & Privacy Policy (none published → no block).
   await assertCashAllowed(input.paymentMethod);
   await assertLegalAccepted(uid, 'customer');
@@ -62,7 +63,8 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const when = scheduled;
   const rawStops = Array.isArray(input.stops) ? input.stops : [];
   if (rawStops.length > 8) throw new HttpsError('invalid-argument', 'Add no more than 8 intermediate stops.');
-  if (rawStops.length && input.tripType !== 'Round Trip') throw new HttpsError('invalid-argument', 'Intermediate stops are available for round trips only.');
+  if (rawStops.length && input.tripType !== 'Round Trip' && !multicity) throw new HttpsError('invalid-argument', 'Intermediate stops are available for round trips only.');
+  if (multicity && !rawStops.length) throw new HttpsError('invalid-argument', 'Add at least one city between your pickup and your final drop.');
   const [pickup, drop, ...stops] = await Promise.all([
     trustedCustomerPlace(place(input.pickup), input.pickup?.id),
     trustedCustomerPlace(place(input.drop), input.drop?.id),
@@ -75,15 +77,16 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
   const route = await routeThrough(itinerary);
   const bookingBrand = resolveAndValidateBrand(input, request);
   const tripType: TripType =
-    input.tripType === 'Round Trip'
+    input.tripType === 'Round Trip' || multicity
       ? 'Round Trip'
       : input.tripType === 'Local Rental'
       ? 'Local Rental'
       : input.tripType === 'Airport Taxi'
       ? 'Airport Taxi'
       : 'One Way';
-  const pricingRoute = routeForRoundTripPricing(route, tripType, pickup, drop, stops.length);
-  assertServiceSupported(bookingBrand, tripType);
+  // A Multicity tour is billed on the whole itinerary, even when it ends where it began.
+  const pricingRoute = multicity ? route : await roundTripPricingRoute(route, tripType, pickup, drop, stops.length);
+  assertServiceSupported(bookingBrand, multicity ? 'Multicity' : tripType);
   // Fixed route and Local Pickup & Drop fares, matched on master-location ids exactly as the quote was.
   const { fixedRoutes, localCityId } = await customerFareContext(tripType, pickup, drop, route.distanceKm);
   // A round trip is billed by Indian calendar date, so the customer states when it ends.
@@ -164,14 +167,14 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       dropType: drop.type,
       context: 'customer',
     });
-    const serviceId = matchedService?.id || '';
-    const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, fareServiceKey(tripType), itinerary);
+    const serviceId = multicity ? 'multicity' : matchedService?.id || '';
+    const rules = evaluateRules(serviceRules, pickup, drop, when, multicity ? 'Multicity' : ruleServiceText(pickup, drop, route.distanceKm, tripType), bookingBrand, multicity ? 'Multicity' : fareServiceKey(tripType), itinerary);
     assertBookable(rules, category.name);
     const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
     const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
     const recipientState = recipientGstState(customer.data());
     const fuel = input.fuelType === 'cng' ? ('cng' as const) : undefined;
-    const priceInput = { fuel, boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route: pricingRoute, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId };
+    const priceInput = { fuel, boardingState, recipientState, recipientAddressState: recipientAddressState(customer.data()), category, route: pricingRoute, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand: bookingBrand, fixedRoutes, localCityId, serviceId, multicity };
     const beforeDiscount = priceBooking(priceInput);
     // The percentage commission only prices duties still on the category engine; confirmed
     // tariff duties carry fixed partner rates, so no commission is required (or invented).
@@ -181,7 +184,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
     if (beforeDiscount.usesCommissionPolicy && !commission) {
       throw new HttpsError('failed-precondition', COMMISSION_NOT_CONFIGURED);
     }
-    const service = matchedService?.name || beforeDiscount.service;
+    const service = multicity ? 'Multicity' : matchedService?.name || beforeDiscount.service;
     const couponCode = normalizeCode(text(input.couponCode, 50));
     let discount = 0, usedCoupon;
     if (couponCode) {
@@ -221,6 +224,7 @@ export const createBooking = onCall({ timeoutSeconds: 60 }, async (request) => {
       pickup: pickup.name, pickupAddress: pickup.address, pickupLat: pickup.lat, pickupLng: pickup.lng, pickupLatitude: pickup.lat, pickupLongitude: pickup.lng, pickupType: pickup.type,
       drop: drop.name, dropAddress: drop.address, dropLat: drop.lat, dropLng: drop.lng, dropType: drop.type,
       ...(stops.length ? { stops, itinerary } : {}),
+      ...(multicity ? { tourType: 'Multicity' } : {}),
       service, serviceId, tripType, vehicle: category.name, vehicleCategory: category.name, vehicleCategoryId: category.id,
       passengerSeatsRequired: category.seats, dutyClass: dutyClassOf({ dutyClass: category.dutyClass, name: category.name, seats: category.seats }) ?? '', tariffClass: tariffClassOf(category) ?? '',
       fare: fare.total, fareBreakdown: fare, fareBreakup: breakup, pricing: storedPricing, fareVerified: true, ...(commission ? { commission } : {}), distanceKm: fare.distanceKm, durationMin: fare.durationMin,

@@ -37,11 +37,13 @@ const GROUPS: { title: string; links: MenuLink[] }[] = [
   {
     title: 'Policies',
     links: [
+      { to: '/about', label: 'About People Taxi' },
       { to: '/legal#terms', label: 'Terms & Conditions' },
       { to: '/legal#privacy', label: 'Privacy & location' },
       { to: '/legal#cancellation', label: 'Cancellation policy' },
       { to: '/legal#refund', label: 'Refund policy' },
       { to: '/legal#payment', label: 'Fare & payment policy' },
+      { to: '/legal#deletion', label: 'Account & data deletion' },
     ],
   },
 ];

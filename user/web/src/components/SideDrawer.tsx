@@ -44,7 +44,11 @@ const GROUPS: { title: string; links: MenuLink[] }[] = [
     links: [
       { to: '/about', label: 'About NESAM' },
       { to: '/support?topic=cancellation', label: 'Cancellation & refunds' },
-      { to: '/legal', label: 'Terms & privacy' },
+      { to: '/legal#terms', label: 'Terms & conditions' },
+      { to: '/legal#privacy', label: 'Privacy & location' },
+      { to: '/legal#cancellation', label: 'Cancellation policy' },
+      { to: '/legal#refund', label: 'Refund policy' },
+      { to: '/legal#deletion', label: 'Account & data deletion' },
     ],
   },
 ];

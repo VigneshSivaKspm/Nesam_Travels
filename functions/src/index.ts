@@ -42,6 +42,6 @@ export { getCustomerContact, updateBookingContact, migrateBookingContacts } from
 export { onBookingRated } from './ratings';
 export { submitMulticityEnquiry, acceptEnquiryQuote, getCustomerEnquiries, priceMulticityEnquiry } from './enquiries';
 export { convertMulticityEnquiry } from './multicityConversion';
-export { submitSupportRequest, updateSupportRequest } from './support';
+export { submitSupportRequest, updateSupportRequest, requestAccountDeletion } from './support';
 export { chatWithBot } from './groqChat';
 export { searchGooglePlaces, reverseGoogleGeocode, getGoogleRoute } from './googleMaps';

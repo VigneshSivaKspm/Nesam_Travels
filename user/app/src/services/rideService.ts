@@ -311,6 +311,8 @@ export interface RideRequestInput {
   route: RouteInfo;
   fare: FareBreakdown;
   tripType: TripType;
+  /** A Multicity tour: booked as a Round Trip through its cities and priced from the Multicity rates. */
+  multicity?: boolean;
   paymentMethod: PaymentMethod;
   couponCode: string;
   notes: string;
@@ -344,12 +346,12 @@ export async function createRideRequest(input: RideRequestInput): Promise<RideRe
   if (!input.scheduledAt || !Number.isFinite(input.scheduledAt.getTime())) throw new Error('Choose your pickup date and time.');
   if (input.tripType === 'Round Trip' && (!input.tripEndAt || !Number.isFinite(input.tripEndAt.getTime()))) throw new Error('Choose when your round trip ends.');
   const bSource = input.bookingSource || input.source || input.brand || '';
-  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, ...(input.stops ?? []).flatMap((p) => [p.lat, p.lng]), input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode, bSource, input.rentalHours ?? null]);
+  const key = JSON.stringify([input.profile.uid, input.pickup.lat, input.pickup.lng, ...(input.stops ?? []).flatMap((p) => [p.lat, p.lng]), input.drop.lat, input.drop.lng, input.category.id, input.tripType, input.multicity === true, input.scheduledAt?.toISOString(), input.tripEndAt?.toISOString(), input.couponCode, bSource, input.rentalHours ?? null]);
   const requestId = pendingBookingIds.get(key) ?? doc(collection(db, BOOKINGS)).id;
   pendingBookingIds.set(key, requestId);
   // An advance booking request: it waits for NESAM's review and is not offered to any partner until then.
   await callBackend('createBooking', { requestId, pickup: input.pickup, drop: input.drop, stops: input.tripType === 'Round Trip' ? input.stops ?? [] : [], termsAccepted: input.termsAccepted === true,
-    categoryId: input.category.id, tripType: input.tripType, expectedFare: input.fare.total,
+    categoryId: input.category.id, tripType: input.multicity && input.tripType === 'Round Trip' ? 'Multicity' : input.tripType, expectedFare: input.fare.total,
     paymentMethod: input.paymentMethod, couponCode: input.couponCode, notes: input.notes, fuelType: input.fuelType === 'cng' ? 'cng' : undefined,
     whatsapp: input.whatsapp, email: input.email || undefined,
     scheduledAt: input.scheduledAt.toISOString(), tripEndAt: input.tripType === 'Round Trip' ? input.tripEndAt?.toISOString() : undefined,

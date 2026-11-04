@@ -14,7 +14,7 @@ import {
 
 const BRAND = 'People Taxi';
 
-export type PolicyId = 'terms' | 'privacy' | 'cancellation' | 'refund' | 'payment' | 'safety';
+export type PolicyId = 'terms' | 'privacy' | 'cancellation' | 'refund' | 'payment' | 'safety' | 'deletion';
 
 export const POLICY_TITLES: Record<PolicyId, string> = {
   terms: 'Terms & Conditions',
@@ -23,6 +23,7 @@ export const POLICY_TITLES: Record<PolicyId, string> = {
   refund: 'Refund Policy',
   payment: 'Fare & Payment Policy',
   safety: 'Passenger Safety & Support',
+  deletion: 'Account & Data Deletion',
 };
 
 const hours = SCHEDULED_FREE_CANCEL_BEFORE_MS / 3600000;
@@ -88,7 +89,7 @@ const POLICIES: { id: PolicyId; paragraphs: string[] }[] = [
       `${BRAND} and ${COMPANY_LEGAL_NAME} use the details supplied for account access, bookings, trip fulfilment, payments, safety and support. These may include name, phone, email, passenger details, pickup and destination, trip history, payment references, profile photo, feedback and support messages.`,
       'If you allow device location it helps select pickup; you may deny permission and enter an address manually. Maps and route searches use configured mapping providers. Active trip features may display driver location, and an SOS alert sends your trip and current location to the operations team. Share trip links only with trusted people. Booking information needed for fulfilment is shared with assigned drivers, fleet partners and authorised operations staff. Hosting, authentication and communication providers process information needed to deliver their features.',
       'Browser storage supports sign-in and booking continuity. Browser settings control storage and location permissions; clearing storage may sign you out or remove an unfinished booking. WhatsApp updates use the supplied number; obtain permission before supplying another person’s number or passenger details. Contact support to change optional communications.',
-      'Request access, correction, account deletion or withdrawal of optional permissions through support. Some booking, payment, tax and security records may need retention for legal obligations or unresolved disputes; ask support about applicable retention. Do not send OTPs, UPI PINs or unnecessary identity documents.',
+      'Request access, correction, account deletion or withdrawal of optional permissions through support; you can request account deletion yourself under Account → Delete my account (see Account & Data Deletion below). Some booking, payment, tax and security records may need retention for legal obligations or unresolved disputes; ask support about applicable retention. Do not send OTPs, UPI PINs or unnecessary identity documents.',
     ],
   },
   {
@@ -96,6 +97,14 @@ const POLICIES: { id: PolicyId; paragraphs: string[] }[] = [
     paragraphs: [
       'Check driver and vehicle details before boarding, wear seat belts and stay within passenger and luggage capacity. Do not carry prohibited items. Children should travel with a responsible adult and legally required restraints. Confirm accessibility needs or special luggage with support before booking.',
       'For immediate danger call 112; booking support is not an emergency response service. During a trip, the Safety centre lets you call for help, share your trip and alert the operations team. For delays, lost belongings, complaints, refunds or privacy requests, contact support with your booking ID, date and relevant receipts. Ask for a complaint reference and expected response date.',
+    ],
+  },
+  {
+    id: 'deletion',
+    paragraphs: [
+      'You can ask us to delete your account and personal data at any time. Signed in: open Account and choose Delete my account (in the mobile app: Account → Settings → Delete my account). Not able to sign in: email support@nesamcabs.com or call the number below from the mobile number on the account, and quote that number.',
+      'We verify the request, settle anything still open (live bookings, unpaid amounts, refunds) and then delete or anonymise your profile, saved places and contact details. Records we must keep by law or to resolve a dispute, such as bookings, invoices, payment and tax records, are retained for the period the law requires and are not used for marketing.',
+      'Nothing is deleted the moment you tap the button: the request is recorded, our team confirms by phone or email, and you can ask support to withdraw it before it is processed. Once processed, an account cannot be restored.',
     ],
   },
 ];
@@ -114,7 +123,7 @@ export function PolicySections() {
     <section className="stack policies" aria-label="Customer policies">
       <div className="card">
         <h2>{BRAND} customer policies</h2>
-        <p>Updated 27 October 2026. Read alongside your booking confirmation and any versioned agreements below.</p>
+        <p>Updated 4 November 2026. Read alongside your booking confirmation and any versioned agreements below.</p>
         <nav aria-label="Policy contents" style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 12 }}>
           {POLICIES.map((p) => (
             <Link key={p.id} to={`/legal#${p.id}`}>
@@ -135,9 +144,9 @@ export function PolicySections() {
       ))}
       <div className="card">
         <h2>Contact &amp; complaints</h2>
-        <p>{COMPANY_LEGAL_NAME}</p>
+        <p>{COMPANY_LEGAL_NAME}, Theni, Tamil Nadu 625531, India</p>
         <p>
-          Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a> or <Link to="/support">open support</Link> for booking, refund and privacy assistance.
+          Call <a href={`tel:${SUPPORT_PHONE}`}>{SUPPORT_PHONE_DISPLAY}</a>, email <a href="mailto:support@nesamcabs.com">support@nesamcabs.com</a> or <Link to="/support">open support</Link> for booking, refund, privacy and account deletion assistance.
         </p>
       </div>
     </section>

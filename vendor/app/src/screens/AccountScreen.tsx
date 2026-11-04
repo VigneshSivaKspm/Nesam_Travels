@@ -8,12 +8,12 @@ import { useVendorData } from '../context/VendorData';
 import { useInbox } from '../context/Inbox';
 import { useSignOut } from '../navigation/MainNavigator';
 import { Avatar, Badge, Card, MenuRow, Screen } from '../components/ui';
-import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
+import { COMPANY_LEGAL_NAME, SUPPORT_EMAIL, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import { formatPhone } from '../utils/format';
 import { colors, space, type } from '../theme';
 import { Sheet, TextField } from '../components/ui';
 import { Feedback, KV, PButton } from '../components/partner';
-import { requestBankChange } from '../services/partnerOps';
+import { requestAccountDeletion, requestBankChange } from '../services/partnerOps';
 
 export function AccountScreen() {
   const navigation = useNavigation();
@@ -29,6 +29,28 @@ export function AccountScreen() {
       { text: 'Stay', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
+
+  const [deleting, setDeleting] = useState(false);
+  const confirmDeletion = () =>
+    Alert.alert(
+      'Delete your account?',
+      'NESAM will verify the request, settle anything still open (duties, dues, wallet and deposit) and then delete your account and personal data. Records we must keep by law, such as invoices and settlements, are retained.',
+      [
+        { text: 'Keep my account', style: 'cancel' },
+        {
+          text: 'Request deletion',
+          style: 'destructive',
+          onPress: () => {
+            if (deleting) return;
+            setDeleting(true);
+            requestAccountDeletion('vendor')
+              .then((r) => setNotice(`${r.alreadyOpen ? 'Your request is already with the office.' : 'Request received.'} Reference ${r.reference}. NESAM will confirm by phone or email.`))
+              .catch((e: unknown) => setNotice(e instanceof Error ? e.message : 'The request was not sent. Please try again.'))
+              .finally(() => setDeleting(false));
+          },
+        },
+      ],
+    );
 
   return (
     <View style={styles.root}>
@@ -86,9 +108,12 @@ export function AccountScreen() {
         <Text style={[type.label, styles.group]}>Help</Text>
         <Card style={styles.menu}>
           <MenuRow icon="call-outline" label="NESAM office" value={SUPPORT_PHONE_DISPLAY} onPress={() => void Linking.openURL(`tel:${SUPPORT_PHONE}`)} />
+          <MenuRow icon="mail-outline" label="Email NESAM" value={SUPPORT_EMAIL} onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
+          <MenuRow icon="trash-outline" label="Delete my account" onPress={confirmDeletion} danger />
           <MenuRow icon="log-out-outline" label="Sign out" onPress={confirmSignOut} danger />
         </Card>
         <Text style={[type.tiny, { textAlign: 'center' }]}>NESAM Vendor v{Constants.expoConfig?.version ?? '1.0.0'}</Text>
+        <Text style={[type.tiny, { textAlign: 'center' }]}>© {new Date().getFullYear()} {COMPANY_LEGAL_NAME}. All rights reserved.</Text>
       </Screen>
       {bank ? <BankSheet onClose={() => setBank(false)} onDone={(m) => { setBank(false); setNotice(m); }} pending={requests.find((r) => r.type === 'bank_change' && r.status === 'Pending')?.accountLast4 ?? ''} summary={record.payoutSummary} /> : null}
     </View>

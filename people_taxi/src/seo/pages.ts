@@ -28,6 +28,12 @@ export const SUPPORT_SEO: SeoProps = {
   canonical: '/support',
 };
 
+export const ABOUT_SEO: SeoProps = {
+  title: 'About People Taxi',
+  description: 'People Taxi by NESAM Tours and Travels Private Limited: outstation cabs, one-way drop taxis, round trips, airport transfers and local rentals across Tamil Nadu, Bangalore and Pondicherry.',
+  canonical: '/about',
+};
+
 export const LEGAL_SEO: SeoProps = {
   title: 'Terms of Service & Privacy Policy',
   description: 'Terms of service, privacy policy, fare and cancellation rules for People Taxi customers.',

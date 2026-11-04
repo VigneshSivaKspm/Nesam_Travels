@@ -255,11 +255,13 @@ function Footer() {
           </nav>
           <nav aria-label="Company policies">
             <h2>Company</h2>
+            <Link to="/about">About One Way Car Rentals</Link>
             <Link to="/legal#terms">Terms &amp; Conditions</Link>
             <Link to="/legal#privacy">Privacy &amp; location</Link>
             <Link to="/legal#cancellation">Cancellation policy</Link>
             <Link to="/legal#refund">Refund policy</Link>
             <Link to="/legal#payment">Fare &amp; payment policy</Link>
+            <Link to="/legal#deletion">Account &amp; data deletion</Link>
           </nav>
         </div>
         <div className="footer__bottom">

@@ -1,5 +1,5 @@
 import { fareBoardingState, recipientAddressState, recipientGstState } from './fareGstContext';
-import { applyFareGst, fareGstFor, gstPricingInput } from './fareGstPricing';
+import { applyFareGst, fareGstFor, fareGstForScope, gstPricingInput } from './fareGstPricing';
 import { fareServiceKey } from './fareScope';
 // One pricing path for every booking source: customer app/web, Admin manual booking, the
 // quote preview and the final invoice all go through priceBooking(). The confirmed tariff
@@ -19,7 +19,10 @@ import { CATEGORY_GST_RATE, FareAdjustmentInput, calculateFare, isOutstation, se
 import {
   CONFIRMED_TARIFF_V2, FixedRouteFare, completeAirportRates, defaultRentalHours, quoteAirport, PricingSnapshot, QuoteResult, TARIFF_CLASSES, TariffClass, TariffConfig, TariffError, cityDropFare, classRates, istDate, localFareFor, matchFixedRoute, paise,
   parseFixedRouteFare, parseTariffConfig, gstOn, quoteFixedRoute, quoteLocalPickupDrop, quoteOneWay, quoteRentalPackage, quoteRoundTrip, r2, withinCityZone, scopedTariffForBrand,
+  calendarDays, finalizeFare, multicityRatesFor, quoteMulticity,
 } from './domain/tariff';
+import { gstComponents } from './domain/gst';
+import { multicityBookingAmounts } from './domain/multicitySnapshot';
 import { FareBreakdown, GeoPlace, RideCategory, RouteInfo, TripType } from './domain/types';
 import { requirePermission, text, requireAction } from './shared';
 import { assertCatalogAvailable, matchAuthoritativeService, ServiceMasterDoc } from './onlineCatalog';
@@ -115,6 +118,8 @@ export interface PriceInput {
   fuel?: 'cng';
   /** Brand scope applied to price this booking. */
   brand?: string;
+  /** A customer Multicity tour (a Round Trip through several cities): priced from the saved Multicity rates for the whole itinerary. */
+  multicity?: boolean;
 }
 
 export interface PriceResult {
@@ -133,6 +138,11 @@ export interface PriceResult {
  * discloses them in the breakup. The fare itself is unchanged: these are billed only for the extras actually used.
  */
 export function priceBooking(i: PriceInput): PriceResult {
+  if (i.multicity) {
+    const tour = priceMulticityTour(i);
+    const extras = scopedExtraChargesSnapshot(i.tariff, i.brand, 'Multicity', tariffClassOf(i.category), i.category.id);
+    return extras ? { ...tour, pricing: { ...tour.pricing, extraCharges: extras }, breakup: withExtraChargeLines(tour.breakup, extras) } : tour;
+  }
   const tax = fareGstFor(i);
   const raw = priceBookingCore(tax ? gstPricingInput(i, tax, tariffClassOf(i.category)) : i);
   const explicitMode = i.businessContract?.rule.gstMode ?? i.fixedRoutes?.find(rule => rule.id === raw.pricing.fixedRouteId)?.gstMode;
@@ -144,6 +154,42 @@ export function priceBooking(i: PriceInput): PriceResult {
   }
   const extra = scopedExtraChargesSnapshot(i.tariff, i.brand, i.tripType, tariffClassOf(i.category), i.category.id);
   return extra ? { ...r, pricing: { ...r.pricing, extraCharges: extra }, breakup: withExtraChargeLines(r.breakup, extra) } : r;
+}
+
+/**
+ * A Multicity tour = max(itinerary KM, daily minimum × calendar days) × rate + daily bata × days, from the saved Multicity
+ * rates of the brand and the vehicle class (the Round Trip rates they inherit). The same numbers the travel desk quotes, so a
+ * customer who books directly pays exactly what an office quote would have been. Coupons and the global adjustment apply once.
+ */
+function priceMulticityTour(i: PriceInput): PriceResult {
+  const tariff = i.tariff;
+  const cls = tariffClassOf(i.category);
+  if (!tariff) throw new HttpsError('failed-precondition', 'Multicity fares are not available yet.');
+  if (!cls) throw new HttpsError('failed-precondition', `${i.category.name} is not mapped to a tariff class yet. An admin must set its vehicle class.`);
+  const brand = i.brand || 'nesam';
+  const rates = multicityRatesFor(tariff, brand, cls);
+  if (!rates) throw new HttpsError('failed-precondition', 'Multicity fares are not available for this vehicle yet.');
+  const pickupMs = i.pickupAt.getTime();
+  const endMs = i.tripEndAt ? i.tripEndAt.getTime() : pickupMs;
+  const days = calendarDays(pickupMs, endMs);
+  if (days === null) throw new HttpsError('failed-precondition', 'The tour end must be on or after pickup and within the supported tour duration.');
+  const tax = fareGstForScope({ tariff, brand, service: 'Multicity', boardingState: i.boardingState, recipientState: i.recipientState, recipientAddressState: i.recipientAddressState });
+  const q = quoteMulticity({ rates, totalKm: i.route.distanceKm, days, gstRate: tax ? tax.rate : tariff.gstRate, gstIncluded: tax?.mode === 'included' });
+  const amounts = multicityBookingAmounts(q, { tariffVersion: tariff.version, tariffClass: cls, brand, pickupMs, endMs, durationMin: Math.round(i.route.durationMin), gst: tax });
+  const discount = Math.max(0, i.discount ?? 0);
+  let fare = amounts.fare;
+  if (i.adjustment || discount > 0) {
+    if (i.adjustment) {
+      amounts.pricing.adjustmentPercent = i.adjustment.percent;
+      amounts.pricing.adjustmentDirection = i.adjustment.direction;
+    }
+    amounts.pricing.discount = discount;
+    fare = { ...finalizeFare({ pricing: amounts.pricing, totalKm: i.route.distanceKm, endMs }).fare, durationMin: Math.round(i.route.durationMin) };
+    if (fare.globalAdjustment && i.adjustment) fare.globalAdjustment = { ...fare.globalAdjustment, id: i.adjustment.id, name: i.adjustment.name };
+    if (tax) fare = { ...fare, gstDetails: { ...tax, ...gstComponents(fare.gst, tax.split) } };
+  }
+  const pricing: PricingSnapshot = { ...amounts.pricing, brandScoped: !!tariff.brandOverrides?.[brand] };
+  return { fare, pricing, service: 'Multicity', outstation: true, breakup: buildTariffFareBreakup(i.category, fare, true, pricing), usesCommissionPolicy: false };
 }
 
 function priceBookingCore(i: PriceInput): PriceResult {
@@ -351,7 +397,7 @@ import { mapCategory, mapCoupon, normalizeCode, validateCoupon } from './domain/
 import { bookingWindowFrom, parsePickupInstant, pickupWindowProblem } from './domain/advanceBooking';
 import { effectiveAdjustment, loadFareAdjustment } from './fareConfig';
 import { adjustPartner, assertBookable, assertWithinLimits, evaluateRules, loadServiceRules, partnerPayoutRupees, ruleServiceText } from './serviceRules';
-import { approved, inIndia, routeForRoundTripPricing, routeThrough } from './shared';
+import { approved, inIndia, roundTripPricingRoute, routeThrough } from './shared';
 import { requestIp } from './security';
 import { rateLimited } from './http/util';
 
@@ -395,19 +441,21 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   if (!uid && rateLimited(`quote:${requestIp(request)}`, 30)) throw new HttpsError('resource-exhausted', 'Too many requests. Please wait a moment.');
   const input = request.data ?? {};
   const brand = resolveAndValidateBrand(input, request);
-  if (input.tripType === 'Multicity') throw new HttpsError('failed-precondition', 'Plan Multicity through the itinerary enquiry and travel-desk quote flow.');
+  // A Multicity tour is booked as a Round Trip through its cities, priced from the Multicity rates.
+  const multicity = input.tripType === 'Multicity';
   const tripType: TripType =
-    input.tripType === 'Round Trip'
+    input.tripType === 'Round Trip' || multicity
       ? 'Round Trip'
       : input.tripType === 'Local Rental'
       ? 'Local Rental'
       : input.tripType === 'Airport Taxi'
       ? 'Airport Taxi'
       : 'One Way';
-  assertServiceSupported(brand, tripType);
+  assertServiceSupported(brand, multicity ? 'Multicity' : tripType);
   const rawStops = Array.isArray(input.stops) ? input.stops : [];
   if (rawStops.length > 8) throw new HttpsError('invalid-argument', 'Add no more than 8 intermediate stops.');
   if (rawStops.length && tripType !== 'Round Trip') throw new HttpsError('invalid-argument', 'Intermediate stops are available for round trips only.');
+  if (multicity && !rawStops.length) throw new HttpsError('invalid-argument', 'Add at least one city between your pickup and your final drop.');
   const [pickup, drop, ...stops] = await Promise.all([
     trustedCustomerPlace(placeOf(input.pickup, 'pickup'), input.pickup?.id),
     trustedCustomerPlace(placeOf(input.drop, 'drop'), input.drop?.id),
@@ -446,7 +494,8 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   if (problem || !when) throw new HttpsError('invalid-argument', problem || 'Choose the pickup date and time.');
   const tripEndAt = tripType === 'Round Trip' ? parsePickupInstant(input.tripEndAt) : null;
   const route = await routeLookup;
-  const pricingRoute = routeForRoundTripPricing(route, tripType, pickup, drop, stops.length);
+  // A Multicity tour is billed on the whole itinerary, even when it ends where it began.
+  const pricingRoute = multicity ? route : await roundTripPricingRoute(route, tripType, pickup, drop, stops.length);
   const [{ fixedRoutes, localCityId }, customer] = await Promise.all([customerFareContext(tripType, pickup, drop, route.distanceKm), customerRead]);
   if (customer?.exists && !approved(customer.data()!.status)) throw new HttpsError('permission-denied', 'Your account is not active.');
   // A coupon is only checked for an existing customer account.
@@ -457,7 +506,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
   const history = customerId ? historyRead : null;
   const boardingState = await fareBoardingState(tariff, pickup, input.pickup?.id);
   const recipientState = recipientGstState(customer?.data());
-  const rules = evaluateRules(serviceRules, pickup, drop, when, ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, fareServiceKey(tripType), itinerary);
+  const rules = evaluateRules(serviceRules, pickup, drop, when, multicity ? 'Multicity' : ruleServiceText(pickup, drop, route.distanceKm, tripType), brand, multicity ? 'Multicity' : fareServiceKey(tripType), itinerary);
   const adjustment = rules.customer ?? effectiveAdjustment(adjustmentDoc, now);
   const code = normalizeCode(text(input.couponCode, 50));
   const prior = history ? history.docs.map((d) => d.data()).filter((b) => b.status !== 'Cancelled' && b.status !== 'Rejected') : [];
@@ -469,7 +518,7 @@ export const quoteBooking = onCall({ timeoutSeconds: 60, cors: PUBLIC_CALLABLE_O
     .map(({ d, c }) => {
       const category = { ...c, tariffClass: d.data().tariffClass, dutyClass: d.data().dutyClass };
       const matched = matchAuthoritativeService(onlineMasters, { tripType, categoryId: c.id, distanceKm: route.distanceKm, pickupType: pickup.type, dropType: drop.type, context: 'customer' });
-      const base = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer?.data()), category, route: pricingRoute, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand, fixedRoutes, localCityId, serviceId: matched?.id ?? '' };
+      const base = { boardingState, recipientState, recipientAddressState: recipientAddressState(customer?.data()), category, route: pricingRoute, tripType, pickup, drop, pickupAt: when, tripEndAt, tariff, adjustment, rentalHours: tripType === 'Local Rental' ? rentalHoursOf(input.rentalHours) : null, brand, fixedRoutes, localCityId, serviceId: matched?.id ?? '', multicity };
       try {
         assertCatalogAvailable(onlineMasters,tripType,category.id);
         assertBookable(rules, category.name);

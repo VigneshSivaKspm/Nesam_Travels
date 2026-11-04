@@ -17,6 +17,7 @@ import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { calculateFare, isOutstation, serviceName, validateCoupon } from '../services/pricingService';
 import { createRideRequest } from '../services/rideService';
 import { buildFareBreakup } from '../utils/fareBreakup';
+import { categoryLabel } from '../utils/categoryLabel';
 import type { AppliedCoupon, FareBreakdown, PaymentMethod } from '../types';
 import { formatINR, formatPhone, formatTime, isValidIndianMobile } from '../utils/format';
 import { describeError } from '../utils/retry';
@@ -214,7 +215,7 @@ export function ConfirmBookingScreen() {
           </Text>
           <Text style={styles.when}>{`${whenText}${endText}`}</Text>
           <View style={styles.catRow}>
-            <Text style={styles.cat}>{`${category.name} · ${category.seats} passengers`}</Text>
+            <Text style={styles.cat}>{`${categoryLabel(category)} · ${category.seats} passengers`}</Text>
             {includedKm > 0 ? <Text style={styles.incl}>{`${includedKm} km included`}</Text> : null}
           </View>
           <View style={styles.totalRow}>

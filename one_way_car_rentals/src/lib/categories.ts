@@ -18,7 +18,21 @@ export function categoryPhoto(c: Pick<RideCategory, 'name' | 'seats'> & { imageU
   return `/vehicles/${art}.webp`;
 }
 
-export const categoryName = (c: Pick<RideCategory, 'name'>) => c.name.replace(/\s*\d+\s*\+\s*\d+\s*$/, '').trim() || c.name;
+/** Longest admin-written display text that is used as the main text; a longer description is treated as marketing copy. */
+const MAX_DISPLAY_TEXT = 48;
+
+/**
+ * The main text customers see for a category: the example cars ("Dzire / Etios or similar"), never the generic
+ * "Sedan" / "SUV" label. It is the admin's display text (the category description) when that is a short line,
+ * otherwise the example cars for the category, otherwise the category name without its "6+1" / "7+1" seat suffix.
+ */
+export function categoryName(c: Pick<RideCategory, 'name'> & { seats?: number; description?: string }): string {
+  const own = (c.description ?? '').trim();
+  if (own && own.length <= MAX_DISPLAY_TEXT) return own;
+  const models = typeof c.seats === 'number' ? categoryModels({ name: c.name, seats: c.seats }) : '';
+  if (models) return models;
+  return c.name.replace(/\s*\d+\s*\+\s*\d+\s*$/, '').trim() || c.name;
+}
 
 /** The example cars shown under a category name: "Dzire / Etios or similar". Only the Crysta is named exactly. */
 export function categoryModels(c: Pick<RideCategory, 'name' | 'seats'>): string {

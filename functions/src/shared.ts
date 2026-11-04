@@ -62,6 +62,27 @@ export function routeForRoundTripPricing(route: RouteInfo, tripType: string, pic
   return { ...route, distanceKm: route.distanceKm / 2, durationMin: route.durationMin / 2 };
 }
 
+/**
+ * The route a Round Trip is priced on. The pricing engine doubles the route it is given (out and back), so this returns
+ * half of the real total running distance:
+ *  - pickup -> stops -> a drop that is the pickup again (a closed circuit): the whole circuit is the total.
+ *  - pickup -> stops -> final drop: the total is that outward route plus the direct way back from the final drop to the
+ *    pickup (A -> Erode -> Salem is 200 KM, Salem -> A is 200 KM, so 400 KM).
+ * Without stops the outward route is simply doubled, as before. Billing then applies the daily minimum KM on top.
+ */
+export async function roundTripPricingRoute(route: RouteInfo, tripType: string, pickup: GeoPlace, drop: GeoPlace, stopCount: number): Promise<RouteInfo> {
+  if (tripType !== 'Round Trip' || stopCount === 0) return route;
+  const closesAtPickup = Math.abs(pickup.lat - drop.lat) < 0.0001 && Math.abs(pickup.lng - drop.lng) < 0.0001;
+  if (closesAtPickup) return routeForRoundTripPricing(route, tripType, pickup, drop, stopCount);
+  const back = await routeFor(drop, pickup);
+  return {
+    ...route,
+    distanceKm: (route.distanceKm + back.distanceKm) / 2,
+    durationMin: (route.durationMin + back.durationMin) / 2,
+    estimated: route.estimated || back.estimated,
+  };
+}
+
 async function lookUpRoute(a: GeoPlace, b: GeoPlace): Promise<RouteInfo> {
   // Never accept distance or duration from the caller.
   if (Math.abs(a.lat - b.lat) < 0.0001 && Math.abs(a.lng - b.lng) < 0.0001) {

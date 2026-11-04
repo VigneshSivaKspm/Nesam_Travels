@@ -78,11 +78,12 @@ function rateTile(l: FareLine): { value: string; unit: string; sub: string } | n
 
 export function AdditionalCharges({ lines, policy, footnote }: { lines: FareLine[]; policy?: ReactNode; footnote?: string }) {
   const tiles = lines.filter((l) => (l.key === 'extraKm' || l.key === 'waiting') && rateTile(l));
-  const chips = lines.filter((l) => !tiles.includes(l));
+  // The carrier / luggage charge is not shown in this card.
+  const chips = lines.filter((l) => !tiles.includes(l) && l.key !== 'carrier');
   return (
-    <section className="addl" aria-label="Additional charges">
+    <section className="addl" aria-label="Extra Charges">
       <span className="addl__bar" aria-hidden="true" />
-      <h3 className="addl__title">Additional charges</h3>
+      <h3 className="addl__title">Extra Charges</h3>
       <p className="addl__sub">Payable separately • Not included in total</p>
 
       {tiles.length ? (
@@ -116,7 +117,7 @@ export function AdditionalCharges({ lines, policy, footnote }: { lines: FareLine
                 <li key={l.key} className="addl__chip">
                   <span className="addl__chip-icon">{iconFor(l.key)}</span>
                   <span className="addl__chip-text">
-                    <span>{l.label}</span>
+                    <span>{l.label.replace(/\s*\/\s*permit/i, '')}</span>
                     {note ? <small className="num">{note}</small> : null}
                   </span>
                 </li>

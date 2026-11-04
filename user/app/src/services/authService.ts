@@ -30,7 +30,7 @@ export async function signOutUser(): Promise<void> {
   await firebaseSignOut(auth);
 }
 
-/** User-facing message for a Firebase phone-auth failure with actionable resolution guidance. */
+/** Customer-facing message for a Firebase phone-auth failure (setup details stay in the developer log). */
 export function describePhoneAuthError(error: unknown): string {
   const err = error as {
     code?: string;
@@ -52,28 +52,22 @@ export function describePhoneAuthError(error: unknown): string {
     console.warn('[auth error]', { code, serverMsg, err });
   }
 
-  if (serverMsg.includes('SITE_MISMATCH') || code === 'auth/unauthorized-domain') {
-    return 'Domain Not Authorized: Your current address/IP is not listed in Firebase Authorized Domains. Open Firebase Console > Authentication > Settings > Authorized domains and add it, or use http://localhost.';
+  const has = (...needles: string[]) => needles.some((n) => serverMsg.includes(n));
+
+  if (code === 'auth/unauthorized-domain' || has('SITE_MISMATCH')) {
+    return 'Sign-in isn’t available right now. Please update the app or try again later.';
   }
 
-  if (
-    serverMsg.includes('TOO_MANY_ATTEMPTS_TRY_LATER') ||
-    serverMsg.includes('SMS_QUOTA_EXCEEDED') ||
-    code === 'auth/quota-exceeded'
-  ) {
-    return 'Daily SMS Limit Reached (10 SMS/day on free Spark tier). To test freely, add a test phone number in Firebase Console > Authentication > Sign-in method > Phone > Phone numbers for testing (e.g. +91 99999 99999 / 123456).';
+  if (code === 'auth/too-many-requests' || code === 'auth/quota-exceeded' || has('TOO_MANY_ATTEMPTS_TRY_LATER', 'SMS_QUOTA_EXCEEDED')) {
+    return 'Too many attempts. Please wait a few minutes and try again.';
   }
 
-  if (serverMsg.includes('BILLING_NOT_ENABLED')) {
-    return 'Firebase Billing Required: Carrier SMS sending requires Firebase Blaze plan. For development, add a test phone number in Firebase Console (Authentication > Sign-in method > Phone) to test completely free.';
+  if (code === 'auth/operation-not-allowed' || has('OPERATION_NOT_ALLOWED', 'BILLING_NOT_ENABLED')) {
+    return 'We can’t send verification codes right now. Please try again later or contact support.';
   }
 
-  if (serverMsg.includes('OPERATION_NOT_ALLOWED') || code === 'auth/operation-not-allowed') {
-    return 'Phone sign-in is disabled. Please enable Phone provider in Firebase Console > Authentication > Sign-in method.';
-  }
-
-  if (serverMsg.includes('INVALID_APP_CREDENTIAL') || serverMsg.includes('MISSING_CLIENT_IDENTIFIER')) {
-    return 'App security verification failed. Check authorized domains in Firebase Console or configure a test phone number.';
+  if (code === 'auth/invalid-app-credential' || code === 'auth/captcha-check-failed' || has('INVALID_APP_CREDENTIAL', 'MISSING_CLIENT_IDENTIFIER')) {
+    return 'We couldn’t complete the security check. Please try again.';
   }
 
   switch (code) {
@@ -81,8 +75,6 @@ export function describePhoneAuthError(error: unknown): string {
       return 'Enter a valid 10-digit mobile number (+91).';
     case 'auth/missing-phone-number':
       return 'Please enter your mobile number.';
-    case 'auth/too-many-requests':
-      return 'Too many attempts. Please wait a few minutes, or use a configured Firebase test phone number.';
     case 'auth/invalid-verification-code':
       return 'Incorrect OTP. Please check your SMS and try again.';
     case 'auth/code-expired':
@@ -92,21 +84,13 @@ export function describePhoneAuthError(error: unknown): string {
       return 'Please enter the 6-digit OTP.';
     case 'auth/network-request-failed':
       return 'Network connection failed. Please check your internet.';
-    case 'auth/quota-exceeded':
-      return 'SMS limit reached for today. Please add a test phone number in Firebase Console or try again tomorrow.';
     case 'auth/user-disabled':
       return 'This account has been disabled. Please contact support.';
     case 'auth/cancelled':
       return 'Verification cancelled.';
     case 'auth/timeout':
       return 'The security check timed out. Please try again.';
-    case 'auth/captcha-check-failed':
-    case 'auth/invalid-app-credential':
-      return 'The security check failed. Check your domain in Firebase Authorized Domains or use a Firebase test phone number.';
     default:
-      if (err?.customData?.serverResponse?.error?.message) {
-        return `Verification failed: ${err.customData.serverResponse.error.message}`;
-      }
-      return 'Unable to complete verification. Please check your domain in Firebase Console or try a test phone number.';
+      return 'We couldn’t verify your number. Please try again.';
   }
 }

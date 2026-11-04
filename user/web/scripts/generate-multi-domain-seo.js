@@ -94,6 +94,12 @@ export const URL_ENTRIES = [
     ],
   },
   {
+    path: 'about',
+    changefreq: 'yearly',
+    priority: '0.40',
+    comment: 'About NESAM Cabs',
+  },
+  {
     path: 'legal',
     changefreq: 'monthly',
     priority: '0.50',
@@ -342,6 +348,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Allow: /assets/
 Allow: /website-images/
 Allow: /vehicles/
@@ -367,6 +374,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Disallow: /account/
 Disallow: /account/*
 Disallow: /trips/
@@ -399,6 +407,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Allow: /assets/
 Allow: /website-images/
 Allow: /vehicles/

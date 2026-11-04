@@ -194,10 +194,12 @@ export function BookingForm({
       return;
     }
     if (e.form) return;
+    // A normal search is never a Multicity tour (that flag is set only by the Multicity form).
+    if (draft.multicity) update({ multicity: false });
     if (auth.status !== 'ready') {
       // Account/profile loading can remount the form. Persist before opening phone sign-in;
       // PendingReturn resumes selection after authentication and the existing legal gate.
-      saveDraft(draft);
+      saveDraft({ ...draft, multicity: false });
       setPendingReturn('/book/ride');
       openLoginModal({
         title: 'Sign in to compare fares',
@@ -309,12 +311,12 @@ export function BookingForm({
             search();
           }}
         >
-          <div className={`bf-route ${service === 'rental' ? 'bf-route--single' : ''}`}>
+          <div className={`bf-route ${service === 'rental' ? 'bf-route--single' : ''} ${service === 'outstation' && outstationTrip === 'Round Trip' ? 'bf-route--round' : ''}`}>
             <div className="bf-route__cell">
               {locationField('pickup', service === 'rental' ? 'Pickup in your city' : service === 'airport' && direction === 'from' ? 'Pickup airport' : 'Pickup location')}
               {fieldErr('pickup')}
             </div>
-            {service === 'outstation' ? (
+            {service === 'outstation' && outstationTrip !== 'Round Trip' ? (
               <button
                 type="button"
                 className="bf-swap"
@@ -329,7 +331,24 @@ export function BookingForm({
                 <Icon name="swap" size={16} />
               </button>
             ) : null}
-            {service === 'outstation' && outstationTrip === 'Round Trip' ? <>{draft.stops.map(stopField)}{draft.stops.length < 8 ? <button type="button" className="bf-round-stop-add" onClick={() => setStopPicker('new')}><Icon name="map-pin" size={17} /> Add stop</button> : null}{fieldErr('stops')}</> : null}
+            {service === 'outstation' && outstationTrip === 'Round Trip' ? <>{draft.stops.map(stopField)}
+                <div className="bf-route__tools">
+                  {draft.stops.length < 8 ? <button type="button" className="bf-round-stop-add" onClick={() => setStopPicker('new')}><Icon name="plus" size={16} /> Add stop</button> : null}
+                  <button
+                    type="button"
+                    className="bf-swap"
+                    aria-label="Swap pickup and drop"
+                    title="Swap route"
+                    disabled={!pickup && !drop}
+                    onClick={() => {
+                      update((d) => ({ pickup: d.drop, drop: d.pickup, stops: d.tripType === 'Round Trip' ? [...d.stops].reverse() : d.stops }));
+                      setErrors((e) => ({ ...e, pickup: '', drop: '' }));
+                    }}
+                  >
+                    <Icon name="swap" size={16} />
+                  </button>
+                </div>
+                {fieldErr('stops')}</> : null}
             {service !== 'rental' ? (
               <div className="bf-route__cell">
                 {locationField('drop', service === 'airport' && direction === 'to' ? 'Drop airport' : 'Drop location')}

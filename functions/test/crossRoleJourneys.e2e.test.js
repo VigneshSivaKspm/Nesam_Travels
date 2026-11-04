@@ -135,7 +135,8 @@ test('CJ1: Complete 12-step booking-to-completion journey with vendor dispatch a
   assert.equal(bInitial.passengerSeatsRequired, 4);
   assert.equal(bInitial.pricing.model, 'one_way_standard');
   assert.equal(bInitial.pricing.includedKm, 130);
-  assert.equal(bInitial.fare, 2467.5); // 2350 base + 5% GST
+  // No GST rule is saved, so the tariff's 5% GST is included: the fare is the tariff amount (to within the 1 paisa GST rounding).
+  assert.ok(Math.abs(bInitial.fare - 2350) <= 0.011, `fare ${bInitial.fare}`);
 
   // Step 3: Admin approves the booking
   const appRes = await call(U.adminOps, 'approveBooking', { bookingId });
@@ -265,8 +266,8 @@ test('CJ1: Complete 12-step booking-to-completion journey with vendor dispatch a
   assert.equal(bCompleted.status, 'Completed');
   assert.equal(bCompleted.totalKm, 150);
   assert.equal(bCompleted.finalFare.extraKm, 20);
-  // Base 2350 + 20 km × 15 = 2650 taxable, 5% GST = 132.50, Total fare = 2782.50
-  assert.equal(bCompleted.fare, 2782.5);
+  // Base 2350 + 20 km × 15 = 2650 total payable, with the 5% GST included in it.
+  assert.ok(Math.abs(bCompleted.fare - 2650) <= 0.011, `fare ${bCompleted.fare}`);
 
   // Customer pays driver directly via UPI
   const payTotal = bCompleted.fare + 85; // fare + toll = 2867.50
@@ -353,12 +354,12 @@ test('CJ2: Direct Owner-Driver assignment, full trip, company payment & 4h settl
 
   const bEnd = await booking(id);
   assert.equal(bEnd.status, 'Completed');
-  assert.equal(bEnd.fare, 2467.5);
+  assert.ok(Math.abs(bEnd.fare - 2350) <= 0.011, `fare ${bEnd.fare}`);
   assert.equal(bEnd.driverPayout, 2055);
 
   // 9. Customer pays company directly via Admin recordPayment (e.g. Bank Transfer)
   assert.equal((await call(U.adminFin, 'recordPayment', {
-    bookingId: id, amount: 2467.5, method: 'Bank Transfer', reference: 'HDFC-TXN-987654', collectorType: 'admin', requestId: rid('bankpay'),
+    bookingId: id, amount: bEnd.fare, method: 'Bank Transfer', reference: 'HDFC-TXN-987654', collectorType: 'admin', requestId: rid('bankpay'),
   })).ok, true);
 
   // 10. Settlement Due record created automatically for the partner

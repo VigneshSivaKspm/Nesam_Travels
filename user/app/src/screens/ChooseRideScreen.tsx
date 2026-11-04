@@ -15,6 +15,7 @@ import { useBookingDraft } from '../context/BookingDraft';
 import { getRoute } from '../services/geoService';
 import { calculateFare, isOutstation } from '../services/pricingService';
 import { buildFareBreakup } from '../utils/fareBreakup';
+import { categoryLabel } from '../utils/categoryLabel';
 import { GST_RATE, SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '../config/constants';
 import type { FareBreakdown, RideCategory } from '../types';
 import { formatDistance, formatINR, formatTime } from '../utils/format';
@@ -150,8 +151,7 @@ export function ChooseRideScreen() {
                   </View>
                   <View style={styles.carTop}>
                     <View style={{ flex: 1, minWidth: 0 }}>
-                      <Text style={styles.carName}>{c.name}</Text>
-                      <Text style={styles.carModel}>{c.description || (c.name.toLowerCase().includes('innova') ? 'Toyota Innova or equivalent' : 'Dzire, Etios or equivalent')}</Text>
+                      <Text style={styles.carName}>{categoryLabel(c)}</Text>
                       <View style={styles.facts}>
                         <Fact tint="slate" icon="seat-belt" text={seatText} />
                         <Fact tint="amber" icon="luggage" text={bagText} />

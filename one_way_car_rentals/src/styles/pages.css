@@ -1180,3 +1180,7 @@ a.setting:hover {
   color: var(--ink);
   font-size: var(--fs-lg);
 }
+
+/* About page lists */
+.about-list li { padding: 5px 0; }
+.about-list a { text-decoration: underline; text-underline-offset: 2px; }

@@ -10,7 +10,7 @@ import { BackButton, Badge, Button, EmptyState, Notice } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useOnline } from '@/lib/hooks';
-import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
+import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
 import { CabIcon, FuelPick, type FuelChoice } from '../../../../user/web/src/components/CabParts';
 import { FareDialog, FlowBar, PromoControl } from './parts';
@@ -83,7 +83,7 @@ export function ChooseStep() {
                 {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__meta">
                   <span>
-                    <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
+                    <Badge variant="blue">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
                   </span>
                   {scheduledAt ? <span className="trip-sum__when">{formatDate(scheduledAt)}, {formatTime(scheduledAt)}</span> : null}
                   {route ? <span>{formatDistance(route.distanceKm)} · about {formatDuration(route.durationMin)}</span> : null}
@@ -169,7 +169,6 @@ export function ChooseStep() {
                     <div className="cab__info">
                       <div className="cab__header">
                         <h3 className="cab__name">{name}</h3>
-                        {categoryModels(c) ? <p className="cab__model">{categoryModels(c)}</p> : null}
                         <ul className="cabx-facts">
                           <li><CabIcon kind="seat" size={20} /> {c.seats} seats</li>
                           <li><CabIcon kind="ac" size={20} /> AC</li>
@@ -236,7 +235,7 @@ export function ChooseStep() {
             <div className="sel-card">
               <div className="sel-card__top">
                 <span className="sel-card__eyebrow">Trip Summary</span>
-                <Badge variant="blue">{tripTypeLabel(tripType)}</Badge>
+                <Badge variant="blue">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
               </div>
 
               {selected ? (

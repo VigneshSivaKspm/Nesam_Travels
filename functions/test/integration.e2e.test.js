@@ -72,6 +72,11 @@ test.after(async () => { await new Promise((r) => stub.close(r)); });
 
 // ── Tariff ─────────────────────────────────────────────────────────────────
 
+// With no GST rule saved, the tariff's 5% GST is INCLUDED: the total payable is the tariff amount, give or take the 1 paisa
+// that splitting an inclusive price into "taxable + exactly 5% of taxable" cannot always avoid.
+const near = (actual, expected, msg) => assert.ok(Math.abs(actual - expected) <= 0.011, `${msg || 'amount'}: ${actual} is not ${expected} (±0.01)`);
+const r2 = (n) => Math.round(n * 100) / 100;
+
 test('T1. a one-way booking is priced by the confirmed tariff (130 km floor, bata, fixed partner rate)', async () => {
   const r = await bookAs(U.cust);
   assert.equal(r.ok, true, JSON.stringify(r));
@@ -79,11 +84,12 @@ test('T1. a one-way booking is priced by the confirmed tariff (130 km floor, bat
   assert.equal(b.pricing.source, 'tariff_v2');
   assert.equal(b.pricing.model, 'one_way_standard');
   assert.equal(b.pricing.includedKm, 130);
-  assert.equal(b.fareBreakdown.taxableAmount, 2350);
-  assert.equal(b.fare, 2467.5); // 2350 + 5% GST, exact paise
+  near(b.fare, 2350, 'fare is the tariff amount, GST included');
+  near(b.fareBreakdown.taxableAmount, 2350 / 1.05, 'taxable value');
+  near(b.fareBreakdown.taxableAmount + b.fareBreakdown.gst, b.fare, 'taxable + GST = total payable');
   assert.equal(b.pricing.partner.basePaise, 205500);
   assert.equal(b.dutyClass, 'sedan');
-  assert.ok(b.fareBreakup.lines.some((l) => /bata/i.test(l.label)));
+  assert.ok(b.fareBreakup.lines.some((l) => /driver allowance|bata/i.test(l.label)));
   assert.equal(b.commission, undefined, 'a confirmed-tariff duty does not need a percentage commission');
 });
 
@@ -93,7 +99,8 @@ test('T2. a round trip is billed by Indian calendar days with daily minimums', a
   const b = await booking(r.requestId);
   assert.equal(b.pricing.model, 'round_trip_calendar');
   assert.equal(b.billableDays, 2);
-  assert.equal(b.fareBreakdown.taxableAmount, 7800); // 500 km × 14 + 2 × 400
+  near(b.fare, 7800, '500 km × 14 + 2 × 400, GST included');
+  near(b.fareBreakdown.taxableAmount, 7800 / 1.05, 'taxable value');
   assert.equal(b.pricing.partner.basePaise, 690000); // 500 × 12.60 + 2 × 300
   const noEnd = await bookAs(U.cust, { tripType: 'Round Trip', scheduledAt: istInstant(2, '10:00') });
   assert.equal(noEnd.ok, false);
@@ -217,7 +224,7 @@ test('M3. offer escalation steps from the publication time, never compounds twic
   const again = await jobs.runOfferEscalation();
   assert.equal((await market(id)).offeredPayout, 2300);
   assert.equal(again.stepped, 0);
-  assert.equal((await booking(id)).fare, 2467.5, 'the customer fare never changes');
+  near((await booking(id)).fare, 2350, 'the customer fare never changes');
   // The ceiling raised exactly one admin alert.
   const alerts = await db.collection('notifications').where('title', '==', 'Marketplace offer is at its ceiling').get();
   assert.ok(alerts.size >= 1);
@@ -325,11 +332,11 @@ test('X2. trip execution gates, final fare and settlement due', async () => {
   b = await booking(id);
   assert.equal(b.status, 'Completed');
   assert.equal(b.finalFare.extraKm, 30);
-  assert.equal(b.fareBreakdown.taxableAmount, 2350 + 30 * 15);
-  assert.equal(b.fare, 2940, 'quoted 2,350 + 30 extra km × 15 = 2,800, + 5% GST');
+  near(b.fare, 2350 + 30 * 15, 'quoted 2,350 + 30 extra km × 15 = 2,800, GST included');
+  near(b.fareBreakdown.taxableAmount, (2350 + 30 * 15) / 1.05, 'taxable value');
   assert.equal(b.driverPayout, 2460, '160 km × 13.50 + 300 bata');
   // The company collects the whole invoice → settlement is due 4h after completion.
-  const pay = await call(U.admin, 'recordPayment', { bookingId: id, amount: 2940, method: 'Cash', collectorType: 'admin', requestId: rid('p') });
+  const pay = await call(U.admin, 'recordPayment', { bookingId: id, amount: b.fare, method: 'Cash', collectorType: 'admin', requestId: rid('p') });
   assert.equal(pay.ok, true, JSON.stringify(pay));
   const due = await until(async () => (await db.doc(`settlement_dues/${id}`).get()).data(), { what: 'settlement due' });
   assert.equal(due.amount, 2460);
@@ -355,13 +362,14 @@ test('X2. trip execution gates, final fare and settlement due', async () => {
 
 test('X3. money received directly by the partner reduces the settlement, whatever the method', async () => {
   const id = await approvedBooking({ scheduledAt: inHours(150) });
+  const rest = r2((await booking(id)).fare - 1000);
   assert.equal((await call(U.admin, 'assignDriver', { bookingId: id, driverId: U.ownerTop })).ok, true);
   // Company collects an advance, the driver receives the rest by UPI.
   assert.equal((await call(U.admin, 'recordPayment', { bookingId: id, amount: 1000, method: 'UPI', reference: 'COMP12345', collectorType: 'admin', requestId: rid('a') })).ok, true);
-  assert.equal((await call(U.ownerTop, 'recordPayment', { bookingId: id, amount: 1467.5, method: 'UPI', reference: 'DRV12345', requestId: rid('d') })).ok, true);
+  assert.equal((await call(U.ownerTop, 'recordPayment', { bookingId: id, amount: rest, method: 'UPI', reference: 'DRV12345', requestId: rid('d') })).ok, true);
   const s = (await booking(id)).paymentSummary;
   assert.equal(s.status, 'Paid');
-  assert.equal(s.partnerCashHeld, 1467.5, 'a UPI payment to the driver is partner-held money');
+  assert.equal(s.partnerCashHeld, rest, 'a UPI payment to the driver is partner-held money');
   assert.equal(s.companyCollected, 1000);
 });
 
@@ -381,7 +389,7 @@ test('G1. gateway success becomes one canonical receipt; pending/failed never re
   assert.equal(txns.docs[0].data().collectorType, 'system');
   const s = (await booking(id)).paymentSummary;
   assert.equal(s.totalPaid, 1000);
-  assert.equal(s.balanceDue, b.fare - 1000);
+  assert.equal(s.balanceDue, r2(b.fare - 1000));
   // A manually recorded 'Gateway' receipt is not accepted.
   const fake = await call(U.admin, 'recordPayment', { bookingId: id, amount: 100, method: 'Gateway', reference: 'pay_FAKE', collectorType: 'admin', requestId: rid('f') });
   assert.equal(fake.ok, false);

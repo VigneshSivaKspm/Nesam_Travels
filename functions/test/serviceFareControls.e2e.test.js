@@ -17,7 +17,7 @@ async function quote(brand, service, saveTour = false) {
     const revision=saveTour&&r.ok?(await db.doc(`enquiries/${enquiryId}`).get()).data().quoteRevision:null;
     return r.ok ? {ok:true,data:{total:r.data.estimate,payout:r.data.payout,enquiryId,revision}} : r;
   }
-  const r = await call(A,'createAdminBooking',{requestId:rid('controls'),quoteOnly:true,brand,categoryId:'control-sedan',tripType:service,pickupPoint:pickup,dropPoint:drop,pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,tripEndAt,rentalHours:12});
+  const r = await call(A,'createAdminBooking',{requestId:rid('controls'),quoteOnly:true,brand,categoryId:'control-sedan',tripType:service,pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,tripEndAt,rentalHours:12}); // master locations only: a map pin is never GST-verified
   return r.ok ? {ok:true,data:{total:r.data.quote.total,payout:r.data.pricing.partner.basePaise/100}} : r;
 }
 async function rule(brand,service,kind,patch={}) {
@@ -79,23 +79,30 @@ test('public Multicity cannot silently quote a One Way fare; nonstaff cannot cha
 });
 
 test('every GST brand/service supports included/excluded, pickup-state override, removal and inheritance',async()=>{
-  for(const brand of brands)for(const service of services){
+  for(const brand of brands)for(const service of services){ try {
     const baseline=ok(await quote(brand,service));
     const save=async(state,rate,mode,clearOverride=false)=>{
       const version=(await db.doc('business_config/tariff_v2').get()).data().version;
       return ok(await call(A,'saveTariffSection',{section:'fareGst',brand,service,expectedVersion:version,reason:'Synthetic approved GST control check',clearOverride,data:{state,rule:{supplierState:'33',rate,mode,classification:service==='Local Rental'?'rental':'passenger',reference:'Synthetic tax fixture only'}}}));
     };
     await save('',.12,'excluded'); const excluded=ok(await quote(brand,service));
-    assert.ok(Math.abs(excluded.total-baseline.total/1.05*1.12)<.03);
+    // Default (no rule): the entered rates already include 5% GST. A saved 12% 'excluded' rule adds 12% on top of the same rates.
+    assert.ok(Math.abs(excluded.total-baseline.total*1.12)<.03);
     await save('33',.12,'included');const included=ok(await quote(brand,service));
-    assert.ok(Math.abs(included.total-baseline.total/1.05)<.03);
+    assert.ok(Math.abs(included.total-baseline.total)<.03,'12% included keeps the entered amount as the total');
     assert.equal(included.payout,baseline.payout,'tax never changes agreed partner rate');
     const pricing=await rule(brand,service,'pricing',{customer:{mode:'Increase',percent:10},partner:{mode:'Normal',percent:0}});
     assert.ok(Math.abs(ok(await quote(brand,service)).total-included.total*1.1)<.03,'included GST plus scheduled adjustment applied once');
     await remove(pricing);
     await save('33',.12,'included',true);assert.equal(ok(await quote(brand,service)).total,excluded.total);
     await save('',.12,'excluded',true);assert.equal(ok(await quote(brand,service)).total,baseline.total);
-  }
+  } finally {
+      // Never leave a saved GST rule behind for the tests that follow, even when an assertion above failed.
+      for (const [state, clear] of [['33', true], ['', true]]) {
+        const version = (await db.doc('business_config/tariff_v2').get()).data().version;
+        await call(A,'saveTariffSection',{section:'fareGst',brand,service,expectedVersion:version,reason:'Synthetic GST cleanup',clearOverride:clear,data:{state,rule:{supplierState:'33',rate:.12,mode:'excluded',classification:'passenger',reference:'Synthetic tax fixture only'}}});
+      }
+    } }
 });
 
 test('fixed-route editor save/edit/status reaches only the selected brand and direction',async()=>{
@@ -128,14 +135,14 @@ test('shared city fare editor and rental package controls reach saved calculatio
   const pkg={customerFare:1500,partnerPayout:900,includedKm:60,extraKmRate:25,extraHourRate:180,gstMode:'excluded',enabled:true};
   await save('rentalPackage',pkg,{class:'sedan',hours:6});
   assert.equal((await loadTariffConfig()).rentalPackages.sedan.packages['6'].customerFare,1500);
-  const q=await call(A,'createAdminBooking',{requestId:rid('shared_rental'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'Local Rental',pickupPoint:pickup,dropPoint:drop,pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,rentalHours:6});
+  const q=await call(A,'createAdminBooking',{requestId:rid('shared_rental'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'Local Rental',pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,rentalHours:6});
   assert.equal(ok(q).quote.total,1575);
   await save('rentalPackage',{...pkg,enabled:false},{class:'sedan',hours:6});
-  assert.equal((await call(A,'createAdminBooking',{requestId:rid('shared_rental_disabled'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'Local Rental',pickupPoint:pickup,dropPoint:drop,pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,rentalHours:6})).ok,false);
+  assert.equal((await call(A,'createAdminBooking',{requestId:rid('shared_rental_disabled'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'Local Rental',pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,rentalHours:6})).ok,false);
 });
 
 test('business contract editor rates override normal tariffs without leaking across accounts',async()=>{
-  const data={requestId:rid('contract_quote'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'One Way',pickupPoint:pickup,dropPoint:drop,pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,businessAccountId:'control-company',businessBilledTo:'Company pays'};
+  const data={requestId:rid('contract_quote'),quoteOnly:true,brand:'nesam',categoryId:'control-sedan',tripType:'One Way',pickupLocationId:pickup.id,dropLocationId:drop.id,scheduledAt,businessAccountId:'control-company',businessBilledTo:'Company pays'};
   const rate={id:'control-contract',pickupZone:pickup.name,dropZone:drop.name,service:'One Way',category:'Sedan',contractType:'Fixed fare',priceEntered:'Excluding GST',customerRate:1000,partnerPayout:700,active:true,peak:false};
   await db.doc('business_accounts/control-company').set({name:'Synthetic Company',status:'Active',paymentTerms:'Credit',creditLimit:10000,contractRates:[rate]});
   let q=ok(await call(A,'createAdminBooking',data));assert.equal(q.quote.total,1050);assert.equal(q.pricing.partner.basePaise,70000);

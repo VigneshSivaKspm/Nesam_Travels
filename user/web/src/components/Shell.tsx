@@ -176,7 +176,12 @@ function Footer() {
             <h2>Company</h2>
             <Link to="/about">About NESAM</Link>
             <Link to="/support?topic=cancellation">Cancellation &amp; Refunds</Link>
-            <Link to="/legal">Terms &amp; Privacy</Link>
+            <Link to="/legal#terms">Terms &amp; Conditions</Link>
+            <Link to="/legal#privacy">Privacy &amp; Location</Link>
+            <Link to="/legal#cancellation">Cancellation Policy</Link>
+            <Link to="/legal#refund">Refund Policy</Link>
+            <Link to="/legal#payment">Fare &amp; Payment Policy</Link>
+            <Link to="/legal#deletion">Account &amp; Data Deletion</Link>
           </nav>
           <nav aria-label="Popular routes" className="footer__routes">
             <h2>Popular routes</h2>

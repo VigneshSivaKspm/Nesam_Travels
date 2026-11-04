@@ -203,7 +203,7 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
         id: cat.id,
         name: cat.name,
         code: cat.code || "",
-        description: cat.description || "",
+        description: cat.description && cat.description.trim().length <= 48 ? cat.description.trim() : "",
         imageUrl: cat.imageUrl || "",
         icon: cat.icon || "🚘",
         seatingCapacity: cat.seatingCapacity || 0,
@@ -310,9 +310,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           {embedded ? <h2 className="text-[16px] font-bold text-ink">Vehicle Categories</h2> : <h1 className="text-[20px] font-bold text-ink">Vehicle Categories</h1>}
-          <p className="text-[13px] text-muted">
-            Configure fleet vehicle types, seating capacities, and default fare calculation rules.
-          </p>
         </div>
 
         <div className="flex items-center gap-2">
@@ -336,25 +333,21 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
             label: "Total Categories",
             value: categories.length.toString(),
             color: "#c1232c",
-            sub: "Configured types",
           },
           {
             label: "Active Categories",
             value: categories.filter((c) => c.status === "Active").length.toString(),
             color: "#10B981",
-            sub: "Available for booking",
           },
           {
             label: "Inactive Categories",
             value: categories.filter((c) => c.status === "Inactive").length.toString(),
             color: "#6B7280",
-            sub: "Hidden from customers",
           },
           {
             label: "Total Vehicles",
             value: vehicles.length.toString(),
             color: "#3B82F6",
-            sub: "Registered fleet",
           },
         ].map((s) => (
           <div key={s.label} className="bg-white rounded-xl border border-line shadow-sm p-4">
@@ -362,7 +355,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
               {s.value}
             </div>
             <div className="text-[12px] font-semibold text-ink mt-0.5">{s.label}</div>
-            <div className="text-[10px] text-faint">{s.sub}</div>
           </div>
         ))}
       </div>
@@ -392,9 +384,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
             </svg>
           </div>
           <h2 className="text-[18px] font-bold text-ink mb-2">No vehicle categories found.</h2>
-          <p className="text-[13px] text-faint max-w-sm mb-6">
-            Vehicle categories (for example Sedan, SUV, Tempo Traveller) define seating and the default fare used for bookings. Add the first category to get started.
-          </p>
           <div className="flex items-center gap-3">
             <button
               onClick={handleOpenAdd}
@@ -520,16 +509,16 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                             </div>
                             <div>
                               <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-bold text-ink">{cat.name}</span>
+                                <span className="text-[13px] font-bold text-ink">{cat.description?.trim() || cat.name}</span>
                                 {cat.code && (
                                   <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-gray-100 text-gray-700 font-bold uppercase">
                                     {cat.code}
                                   </span>
                                 )}
                               </div>
-                              {cat.description && (
+                              {cat.description?.trim() && cat.description.trim() !== cat.name && (
                                 <div className="text-[11px] text-faint line-clamp-1 max-w-xs">
-                                  {cat.description}
+                                  {cat.name}
                                 </div>
                               )}
                             </div>
@@ -542,7 +531,7 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                             {cat.seatingCapacity} Seats
                           </div>
                           <div className="text-[10px] text-faint">
-                            {cat.luggageCapacity || "Standard"} • {cat.acSupported || "AC"}
+                            {cat.luggageCapacity || "Standard luggage"}
                           </div>
                         </td>
 
@@ -573,7 +562,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                           <div className="text-[12px] font-medium text-body">
                             ₹{cat.fare?.driverAllowance ?? 0}
                           </div>
-                          <div className="text-[10px] text-faint">Per day / trip</div>
                         </td>
 
                         {/* Vehicle Count */}
@@ -647,9 +635,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                 <h3 className="text-[16px] font-bold text-ink">
                   {isEditing ? "Edit Vehicle Category" : "+ Add Vehicle Category"}
                 </h3>
-                <p className="text-[11px] text-muted">
-                  These rates are used by the booking engine to price customer rides in this category.
-                </p>
               </div>
 
               <button
@@ -707,7 +692,7 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                         <input
                           type="text"
                           required
-                          placeholder="e.g. Sedan, SUV, Innova"
+                          placeholder="Sedan"
                           value={formData.name}
                           onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
@@ -721,71 +706,39 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. SEDAN, SUV, INNOVA"
+                          placeholder="SEDAN"
                           value={formData.code}
                           onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
                           className="w-full p-2.5 border border-line rounded-lg text-[12px] font-mono focus:outline-none focus:border-brand"
                         />
-                        <p className="text-[10px] text-gray-500 mt-1">Leave blank to derive it from the name.</p>
                         {errNode("code")}
                       </div>
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-ink mb-1">Description</label>
-                      <textarea
-                        rows={2}
-                        placeholder="Brief overview of vehicle category for customers and admin display..."
+                      <label className="block text-[11px] font-bold text-ink mb-1">
+                        Display Text
+                      </label>
+                      <input
+                        type="text"
+                        maxLength={48}
+                        placeholder="Dzire / Etios or similar"
                         value={formData.description}
                         onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                         className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          Icon Emoji
-                        </label>
-                        <select
-                          value={formData.icon}
-                          onChange={(e) => setFormData({ ...formData, icon: e.target.value })}
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        >
-                          <option value="🚘">🚘 Sedan (Dzire / Etios)</option>
-                          <option value="🚙">🚙 SUV (Ertiga / Harrier)</option>
-                          <option value="🚐">🚐 Innova / Crysta</option>
-                          <option value="🚌">🚌 Tempo Traveller</option>
-                          <option value="🚕">🚕 Hatchback / Mini</option>
-                          <option value="✨">✨ Luxury Class</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          Image URL (Optional)
-                        </label>
-                        <input
-                          type="url"
-                          placeholder="https://example.com/sedan.png"
-                          value={formData.imageUrl}
-                          onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        />
-                        {errNode("imageUrl")}
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">Status</label>
-                        <select
-                          value={formData.status}
-                          onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        >
-                          <option value="Active">Active (Selectable)</option>
-                          <option value="Inactive">Inactive (Hidden)</option>
-                        </select>
-                      </div>
+                    <div className="max-w-xs">
+                      <label className="block text-[11px] font-bold text-ink mb-1">Status</label>
+                      <select
+                        value={formData.status}
+                        onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
+                        className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
+                      >
+                        <option value="Active">Active (Selectable)</option>
+                        <option value="Inactive">Inactive (Hidden)</option>
+                      </select>
                     </div>
                   </div>
                 )}
@@ -793,10 +746,10 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                 {/* TAB 2: SPECS */}
                 {activeTab === "specs" && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-[11px] font-bold text-ink mb-1">
-                          Seating Capacity *
+                          Seats *
                         </label>
                         <input
                           type="number"
@@ -814,52 +767,15 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
 
                       <div>
                         <label className="block text-[11px] font-bold text-ink mb-1">
-                          Recommended Passengers
-                        </label>
-                        <input
-                          type="number"
-                          min={1}
-                          max={50}
-                          value={formData.recommendedPassengers}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              recommendedPassengers: parseInt(e.target.value) || 0,
-                            })
-                          }
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        />
-                        {errNode("recommendedPassengers")}
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          Luggage Capacity
+                          Luggage
                         </label>
                         <input
                           type="text"
-                          placeholder="e.g. 2 Large Bags"
+                          placeholder="2 Large Bags"
                           value={formData.luggageCapacity}
                           onChange={(e) => setFormData({ ...formData, luggageCapacity: e.target.value })}
                           className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
-                      </div>
-
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          AC Support
-                        </label>
-                        <select
-                          value={formData.acSupported}
-                          onChange={(e) => setFormData({ ...formData, acSupported: e.target.value as any })}
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        >
-                          <option value="AC">AC Only</option>
-                          <option value="Non-AC">Non-AC Only</option>
-                          <option value="Both">Both AC / Non-AC</option>
-                        </select>
                       </div>
 
                       <div>
@@ -939,7 +855,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                           }
                           className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
-                        <p className="text-[10px] text-gray-500 mt-1">Required. Charged for every km beyond the base km.</p>
                         {errNode("fare.perKmRate")}
                       </div>
                     </div>
@@ -1072,34 +987,11 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                           }
                           className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
                         />
-                        <p className="text-[10px] text-gray-500 mt-1">Billed per minute of local trip time (hourly rate ÷ 60).</p>
                         {errNode("fare.waitingChargePerHour")}
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          Extra Hour Charge (₹)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={formData.fare.extraHourCharge}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              fare: {
-                                ...formData.fare,
-                                extraHourCharge: parseFloat(e.target.value) || 0,
-                              },
-                            })
-                          }
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        />
-                        {errNode("fare.extraHourCharge")}
-                      </div>
-
                       <div>
                         <label className="block text-[11px] font-bold text-ink mb-1">
                           Extra KM Charge (₹)
@@ -1141,25 +1033,6 @@ export default function VehicleCategories({ embedded = false }: { embedded?: boo
                         {errNode("fare.permitCharge")}
                       </div>
 
-                      <div>
-                        <label className="block text-[11px] font-bold text-ink mb-1">
-                          Carrier / Luggage Charge (₹)
-                        </label>
-                        <input
-                          type="number"
-                          min={0}
-                          value={formData.fare.carrierCharge}
-                          onChange={(e) =>
-                            setFormData({
-                              ...formData,
-                              fare: { ...formData.fare, carrierCharge: parseFloat(e.target.value) || 0 },
-                            })
-                          }
-                          className="w-full p-2.5 border border-line rounded-lg text-[12px] focus:outline-none focus:border-brand"
-                        />
-                        <p className="text-[11px] text-muted mt-1">Shown on bookings as an extra, payable separately. Leave 0 if there is no carrier charge.</p>
-                        {errNode("fare.carrierCharge")}
-                      </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">

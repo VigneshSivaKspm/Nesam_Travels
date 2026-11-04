@@ -11,6 +11,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Allow: /assets/
 Allow: /website-images/
 Allow: /vehicles/
@@ -36,6 +37,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Disallow: /account/
 Disallow: /account/*
 Disallow: /trips/
@@ -68,6 +70,7 @@ Allow: /services/*
 Allow: /offers
 Allow: /support
 Allow: /legal
+Allow: /about
 Allow: /assets/
 Allow: /website-images/
 Allow: /vehicles/

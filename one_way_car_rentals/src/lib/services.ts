@@ -34,6 +34,8 @@ export function tripTypeLabel(t: TripType | string): string {
   switch (t) {
     case 'Round Trip':
       return 'Round Trip';
+    case 'Multicity':
+      return 'Multicity';
     case 'Airport Taxi':
       return 'Airport';
     case 'Local Rental':

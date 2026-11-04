@@ -154,3 +154,7 @@ export interface RechargeOrder { orderId: string; amount: number; currency: stri
 export const createWalletRecharge = (amount: number) => callFunction<{ amount: number }, RechargeOrder>('createWalletRecharge', { amount });
 export const verifyWalletRecharge = (orderId: string, paymentId: string, signature: string) =>
   callFunction<unknown, { status: string; message?: string }>('verifyWalletRecharge', { razorpayOrderId: orderId, razorpayPaymentId: paymentId, razorpaySignature: signature });
+
+export interface AccountDeletionReceipt { alreadyOpen: boolean; liveBookings: number; reference: string }
+/** Asks the office to erase this partner's account and personal data. Nothing is deleted automatically; the office verifies and settles first. */
+export const requestAccountDeletion = (role: 'driver' | 'vendor') => callFunction<{ role: string }, AccountDeletionReceipt>('requestAccountDeletion', { role });

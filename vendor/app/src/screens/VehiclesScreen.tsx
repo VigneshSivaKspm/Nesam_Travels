@@ -183,7 +183,17 @@ export function VehiclesScreen() {
                 <Button small variant="ghost" title="Remove" onPress={() => remove(v)} />
               </View>
               <View style={styles.actions}>
-                
+                <Button small variant="secondary" title="Availability" onPress={() => setAvailabilityFor(v)} style={{ flex: 1 }} />
+                <Button small variant="secondary" title="Renew a document" onPress={() => setRenewFor(v)} style={{ flex: 1 }} disabled={v.docStatus !== 'Approved'} />
+              </View>
+            </Card>
+          ))
+        )}
+      </Screen>
+    </View>
+  );
+}
+
 /** When (and where) the vehicle is free for new duties — the same record the vendor website and the office read. */
 function AvailabilitySheet({ vehicle, onClose, onDone }: { vehicle: FleetVehicle; onClose: () => void; onDone: (text: string) => void }) {
   const [at, setAt] = useState(() => new Date());
@@ -278,17 +288,6 @@ function RenewSheet({ vehicle, onClose, onDone }: { vehicle: FleetVehicle; onClo
       {error ? <Notice message={error} /> : null}
       <Button title={uploading ? 'Uploading…' : 'Send for approval'} loading={busy} disabled={uploading} onPress={() => void save()} />
     </Sheet>
-  );
-}
-
-<Button small variant="secondary" title="Availability" onPress={() => setAvailabilityFor(v)} style={{ flex: 1 }} />
-                <Button small variant="secondary" title="Renew a document" onPress={() => setRenewFor(v)} style={{ flex: 1 }} disabled={v.docStatus !== 'Approved'} />
-              </View>
-            </Card>
-          ))
-        )}
-      </Screen>
-    </View>
   );
 }
 

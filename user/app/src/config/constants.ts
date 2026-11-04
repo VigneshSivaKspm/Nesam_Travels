@@ -28,6 +28,7 @@ export const SUPPORT_PHONE = '+919025099990';
 export const SUPPORT_PHONE_DISPLAY = '+91 90250 99990';
 /** WhatsApp line the booking screen has always used for trip enquiries (international format, no +). */
 export const SUPPORT_WHATSAPP = '919025099990';
+export const SUPPORT_EMAIL = 'support@nesamcabs.com';
 export const EMERGENCY_NUMBER = '112';
 
 // ── Pricing policy ──────────────────────────────────────────────────────────

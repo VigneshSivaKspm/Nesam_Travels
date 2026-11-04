@@ -9,6 +9,7 @@ import { useBooking } from '@/state/Booking';
 import { vehicleArtUrl } from '@/lib/vehicleArt';
 import { ASSURANCE, CORRIDORS, DESTINATIONS, FAQS, FEATURES, IMG, MORE_CORRIDORS, SERVICES, STEPS, type Corridor, type Destination, type Service } from './content';
 import { findRouteBySlug } from '../routes/routesData';
+import { categoryName } from '@/lib/categories';
 
 function SectionHead({ eyebrow, title, text, action, id }: { eyebrow: string; title: string; text?: string; action?: React.ReactNode; id?: string }) {
   return (
@@ -216,7 +217,7 @@ export function FleetSection({ onPick }: { onPick: () => void }) {
               <li key={c.id} id={`vehicle-${c.id}`} className="vehicle">
                 <img src={vehicleArtUrl(c)} alt={`People Taxi ${c.name} - ${c.seats} seater cab`} width={320} height={210} loading="lazy" />
                 <div className="vehicle__body">
-                  <strong>{c.name}</strong>
+                  <strong>{categoryName(c)}</strong>
                   <span className="vehicle__seats">
                     <Icon name="passengers" size={16} /> {c.seats} seats
                   </span>

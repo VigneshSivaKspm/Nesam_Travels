@@ -43,7 +43,8 @@ export interface QuoteRequest {
   drop: { id?: string; name: string; address: string; lat: number; lng: number; type?: string };
   /** Ordered intermediate places; supported for Round Trip only. */
   stops?: { id?: string; name: string; address: string; lat: number; lng: number; type?: string }[];
-  tripType: TripType;
+  /** 'Multicity' is a tour through several cities (stops required), priced from the Multicity rates and booked as a Round Trip. */
+  tripType: TripType | 'Multicity';
   /** ISO-8601 with an offset. */
   scheduledAt: string;
   tripEndAt?: string | null;

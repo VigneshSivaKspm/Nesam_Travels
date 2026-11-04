@@ -20,7 +20,7 @@ import { rateLimited } from './http/util';
 import { requirePermission, text } from './shared';
 
 const bad = (m: string) => new HttpsError('invalid-argument', m);
-const CATEGORIES = ['Booking help', 'Change or cancel a booking', 'Fare or payment', 'Refund', 'Driver or vehicle', 'Lost item', 'Safety concern', 'Feedback', 'Corporate / business travel', 'Partner with us', 'Other'];
+const CATEGORIES = ['Booking help', 'Change or cancel a booking', 'Fare or payment', 'Refund', 'Driver or vehicle', 'Lost item', 'Safety concern', 'Account deletion', 'Feedback', 'Corporate / business travel', 'Partner with us', 'Other'];
 const PHONE_RE = /^\+?[0-9\s-]{10,16}$/;
 
 export const submitSupportRequest = onCall({ timeoutSeconds: 30, cors: PUBLIC_CALLABLE_ORIGINS }, async (request) => {
@@ -132,4 +132,72 @@ export const updateSupportRequest = onCall({ timeoutSeconds: 30 }, async (reques
     emailed = r.ok;
   }
   return { ok: true, emailed };
+});
+
+// ── Account deletion ─────────────────────────────────────────────────────────
+// A signed-in customer, driver or vendor asks for their account and personal data to be erased. The request is saved as a support
+// ticket (source "account-deletion", one deterministic ticket per account) so the office sees it in Support, is alerted, and the
+// person gets an email acknowledgement. Nothing is deleted automatically: the office confirms identity, settles anything still
+// open (live bookings, unpaid dues, wallet or deposit balance) and keeps only the records the law requires (e.g. invoices).
+const DELETION_ROLES = ['customer', 'driver', 'vendor'] as const;
+
+export const requestAccountDeletion = onCall({ timeoutSeconds: 30 }, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Sign in to request deletion of your account.');
+  if (rateLimited(`acctdel:${uid}`, 5, 60 * 60 * 1000)) throw new HttpsError('resource-exhausted', 'Too many requests. Please try again later.');
+  const input = (request.data ?? {}) as Record<string, unknown>;
+  const reason = text(input.reason, 500);
+  const hint = text(input.role, 20);
+
+  const [c, d, v] = await Promise.all([db.doc(`customers/${uid}`).get(), db.doc(`drivers/${uid}`).get(), db.doc(`vendors/${uid}`).get()]);
+  const found = [c.exists && 'customer', d.exists && 'driver', v.exists && 'vendor'].filter(Boolean) as (typeof DELETION_ROLES)[number][];
+  if (found.length === 0) throw new HttpsError('failed-precondition', 'We could not find an account for this sign-in.');
+  const role = (DELETION_ROLES as readonly string[]).includes(hint) && found.includes(hint as never) ? (hint as (typeof DELETION_ROLES)[number]) : found[0]!;
+  const profile = (role === 'customer' ? c : role === 'driver' ? d : v).data() ?? {};
+  const name = text(profile.name ?? profile.fullName ?? profile.businessName, 80);
+  const phone = text(profile.phone ?? profile.mobile, 20);
+  const email = text(profile.email, 120).toLowerCase();
+
+  // Live bookings the office must settle before erasing (customers only; partners are checked by the office against duties and dues).
+  let liveBookings = 0;
+  if (role === 'customer') {
+    const snap = await db.collection('bookings').where('customerId', '==', uid).get();
+    liveBookings = snap.docs.filter((b) => !['Completed', 'Cancelled'].includes(String(b.data().status))).length;
+  }
+
+  const ref = db.doc(`support_tickets/acctdel_${uid}`);
+  const stamp = FieldValue.serverTimestamp();
+  const created = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists && ['Open', 'In Progress'].includes(String(snap.data()!.status))) return false; // repeat tap or retry: one open request only
+    tx.set(ref, {
+      customerId: uid, customerName: name, customerPhone: phone, customerEmail: email,
+      category: 'Account deletion', bookingId: '', brand: 'nesam', source: 'account-deletion', accountRole: role,
+      description: `Account deletion requested by ${role} ${name || uid}.${reason ? ` Reason: ${reason}` : ''}${liveBookings ? ` ${liveBookings} booking(s) still open.` : ''}`,
+      status: 'Open', createdAt: stamp, updatedAt: stamp,
+    });
+    auditInTx(tx, { action: 'account_deletion_requested', entity: 'support_ticket', entityId: ref.id, performedBy: uid, performedByName: name, role, next: { role, liveBookings } });
+    return true;
+  });
+
+  if (created) {
+    const brand = brandOf('nesam');
+    await Promise.all([
+      notify({
+        recipientType: 'admin', recipientId: 'admin', category: 'general', severity: 'warning', sound: 'general', push: true,
+        title: 'Account deletion request', message: `${role} · ${name || uid}${liveBookings ? ` · ${liveBookings} open booking(s)` : ''}`,
+        cta: { label: 'Open support', page: 'support' }, sentBy: uid,
+      }).catch((err) => console.warn('deletion notify failed', err)),
+      email && EMAIL_RE.test(email) ? (async () => {
+        const mail = renderEmail(brand, {
+          title: 'We received your account deletion request',
+          greeting: `Hello ${name || 'there'},`,
+          paragraphs: ['Our team will verify the request, settle anything still open on your account and then confirm by email or phone. Records we must keep by law, such as invoices, are retained.'],
+          rows: [['Reference', ref.id.slice(-8).toUpperCase()]],
+        });
+        await sendEmail(email, { subject: `${brand.name}: account deletion request received`, text: mail.text, html: mail.html, brand });
+      })().catch((err) => console.warn('deletion ack mail failed', err)) : Promise.resolve(),
+    ]);
+  }
+  return { requested: true, alreadyOpen: !created, liveBookings, reference: ref.id.slice(-8).toUpperCase() };
 });

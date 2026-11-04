@@ -23,7 +23,7 @@ test('business quote uses contract; concurrent bookings cannot overspend credit;
   const results=await Promise.all([a,b].map(x=>call(admin,'createAdminBooking',{...x,expectedFare:1050})));
   assert.equal(results.filter(r=>r.ok).length,1,JSON.stringify(results));
   const saved=(await db.collection('bookings').where('businessAccountId','==','fix-credit').get()).docs;
-  assert.equal(saved.length,1);assert.equal(saved[0].data().pricing.partner.basePaise,70000);
+  assert.equal(saved.length,1);assert.equal((await H.booking(saved[0].id)).pricing.partner.basePaise,70000);
   await db.doc('business_accounts/fix-credit').update({status:'On hold'});
   const held=await call(admin,'createAdminBooking',{...request('fix-credit'),quoteOnly:true});assert.equal(held.ok,false);assert.match(held.message,/hold/i);
 });

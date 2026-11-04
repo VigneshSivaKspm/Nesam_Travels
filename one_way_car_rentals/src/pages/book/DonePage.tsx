@@ -6,6 +6,7 @@ import { useCustomerData } from '@/state/customer';
 import { formatDate, formatTime } from '@core/utils/format';
 import { Button, Dialog, LinkButton, PageLoader } from '@/components/ui';
 import { Icon } from '@/components/Icon';
+import { useBooking } from '@/state/Booking';
 import type { TripRecord, TripType } from '@core/types';
 import { BookingCelebration } from '../../../../user/web/src/components/BookingCelebration';
 import { BookingConfirmedOverlay } from '@/components/BookingConfirmedOverlay';
@@ -115,11 +116,16 @@ export function DonePage() {
   const location = useLocation();
   const { trips } = useCustomerData();
   const trip = trips.find((t) => t.id === id);
+  const { reset } = useBooking();
   const [booked, setBooked] = useState(() => (location.state as { confirmed?: boolean } | null)?.confirmed === true);
 
-  // The flag is consumed: reloading or coming back to this page never shows the dialog again.
+  // The flag is consumed: reloading or coming back to this page never shows the celebration again. Arriving straight
+  // from "Confirm booking", the draft has done its job and is cleared here.
   useEffect(() => {
-    if (booked) navigate(location.pathname, { replace: true, state: null });
+    if (booked) {
+      reset();
+      navigate(location.pathname, { replace: true, state: null });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!trip) return <PageLoader label="Loading your booking details…" />;

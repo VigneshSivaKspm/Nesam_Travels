@@ -87,7 +87,13 @@ async function bookAs(customer, over = {}) {
   return { ...r, requestId: base.requestId };
 }
 
-const booking = async (id) => (await db.doc(`bookings/${id}`).get()).data();
+/** A booking as staff see it: the public record joined with its private partner pricing (booking_pricing_private), as the server does. */
+const booking = async (id) => {
+  const b = (await db.doc(`bookings/${id}`).get()).data();
+  if (!b) return b;
+  const priv = (await db.doc(`booking_pricing_private/${id}`).get()).data() ?? null;
+  return require('../lib/pricingPrivate').withPrivatePricing(b, priv);
+};
 const market = async (id) => (await db.doc(`marketplace_trips/${id}`).get()).data();
 
 /** Polls until `fn` returns truthy (Firestore triggers settle asynchronously). */

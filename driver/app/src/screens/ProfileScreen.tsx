@@ -30,6 +30,8 @@ import { IFSC_RE, MOBILE_RE, UPI_RE, localDateISO } from '../validation/kyc';
 import { formatINR, initials } from '../utils/format';
 import { last7Days, tripEarningStatus } from '../utils/ledger';
 import { describeError } from '../utils/retry';
+import { requestAccountDeletion } from '../services/partnerRequests';
+import { COMPANY_LEGAL_NAME, SUPPORT_EMAIL } from '../config/constants';
 import { nx } from '../theme/nx';
 import { POPPINS } from '../theme/fonts';
 
@@ -151,6 +153,30 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
       { text: 'Stay', style: 'cancel' },
       { text: 'Sign out', style: 'destructive', onPress: signOut },
     ]);
+
+  const [deleting, setDeleting] = useState(false);
+  const confirmDeletion = () =>
+    Alert.alert(
+      'Delete your account?',
+      'NESAM will verify the request, settle anything still open (duties, dues, wallet and deposit) and then delete your account and personal data. Records we must keep by law, such as trip and settlement records, are retained.',
+      [
+        { text: 'Keep my account', style: 'cancel' },
+        {
+          text: 'Request deletion',
+          style: 'destructive',
+          onPress: () => {
+            if (deleting) return;
+            setDeleting(true);
+            requestAccountDeletion('driver')
+              .then((r) =>
+                Alert.alert(r.alreadyOpen ? 'Already requested' : 'Request received', `Reference ${r.reference}. NESAM will confirm by phone or email.`),
+              )
+              .catch((e: unknown) => Alert.alert('Request not sent', e instanceof Error ? e.message : 'Please try again.'))
+              .finally(() => setDeleting(false));
+          },
+        },
+      ],
+    );
 
   const docTone = driver.docStatus === 'Approved' ? 'green' : driver.docStatus === 'Rejected' ? 'red' : 'amber';
 
@@ -399,10 +425,15 @@ export function ProfileScreen({ route }: { route?: { params?: { openSection?: st
             <View style={styles.sectionBody}>
               <View style={{ gap: 14 }}>
                 <NxTextButton title="Help & SOS" icon="help" onPress={() => openSupport()} />
+                <NxTextButton title="Email NESAM" icon="help" onPress={() => void Linking.openURL(`mailto:${SUPPORT_EMAIL}`)} />
+                <NxTextButton title="Delete my account" icon="logout" onPress={confirmDeletion} />
                 <NxTextButton title="Sign out" icon="logout" onPress={confirmSignOut} />
               </View>
               <Text style={[nxText.small, { marginTop: 16 }]}>
                 NESAM Driver v{Constants.expoConfig?.version ?? '1.0.0'}
+              </Text>
+              <Text style={[nxText.small, { marginTop: 4 }]}>
+                © {new Date().getFullYear()} {COMPANY_LEGAL_NAME}. All rights reserved.
               </Text>
             </View>
           ) : null}

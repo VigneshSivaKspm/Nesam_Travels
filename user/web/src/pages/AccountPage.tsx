@@ -5,6 +5,7 @@ import { isActiveStatus } from '@core/services/rideService';
 import { SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY } from '@core/config/constants';
 import { formatINR, formatPhone } from '@core/utils/format';
 import { describeError } from '@core/utils/retry';
+import { callFunction } from '@core/services/callables';
 import { Avatar, Button, Dialog, ListRow, Notice, PageHead } from '@/components/ui';
 import { Icon } from '@/components/Icon';
 import { AccountLayout, SignInPrompt } from '@/components/AccountLayout';
@@ -22,6 +23,9 @@ export function AccountPage() {
   const [progress, setProgress] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [confirm, setConfirm] = useState(false);
+  const [deleteAsk, setDeleteAsk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteResult, setDeleteResult] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
 
   if (!profile) {
     return (
@@ -55,6 +59,23 @@ export function AccountPage() {
     }
   };
   const active = trips.filter((t) => isActiveStatus(t.status)).length;
+  const requestDeletion = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    setDeleteResult(null);
+    try {
+      const r = await callFunction<{ role: string }, { alreadyOpen: boolean; liveBookings: number; reference: string }>('requestAccountDeletion', { role: 'customer' });
+      setDeleteResult({
+        tone: 'success',
+        text: `${r.alreadyOpen ? 'Your request is already with our team.' : 'Request received.'} Reference ${r.reference}. We will confirm by phone or email${r.liveBookings ? `. ${r.liveBookings} booking(s) are still open and must be completed or cancelled first` : ''}.`,
+      });
+    } catch (e) {
+      setDeleteResult({ tone: 'error', text: describeError(e, 'The request was not sent. Please try again.') });
+    } finally {
+      setDeleting(false);
+      setDeleteAsk(false);
+    }
+  };
 
   return (
     <AccountLayout>
@@ -92,10 +113,34 @@ export function AccountPage() {
         <ListRow icon="offers" title="Offers" text="Current promo codes" to="/offers" />
         <ListRow icon="information" title="Terms, privacy & about NESAM" text="Policies you accepted and company details" to="/legal" />
         <ListRow icon="phone" title="Call NESAM" text={SUPPORT_PHONE_DISPLAY} href={`tel:${SUPPORT_PHONE}`} />
+        <ListRow icon="information" title="About NESAM" text="Company details" to="/about" />
+        <ListRow icon="trash-2" title="Delete my account" text="Ask NESAM to erase your account and personal data" onClick={() => setDeleteAsk(true)} />
       </div>
+      {deleteResult ? <Notice tone={deleteResult.tone}>{deleteResult.text}</Notice> : null}
       <button type="button" className="signout" onClick={() => setConfirm(true)}>
         <Icon name="logout" size={16} /> Sign out
       </button>
+
+      {deleteAsk ? (
+        <Dialog
+          title="Delete your account?"
+          onClose={() => setDeleteAsk(false)}
+          footer={
+            <>
+              <Button variant="secondary" onClick={() => setDeleteAsk(false)}>
+                Keep my account
+              </Button>
+              <Button variant="danger" loading={deleting} onClick={() => void requestDeletion()}>
+                Request deletion
+              </Button>
+            </>
+          }
+        >
+          <p className="muted">
+            We will verify the request, settle anything still open (bookings, payments) and then delete your account and personal data. Records we must keep by law, such as invoices, are retained. This cannot be undone once it is processed.
+          </p>
+        </Dialog>
+      ) : null}
 
       {confirm ? (
         <Dialog

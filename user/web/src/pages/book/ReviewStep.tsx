@@ -119,6 +119,7 @@ export function ReviewStep() {
         route,
         fare: quote,
         tripType,
+        multicity: draft.multicity && tripType === 'Round Trip',
         // With payment options switched off every booking is pay-later (recorded as Cash, settled after the trip).
         paymentMethod: CUSTOMER_PAYMENTS_ENABLED ? payment : 'Cash',
         couponCode: q.coupon?.code ?? '',
@@ -183,7 +184,8 @@ export function ReviewStep() {
         <div>
           <strong>{q.authoritative ? 'Total fare' : 'Estimated fare'}</strong>
           <small>{q.authoritative ? '' : profile ? 'Confirming with NESAM · ' : 'Confirmed after you sign in · '}GST included{q.coupon ? ` · ${q.coupon.code} −${formatINR(q.coupon.discount)}` : ''}</small>
-          <small>Fuel, toll, state tax and parking are separate</small>
+          <small>Includes base fare, driver bata &amp; discounts</small>
+          <small>Toll, State Tax &amp; Parking extra (as per actuals)</small>
           <button type="button" className="link-btn" onClick={() => setShowFare(true)}>
             View fare details
           </button>

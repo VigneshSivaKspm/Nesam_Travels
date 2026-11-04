@@ -259,6 +259,9 @@ function Footer() {
             <h2>Policies</h2>
             <ul>
               <li>
+                <Link to="/about">About People Taxi</Link>
+              </li>
+              <li>
                 <Link to="/legal#terms">Terms &amp; Conditions</Link>
               </li>
               <li>
@@ -272,6 +275,9 @@ function Footer() {
               </li>
               <li>
                 <Link to="/legal#payment">Fare &amp; Payment Policy</Link>
+              </li>
+              <li>
+                <Link to="/legal#deletion">Account &amp; Data Deletion</Link>
               </li>
             </ul>
           </nav>

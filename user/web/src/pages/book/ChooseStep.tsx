@@ -13,7 +13,7 @@ import { Icon } from '@/components/Icon';
 import { useBooking, useBookingQuote } from '@/state/Booking';
 import { useCustomerData } from '@/state/CustomerData';
 import { useOnline } from '@/lib/hooks';
-import { categoryGroup, categoryModels, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
+import { categoryGroup, categoryName, categoryPhoto, type CategoryGroup } from '@/lib/categories';
 import { tripTypeLabel } from '@/lib/services';
 import { CabIcon, FuelPick, type FuelChoice } from '@/components/CabParts';
 import { BarIconButton, FareDialog, FlowBar, PromoControl } from './parts';
@@ -96,7 +96,7 @@ export function ChooseStep() {
                 {tripType === 'Round Trip' && draft.stops.length ? <p className="trip-sum__when">Via {draft.stops.map((stop) => stop.name).join(' → ')}</p> : null}
                 <p className="trip-sum__meta">
                   <span>
-                    <Badge tone="green">{tripTypeLabel(tripType)}</Badge>
+                    <Badge tone="green">{tripTypeLabel(draft.multicity ? 'Multicity' : tripType)}</Badge>
                   </span>
                   <span className="trip-sum__when">{when}</span>
                   <span>{route ? `${formatDistance(route.distanceKm)} · about ${formatDuration(route.durationMin)}${route.estimated ? ' (estimate)' : ''}` : routeStatus === 'error' ? 'Distance unavailable' : 'Calculating distance…'}</span>
@@ -238,7 +238,6 @@ export function ChooseStep() {
                           </span>
                           <span className="cab__info">
                             <strong className="cab__name">{categoryName(c)}</strong>
-                            {categoryModels(c) ? <span className="cab__model">{categoryModels(c)}</span> : null}
                             <span className="cabx-facts">
                               <span><CabIcon kind="seat" size={20} /> {c.seats} seats</span>
                               <span><CabIcon kind="ac" size={20} /> AC</span>

@@ -9,7 +9,7 @@ import type { Plugin } from 'vite';
 import { FAQS, SERVICES } from '../src/pages/book/content';
 import { ALL_ROUTES, type RouteGuide } from '../src/pages/routes/routesData';
 import { ALL_SERVICES, type ServiceDetail } from '../src/pages/services/servicesData';
-import { HOME_SEO, LEGAL_SEO, OFFERS_SEO, SUPPORT_SEO, routeSeo, serviceSeo } from '../src/seo/pages';
+import { ABOUT_SEO, HOME_SEO, LEGAL_SEO, OFFERS_SEO, SUPPORT_SEO, routeSeo, serviceSeo } from '../src/seo/pages';
 import { SITE, escapeHtml as e, renderHeadTags, type SeoProps } from '../src/seo/site';
 import { buildSitemap, sitemapEntries } from './sitemap';
 
@@ -39,6 +39,7 @@ const nav = `<nav aria-label="Site">${list([
   link('/', 'Book a one way taxi'),
   link('/offers', 'Offers'),
   link('/support', 'Support'),
+  link('/about', 'About us'),
   link('/legal', 'Terms & privacy'),
   link(`tel:${SITE.phone}`, `Call ${PHONE_DISPLAY}`),
 ])}</nav>`;
@@ -106,6 +107,7 @@ function pages(): Page[] {
     })),
     { path: '/offers', seo: OFFERS_SEO, images: [], body: simpleBody('Offers and promo codes', OFFERS_SEO.description ?? '') },
     { path: '/support', seo: SUPPORT_SEO, images: [], body: simpleBody('Customer support', SUPPORT_SEO.description ?? '') },
+    { path: '/about', seo: ABOUT_SEO, images: [], body: simpleBody('About One Way Car Rentals', ABOUT_SEO.description ?? '') },
     { path: '/legal', seo: LEGAL_SEO, images: [], body: simpleBody('Terms of service and privacy policy', LEGAL_SEO.description ?? '') },
   ];
 }

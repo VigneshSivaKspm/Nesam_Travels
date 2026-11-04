@@ -120,6 +120,7 @@ export function ReviewStep() {
         route,
         fare: quote,
         tripType,
+        multicity: draft.multicity && tripType === 'Round Trip',
         paymentMethod: 'Cash',
         couponCode: q.coupon?.code ?? '',
         notes: fullNotes,
@@ -133,8 +134,9 @@ export function ReviewStep() {
         bookingSource: 'onewaycarrentals',
         brand: 'onewaycarrentals',
       });
-      reset();
-      navigate(`/book/done/${res.id}`, { state: { confirmed: true } });
+      // The confirmation page clears the draft once it is showing: clearing it here would make the booking page
+      // redirect home before this navigation lands, and the confirmation would never appear.
+      navigate(`/book/done/${res.id}`, { replace: true, state: { confirmed: true } });
     } catch (e: unknown) {
       const err = e as { code?: string; fare?: Fare };
       if (err.code === 'fare-changed' && err.fare) {
@@ -202,7 +204,8 @@ export function ReviewStep() {
                   <p className="review-car__price num">
                     <strong>{formatINR(quote.total)}</strong>
                   </p>
-                  <p className="muted small">Fuel, toll, state tax and parking are separate</p>
+                  <p className="muted small">Includes base fare, driver bata &amp; discounts</p>
+                  <p className="muted small">Toll, State Tax &amp; Parking extra (as per actuals)</p>
                 </div>
               </div>
             </section>

@@ -73,3 +73,7 @@ export async function requestDutyCancellation(bookingId: string, reason: string,
 export function acknowledgeAssignment(bookingId: string, step: 'viewed' | 'acknowledged') {
   void callFunction('acknowledgeAssignment', { bookingId, step }, 15000).catch(() => undefined);
 }
+
+export interface AccountDeletionReceipt { alreadyOpen: boolean; liveBookings: number; reference: string }
+/** Asks the office to erase this partner's account and personal data. Nothing is deleted automatically; the office verifies and settles first. */
+export const requestAccountDeletion = (role: 'driver' | 'vendor') => callFunction<{ role: string }, AccountDeletionReceipt>('requestAccountDeletion', { role });

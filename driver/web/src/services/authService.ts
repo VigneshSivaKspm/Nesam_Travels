@@ -103,20 +103,19 @@ export function describePhoneAuthError(error: unknown): string {
     case "auth/quota-exceeded":
       return "SMS quota exceeded for today. Please contact support or try again later.";
     case "auth/operation-not-allowed":
-      return "Phone sign-in is not enabled in Firebase Console. Please enable it under Authentication > Sign-in method.";
+      return "We can’t send verification codes right now. Please try again later or contact NESAM support.";
     case "auth/unauthorized-domain":
-      return "This domain is not authorised in Firebase Authentication settings.";
+      return "Sign-in isn’t available from this web address. Please use the official NESAM partner website.";
     case "auth/captcha-check-failed":
     case "auth/invalid-app-credential": {
       // The SDK hides the server's reason; log it so the real cause is visible in the console.
       const server = (error as { customData?: { _serverResponse?: unknown } })?.customData?._serverResponse;
       if (server) console.error("[Firebase Phone Auth] server response:", JSON.stringify(server));
-      const host = typeof window !== "undefined" ? window.location.host : "";
-      return `Security check failed on ${host || "this address"}. Open this panel at http://localhost:<port> (not an IP address or a new deployment URL) — the address must be in Firebase Console › Authentication › Settings › Authorized domains. Then refresh and try again.`;
+      return "We couldn’t complete the security check. Refresh the page and try again.";
     }
     case "auth/billing-not-enabled":
-      return "SMS verification requires Firebase Blaze plan. Please contact admin.";
+      return "We can’t send verification codes right now. Please try again later or contact NESAM support.";
     default:
-      return message || "Unable to complete verification. Please try again.";
+      return "We couldn’t verify your number. Please try again.";
   }
 }

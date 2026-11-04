@@ -46,30 +46,30 @@
   display: grid;
   grid-row: span 3;
   grid-template-rows: subgrid;
-  row-gap: 3px;
+  row-gap: 1px;
   align-content: start;
-  padding: 10px 10px 9px;
+  padding: 7px 9px 7px;
   border: 1px solid color-mix(in srgb, var(--addl-accent) 24%, #fff);
-  border-radius: 12px;
+  border-radius: 10px;
   background: color-mix(in srgb, var(--addl-accent) 6%, #fff);
 }
 .addl__tile:only-child {
   grid-column: 1 / -1;
 }
 .addl__tile-label {
-  padding-right: 22px;
-  font-size: 0.75rem;
+  padding-right: 18px;
+  font-size: 0.6875rem;
   font-weight: 700;
   line-height: 1.25;
   color: var(--ink, #20252d);
 }
 .addl__tile-icon {
   position: absolute;
-  top: 9px;
-  right: 9px;
+  top: 7px;
+  right: 8px;
   display: grid;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   color: var(--ink, #20252d);
 }
 .addl__tile-icon svg,
@@ -83,13 +83,13 @@
   align-items: baseline;
   flex-wrap: wrap;
   gap: 4px;
-  font-size: 1.3125rem;
+  font-size: 1.0625rem;
   font-weight: 800;
   line-height: 1.1;
   color: var(--addl-accent);
 }
 .addl__tile-value small {
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   font-weight: 600;
   color: var(--ink, #20252d);
 }
@@ -135,6 +135,7 @@
 .addl__chip {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-width: 0;
   min-height: 38px;
@@ -206,6 +207,6 @@
     grid-column: auto;
   }
   .addl__tile-value {
-    font-size: 1.5rem;
+    font-size: 1.1875rem;
   }
 }

@@ -2539,3 +2539,241 @@ html[data-hero-logo='in'] .ride-chip {
     height: 22px;
   }
 }
+
+/* Round trip: pickup, every stop, "Add stop" and drop sit in one straight column (same left and right edges),
+   joined by a straight dotted line. One way keeps its curved rail. */
+.bf .bf-form .bf-route.bf-route--round > .bf-stop-field,
+.bf .bf-form .bf-route.bf-route--round > .bf-round-stop-add,
+.bf .bf-form .bf-route.bf-route--round:not(.bf-route--single) > .bf-route__cell:last-of-type {
+  margin-left: 0;
+}
+@container (max-width: 759.98px) {
+  .bf .bf-form .bf-route.bf-route--round::before {
+    top: 32px;
+    bottom: 32px;
+    left: 29px;
+    width: 0;
+    border-left: 2px dashed color-mix(in srgb, var(--muted, #697587) 55%, transparent);
+    background: none;
+  }
+  .bf .bf-form .bf-route.bf-route--round .bf-pin.bf-pin--drop {
+    left: -23px;
+  }
+}
+@media (max-width: 420px) {
+  .bf .bf-form .bf-route.bf-route--round::before {
+    left: 26px;
+  }
+  .bf .bf-form .bf-route.bf-route--round .bf-pin.bf-pin--drop {
+    left: -20px;
+  }
+}
+
+/* Swap button: takes the site's accent (tinted fill, accent arrows and outline). */
+.bf .bf-form .bf-route .bf-swap {
+  border: 1px solid color-mix(in srgb, var(--bfx) 35%, #fff);
+  background: color-mix(in srgb, var(--bfx) 10%, #fff);
+  color: var(--bfx);
+}
+.bf .bf-form .bf-route .bf-swap:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--bfx) 18%, #fff);
+  color: var(--bfx);
+}
+
+/* Round trip: a compact "+ Add stop" pill centred in its own row, with the swap button centred on the right of
+   that row (it sits between the stops and the drop). No horizontal rules. */
+.bf .bf-form .bf-route.bf-route--round .bf-route__tools {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  grid-column: 1 / -1;
+  min-height: 44px;
+}
+.bf .bf-form .bf-route .bf-route__tools .bf-round-stop-add {
+  min-height: 38px;
+  margin: 0;
+  padding: 0 18px;
+  gap: 6px;
+  border: 1.5px solid color-mix(in srgb, var(--bfx) 35%, #d9dfe9);
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ink, #20252d);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+.bf .bf-form .bf-route .bf-route__tools .bf-round-stop-add svg {
+  color: var(--bfx);
+}
+.bf .bf-form .bf-route .bf-route__tools .bf-swap {
+  position: absolute !important;
+  top: 50% !important;
+  right: 0 !important;
+  left: auto !important;
+  margin: 0;
+  transform: translateY(-50%) !important;
+}
+.bf .bf-form .bf-route .bf-route__tools .bf-swap svg {
+  rotate: none;
+}
+
+/* "Choose on map" sits at the top of the location picker, right under the search box. */
+.picker__map-option {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.picker__map-option .place-row {
+  border-bottom: 0;
+}
+
+/* Pick-on-map sheet: slides up from the bottom, takes 80% of the screen height, the map fills what is left under
+   the heading, and it slides back down when closed. */
+.overlay:has(> .pin-sheet) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+}
+.overlay:has(> .pin-sheet.is-closing) {
+  animation: pin-sheet-fade 240ms ease forwards;
+}
+.dialog.pin-sheet {
+  width: min(100%, 640px);
+  height: 80vh;
+  height: 80dvh;
+  max-height: 80dvh;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  border: 0;
+  border-radius: 22px 22px 0 0;
+  animation: pin-sheet-up 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+.dialog.pin-sheet.is-closing {
+  animation: pin-sheet-down 240ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.dialog.pin-sheet .dialog__body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+.dialog.pin-sheet .pinmap {
+  flex: 1 1 0;
+  height: auto;
+  min-height: 0;
+}
+.dialog.pin-sheet .route-map {
+  height: 100%;
+  min-height: 0;
+}
+.dialog.pin-sheet .pin-card {
+  flex: none;
+}
+.dialog.pin-sheet .dialog__foot {
+  flex: none;
+}
+@keyframes pin-sheet-up {
+  from {
+    transform: translateY(100%);
+  }
+}
+@keyframes pin-sheet-down {
+  to {
+    transform: translateY(100%);
+  }
+}
+@keyframes pin-sheet-fade {
+  to {
+    background-color: transparent;
+    backdrop-filter: none;
+  }
+}
+
+/* Vehicle names on the choose-a-car cards and the selected-car panel: smaller, so a long line like
+   "Dzire / Etios or similar" stays on one or two tidy lines. */
+.cab__info .cab__name,
+.cab .cab__name {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+.sel-card__car strong,
+.flow-card__car-thumb + div strong {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+/* Location picker options: two clearly different cards, each with its own coloured icon tile. */
+.pick-opts {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.pick-opt {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px 11px 12px;
+  border: 1px solid var(--pick-line);
+  border-radius: 16px;
+  background: var(--pick-bg);
+  color: var(--ink, #20252d);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.pick-opt:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgb(20 33 61 / 0.1);
+}
+.pick-opt:disabled {
+  opacity: 0.7;
+  cursor: progress;
+}
+.pick-opt--map {
+  --pick-line: #fbd9a0;
+  --pick-bg: #fffaf1;
+  --pick-tile: #ffe3b0;
+  --pick-ink: #d9730d;
+}
+.pick-opt--here {
+  --pick-line: #b9e6cb;
+  --pick-bg: #f2fbf6;
+  --pick-tile: #c9f0da;
+  --pick-ink: #16a34a;
+}
+.pick-opt__icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: var(--pick-tile);
+  color: var(--pick-ink);
+}
+.pick-opt__text {
+  display: grid;
+  min-width: 0;
+  gap: 1px;
+}
+.pick-opt__text strong {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.pick-opt__text small {
+  color: var(--muted, #697587);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+.pick-opt__chev {
+  flex: none;
+  margin-left: auto;
+  color: var(--pick-ink);
+}

@@ -165,6 +165,7 @@ export function ReviewStep() {
         route,
         fare: quote,
         tripType,
+        multicity: draft.multicity && tripType === 'Round Trip',
         paymentMethod: payment,
         couponCode: q.coupon?.code ?? '',
         notes: fullNotes,
@@ -178,8 +179,9 @@ export function ReviewStep() {
         bookingSource: 'peopletaxi',
         brand: 'peopletaxi',
       });
-      reset();
-      navigate(`/book/done/${res.id}`, { state: { confirmed: true } });
+      // The confirmation page clears the draft once it is showing: clearing it here would make the booking page
+      // redirect home before this navigation lands, and the confirmation would never appear.
+      navigate(`/book/done/${res.id}`, { replace: true, state: { confirmed: true } });
     } catch (e: unknown) {
       const err = e as { code?: string; fare?: Fare };
       if (err.code === 'fare-changed' && err.fare) {
@@ -293,8 +295,8 @@ export function ReviewStep() {
 
               <ul className="rv-sum__notes">
                 {draft.fuelType === 'cng' ? <li>Fuel type: CNG</li> : null}
-                <li>All charges and discounts are included</li>
-                <li>Fuel, toll, state tax and parking are separate</li>
+                <li>Includes base fare, driver bata &amp; discounts</li>
+                <li>Toll, State Tax &amp; Parking extra (as per actuals)</li>
               </ul>
 
               <div className="rv-links">

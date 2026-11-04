@@ -1,6 +1,6 @@
 // Choosing a pickup or drop: live search (Photon via the shared geoService), the device's real
 // location, saved places, recent places, popular cities and "choose on map" with a fixed pin.
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GeoPlace, LatLng, LocationItem } from '@core/types';
 import { reverseGeocode, searchPlaces } from '@core/services/geoService';
 import { isValidLatLng } from '@core/utils/geo';
@@ -147,14 +147,31 @@ export function LocationPicker({
         </p>
       ) : null}
 
-      {config.allowCurrent ? (
-        <button type="button" className="place-current" onClick={() => void useCurrent()} disabled={currentBusy || locating}>
-          <span className="place-current__icon">{currentBusy || locating ? <Spinner /> : <Icon name="navigation" size={20} />}</span>
-          <span className="place-current__text">
-            <strong>Use your current location</strong>
-            {locationNote ? <small>{locationNote}</small> : <small>Uses your device location, with your permission</small>}
-          </span>
-        </button>
+      {config.pinMode || config.allowCurrent ? (
+        <div className="pick-opts">
+          {config.pinMode ? (
+            <button type="button" className="pick-opt pick-opt--map" onClick={() => setMapMode(true)}>
+              <span className="pick-opt__icon">
+                <Icon name="map-pin" size={22} />
+              </span>
+              <span className="pick-opt__text">
+                <strong>Choose on map</strong>
+                <small>Move the map to drop a pin on the exact spot</small>
+              </span>
+              <Icon name="chevron-right" size={16} className="pick-opt__chev" />
+            </button>
+          ) : null}
+          {config.allowCurrent ? (
+            <button type="button" className="pick-opt pick-opt--here" onClick={() => void useCurrent()} disabled={currentBusy || locating}>
+              <span className="pick-opt__icon">{currentBusy || locating ? <Spinner /> : <Icon name="navigation" size={22} />}</span>
+              <span className="pick-opt__text">
+                <strong>{currentBusy || locating ? 'Finding your location…' : 'Use your current location'}</strong>
+                {locationNote ? <small>{locationNote}</small> : <small>Uses your device location, with your permission</small>}
+              </span>
+              <Icon name="chevron-right" size={16} className="pick-opt__chev" />
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       <div className="picker__lists" aria-live="polite">
@@ -211,11 +228,6 @@ export function LocationPicker({
             ) : null}
           </>
         )}
-        {config.pinMode ? (
-          <ul>
-            <Row icon="navigation" title="Choose on map" subtitle="Move the map to drop a pin on the exact spot" onClick={() => setMapMode(true)} />
-          </ul>
-        ) : null}
       </div>
     </Dialog>
   );
@@ -226,6 +238,15 @@ function PinDialog({ title, mode, onBack, onConfirm }: { title: string; mode: 'p
   const [center, setCenter] = useState<LatLng | null>(null);
   const [place, setPlace] = useState<GeoPlace | null>(null);
   const [busy, setBusy] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const closeTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(closeTimer.current), []);
+  // Slides down before it is removed, mirroring the slide up when it opens.
+  const close = () => {
+    if (closing) return;
+    setClosing(true);
+    closeTimer.current = window.setTimeout(onBack, 240);
+  };
 
   useEffect(() => {
     if (!center) return undefined;
@@ -248,14 +269,14 @@ function PinDialog({ title, mode, onBack, onConfirm }: { title: string; mode: 'p
 
   return (
     <Dialog
-      wide
       variant="page"
+      className={`pin-sheet ${closing ? 'is-closing' : ''}`}
       title={title}
       subtitle="Move the map so the pin sits on the exact spot."
-      onClose={onBack}
+      onClose={close}
       footer={
         <>
-          <Button variant="secondary" icon="arrow-left" onClick={onBack}>
+          <Button variant="secondary" icon="arrow-left" onClick={close}>
             Back
           </Button>
           <Button disabled={!place || busy} onClick={() => place && onConfirm(place)}>

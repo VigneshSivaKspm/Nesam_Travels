@@ -32,6 +32,8 @@ export interface BookingDraft {
   flight: string;
   /** Local Rental package hours; null = the shortest package each car offers. */
   rentalHours: number | null;
+  /** A Multicity tour: a Round Trip through several cities (the stops), priced from the Multicity rates. */
+  multicity: boolean;
 }
 
 /** Local Rental packages the booking server offers (each car shows which it can book). */
@@ -58,6 +60,7 @@ export const EMPTY_DRAFT: BookingDraft = {
   passengerMobile: '',
   flight: '',
   rentalHours: null,
+  multicity: false,
 };
 
 const STORAGE_KEY = 'nesam.booking.v1';
@@ -110,6 +113,7 @@ export function loadDraft(): BookingDraft {
       passengerMobile: typeof d.passengerMobile === 'string' ? d.passengerMobile.slice(0, 16) : '',
       flight: typeof d.flight === 'string' ? d.flight.slice(0, 12) : '',
       rentalHours: typeof d.rentalHours === 'number' && RENTAL_PACKAGE_HOURS.includes(d.rentalHours) ? d.rentalHours : null,
+      multicity: d.multicity === true && d.tripType === 'Round Trip',
     };
   } catch {
     return EMPTY_DRAFT;
